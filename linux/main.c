@@ -11,6 +11,7 @@
 #include "fly.h"
 #include "display_filter.h"
 #include "updater.h"
+#include "shader.h"
 #include "hud.h"
 #include "pd_dex.h"
 #include "pd_guide.h"
@@ -707,6 +708,15 @@ static SDL_Rect sdl_rect(struct view_rect r) {
   return (SDL_Rect){r.x, r.y, r.w, r.h};
 }
 static int gameScaling; // plorpOS: enum pd_scaling, for ASPECT ORIGINAL's picture
+static bool oledBlack;    // COLORS OLED: the panels' backdrops true black, like the screen round the game
+static bool dimCompanion; // DIM COMPANION: the companion and its panels drawn darker, against OLED burn-in
+static uint32_t panel_back(void) {
+  return oledBlack ? 0 : 0x101418;
+}
+static void dim_texture(SDL_Texture *t) {
+  uint8_t v = dimCompanion ? 150 : 255;
+  SDL_SetTextureColorMod(t, v, v, v);
+}
 static const struct view_layout *gameView; // COMPANION VIEW: where the game goes (NULL = the whole screen)
 static int hudRepelSteps; // the bottom strip's REPEL
 static bool render_game(unsigned gw, unsigned gh) {
@@ -760,6 +770,16 @@ static bool render_game(unsigned gw, unsigned gh) {
     drawn = wideTexture;
   }
   SDL_RenderClear(renderer);
+  if (pocket_shader_active()) {
+    // SHADER / COLORS: a filtered copy of the same pixels (shader.cpp), drawn into the same rectangle.
+    bool wide = drawn == wideTexture;
+    if (!pocket_shader_draw(renderer, wide ? wideFrame : video, wide ? (int)gw : 256, (int)gw, (int)gh, false,
+                            &lastGameRect)) {
+      notice(SDL_GetError());
+      return false;
+    }
+    return true;
+  }
   SDL_Rect src = {0, 0, (int)gw, (int)gh};
   if (SDL_RenderCopy(renderer, drawn, &src, &lastGameRect) < 0) {
     notice(SDL_GetError());
@@ -1020,7 +1040,7 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   if (key != panelKey[which] || w != panelW[which] || h != panelH[which]) {
     struct pd_canvas pc;
     pd_canvas_init(&pc, w, h, panelPixels);
-    pd_fill(&pc, 0, 0, w, h, 0x101418);
+    pd_fill(&pc, 0, 0, w, h, panel_back());
     if (which == PANEL_LEFT)
       pd_ui_party_panel(&pc, g, s);
     else if (which == PANEL_RIGHT && battle)
@@ -1034,9 +1054,11 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     panelW[which] = w;
     panelH[which] = h;
   }
-  SDL_SetRenderDrawColor(renderer, 0x10, 0x14, 0x18, 255);
+  uint32_t back = panel_back();
+  SDL_SetRenderDrawColor(renderer, back >> 16, back >> 8 & 0xFF, back & 0xFF, 255);
   SDL_RenderFillRect(renderer, &(SDL_Rect){r.x, r.y, r.w, r.h});
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  dim_texture(panelTexture[which]);
   SDL_RenderCopy(renderer, panelTexture[which], &(SDL_Rect){0, 0, w, h},
                  &(SDL_Rect){r.x + (r.w - w * scale) / 2, r.y + (r.h - h * scale) / 2, w * scale, h * scale});
 }
@@ -1085,7 +1107,8 @@ static void present_view_companion(const struct pd_game *g, const struct pd_snap
   }
   if (!viewShown.dim) {
     // Beside the game the companion sits on a backdrop of its own (see-through as a drawer).
-    SDL_SetRenderDrawColor(renderer, 0x10, 0x14, 0x18, viewShown.companionGlass ? 170 : 255);
+    uint32_t back = panel_back();
+    SDL_SetRenderDrawColor(renderer, back >> 16, back >> 8 & 0xFF, back & 0xFF, viewShown.companionGlass ? 170 : 255);
     SDL_RenderFillRect(renderer, &(SDL_Rect){shown.x, shown.y, shown.w, shown.h});
   }
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
@@ -1105,7 +1128,9 @@ static void present_view_companion(const struct pd_game *g, const struct pd_snap
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureAlphaMod(texture, 215);
   }
+  dim_texture(texture);
   SDL_RenderCopy(renderer, texture, NULL, &at);
+  SDL_SetTextureColorMod(texture, 255, 255, 255);
   SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
   SDL_SetTextureAlphaMod(texture, 255);
   timed_present();
@@ -1690,7 +1715,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
-                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .count = 1, .labels = {"HOST"}};
+                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .count = 1, .labels = {"HOST"}};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
@@ -1730,6 +1755,9 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     lastStart = frameStart;
     rewind_follow(settings.rewind || rewindBound);
     lcdEnabled = settings.lcdFilter;
+    pocket_shader_set(settings.shader, settings.colors, false);
+    oledBlack = settings.colors == POCKET_COLORS_OLED;
+    dimCompanion = settings.dimCompanion;
     gameScaling = settings.aspect == PD_ASPECT_ORIGINAL || !wideSupported ? settings.scaling : PD_SCALE_INTEGER;
     events();
     audio_check();
@@ -2589,6 +2617,7 @@ int main(int argc, char **argv) {
   if (hudTexture)
     SDL_DestroyTexture(hudTexture);
   hudTexture = NULL;
+  pocket_shader_free();
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
   SDL_Quit();

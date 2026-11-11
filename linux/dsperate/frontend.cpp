@@ -8,6 +8,7 @@
 #include "map_art.h"
 #include "pk_nds_field.h"
 #include "ds_layout.h"
+#include "../shader.h"
 #include <SDL.h>
 #include <algorithm>
 #include <filesystem>
@@ -59,7 +60,8 @@ bool atomic_file(const std::string& path,const uint8_t* data,size_t size){
 struct DsPrefs {
   bool bottom=false, resume=false, hud=true;
   int battle=0, layout=DSL_ONE;
-  bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud || layout!=other.layout;}
+  int shader=POCKET_SHADER_OFF, colors=POCKET_COLORS_ORIGINAL;bool dim=false;  // SHADER / COLORS / DIM COMPANION (shader.h)
+  bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud || layout!=other.layout || shader!=other.shader || colors!=other.colors || dim!=other.dim;}
 };
 DsPrefs load_prefs(const std::string& path){
   DsPrefs p;std::ifstream f(path);std::string line;
@@ -70,11 +72,14 @@ DsPrefs load_prefs(const std::string& path){
     else if(line=="bottom=1")p.bottom=true;else if(line=="bottom=0")p.bottom=false;
     else if(line=="resume=1")p.resume=true;else if(line=="resume=0")p.resume=false;
     else if(line.rfind("layout=",0)==0){int v=std::atoi(line.c_str()+7);if(v>=0 && v<DSL_COUNT)p.layout=v;}
+    else if(line.rfind("shader=",0)==0){int v=std::atoi(line.c_str()+7);if(v>=0 && v<POCKET_SHADERS)p.shader=v;}
+    else if(line.rfind("colors=",0)==0){int v=std::atoi(line.c_str()+7);if(v>=0 && v<POCKET_COLORS_COUNT)p.colors=v;}
+    else if(line=="dim=1")p.dim=true;else if(line=="dim=0")p.dim=false;
   }
   return p;
 }
 bool save_prefs(const std::string& path,const DsPrefs& p){
-  std::string text="# PokeDaisy DS preferences\nbottom="+std::to_string(p.bottom)+"\nresume="+std::to_string(p.resume)+"\nbattle="+std::to_string(p.battle)+"\nhud="+std::to_string(p.hud)+"\nlayout="+std::to_string(p.layout)+"\n";
+  std::string text="# PokeDaisy DS preferences\nbottom="+std::to_string(p.bottom)+"\nresume="+std::to_string(p.resume)+"\nbattle="+std::to_string(p.battle)+"\nhud="+std::to_string(p.hud)+"\nlayout="+std::to_string(p.layout)+"\nshader="+std::to_string(p.shader)+"\ncolors="+std::to_string(p.colors)+"\ndim="+std::to_string(p.dim)+"\n";
   return atomic_file(path,reinterpret_cast<const uint8_t*>(text.data()),text.size());
 }
 int keyboard(SDL_Keycode k){switch(k){
@@ -90,6 +95,8 @@ int pad(int b){switch(b){
   case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:return 8;case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:return 9;
   case SDL_CONTROLLER_BUTTON_Y:return 10;case SDL_CONTROLLER_BUTTON_X:return 11;
   case SDL_CONTROLLER_BUTTON_GUIDE:return 15;default:return -1;}}
+// The SET tab's rows: SCREEN, DS LAYOUT, AUTO-RESUME, BATTLES, HUD, SHADER, COLORS, DIM COMPANION.
+constexpr int DS_SETTINGS=8;
 struct Texture {SDL_Texture* p;~Texture(){SDL_DestroyTexture(p);}};
 struct Audio {SDL_AudioDeviceID id=0;SDL_AudioStream* stream=nullptr;~Audio(){SDL_FreeAudioStream(stream);if(id)SDL_CloseAudioDevice(id);}};
 void blit(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,int w,int h,int ow,int oh){
@@ -99,7 +106,9 @@ void blit(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,int w,int h,int ow,i
 // A DS screen drawn into its DS LAYOUT box.
 void draw_screen(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,const DsBox& box){
   if(!box.shown())return;
-  SDL_UpdateTexture(t,nullptr,px,256*4);SDL_Rect dst{box.x,box.y,box.w,box.h};SDL_RenderCopy(r,t,nullptr,&dst);
+  SDL_Rect dst{box.x,box.y,box.w,box.h};
+  if(pocket_shader_active() && pocket_shader_draw(r,px,256,256,192,true,&dst))return;  // SHADER / COLORS
+  SDL_UpdateTexture(t,nullptr,px,256*4);SDL_RenderCopy(r,t,nullptr,&dst);
 }
 // A thin dark frame round an inset or floating screen, so it reads as its own screen over the other.
 void frame_screen(SDL_Renderer* r,const DsBox& box){
@@ -115,8 +124,8 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
   pd_list_box(&c,5,61,c.w-10,c.h-86);int y=68;
   auto line=[&](const std::string& t){pd_text_fit(&c,13,y,c.w-26,t.c_str(),0x303030,PD_NO_SHADOW);y+=20;};
   if(tab==4){
-    const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("DS LAYOUT: ")+ds_layout_name(prefs.layout),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF")};
-    for(int i=0;i<5;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,20,0xffe4a0);line(rows[i]);}
+    const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("DS LAYOUT: ")+ds_layout_name(prefs.layout),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF"),std::string("SHADER: ")+pocket_shader_name(prefs.shader),std::string("COLORS: ")+pocket_colors_name(prefs.colors),std::string("DIM COMPANION: ")+(prefs.dim?"ON":"OFF")};
+    for(int i=0;i<DS_SETTINGS;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,20,0xffe4a0);line(rows[i]);}
     line("Resume saves on clean exit");line("Separate from manual states");
   }
   else if(!supported)line("Companion: Platinum USA Rev 1 only");
@@ -380,9 +389,10 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         mapX=std::clamp(mapX,0,29);mapY=std::clamp(mapY,minY,maxY);
       }
       if(tab==4){
-        if(pressed&(1u<<6))setting=(setting+4)%5;
-        if(pressed&(1u<<7))setting=(setting+1)%5;
-        if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1)prefs.layout=(prefs.layout+1)%DSL_COUNT;else if(setting==2)prefs.resume=!prefs.resume;else if(setting==3)prefs.battle=1-prefs.battle;else prefs.hud=!prefs.hud;}
+        if(pressed&(1u<<6))setting=(setting+DS_SETTINGS-1)%DS_SETTINGS;
+        if(pressed&(1u<<7))setting=(setting+1)%DS_SETTINGS;
+        if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1)prefs.layout=(prefs.layout+1)%DSL_COUNT;else if(setting==2)prefs.resume=!prefs.resume;else if(setting==3)prefs.battle=1-prefs.battle;else if(setting==4)prefs.hud=!prefs.hud;
+          else if(setting==5)prefs.shader=(prefs.shader+1)%POCKET_SHADERS;else if(setting==6)prefs.colors=(prefs.colors+1)%POCKET_COLORS_COUNT;else prefs.dim=!prefs.dim;}
       }
       if(tab!=4 && tab!=5 && (pressed&(1u<<6))){if(tab==1 || tab==2)scroll=std::max(0,scroll-1);else selected=std::max(0,selected-1);}
       if(tab!=4 && tab!=5 && (pressed&(1u<<7))){if(tab==1 || tab==2)scroll=std::min(std::max(0,(tab==1?int(snap.bag.size()):int(snap.dexSeen.size())-1)-1),scroll+1);else selected=std::min(std::max(0,int(snap.party.size())-1),selected+1);}
@@ -413,7 +423,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     int ow=1024,oh=768;
     if(!ds_display_pixels(renderer,ow,oh)){std::fprintf(stderr,"DS display setup failed: %s\n",SDL_GetError());failed=true;break;}
     SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_RenderClear(renderer);
-    if(showCompanion){companion(canvas,snap,supported,tab,selected,summary,scroll,page,prefs,setting,mapArt,mapX,mapY);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);}
+    pocket_shader_set(prefs.shader,prefs.colors,true);
+    if(showCompanion){companion(canvas,snap,supported,tab,selected,summary,scroll,page,prefs,setting,mapArt,mapX,mapY);
+      uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
     else{
       DsPlacement place=ds_place(layout,ow,oh,view.bottom,touchWanted && !view.bottom);
       bool topInset=place.inset && view.bottom;  // PICTURE IN PICTURE swapped: the top screen is the small one
@@ -483,5 +495,6 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   }
   double seconds=double(SDL_GetPerformanceCounter()-started)/SDL_GetPerformanceFrequency();
   std::fprintf(stderr,"DS: %d host iterations in %.2fs, core frames %llu\n",frame,seconds,(unsigned long long)nds->frameCount());
+  pocket_shader_free();
   active=nullptr;return failed?1:0;
 }
