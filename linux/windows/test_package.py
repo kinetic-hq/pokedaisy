@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory(prefix='pd-windows-package-') as d:
             assert name + '/' + folder in names, folder
         dlls = [n for n in names if n.lower().endswith('.dll')]
         assert dlls == [name + '/SDL2.dll'], dlls
-        assert z.read(name + '/SOURCE.txt').startswith(b'Source: https://github.com/lidor30/pokedaisy')
+        assert z.read(name + '/SOURCE.txt').startswith(b'Source: https://github.com/kinetic-hq/pokedaisy')
         if '--melonds' in options:
             assert name + '/licenses/melonDS-GPL-3.0.txt' in names and name + '/licenses/Teakra-MIT.txt' in names
             assert b'melonDS: https://github.com/melonDS-emu/melonDS' in z.read(name + '/SOURCE.txt')

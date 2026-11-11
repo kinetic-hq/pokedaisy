@@ -2315,6 +2315,9 @@ static void rom_name(const char *name, void *user) {
                                 ))
     r->names[r->count++] = strdup(name);
 }
+#ifndef POCKET_VERSION
+#define POCKET_VERSION "dev"
+#endif
 int main(int argc, char **argv) {
   const char *rom = NULL, *shot = NULL;
   int frames = 0;
@@ -2332,6 +2335,10 @@ int main(int argc, char **argv) {
   }
 #endif
   for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--version")) {
+      printf("PokeDaisy %s\n", POCKET_VERSION);
+      return 0;
+    }
     if (!strcmp(argv[i], "--data") && i + 1 < argc)
       root = argv[++i];
     else if (!strcmp(argv[i], "--save") && i + 1 < argc)
@@ -2354,6 +2361,7 @@ int main(int argc, char **argv) {
     pocket_attach_log(log);
   }
 #endif
+  fprintf(stderr, "PokeDaisy %s\n", POCKET_VERSION);
   char path[1024];
   static char backups[1024];
   if (saveFile) {

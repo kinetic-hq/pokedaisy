@@ -1,0 +1,155 @@
+name: Desktop release
+# Cuts a release of the Windows / Linux program when main gets a change worth one.
+# The commit subjects on main since the last desktop-v* tag decide (conventional
+# commits; a squash merge's subject is its PR title): "type!:" or a
+# "BREAKING CHANGE" bumps major, feat minor, fix / perf patch; docs, ci, chore,
+# test, refactor, style and build alone cut nothing. The first release is 1.0.0.
+# The version is baked into the program (POCKET_VERSION) and the zips are attached
+# under fixed names, which the program's update check looks for.
+# Its tags are desktop-v*, never v*: v* tags are the Android app's (release.yml).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.v.outputs.release }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+      - name: Next version
+        id: v
+        run: |
+          last=$(git tag --list 'desktop-v*' --sort=-v:refname | head -1)
+          if [ -n "$last" ]; then
+            range="$last..HEAD"; cur=${last#desktop-v}
+          else
+            # Nothing released yet: look at what came after the newest upstream app tag.
+            base=$(git tag --list 'v*' --sort=-creatordate | head -1)
+            range="${base:+$base..}HEAD"; cur=""
+          fi
+          git log --first-parent --format='%s%n%b%n--END--' $range > "$RUNNER_TEMP/log.txt"
+          git log --first-parent --format='%s' $range > "$RUNNER_TEMP/subjects.txt"
+          bump=none
+          grep -Eq '^[a-z]+(\([^)]*\))?!:' "$RUNNER_TEMP/subjects.txt" && bump=major
+          grep -q '^BREAKING CHANGE' "$RUNNER_TEMP/log.txt" && bump=major
+          [ $bump = none ] && grep -Eq '^feat(\([^)]*\))?:' "$RUNNER_TEMP/subjects.txt" && bump=minor
+          [ $bump = none ] && grep -Eq '^(fix|perf)(\([^)]*\))?:' "$RUNNER_TEMP/subjects.txt" && bump=patch
+          if [ $bump = none ]; then
+            echo "Nothing to release in $range."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -z "$cur" ]; then
+            next=1.0.0
+          else
+            IFS=. read -r ma mi pa <<< "$cur"
+            case $bump in
+              major) next="$((ma + 1)).0.0" ;;
+              minor) next="$ma.$((mi + 1)).0" ;;
+              patch) next="$ma.$mi.$((pa + 1))" ;;
+            esac
+          fi
+          echo "$bump -> $next"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          {
+            section() {
+              lines=$(grep -E "^$1(\([^)]*\))?!?:" "$RUNNER_TEMP/subjects.txt" | sed -E 's/^[a-z]+(\([^)]*\))?!?: */- /')
+              [ -n "$lines" ] && printf '### %s\n\n%s\n\n' "$2" "$lines"
+            }
+            section feat "New"
+            section fix "Fixes"
+            section perf "Faster"
+            echo "Download \`pokedaisy-windows-x86_64.zip\` for Windows or \`pokedaisy-linux-x86_64.zip\` for Linux, unzip it and run PokeDaisy. Your DATA folder (settings, saves, states, ROMs) is never in the zip, so an update keeps it."
+          } > notes.md
+          cat notes.md
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.v.outputs.release == 'true'
+        with:
+          name: notes
+          path: notes.md
+  windows:
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-pkgconf
+      - run: git config --global --add safe.directory "$(pwd)" && git submodule update --init third_party/mgba third_party/melonds
+      - name: Build and test
+        run: |
+          cmake -S linux -B linux/build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_LTO=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DPOCKET_MELONDS=ON -DPOCKET_VERSION=${{ needs.plan.outputs.version }}
+          cmake --build linux/build-win
+          ctest --test-dir linux/build-win --output-on-failure
+      - name: Package
+        run: python linux/windows/package.py --melonds --version ${{ needs.plan.outputs.version }} linux/build-win/pokedaisy.exe "$RUNNER_TEMP/out"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows
+          path: ${{ runner.temp }}/out/*.zip
+          if-no-files-found: error
+  linux:
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: git submodule update --init third_party/mgba
+      - run: bash .github/scripts/apt-install.sh cmake libsdl2-dev
+      - name: Build and test
+        run: |
+          cmake -S linux -B linux/build -DCMAKE_BUILD_TYPE=Release -DBUILD_LTO=OFF -DPOCKET_VERSION=${{ needs.plan.outputs.version }}
+          cmake --build linux/build -j2
+          ctest --test-dir linux/build --output-on-failure
+      - name: Package
+        run: python3 linux/package.py linux/build/pokedaisy-linux "$RUNNER_TEMP/out"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: linux
+          path: ${{ runner.temp }}/out/*.zip
+          if-no-files-found: error
+  publish:
+    needs: [plan, windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: dist
+      - name: Tag and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          ls -R dist
+          (cd dist && sha256sum windows/*.zip linux/*.zip | sed 's#  [a-z]*/#  #' > SHA256SUMS.txt)
+          gh release create "desktop-v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "PokeDaisy for Windows and Linux $VERSION" --notes-file dist/notes/notes.md --latest \
+            dist/windows/*.zip dist/linux/*.zip dist/SHA256SUMS.txt
