@@ -1,0 +1,108 @@
+name: Upstream sync
+# Brings lidor30/pokedaisy's main into this fork. Every day (and on demand) it
+# fetches upstream main; when upstream has commits main doesn't, it opens (or
+# updates) the PR "chore: sync upstream" from tanjid/chore/sync-upstream:
+# - a clean merge: the branch is main + the merge; once its checks pass it is
+#   squash-merged (the title is chore:, so no release is cut for it);
+# - a conflict: the branch is upstream main as it is, and the PR lists the
+#   conflicting files to resolve by hand (GitHub shows the same list).
+# Needs the SYNC_TOKEN secret: a fine-grained token on this repo with Contents,
+# Pull requests and Workflows read / write. GITHUB_TOKEN can't do it here: it may
+# not push upstream's workflow changes or open PRs, and PRs it opens run no CI.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+env:
+  UPSTREAM: https://github.com/lidor30/pokedaisy.git
+  BRANCH: tanjid/chore/sync-upstream
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check the token
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "::error::Add a SYNC_TOKEN secret (see the comment at the top of upstream-sync.yml)."
+            exit 1
+          fi
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+      - name: Merge upstream main
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM"
+          git fetch --no-tags upstream main
+          up=$(git rev-parse upstream/main)
+          echo "upstream=$up" >> "$GITHUB_OUTPUT"
+          if git merge-base --is-ancestor "$up" HEAD; then
+            echo "Main already has upstream $up."
+            echo "state=current" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git checkout -B "$BRANCH"
+          if git merge --no-ff --no-edit -m "chore: sync upstream lidor30/pokedaisy@${up:0:12}" "$up"; then
+            echo "state=clean" >> "$GITHUB_OUTPUT"
+          else
+            { echo 'conflicts<<EOF'; git diff --name-only --diff-filter=U; echo EOF; } >> "$GITHUB_OUTPUT"
+            git merge --abort
+            git checkout -B "$BRANCH" "$up"
+            echo "state=conflict" >> "$GITHUB_OUTPUT"
+          fi
+          git push --force origin "$BRANCH"
+      - name: Open or update the PR
+        if: steps.merge.outputs.state != 'current'
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          STATE: ${{ steps.merge.outputs.state }}
+          UP: ${{ steps.merge.outputs.upstream }}
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+        run: |
+          {
+            echo "Brings in lidor30/pokedaisy main up to lidor30/pokedaisy@$UP."
+            echo
+            if [ "$STATE" = conflict ]; then
+              echo "**The merge conflicts.** This branch is upstream main as it is; resolve these files against main, keeping both sides' behaviour:"
+              echo
+              printf '%s\n' "$CONFLICTS" | sed 's/^/- `/; s/$/`/'
+            else
+              echo "Merged cleanly. It is squash-merged once its checks pass."
+            fi
+            echo
+            echo "Check \"How this fork differs from PokeDaisy\" in README.md still holds after this."
+          } > "$RUNNER_TEMP/body.md"
+          n=$(gh pr list --head "$BRANCH" --base main --state open --json number -q '.[0].number')
+          if [ -n "$n" ]; then
+            gh pr edit "$n" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base main --head "$BRANCH" --title "chore: sync upstream" --body-file "$RUNNER_TEMP/body.md"
+            n=$(gh pr list --head "$BRANCH" --base main --state open --json number -q '.[0].number')
+          fi
+          echo "number=$n" >> "$GITHUB_OUTPUT"
+      - name: Merge once checks pass
+        if: steps.merge.outputs.state == 'clean'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          N: ${{ steps.pr.outputs.number }}
+        run: |
+          sleep 60  # let the PR's checks register
+          if gh pr checks "$N" --watch --fail-fast --interval 60; then
+            gh pr merge "$N" --squash --delete-branch --subject "chore: sync upstream (#$N)"
+          else
+            gh pr comment "$N" --body "Checks failed, so this sync waits for a fix."
+            exit 1
+          fi
