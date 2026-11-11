@@ -8,7 +8,9 @@ static bool gba, live;
 static uint32_t pausedAt;
 static const char* output;
 static void tap(SDL_Keycode code) {
-  SDL_Event e={.type=SDL_KEYDOWN};e.key.keysym.sym=code;
+  // The whole event zeroed: a designated initializer sets only the union's first member, and MinGW left
+  // stack bytes in key.repeat, so the host took the tap for a held key's repeat.
+  SDL_Event e;SDL_zero(e);e.type=SDL_KEYDOWN;e.key.keysym.sym=code;
   assert(SDL_PushEvent(&e)==1);e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);
 }
 static char liveName[48]="live";
@@ -419,7 +421,6 @@ static void test_frame(struct mCore* c,bool companion,int frame,struct pd_ui* ui
     assert(c->frameCounter(c)==before);pocket_remove("integration.ss");
     tap(SDLK_ESCAPE);
   } else if(frame==3) {
-    if(!companion)fprintf(stderr,"DEBUG frame3 held=%x pressed=%x hostMenu=%d hotkeyMask=%x pending=%d\n",(unsigned)held,(unsigned)pressed,(int)hostMenu,(unsigned)hotkeyMask,(int)SDL_PeepEvents(NULL,0,SDL_PEEKEVENT,SDL_FIRSTEVENT,SDL_LASTEVENT));
     assert(companion);tap(SDLK_x);
   } else if(frame==4) {
     assert(!companion);
@@ -428,7 +429,7 @@ static void test_frame(struct mCore* c,bool companion,int frame,struct pd_ui* ui
     assert(controller_button(SDL_CONTROLLER_BUTTON_A)==B);
     // Unknown raw devices must not inherit the TrimUI button indices.
     controller=NULL;rawTrimui=false;held=pressed=0;
-    SDL_Event e={.type=SDL_JOYBUTTONDOWN};e.jbutton.button=1;
+    SDL_Event e;SDL_zero(e);e.type=SDL_JOYBUTTONDOWN;e.jbutton.button=1;
     assert(SDL_PushEvent(&e)==1);events();assert(!held && !pressed);
     rawTrimui=true;assert(SDL_PushEvent(&e)==1);events();assert(down(A));held=pressed=0;
   } else if(frame==5)assert(c->frameCounter(c)>pausedAt);
