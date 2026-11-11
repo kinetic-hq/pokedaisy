@@ -29,7 +29,6 @@ if a.dsperate:
 if a.melonds:
     if b'.melonds' not in data:
         p.error('Expected a POCKET_MELONDS build')
-    name += '-ds'
 
 
 def objdump():

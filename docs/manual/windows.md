@@ -9,7 +9,7 @@ keywords: [windows, pc, rog ally, legion go, onexplayer, steam deck, portable, z
 The Windows version is the [Linux host](linux.md) built for Windows: the same
 emulator, quick menu, HUD and companion, on a Windows handheld (an ROG Ally, a
 Legion Go, a OneXPlayer) or any PC. It plays Game Boy, Game Boy Color and Game
-Boy Advance games you own, and Nintendo DS games in the DS build (below). It is early, like the Linux version, so keep a copy
+Boy Advance games you own, and Nintendo DS games (below), all from one download. It is early, like the Linux version, so keep a copy
 of your saves.
 
 ## Install it
@@ -22,7 +22,7 @@ fine, `Program Files` isn't), and you get:
 - a `DATA` folder with `roms`, `saves` and `states` in it
 - the licenses and this program's source record
 
-Put your `.gba`, `.gbc` and `.gb` files in `DATA\roms`, then open
+Put your `.gba`, `.gbc`, `.gb` and `.nds` files in `DATA\roms`, then open
 `pokedaisy.exe`. It lists your games; pick one with the D-pad and press A.
 Everything the program writes stays in that `DATA` folder, so you can move the
 whole folder to another PC or a memory card.
@@ -86,11 +86,10 @@ The game moves into its new place smoothly when a view changes.
 
 ## Nintendo DS games
 
-The `pokedaisy-windows-x86_64-ds.zip` build also plays Nintendo DS games, on
-melonDS. It is the same program with DS games added, so everything above still
-applies. Put your `.nds` files in `DATA\roms` with the others, or start one
-straight away with `pokedaisy.exe "D:\Games\My Game.nds"`. No BIOS or firmware
-files are needed.
+Nintendo DS games play on melonDS, in the same program and the same list as
+your other games, so everything above still applies. Put your `.nds` files in
+`DATA\roms` with the others, or start one straight away with
+`pokedaisy.exe "D:\Games\My Game.nds"`. No BIOS or firmware files are needed.
 
 A DS game's save sits beside the game's file, named after it without the
 `.nds` (`My Game.sav`), the way most DS emulators keep it, so a folder you sync
