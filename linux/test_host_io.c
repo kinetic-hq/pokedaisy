@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pocket_os.h"
+#include "pd_settings.h"
 struct fault_file {
   struct VFile d;
   struct VFile *inner;
@@ -137,6 +138,18 @@ static void test_replace(void) {
   assert(f && fgetc(f) == 2);
   fclose(f);
   assert(!pocket_replace(b, a)); // nothing to move
+  // settings.ini is written over itself the same way (pd_settings_save): the second save must replace the first.
+  char ini[600];
+  snprintf(ini, sizeof ini, "%s/settings.ini", dir);
+  struct pd_settings set, back;
+  pd_settings_defaults(&set);
+  set.ffSpeed = 3;
+  assert(pd_settings_save(&set, ini));
+  set.ffSpeed = 4;
+  assert(pd_settings_save(&set, ini));
+  pd_settings_defaults(&back);
+  assert(pd_settings_load(&back, ini) && back.ffSpeed == 4);
+  assert(pocket_remove(ini));
   assert(pocket_remove(a) && !pocket_exists(a));
   assert(pocket_mkdir(dir) && pocket_rmdir(dir)); // mkdir of an existing one is fine
   char list[] = "640x480,,1280x720", *next = list;
