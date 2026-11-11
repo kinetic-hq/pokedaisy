@@ -10,6 +10,7 @@
 #include "field_items.h"
 #include "fly.h"
 #include "display_filter.h"
+#include "updater.h"
 #include "hud.h"
 #include "pd_dex.h"
 #include "pd_guide.h"
@@ -122,6 +123,17 @@ static void notice(const char *s) {
   snprintf(message, sizeof message, "%s", s);
   messageUntil = SDL_GetTicks() + 2500;
   fprintf(stderr, "%s\n", s);
+}
+/* A newer release (updater.h) found while a game runs: said once; the prompt waits for the game list. */
+static bool updateAnnounced;
+static void update_announce(void) {
+  if (updateAnnounced || updater_state() != UPDATER_AVAILABLE)
+    return;
+  updateAnnounced = true;
+  char s[96];
+  snprintf(s, sizeof s, "PokeDaisy %s is out: back on the game list to update", updater_latest());
+  notice(s);
+  messageUntil = SDL_GetTicks() + 6000;
 }
 /* mGBA logs every DMA and BIOS call at DEBUG; keep warnings and errors only, so
  * launch.sh's log stays readable. */
@@ -756,6 +768,7 @@ static bool render_game(unsigned gw, unsigned gh) {
   return true;
 }
 static void present_game(unsigned gw, unsigned gh) {
+  update_announce();
   if (render_game(gw, gh))
     timed_present();
 }
@@ -1677,7 +1690,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
-                              .expandGame = wideSupported, .hasCompanionView = true, .count = 1, .labels = {"HOST"}};
+                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .count = 1, .labels = {"HOST"}};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
@@ -2318,6 +2331,73 @@ static void rom_name(const char *name, void *user) {
 #ifndef POCKET_VERSION
 #define POCKET_VERSION "dev"
 #endif
+/* The update prompt over the game list (updater.h), driven by the pad: UPDATE NOW / LATER / SKIP THIS VERSION, then
+ * the download's progress and its outcome. True while it's up: it takes the keys. */
+static int updateSel;
+static bool updateDone; // READY / FAILED read and closed
+static bool update_prompt(void) {
+  enum updater_state st = updater_state();
+  if (st != UPDATER_AVAILABLE && st != UPDATER_DOWNLOADING &&
+      !((st == UPDATER_READY || st == UPDATER_FAILED) && !updateDone))
+    return false;
+  bool install = updater_can_install();
+  const char *rows[3] = {install ? "UPDATE NOW" : "OPEN DOWNLOAD PAGE", "LATER", "SKIP THIS VERSION"};
+  int rowCount = st == UPDATER_AVAILABLE ? 3 : st == UPDATER_DOWNLOADING ? 0 : 1;
+  if (st != UPDATER_AVAILABLE)
+    rows[0] = "OK";
+  if (rowCount) {
+    if (down(UP))
+      updateSel = (updateSel + rowCount - 1) % rowCount;
+    if (down(DOWN))
+      updateSel = (updateSel + 1) % rowCount;
+    if (updateSel >= rowCount)
+      updateSel = 0;
+  }
+  // POCKET_UPDATE_ACCEPT=1 picks UPDATE NOW by itself (a headless check of the download and install).
+  if (st == UPDATER_AVAILABLE && getenv("POCKET_UPDATE_ACCEPT") && install) {
+    updater_download();
+  } else if (st == UPDATER_AVAILABLE && down(A)) {
+    if (updateSel == 0)
+      install ? updater_download() : updater_open_page();
+    else if (updateSel == 1)
+      updater_later();
+    else
+      updater_skip();
+    updateSel = 0;
+  } else if (st == UPDATER_AVAILABLE && down(B)) {
+    updater_later();
+  } else if ((st == UPDATER_READY || st == UPDATER_FAILED) && (down(A) || down(B))) {
+    updateDone = true;
+  }
+  struct pd_canvas *c = &canvas;
+  pd_dim(c, 0xC0);
+  int w = c->w - 40 < 280 ? c->w - 40 : 280, h = 74 + 18 * (rowCount ? rowCount : 1);
+  int x = (c->w - w) / 2, y = (c->h - h) / 2;
+  int f = pd_title_box(c, x, y, w, h, PD_TITLE_FILL);
+  int ix = x + f + 6, iw = w - 2 * f - 12, ty = y + f + 4;
+  pd_text(c, ix, ty, st == UPDATER_READY ? "UPDATE READY" : st == UPDATER_FAILED ? "UPDATE FAILED" : "UPDATE AVAILABLE",
+          PD_TITLE_TEXT, PD_TITLE_SHADOW);
+  char line[160];
+  if (st == UPDATER_AVAILABLE)
+    snprintf(line, sizeof line, "PokeDaisy %s is out. You have %s.", updater_latest(), updater_current());
+  else if (st == UPDATER_DOWNLOADING)
+    snprintf(line, sizeof line, "Downloading PokeDaisy %s...", updater_latest());
+  else if (st == UPDATER_READY)
+    snprintf(line, sizeof line, "PokeDaisy %s goes in when you close PokeDaisy. Your saves and settings stay.",
+             updater_latest());
+  else
+    snprintf(line, sizeof line, "The download didn't work. PokeDaisy asks again next time.");
+  pd_text_wrap(c, ix, ty + 20, iw, 14, 3, line, PD_LABEL, PD_LABEL_SHADOW);
+  int ry = y + h - f - 6 - 18 * (rowCount ? rowCount : 1);
+  for (int i = 0; i < rowCount; i++) {
+    bool cursor = i == updateSel;
+    if (cursor)
+      pd_fill(c, ix - 2, ry + 18 * i, iw + 4, 18, PD_ROW_SELECTED);
+    pd_text(c, ix + 4, pd_text_y(ry + 18 * i, 18), rows[i], cursor ? PD_VALUE : PD_LABEL,
+            cursor ? PD_VALUE_SHADOW : PD_LABEL_SHADOW);
+  }
+  return true;
+}
 int main(int argc, char **argv) {
   const char *rom = NULL, *shot = NULL;
   int frames = 0;
@@ -2431,6 +2511,15 @@ int main(int argc, char **argv) {
   if (!padCount)
     fprintf(stderr, "No controller yet (one switched on later is picked up)\n");
   SDL_Joystick *js = !controller && rawTrimui && SDL_NumJoysticks() ? SDL_JoystickOpen(0) : NULL;
+  {
+    // Once per launch, in the background; never in a headless run (--frames) or a local build ("dev").
+    // POCKET_UPDATE_AS=x.y.z checks as that version (to try the prompt).
+    snprintf(path, sizeof path, "%s/settings.ini", root);
+    struct pd_settings st;
+    pd_settings_load(&st, path);
+    const char *as = getenv("POCKET_UPDATE_AS");
+    updater_start(root, as ? as : POCKET_VERSION, st.updateCheck && (!frames || as) && !getenv("POCKET_NO_UPDATE_CHECK"));
+  }
   if (rom)
     run_game(rom, frames, shot);
   else {
@@ -2446,6 +2535,18 @@ int main(int argc, char **argv) {
     while (running) {
       events();
       repeat_directions();
+      companion_canvas();
+      pd_menu_draw(&menu, &canvas);
+      if (update_prompt()) {
+        present();
+        if (frames && ++ticks >= frames) {
+          if (shot)
+            capture_frame(shot, NULL);
+          break;
+        }
+        SDL_Delay(16);
+        continue;
+      }
       if (down(B) || down(MENU))
         break;
       if (down(UP))
@@ -2471,6 +2572,7 @@ int main(int argc, char **argv) {
   }
   if (js)
     SDL_JoystickClose(js);
+  updater_finish();
   controllers_close();
   if (audio)
     SDL_CloseAudioDevice(audio);

@@ -236,6 +236,8 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         setting(ui, c, ix, &y, iw, SETTING_VIEW, "COMPANION VIEW", pd_companion_view_name(st->companionView));
     if (host && host->hasHud) setting(ui, c, ix, &y, iw, SETTING_HUD, "HUD", st->hud ? "ON" : "OFF");
     if (host && host->hasPerf) setting(ui, c, ix, &y, iw, SETTING_PERF, "FPS / CPU", st->showPerf ? "ON" : "OFF");
+    if (host && host->hasUpdateCheck)
+        setting(ui, c, ix, &y, iw, SETTING_UPDATES, "CHECK FOR UPDATES", st->updateCheck ? "ON" : "OFF");
     if (host && host->hasDisplayFilter)
         setting(ui, c, ix, &y, iw, SETTING_FILTER, "FILTER", st->lcdFilter ? "LCD" : "OFF");
     if (host && host->hasQuickMenu)

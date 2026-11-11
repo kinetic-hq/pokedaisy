@@ -104,6 +104,7 @@ struct pd_settings {
     // SIDE PANEL's lock (the panel kept beside the game).
     int companionView;
     bool panelLocked;
+    bool updateCheck; // hosts with hasUpdateCheck: look for a newer release at start
 };
 
 // COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.
@@ -189,6 +190,7 @@ struct pd_host_info {
     bool expandGame;     // ... and does for this game (else ASPECT reads N/A)
     bool hasHud;         // Optional: the host draws the HUD over the game (its SETTINGS row)
     bool hasCompanionView; // Optional: COMPANION VIEW's row (settings.companionView)
+    bool hasUpdateCheck;   // Optional: CHECK FOR UPDATES' row (settings.updateCheck)
     bool hasDisplayFilter; // host implements OFF / LCD
     bool hasQuickMenu;   // host implements the selectable RING / GRID quick menu
     bool hasButtonRows;  // Optional: QUICK MENU / COMPANION / HUD CURSOR button rows (the host reads settings.*Btn)

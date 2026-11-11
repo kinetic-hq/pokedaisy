@@ -132,6 +132,7 @@ enum setting_row {
     SETTING_ONE_TAP,
     SETTING_RESTART,
     SETTING_VIEW,      // hosts with hasCompanionView: opens its pick-list
+    SETTING_UPDATES,   // hosts with hasUpdateCheck: flips in place
 };
 
 int ui_settings_follow(int scroll, int y, int height);
