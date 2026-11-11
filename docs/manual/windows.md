@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small]
+keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -26,6 +26,25 @@ Put your `.gba`, `.gbc`, `.gb` and `.nds` files in `DATA\roms`, then open
 `pokedaisy.exe`. It lists your games; pick one with the D-pad and press A.
 Everything the program writes stays in that `DATA` folder, so you can move the
 whole folder to another PC or a memory card.
+
+## Updates
+
+Each time it starts, PokeDaisy looks for a newer release in the background, so
+your game never waits on it and nothing shows when you're offline. When there
+is one, the game list asks what to do (in a game, a line at the top tells you
+first):
+
+- **`UPDATE NOW`** downloads it and checks it is the release's own file. It
+  goes in when you close PokeDaisy, and the next start is the new version. Only
+  the program's files change: the `DATA` folder (your settings, saves, states
+  and games) is left as it is.
+- **`LATER`** asks again the next time you start it.
+- **`SKIP THIS VERSION`** doesn't ask about that release again, only a newer
+  one.
+
+On Linux `UPDATE NOW` reads `OPEN DOWNLOAD PAGE` and opens the release in your
+browser. To stop looking for updates, turn `CHECK FOR UPDATES` off in the
+companion's `SETTINGS`.
 
 ## Saves
 

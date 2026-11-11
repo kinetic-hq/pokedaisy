@@ -600,6 +600,9 @@ static void act(struct pd_ui* ui, int id) {
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_VIEW) {
         ui->overlay = PD_OVERLAY_PICK_VIEW;
+    } else if (id == HIT_SETTING + SETTING_UPDATES) {
+        ui->settings->updateCheck = !ui->settings->updateCheck;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_PERF) {
         ui->settings->showPerf = !ui->settings->showPerf;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
