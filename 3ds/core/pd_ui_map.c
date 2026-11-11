@@ -480,3 +480,54 @@ struct pd_map_viewport pd_ui_map_view(struct pd_canvas* c, const struct pd_map_s
     label(c, &game, source->name, NULL);
     return (struct pd_map_viewport){view.x, view.y, view.w, view.h};
 }
+
+// COMPANION VIEW's map panel (the Linux / Windows host's right wing off a battle): the place's name over the map, as
+// wide as the panel, the player's head and the cursor on where they are. Nothing to tap.
+void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, bool blink) {
+    ui_game = g;
+    int f = pd_title_box(c, 0, 0, c->w, c->h, PD_TITLE_FILL);
+    int x = f + 4, y = f + 3, w = c->w - 2 * (f + 4);
+    const char* here = s->valid && s->posOk ? pd_mapsec_name(g, s->mapsec) : "";
+    pd_text_wrap(c, x, y, w, 16, 2, *here ? here : "MAP", PD_LABEL, PD_LABEL_SHADOW);
+    y += 2 * 16 + 4;
+    const struct pd_map_art* art = pd_map_art(g);
+    if (!art) {
+        pd_text_wrap(c, x, y, w, 16, 2, "NO MAP IN THIS ROM", PD_MUTED, PD_MUTED_SHADOW);
+        return;
+    }
+    int playerPage = -1, ptx = 0, pty = 0;
+    bool hasPlayer = pd_map_player_tile(g, s, &playerPage, &ptx, &pty);
+    int page = hasPlayer && playerPage < art->pages ? playerPage : 0;
+    const int16_t* k = art->crop[page];
+    bool cropped = k[2] > k[0] && k[3] > k[1];
+    mapW = art->w;
+    mapH = art->h;
+    crop.l = cropped ? k[0] : 0;
+    crop.t = cropped ? k[1] : 0;
+    crop.r = cropped ? k[2] : art->w;
+    crop.b = cropped ? k[3] : art->h;
+    // As wide as the panel, its own shape (a short panel: as tall as fits).
+    int mw = crop.r - crop.l, mh = crop.b - crop.t;
+    int vw = w - 2 * FRAME, vh = vw * mh / mw, room = c->h - f - 3 - y - 2 * FRAME;
+    if (vh > room) {
+        vh = room;
+        vw = vh * mw / mh;
+    }
+    if (vw < 8 || vh < 8) return;
+    view.w = vw;
+    view.h = vh;
+    view.x = (c->w - vw) / 2;
+    view.y = y + FRAME;
+    frame(c, view.x - FRAME, view.y - FRAME, view.w + 2 * FRAME, view.h + 2 * FRAME);
+    draw_page(c, art->page[page]);
+    if (!hasPlayer || page != playerPage) return;
+    int gender = s->gender == 1 ? 1 : 0;
+    pd_clip(c, view.x, view.y, view.w, view.h);
+    if (art->hasHead[gender]) draw_head(c, art->head[gender], ptx, pty);
+    pd_unclip(c);
+    struct pd_tile_rect rects[MAX_RECTS];
+    int p, n = pd_map_tiles(g, pd_map_player_section(g, s), &p, rects, MAX_RECTS);
+    for (int i = 0; i < n; i++)
+        cursor_pixels(c, rects[i].x * 8, rects[i].y * 8, rects[i].w * 8, rects[i].h * 8, blink,
+                      g->kind == PD_GAME_GB ? PD_GB_INK : CURSOR);
+}
