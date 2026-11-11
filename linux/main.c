@@ -2559,6 +2559,11 @@ int main(int argc, char **argv) {
     qsort(names, count, sizeof(*names), cmp);
     struct pd_menu menu;
     pd_menu_init(&menu, POCKET_HOST_NAME, (const char *const *)names, count);
+#ifdef _WIN32
+    menu.emptyPath = "DATA\\roms\\";
+#else
+    menu.emptyPath = "DATA/roms/";
+#endif
     int ticks = 0;
     while (running) {
       events();
