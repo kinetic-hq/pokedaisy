@@ -4,7 +4,7 @@ import subprocess, sys, tempfile, zipfile
 
 exe = Path(sys.argv[1]).resolve()
 options = sys.argv[2:]
-name = 'pokedaisy-windows-x86_64' + ('-ds-experiment' if '--dsperate' in options else '') + ('-ds' if '--melonds' in options else '')
+name = 'pokedaisy-windows-x86_64' + ('-ds-experiment' if '--dsperate' in options else '')
 script = Path(__file__).with_name('package.py')
 with tempfile.TemporaryDirectory(prefix='pd-windows-package-') as d:
     result = subprocess.run([sys.executable, str(script), *options, str(exe), d], capture_output=True, text=True)
