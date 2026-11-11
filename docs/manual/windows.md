@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse]
+keywords: [windows, pc, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -99,10 +99,29 @@ a save from another DS emulator works if you copy it there under that name.
 Each time a DS game starts its save is first copied to `DATA\backups`. DS save
 states go to `DATA\states` and never hold the save.
 
-One DS screen shows at a time. R2 (Space on a keyboard) switches between the
-top and the touch screen, and L2 (Tab) opens the quick menu. To touch the touch
-screen, show it and then click it with the mouse or tap it with your finger on
-a touch display; a drag works too. With a controller, hold SELECT, move the
+`DS LAYOUT` picks where the two DS screens go in the window. Change it in the
+companion's `SETTINGS`, or hold SELECT (Backspace) and press R2 (Space) for the
+next one or L2 (Tab) for the one before:
+
+- **`ONE SCREEN`** (the first choice): the top screen fills the window. In
+  Platinum (USA, revision 1) the touch screen floats in over the dimmed game
+  when the game wants it. Other DS games can't say when, so there you get
+  `PICTURE IN PICTURE` instead.
+- **`PICTURE IN PICTURE`**: the top screen fills the window and the touch
+  screen sits small in its bottom right corner.
+- **`TOUCH IN WING`**: the top screen as tall as the window, and the touch
+  screen in the room beside it. A window too narrow for that gets `PICTURE IN
+  PICTURE`.
+- **`STACKED`**: the top screen over the touch screen, like the DS itself.
+- **`SIDE BY SIDE`**: the two screens next to each other. In a window taller
+  than it is wide they go `STACKED`.
+- **`LARGE + SMALL`**: a large top screen with a small touch screen beside it.
+
+R2 (Space on a keyboard) swaps the two screens: in `ONE SCREEN` you see the
+touch screen alone, and in `PICTURE IN PICTURE` and `LARGE + SMALL` the touch
+screen becomes the large one. L2 (Tab) opens the quick menu. To touch the touch
+screen, click it with the mouse or tap it with your finger on a touch display,
+wherever it shows; a drag works too. With a controller, hold SELECT, move the
 pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
 and A. Escape pauses the game.
 
