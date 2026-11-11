@@ -172,6 +172,9 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
   pd_text_fit(&c,9,c.h-20,c.w-18,tab==5?"D-pad move  A player  L/R tabs":tab==4?"Up/Down select  A change  L/R tabs":tab==0 && summary?"Left/Right info/moves  Up/Down Pokemon":tab==1 || tab==2?"Up/Down scroll  Left/Right page  L/R tabs":"L/R tabs  A summary  B back  L2 game",0xffffff,PD_NO_SHADOW);
 }
 }
+// The host's controller bookkeeping (main.c): a pad switched on or off mid-game is opened / closed there,
+// so its buttons reach this loop and the GBA host still has it afterwards.
+extern "C" { void (*pd_ds_device_event)(const SDL_Event*)=nullptr; }
 extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* shot,SDL_Renderer* renderer,bool (*keepRunning)()) {
   auto bytes=read_file(rom);if(bytes.size()<512 || bytes.size()>512u*1024*1024){std::fprintf(stderr,"DS: invalid ROM size\n");return 1;}
   char hex[41];{pd_sha1 h;pd_sha1_init(&h);pd_sha1_update(&h,bytes.data(),bytes.size());pd_sha1_hex(&h,hex);}
@@ -270,6 +273,11 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     }
     while(SDL_PollEvent(&e)){
       if(e.type==SDL_QUIT)done=true;
+      if(e.type==SDL_JOYDEVICEADDED || e.type==SDL_CONTROLLERDEVICEADDED || e.type==SDL_CONTROLLERDEVICEREMOVED){
+        if(pd_ds_device_event)pd_ds_device_event(&e);
+        if(e.type==SDL_CONTROLLERDEVICEREMOVED)keys=0;  // nothing stays pressed on a pad that's gone
+        continue;
+      }
       int k=-1;bool down=false;
       if(e.type==SDL_KEYDOWN || e.type==SDL_KEYUP){if(e.key.repeat)continue;k=keyboard(e.key.keysym.sym);down=e.type==SDL_KEYDOWN;}
       if(e.type==SDL_CONTROLLERBUTTONDOWN || e.type==SDL_CONTROLLERBUTTONUP){k=pad(e.cbutton.button);down=e.type==SDL_CONTROLLERBUTTONDOWN;}

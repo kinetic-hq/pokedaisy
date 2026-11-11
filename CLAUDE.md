@@ -221,7 +221,7 @@ loading one keeps the battery save in memory (`load_state_keeping_save`), like t
 `pk_nds_platform.cpp` (software renderer, FreeBIOS, direct boot). Its battery save sits beside the ROM as `<stem>.sav`
 (melonDS's raw format, so synced folders keep working), backups in DATA/backups, states `<file>.melonds.ss`. Mouse and SDL
 fingers press the touch screen while it shows (`ds_touch_point`; tests push taps with `POCKET_DS_HOST_TAPS`). CI: Windows'
-`x86_64-ds` job, Linux DS's `melonds` matrix entry; packages `--melonds` (`-ds` zips, melonDS's notices).
+`x86_64` job (the one Windows zip plays GBA and DS), Linux DS's `melonds` matrix entry; packages `--melonds` (melonDS's notices; Linux's zip `-ds`).
 Its DS LAYOUT (`ds_layout.h`, pure, `test_layout.cpp`; `layout=N` in ds-settings.ini, append only): ONE SCREEN / PICTURE IN PICTURE /
 TOUCH IN WING / STACKED / SIDE BY SIDE / LARGE + SMALL, SELECT + R2 / L2 step it (R2 alone still swaps, L2 the quick menu); ONE SCREEN floats
 the touch screen on `PK_NDS_FIELD_TOUCH` and is PIP for a game without field rules.

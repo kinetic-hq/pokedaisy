@@ -487,10 +487,21 @@ static void test_controller_hotplug(void) {
   events();assert(down(A) && (held&(1u<<A)));
   assert(!SDL_JoystickSetVirtualAxis(js,SDL_CONTROLLER_AXIS_TRIGGERRIGHT,32767));
   events();assert(held&(1u<<R2));
+  assert(!SDL_JoystickSetVirtualButton(js,SDL_CONTROLLER_BUTTON_B,0));
+  assert(!SDL_JoystickSetVirtualAxis(js,SDL_CONTROLLER_AXIS_TRIGGERRIGHT,0));events();held=0;
+  // A second pad (a handheld's built-in one beside an Xbox pad): opened too, and it plays.
+  desc.name="PokeDaisy second pad";
+  int second=SDL_JoystickAttachVirtualEx(&desc);assert(second>=0);
+  events();assert(padCount==2 && controller==pads[0]);
+  SDL_Joystick* js2=SDL_GameControllerGetJoystick(pads[1]);
+  assert(!SDL_JoystickSetVirtualButton(js2,SDL_CONTROLLER_BUTTON_START,1));
+  events();assert(down(START));
   assert(!SDL_JoystickDetachVirtual(index));
-  events();assert(!controller && !held);
+  events();assert(padCount==1 && controller && !held);
+  assert(!SDL_JoystickDetachVirtual(SDL_NumJoysticks()-1));
+  events();assert(!controller && !padCount && !held);
   SDL_QuitSubSystem(SDL_INIT_JOYSTICK|SDL_INIT_GAMECONTROLLER);
-  puts("PASS controller plugged in and out, its buttons the game's");
+  puts("PASS controllers plugged in and out, any of them the game's");
 #endif
 }
 // Modal hit lists retain the controls below the scrim for touch rendering.
