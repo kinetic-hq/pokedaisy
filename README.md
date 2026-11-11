@@ -1,3 +1,82 @@
+> [!IMPORTANT]
+> **This is a fork of [PokeDaisy](https://github.com/lidor30/pokedaisy), made by Lidor Itzhari ([lidor30](https://github.com/lidor30)).**
+> All credit for PokeDaisy, its companion and its design goes to Lidor. This fork only adds work on the
+> Windows and Linux desktop / handheld version. For the Android app, its releases and its updates, use
+> [the original project](https://github.com/lidor30/pokedaisy). If you enjoy PokeDaisy, please support Lidor through
+> the [Patreon](https://www.patreon.com/cw/pokedaisy), [Buy me a coffee](https://buymeacoffee.com/lidor30g) or
+> [Ko-fi](https://ko-fi.com/pokedaisy) links below. PokeDaisy stays under the GNU GPL v3, and Lidor's copyright and
+> credit notices are kept as they are ([LICENSE](LICENSE), [NOTICE](NOTICE)).
+
+## PokeDaisy for Windows and Linux (this fork)
+
+This fork builds the same PokeDaisy companion into one portable program for Windows handhelds (ROG Ally, Legion Go,
+OneXPlayer, ...), Windows PCs and Linux. It plays Game Boy, Game Boy Color, GBA and Nintendo DS games you own, with
+the companion beside the game on one screen.
+
+### Download, install and update
+
+1. Open this fork's [Releases](https://github.com/kinetic-hq/pokedaisy/releases/latest) page and download
+   `pokedaisy-windows-x86_64.zip` (Windows) or `pokedaisy-linux-x86_64.zip` (Linux). `SHA256SUMS.txt` lists their
+   checksums.
+2. Unzip it anywhere you can write to (your Documents folder, not `Program Files`). Keep `pokedaisy.exe` and
+   `SDL2.dll` side by side.
+3. Put your `.gb`, `.gbc`, `.gba` and `.nds` files in `DATA\roms` and open `pokedaisy.exe`.
+
+Everything the program writes (settings, saves, states, games) stays in the `DATA` folder, so you can move it to
+another PC. Each start looks for a newer release in the background and offers `UPDATE NOW`, `LATER` or `SKIP THIS
+VERSION`; an update replaces only the program's files, never `DATA`. Turn it off with `SETTINGS` > `CHECK FOR
+UPDATES`.
+
+### Using it
+
+| Thing | How |
+| --- | --- |
+| Controls | Built in handheld controls and Xbox style controllers work as they come, and can be plugged in mid game. Keyboard: arrows, Z = A, X = B, Enter = START, Backspace = SELECT, Q / E = L / R, Tab = companion, F = quick menu, V = next companion view, K = lock the side panel, Escape = game menu. Other controllers: a line in `DATA\gamecontrollerdb.txt`. |
+| Full screen | Set `POCKET_FULLSCREEN=1` before starting it (a shortcut or frontend can too). `POCKET_WINDOW=1920x1080` opens a window of that size. |
+| Start a game directly | `pokedaisy.exe "D:\Games\My Game.gba"`; `--data FOLDER` uses another data folder. |
+| COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
+| DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE` or `LARGE + SMALL`. R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
+| Shaders | `SETTINGS` > `SHADER` (`OFF`, `SHARP`, `xBRZ`), `COLORS` (`ORIGINAL`, `HANDHELD`, `OLED`: true black panels, less glare) and `DIM COMPANION`. DS games have them in the `SET` tab. |
+| Save folders | GBA / Game Boy saves in `DATA\saves`, backed up to `DATA\saves\pokedaisy-backups` at each start. A DS save sits beside its game as `<name>.sav` (backups in `DATA\backups`). States go to `DATA\states` and never hold the save. |
+| Problems | Opened with a double click, it logs to `DATA\pokedaisy.log`; include it in a report. |
+
+The full guide is [docs/manual/windows.md](docs/manual/windows.md) (and [linux.md](docs/manual/linux.md)).
+
+### Building
+
+```bash
+git submodule update --init third_party/mgba third_party/melonds
+cmake -S linux -B linux/build -DCMAKE_BUILD_TYPE=Release -DPOCKET_MELONDS=ON
+cmake --build linux/build
+ctest --test-dir linux/build
+```
+
+On Windows build in MSYS2's UCRT64 shell (gcc, cmake, ninja, SDL2) and package with
+`python linux/windows/package.py --melonds linux/build/pokedaisy.exe OUT`. More in [linux/README.md](linux/README.md).
+
+### How this fork differs from PokeDaisy
+
+Keep this list current: a pull request that changes what the fork adds updates it (see the PR template).
+
+- **Windows build of the desktop host**: one portable zip that plays GBA, Game Boy and DS games, with an icon,
+  a UTF-8 manifest and safe save / state writes on Windows.
+- **Nintendo DS on melonDS** in the desktop host, with `DS LAYOUT` (six ways to place the two screens) and touch by
+  mouse, finger or controller.
+- **COMPANION VIEW** on the desktop host: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER` and
+  `STEP BACK`.
+- **Controllers**: hot plugging, several at once (a handheld's own controls and an Xbox pad together).
+- **Shaders and colours** on the desktop host: `SHARP` and `xBRZ` scaling, `HANDHELD` and `OLED` colours,
+  `DIM COMPANION`.
+- **Updates**: the program checks this fork's releases and updates itself on Windows.
+- **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
+  change.
+- **Upstream mirroring**: a daily job opens a pull request bringing PokeDaisy's own changes in.
+
+Everything else, the Android app and the companion itself, is Lidor's PokeDaisy. What follows is the original
+project's README.
+
+---
+
 <div align="center">
 
 <img src="https://pokedaisy.com/og.png" alt="PokeDaisy: Game Boy, Game Boy Color, GBA and DS player with a live companion, on two screens or one, for Pokemon games and ROM hacks, free and open source" width="100%">
