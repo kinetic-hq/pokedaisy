@@ -3,14 +3,11 @@
  */
 #include "host_io.h"
 #include "../app/src/main/cpp/pk_savevf.h"
-#include <dirent.h>
+#include "pocket_os.h"
 #include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 struct checked_save {
   struct VFile d;
   struct VFile *inner;
@@ -157,6 +154,16 @@ static bool same_save(const unsigned char *a, size_t an, const unsigned char *b,
 static int newest_first(const void *a, const void *b) {
   return -strcmp(*(char *const *)a, *(char *const *)b);
 }
+struct backup_names {
+  const char *stem;
+  char *names[256];
+  int count;
+};
+static void backup_name(const char *name, void *user) {
+  struct backup_names *b = user;
+  if (b->count < 256 && !strncmp(name, b->stem, strlen(b->stem)) && !strstr(name, ".tmp"))
+    b->names[b->count++] = strdup(name);
+}
 const char *pocket_backup_dir;
 bool pocket_save_backup(const char *savePath, time_t now) {
   size_t size;
@@ -168,6 +175,11 @@ bool pocket_save_backup(const char *savePath, time_t now) {
     return true;
   }
   const char *slash = strrchr(savePath, '/');
+#ifdef _WIN32
+  const char *back = strrchr(savePath, '\\');
+  if (back && (!slash || back > slash))
+    slash = back;
+#endif
   const char *file = slash ? slash + 1 : savePath;
   const char *dot = strrchr(file, '.');
   char dir[1100], stem[256], ext[32] = "sav";
@@ -179,15 +191,11 @@ bool pocket_save_backup(const char *savePath, time_t now) {
   snprintf(stem, sizeof stem, "%.*s.backup-", dot && dot != file ? (int)(dot - file) : (int)strlen(file), file);
   if (dot && dot != file)
     snprintf(ext, sizeof ext, "%s", dot + 1);
-  mkdir(dir, 0755);
-  char *names[256];
-  int count = 0;
-  DIR *d = opendir(dir);
-  for (struct dirent *e; d && (e = readdir(d)) && count < 256;)
-    if (!strncmp(e->d_name, stem, strlen(stem)) && !strstr(e->d_name, ".tmp"))
-      names[count++] = strdup(e->d_name);
-  if (d)
-    closedir(d);
+  pocket_mkdir(dir);
+  struct backup_names found = {.stem = stem};
+  pocket_list_dir(dir, backup_name, &found);
+  char **names = found.names;
+  int count = found.count;
   qsort(names, count, sizeof *names, newest_first);
   bool ok = true, write = true;
   char path[1400], tmp[1500];
@@ -201,7 +209,7 @@ bool pocket_save_backup(const char *savePath, time_t now) {
   if (write) {
     struct tm t;
     char stamp[32];
-    localtime_r(&now, &t);
+    pocket_localtime(&now, &t);
     strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", &t);
     snprintf(path, sizeof path, "%s/%s%s.%s", dir, stem, stamp, ext);
     snprintf(tmp, sizeof tmp, "%s.tmp", path);
@@ -209,15 +217,15 @@ bool pocket_save_backup(const char *savePath, time_t now) {
     ok = out && fwrite(save, 1, size, out) == size;
     if (out && fclose(out))
       ok = false;
-    ok = ok && rename(tmp, path) == 0;
+    ok = ok && pocket_replace(tmp, path);
     if (!ok)
-      unlink(tmp);
+      pocket_remove(tmp);
   }
   /* The new copy is the newest; drop what's past the newest KEEP. */
   for (int i = write && ok ? POCKET_BACKUP_KEEP - 1 : POCKET_BACKUP_KEEP; i < count; i++) {
     if (i >= 0) {
       snprintf(path, sizeof path, "%s/%s", dir, names[i]);
-      unlink(path);
+      pocket_remove(path);
     }
   }
   for (int i = 0; i < count; i++)

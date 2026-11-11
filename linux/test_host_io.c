@@ -4,9 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include "pocket_os.h"
 struct fault_file {
   struct VFile d;
   struct VFile *inner;
@@ -74,16 +72,23 @@ static struct fault_file file(bool failMap) {
                        .sync = fy};
   return f;
 }
+static void count_backup(const char *name, void *user) {
+  *(int *)user += !strncmp(name, "game.gba.backup-", 16) && strstr(name, ".sav") && !strstr(name, ".tmp");
+}
 static int backups(const char *dir) {
   char path[600];
   snprintf(path, sizeof path, "%s/" POCKET_BACKUP_DIR, dir);
-  DIR *d = opendir(path);
   int n = 0;
-  for (struct dirent *e; d && (e = readdir(d));)
-    n += !strncmp(e->d_name, "game.gba.backup-", 16) && strstr(e->d_name, ".sav") && !strstr(e->d_name, ".tmp");
-  if (d)
-    closedir(d);
+  pocket_list_dir(path, count_backup, &n);
   return n;
+}
+static void check_backup(const char *name, void *user) {
+  char path[700];
+  snprintf(path, sizeof path, "%s/" POCKET_BACKUP_DIR "/%s", (const char *)user, name);
+  FILE *f = fopen(path, "rb");
+  assert(f && fgetc(f) >= 20 - POCKET_BACKUP_KEEP); // the newest are kept
+  fclose(f);
+  assert(pocket_remove(path));
 }
 static void write_save(const char *path, unsigned char fill, unsigned char clock) {
   unsigned char data[512 + 16];
@@ -93,8 +98,9 @@ static void write_save(const char *path, unsigned char fill, unsigned char clock
   assert(f && fwrite(data, 1, sizeof data, f) == sizeof data && !fclose(f));
 }
 static void test_backups(void) {
-  char dir[] = "/tmp/pd-linux-backup-XXXXXX", save[600];
-  assert(mkdtemp(dir));
+  char dir[500], save[600];
+  snprintf(dir, sizeof dir, "%s/pd-linux-backup-XXXXXX", pocket_temp_root());
+  assert(pocket_mkdtemp(dir));
   snprintf(save, sizeof save, "%s/game.gba.sav", dir);
   time_t t = 1760000000;
   assert(pocket_save_backup(save, t) && backups(dir) == 0); // no save yet
@@ -110,24 +116,36 @@ static void test_backups(void) {
   }
   char path[700];
   snprintf(path, sizeof path, "%s/" POCKET_BACKUP_DIR, dir);
-  DIR *d = opendir(path);
-  for (struct dirent *e; d && (e = readdir(d));) {
-    if (e->d_name[0] == '.')
-      continue;
-    snprintf(path, sizeof path, "%s/" POCKET_BACKUP_DIR "/%s", dir, e->d_name);
-    FILE *f = fopen(path, "rb");
-    assert(f && fgetc(f) >= 20 - POCKET_BACKUP_KEEP); // the newest are kept
-    fclose(f);
-    unlink(path);
-  }
-  closedir(d);
-  snprintf(path, sizeof path, "%s/" POCKET_BACKUP_DIR, dir);
-  rmdir(path);
-  unlink(save);
-  rmdir(dir);
+  assert(pocket_list_dir(path, check_backup, dir));
+  assert(pocket_rmdir(path));
+  assert(pocket_remove(save));
+  assert(pocket_rmdir(dir));
+}
+/* State writes go to NAME.tmp, then over NAME in one step, also where NAME
+ * exists already (Windows' rename() refuses that; MoveFileEx doesn't). */
+static void test_replace(void) {
+  char dir[500], a[600], b[600];
+  snprintf(dir, sizeof dir, "%s/pd-linux-replace-XXXXXX", pocket_temp_root());
+  assert(pocket_mkdtemp(dir) && pocket_exists(dir));
+  snprintf(a, sizeof a, "%s/state.ss", dir);
+  snprintf(b, sizeof b, "%s/state.ss.tmp", dir);
+  write_save(a, 1, 0);
+  write_save(b, 2, 0);
+  assert(pocket_readable(a) && pocket_replace(b, a));
+  assert(!pocket_exists(b));
+  FILE *f = fopen(a, "rb");
+  assert(f && fgetc(f) == 2);
+  fclose(f);
+  assert(!pocket_replace(b, a)); // nothing to move
+  assert(pocket_remove(a) && !pocket_exists(a));
+  assert(pocket_mkdir(dir) && pocket_rmdir(dir)); // mkdir of an existing one is fine
+  char list[] = "640x480,,1280x720", *next = list;
+  assert(!strcmp(pocket_strsep(&next, ","), "640x480") && !*pocket_strsep(&next, ","));
+  assert(!strcmp(pocket_strsep(&next, ","), "1280x720") && !next);
 }
 int main(void) {
   test_backups();
+  test_replace();
   struct pocket_save_status status;
   struct fault_file f = file(true);
   struct VFile *v = pocket_save_wrap(&f.d, &status);
@@ -188,5 +206,5 @@ int main(void) {
   f.failClose = true;
   assert(!v->close(v) && status.failed && status.closed);
   assert(!pocket_save_wrap(NULL, &status) && status.failed);
-  puts("PASS save mapping/fallback, latched I/O failures, ownership and bounded backups");
+  puts("PASS save mapping/fallback, latched I/O failures, ownership, bounded backups and replacing writes");
 }

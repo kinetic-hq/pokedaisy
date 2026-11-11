@@ -1,0 +1,47 @@
+name: Windows host
+on:
+  pull_request:
+    paths: ['linux/**', '3ds/core/**', '3ds/desktop/pd_png.*', 'app/src/main/cpp/pk_*.c', 'app/src/main/cpp/pk_*.h', 'third_party/mgba', '.github/workflows/windows.yml', 'gamedata/**']
+  push:
+    branches: [main, dev]
+    paths: ['linux/**', '3ds/core/**', '3ds/desktop/pd_png.*', 'app/src/main/cpp/pk_*.c', 'app/src/main/cpp/pk_*.h', 'third_party/mgba', '.github/workflows/windows.yml', 'gamedata/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  x86_64:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-python
+      - run: git config --global --add safe.directory "$(pwd)" && git submodule update --init third_party/mgba
+      - name: Build the host and its tests
+        run: |
+          cmake -S linux -B linux/build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_LTO=OFF
+          cmake --build linux/build-win
+      - name: Test
+        run: ctest --test-dir linux/build-win --output-on-failure
+      - name: Package the portable zip
+        run: python linux/windows/package.py linux/build-win/pokedaisy.exe "$RUNNER_TEMP/windows-artifacts"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pokedaisy-windows-x86_64
+          path: ${{ runner.temp }}/windows-artifacts/*.zip
+          if-no-files-found: error

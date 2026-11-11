@@ -65,6 +65,9 @@ The app shows every license below in full under Settings > LICENSES.
   License; xBRZ, Copyright (C) Zenju, GNU GPL 3.0 (from HqMAME); ScaleFX,
   Copyright (c) 2016 Sp00kyFox, MIT License
   (third_party/licenses/libretro-shaders.txt).
+- Windows package only: SDL2 (SDL2.dll, the official release or MSYS2's build of
+  it), Copyright (C) 1997-2024 Sam Lantinga, zlib License - https://www.libsdl.org
+  (linux/windows/SDL2-zlib.txt, copied into the package's licenses folder).
 - Pixel Operator font (app/src/main/assets/fonts), by Jayvee Enaguas,
   CC0 1.0 (public domain dedication).
 - Atkinson Hyperlegible (app/src/main/assets/fonts, website/public/fonts: the manual's
