@@ -65,7 +65,8 @@ jobs:
           {
             section() {
               lines=$(grep -E "^$1(\([^)]*\))?!?:" "$RUNNER_TEMP/subjects.txt" | sed -E 's/^[a-z]+(\([^)]*\))?!?: */- /')
-              [ -n "$lines" ] && printf '### %s\n\n%s\n\n' "$2" "$lines"
+              # An if, not "&&": an empty section would end the function (and the step, under bash -e) with 1.
+              if [ -n "$lines" ]; then printf '### %s\n\n%s\n\n' "$2" "$lines"; fi
             }
             section feat "New"
             section fix "Fixes"
