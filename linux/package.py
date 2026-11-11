@@ -60,7 +60,7 @@ if a.melonds:
     (licenses/'melonDS-public-domain.txt').write_text('tiny-AES-c: The Unlicense (public domain).\nSHA-1 by Steve Reid: public domain.\n')
 sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
 core=subprocess.check_output(['git','rev-parse','HEAD:third_party/mgba'],cwd=repo,text=True).strip()
-(dest/'SOURCE.txt').write_text(f'Source: https://github.com/lidor30/pokedaisy\nFork: https://github.com/keeganwhitacre/pokedaisy-brick\nCommit: {sha}\nmGBA: {core}\nBuild: linux/README.md at this commit\n')
+(dest/'SOURCE.txt').write_text(f'Source: https://github.com/kinetic-hq/pokedaisy\nUpstream: https://github.com/lidor30/pokedaisy\nFork: https://github.com/keeganwhitacre/pokedaisy-brick\nCommit: {sha}\nmGBA: {core}\nBuild: linux/README.md at this commit\n')
 if a.dsperate:
     ds_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo/'third_party/dsperate',text=True).strip()
     with (dest/'SOURCE.txt').open('a') as f:
