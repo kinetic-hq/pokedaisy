@@ -3,7 +3,7 @@ title: Linux handheld foundation
 summary: Build and try the initial Linux host with physical controls and the existing portable companion.
 section: start
 order: 90
-keywords: [linux, handheld, trimui, brick, smart pro, sdl, quick menu, wild encounters, fly, pc, bike, hud, tab bar]
+keywords: [linux, handheld, game folders, roms-folders.txt, saves beside games, trimui, brick, smart pro, sdl, quick menu, wild encounters, fly, pc, bike, hud, tab bar]
 ---
 
 You can build the initial Linux host from source. It runs Game Boy, Game Boy
@@ -17,6 +17,8 @@ game shows which tab; a build that is not listed there has emulation only.
 Follow `linux/README.md` in the source repository for dependencies, native and
 TrimUI builds, controls, save paths and test commands. Use a separate data
 folder while testing. Existing emulator saves are never imported automatically.
+Games can also be listed from other folders (`DATA/roms-folders.txt`) and saves
+kept beside them (`SAVES BESIDE GAMES`): the Windows page says how.
 
 The game and the companion both fit your screen at a sharp whole number scale,
 so text stays about the same size on a 640x480, 720x720 or 1280x720 handheld.

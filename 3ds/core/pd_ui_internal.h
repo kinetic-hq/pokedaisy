@@ -136,6 +136,7 @@ enum setting_row {
     SETTING_SHADER,    // hosts with hasShaders: each steps to the next value in place
     SETTING_COLORS,
     SETTING_DIM,
+    SETTING_SAVES_BESIDE, // hosts with hasSavesBeside: flips in place, taken at the next game start
 };
 
 int ui_settings_follow(int scroll, int y, int height);
