@@ -238,6 +238,14 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
     if (host && host->hasPerf) setting(ui, c, ix, &y, iw, SETTING_PERF, "FPS / CPU", st->showPerf ? "ON" : "OFF");
     if (host && host->hasUpdateCheck)
         setting(ui, c, ix, &y, iw, SETTING_UPDATES, "CHECK FOR UPDATES", st->updateCheck ? "ON" : "OFF");
+    if (host && host->hasShaders) {
+        // Three values each, stepped on a tap so each shows on the game at once (the app's SHADERS rows do the same).
+        static const char* const SHADERS[PD_SHADERS] = {"OFF", "SHARP", "xBRZ"};
+        static const char* const COLORS[PD_COLORS] = {"ORIGINAL", "HANDHELD", "OLED"};
+        setting(ui, c, ix, &y, iw, SETTING_SHADER, "SHADER", SHADERS[st->shader]);
+        setting(ui, c, ix, &y, iw, SETTING_COLORS, "COLORS", COLORS[st->colors]);
+        setting(ui, c, ix, &y, iw, SETTING_DIM, "DIM COMPANION", st->dimCompanion ? "ON" : "OFF");
+    }
     if (host && host->hasDisplayFilter)
         setting(ui, c, ix, &y, iw, SETTING_FILTER, "FILTER", st->lcdFilter ? "LCD" : "OFF");
     if (host && host->hasQuickMenu)

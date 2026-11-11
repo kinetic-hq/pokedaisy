@@ -603,6 +603,15 @@ static void act(struct pd_ui* ui, int id) {
     } else if (id == HIT_SETTING + SETTING_UPDATES) {
         ui->settings->updateCheck = !ui->settings->updateCheck;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_SHADER) {
+        ui->settings->shader = (ui->settings->shader + 1) % PD_SHADERS;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_COLORS) {
+        ui->settings->colors = (ui->settings->colors + 1) % PD_COLORS;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_DIM) {
+        ui->settings->dimCompanion = !ui->settings->dimCompanion;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_PERF) {
         ui->settings->showPerf = !ui->settings->showPerf;
         ui->action = PD_ACTION_SETTINGS_CHANGED;

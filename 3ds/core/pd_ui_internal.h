@@ -133,6 +133,9 @@ enum setting_row {
     SETTING_RESTART,
     SETTING_VIEW,      // hosts with hasCompanionView: opens its pick-list
     SETTING_UPDATES,   // hosts with hasUpdateCheck: flips in place
+    SETTING_SHADER,    // hosts with hasShaders: each steps to the next value in place
+    SETTING_COLORS,
+    SETTING_DIM,
 };
 
 int ui_settings_follow(int scroll, int y, int height);

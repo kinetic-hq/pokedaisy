@@ -16,6 +16,7 @@ struct pd_menu {
     bool touching;
     int pressed; // row the stylus went down on, -1 = none
     bool overlay; // just the windows, over whatever is behind (a host's menu over the game)
+    const char* emptyPath; // where the games go, shown while there are none (NULL: the 3DS's SD card)
 };
 
 void pd_menu_init(struct pd_menu* m, const char* title, const char* const* items, int count);
