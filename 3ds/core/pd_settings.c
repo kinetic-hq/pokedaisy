@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 void pd_settings_defaults(struct pd_settings* s) {
     s->screenMode = PD_SCREEN_SHARP;
@@ -139,5 +142,10 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "speed=%d\nvolume=%d\nnohints=%d\nonetap=%d\nmute=%d\nautorun=%d\nperf=%d\n", s->gameSpeed,
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);
     if (fclose(f) != 0) return false;
+#ifdef _WIN32
+    // rename() won't replace a file on Windows; MoveFileEx does, in one step (paths are UTF-8: the host's manifest).
+    return MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
     return rename(tmp, path) == 0;
+#endif
 }

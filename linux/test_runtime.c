@@ -8,7 +8,9 @@ static bool gba, live;
 static uint32_t pausedAt;
 static const char* output;
 static void tap(SDL_Keycode code) {
-  SDL_Event e={.type=SDL_KEYDOWN};e.key.keysym.sym=code;
+  // The whole event zeroed: a designated initializer sets only the union's first member, and MinGW left
+  // stack bytes in key.repeat, so the host took the tap for a held key's repeat.
+  SDL_Event e;SDL_zero(e);e.type=SDL_KEYDOWN;e.key.keysym.sym=code;
   assert(SDL_PushEvent(&e)==1);e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);
 }
 static char liveName[48]="live";
@@ -397,7 +399,7 @@ static void test_frame(struct mCore* c,bool companion,int frame,struct pd_ui* ui
     ui->settings->tabBar=keepTabs;ui->tab=PD_TAB_PARTY;
     uint32_t before=c->frameCounter(c);
     assert(state(c,"integration.ss",true));drive(c,0,20);assert(state(c,"integration.ss",false));
-    assert(c->frameCounter(c)==before);unlink("integration.ss");
+    assert(c->frameCounter(c)==before);pocket_remove("integration.ss");
     test_field_items(c,&game,rom,len,snap,ui->settings,gw,gh);
     test_fly(c,&game,rom,len,snap,ui->settings,gw,gh);
     free(rom);
@@ -416,7 +418,7 @@ static void test_frame(struct mCore* c,bool companion,int frame,struct pd_ui* ui
     assert(!companion && c->frameCounter(c)==pausedAt);
     uint32_t before=c->frameCounter(c);
     assert(state(c,"integration.ss",true));drive(c,0,12);assert(state(c,"integration.ss",false));
-    assert(c->frameCounter(c)==before);unlink("integration.ss");
+    assert(c->frameCounter(c)==before);pocket_remove("integration.ss");
     tap(SDLK_ESCAPE);
   } else if(frame==3) {
     assert(companion);tap(SDLK_x);
@@ -427,7 +429,7 @@ static void test_frame(struct mCore* c,bool companion,int frame,struct pd_ui* ui
     assert(controller_button(SDL_CONTROLLER_BUTTON_A)==B);
     // Unknown raw devices must not inherit the TrimUI button indices.
     controller=NULL;rawTrimui=false;held=pressed=0;
-    SDL_Event e={.type=SDL_JOYBUTTONDOWN};e.jbutton.button=1;
+    SDL_Event e;SDL_zero(e);e.type=SDL_JOYBUTTONDOWN;e.jbutton.button=1;
     assert(SDL_PushEvent(&e)==1);events();assert(!held && !pressed);
     rawTrimui=true;assert(SDL_PushEvent(&e)==1);events();assert(down(A));held=pressed=0;
   } else if(frame==5)assert(c->frameCounter(c)>pausedAt);
@@ -529,15 +531,15 @@ int main(int argc,char** argv) {
     char sizes[256];snprintf(sizes,sizeof sizes,"%s",argc==5?argv[4]:"");
     char* next=sizes;int result=0;
     do {
-      char* size=strsep(&next,",");
-      if(*size){setenv("POCKET_WINDOW",size,1);snprintf(liveSize,sizeof liveSize,"-%s",size);}
+      char* size=pocket_strsep(&next,",");
+      if(*size){pocket_setenv("POCKET_WINDOW",size);snprintf(liveSize,sizeof liveSize,"-%s",size);}
       live=true;output=argv[3];running=1;
       char* args[]={"pokedaisy-linux","--data",argv[2],"--frames","1",argv[1],NULL};
       result|=linux_app_main(6,args);
     } while(next);
     return result;
   }
-  char dir[]="/tmp/pd-linux-runtime-XXXXXX";assert(mkdtemp(dir));
+  char dir[600];snprintf(dir,sizeof dir,"%s/pd-linux-runtime-XXXXXX",pocket_temp_root());assert(pocket_mkdtemp(dir));
   char* args[]={"pokedaisy-linux","--data",dir,"--frames","8","diagnostic.gb",NULL};
   assert(!linux_app_main(6,args));
   char path[1200];snprintf(path,sizeof path,"%s/saves/diagnostic.gb.sav",dir);

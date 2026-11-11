@@ -55,6 +55,14 @@
 // headless (scripts/verify_wide.py).
 #include "pk_wide_games.h"
 #include "pk_coop_emerald.h"   // gPaletteFade, for the co-op partner's colours
+#ifdef _WIN32
+// Windows: its headers (through mGBA's) define near / far, names used below.
+#undef near
+#undef far
+#endif
+#if defined(_WIN32) && !defined(PK_WIDE_NO_GUARD)
+#define PK_WIDE_NO_GUARD   // no POSIX signals for the fault guard on Windows
+#endif
 
 // Each engine's layout.
 static const int32_t FAMILIES[][PK_WIDE_CONFIG_SIZE - PK_WIDE_ADDRS] = {

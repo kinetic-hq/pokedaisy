@@ -7,6 +7,14 @@ foreach(feature BUILD_QT BUILD_SDL BUILD_GL BUILD_GLES2 BUILD_GLES3 BUILD_SHARED
   set(${feature} OFF CACHE BOOL "" FORCE)
 endforeach()
 set(BUILD_STATIC ON CACHE BOOL "" FORCE)
+if(WIN32)
+  # Windows (MinGW-w64): no zlib, so the portable zip carries SDL2.dll alone.
+  set(USE_ZLIB OFF CACHE BOOL "" FORCE)
+  # Library only: mGBA's frontends want epoxy on Windows, and the host is its own frontend.
+  set(LIBMGBA_ONLY ON CACHE BOOL "" FORCE)
+  set(M_CORE_GBA ON CACHE BOOL "" FORCE)
+  set(M_CORE_GB ON CACHE BOOL "" FORCE)
+endif()
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/mgba/CMakeLists.txt")
   message(FATAL_ERROR "Initialize the pinned core: git submodule update --init third_party/mgba")
 endif()
@@ -15,12 +23,20 @@ find_path(SDL2_INCLUDE_DIR SDL.h PATH_SUFFIXES SDL2 REQUIRED)
 find_library(SDL2_LIBRARY NAMES SDL2 REQUIRED)
 find_package(Threads REQUIRED)
 file(GLOB PD_CORE CONFIGURE_DEPENDS ../3ds/core/*.c)
-add_library(pd_linux_common STATIC host_io.c wild.c fly.c field_items.c hud.c quick_menu.c ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
+add_library(pd_linux_common STATIC host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
   ../app/src/main/cpp/pk_call.c ../app/src/main/cpp/pk_host.c ../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c
   ../app/src/main/cpp/pk_rewind.c)
 target_include_directories(pd_linux_common PUBLIC ../3ds/core ../third_party/mgba/include ${CMAKE_CURRENT_BINARY_DIR}/mgba/include ${SDL2_INCLUDE_DIR})
-target_compile_definitions(pd_linux_common PUBLIC _GNU_SOURCE _POSIX_C_SOURCE=200809L
-  USE_PTHREADS) # plorpOS: libmgba is, and pk_rewind.c needs its threaded mCoreRewindContext
+target_compile_definitions(pd_linux_common PUBLIC _GNU_SOURCE _POSIX_C_SOURCE=200809L)
+if(WIN32)
+  # libmgba uses Windows threads there (its threading.h picks them without USE_PTHREADS),
+  # and the host's main is its own, not SDL2main's.
+  # _WIN32_WINNT as libmgba's threading.h sets it, so including it after a system header is no redefinition.
+  target_compile_definitions(pd_linux_common PUBLIC SDL_MAIN_HANDLED __USE_MINGW_ANSI_STDIO=1 _WIN32_WINNT=0x0600)
+else()
+  # plorpOS: libmgba is, and pk_rewind.c needs its threaded mCoreRewindContext
+  target_compile_definitions(pd_linux_common PUBLIC USE_PTHREADS)
+endif()
 target_compile_options(pd_linux_common PRIVATE -Wall -Wextra)
 # The app's EXPAND sources, built as they are.
 set_source_files_properties(../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c PROPERTIES COMPILE_OPTIONS -Wno-unused-parameter)
@@ -28,6 +44,20 @@ target_link_libraries(pd_linux_common PUBLIC mgba ${SDL2_LIBRARY} m Threads::Thr
 add_executable(pokedaisy-linux main.c)
 target_compile_options(pokedaisy-linux PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(pokedaisy-linux PRIVATE pd_linux_common)
+if(WIN32)
+  # pokedaisy.exe: a windowed program (its log goes to the console it was started
+  # from, else DATA/pokedaisy.log), the UTF-8 code page and the icon from its
+  # resource file; the C runtime linked in, so SDL2.dll is the only DLL beside it.
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  set(pd_ico ${CMAKE_CURRENT_BINARY_DIR}/pokedaisy.ico)
+  add_custom_command(OUTPUT ${pd_ico}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/windows/make_ico.py ${CMAKE_CURRENT_SOURCE_DIR}/icon.png ${pd_ico}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/icon.png ${CMAKE_CURRENT_SOURCE_DIR}/windows/make_ico.py)
+  configure_file(windows/pokedaisy.rc.in ${CMAKE_CURRENT_BINARY_DIR}/pokedaisy.rc @ONLY)
+  target_sources(pokedaisy-linux PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/pokedaisy.rc ${pd_ico})
+  set_target_properties(pokedaisy-linux PROPERTIES OUTPUT_NAME pokedaisy WIN32_EXECUTABLE ON)
+  target_link_options(pokedaisy-linux PRIVATE -static)
+endif()
 include(CTest)
 option(POCKET_DSPERATE "Optional DSperate Linux backend" OFF)
 if(POCKET_DSPERATE)
@@ -43,12 +73,19 @@ if(BUILD_TESTING)
   foreach(test linux-io-test linux-runtime-test linux-wild-test)
     target_compile_options(${test} PRIVATE -UNDEBUG -Wall -Wextra -Werror)
     target_link_libraries(${test} PRIVATE pd_linux_common)
+    if(WIN32)
+      target_link_options(${test} PRIVATE -static)
+    endif()
     add_test(NAME ${test} COMMAND ${test})
   endforeach()
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
-  add_test(NAME package-smoke COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_package.py $<TARGET_FILE:pokedaisy-linux> ${ds_package_args})
+  if(WIN32)
+    add_test(NAME package-smoke COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/windows/test_package.py $<TARGET_FILE:pokedaisy-linux> ${ds_package_args})
+  else()
+    add_test(NAME package-smoke COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_package.py $<TARGET_FILE:pokedaisy-linux> ${ds_package_args})
+  endif()
   # The launcher starts the binary itself, which a cross build can't without its emulator's sysroot.
-  if(NOT CMAKE_CROSSCOMPILING)
+  if(NOT CMAKE_CROSSCOMPILING AND NOT WIN32)
     add_test(NAME portmaster-launcher COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_portmaster.py $<TARGET_FILE:pokedaisy-linux>)
   endif()
   add_test(NAME diagnostic-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/make_diagnostic.py)

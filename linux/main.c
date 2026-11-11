@@ -19,11 +19,14 @@
 #include "wild.h"
 #include "../app/src/main/cpp/pk_wide.h"
 #include "../app/src/main/cpp/pk_rewind.h"
+#include "pocket_os.h"
 #include <SDL.h>
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef __linux__
 #include <linux/input.h>
+#include <unistd.h>
+#endif
 #include <mgba-util/vfs.h>
 #include <mgba/core/blip_buf.h>
 #include <mgba/core/core.h>
@@ -36,10 +39,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
-#include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
+// The host's name in its window title, menu and SETTINGS.
+#ifdef _WIN32
+#define POCKET_HOST_NAME "PokeDaisy Windows"
+#else
+#define POCKET_HOST_NAME "PokeDaisy Linux"
+#endif
 // The window's size without POCKET_FULLSCREEN / POCKET_WINDOW, and the companion's
 // canvas until a screen says otherwise (companion_size).
 #define W 512
@@ -304,6 +310,7 @@ static void controller_removed(SDL_JoystickID id) {
 /* plorpOS: keys SDL's joystick never reports (below BTN_MISC: the Brick's Fn keys, KEY_F1 / KEY_F2), read
  * from the pad's own node beside SDL: POCKET_FN_KEYS=NODE:FN1CODE:FN2CODE. */
 static void fn_keys(void) {
+#ifdef __linux__
   static int fd = -2, code[2];
   if (fd == -2) {
     const char *spec = getenv("POCKET_FN_KEYS");
@@ -317,6 +324,7 @@ static void fn_keys(void) {
     for (int i = 0; i < 2; i++)
       if (ev.type == EV_KEY && ev.code == code[i] && ev.value != 2)
         key(FN1 + i, ev.value != 0);
+#endif
 }
 static void events(void) {
   pressed = 0;
@@ -892,9 +900,9 @@ static bool state(struct mCore *c, const char *path, bool save) {
   }
   if (save) {
     if (ok)
-      ok = rename(tmp, path) == 0;
+      ok = pocket_replace(tmp, path);
     else
-      unlink(tmp);
+      pocket_remove(tmp);
   }
   return ok;
 }
@@ -1427,7 +1435,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
                               .expandGame = wideSupported, .count = 1, .labels = {"HOST"}};
-  snprintf(host.values[0], 40, "PokeDaisy Linux");
+  snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
                         "Save state",
@@ -1478,7 +1486,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     if (hkFired & (1u << HK_SAVE))
       notice(state(c, ss, true) ? "State saved" : "State save failed");
     if (hkFired & (1u << HK_LOAD))
-      notice(access(ss, F_OK) ? "No state saved yet" : state(c, ss, false) ? "State loaded" : "State load failed");
+      notice(!pocket_exists(ss) ? "No state saved yet" : state(c, ss, false) ? "State loaded" : "State load failed");
     bool ffHeld = hkOn & (1u << HK_FF), rewinding = (hkOn & (1u << HK_REWIND)) && rewindOn;
     if (down(X)) {
       menuOpen = 0;
@@ -1586,7 +1594,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                                           wildSwitch ? NULL : "Not in this game", 0, 0, NULL};
     quick[quickN++] = (struct quick_item){QUICK_SAVE_STATE, false, false, NULL, 0, 0, NULL};
     quick[quickN++] = (struct quick_item){QUICK_LOAD_STATE, false, false,
-                                          access(ss, F_OK) == 0 ? NULL : "No state saved yet", 0, 0, NULL};
+                                          pocket_exists(ss) ? NULL : "No state saved yet", 0, 0, NULL};
     quick[quickN++] = (struct quick_item){QUICK_FF, false, ff, NULL, 0, 0, NULL};
     quick[quickN++] = (struct quick_item){QUICK_COMPANION, false, false, NULL, 0, 0, NULL};
     if (quickSel >= quickN)
@@ -1950,7 +1958,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         // The companion draws the focused hit as its own cursor where it has one.
         ui.focusId = focusId;
         host.ffOn = ff;
-        host.hasState = access(ss, F_OK) == 0;
+        host.hasState = pocket_exists(ss);
         pd_ui_draw(&ui, &canvas, &game, &snap, &host);
         map_cursor_sync(&ui, &game, &snap);
         focus_draw(&ui, focus_resolve(&ui));
@@ -2022,9 +2030,37 @@ cleanup:
 static int cmp(const void *a, const void *b) {
   return strcasecmp(*(char *const *)a, *(char *const *)b);
 }
+struct rom_names {
+  char *names[256];
+  int count;
+};
+static void rom_name(const char *name, void *user) {
+  struct rom_names *r = user;
+  const char *ext = strrchr(name, '.');
+  if (r->count < 256 && ext && (!strcasecmp(ext, ".gba") || !strcasecmp(ext, ".gbc") ||
+                                !strcasecmp(ext, ".gb")
+#ifdef POCKET_DSPERATE
+                                || !strcasecmp(ext, ".nds")
+#endif
+                                ))
+    r->names[r->count++] = strdup(name);
+}
 int main(int argc, char **argv) {
   const char *rom = NULL, *shot = NULL;
   int frames = 0;
+#ifdef _WIN32
+  // SDL_MAIN_HANDLED: this main is the program's own (no SDL2main).
+  SDL_SetMainReady();
+  // The portable zip keeps its data beside the program: DATA next to pokedaisy.exe,
+  // wherever it was started from (a frontend's working folder is its own).
+  static char exeData[1024];
+  char *base = SDL_GetBasePath();
+  if (base) {
+    snprintf(exeData, sizeof exeData, "%sDATA", base);
+    SDL_free(base);
+    root = exeData;
+  }
+#endif
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--data") && i + 1 < argc)
       root = argv[++i];
@@ -2040,7 +2076,14 @@ int main(int argc, char **argv) {
   mLogSetDefaultLogger(&quietLogger);
   signal(SIGINT, stop);
   signal(SIGTERM, stop);
-  mkdir(root, 0755);
+  pocket_mkdir(root);
+#ifndef POCKET_TEST
+  {
+    char log[1100];
+    snprintf(log, sizeof log, "%s/pokedaisy.log", root);
+    pocket_attach_log(log);
+  }
+#endif
   char path[1024];
   static char backups[1024];
   if (saveFile) {
@@ -2050,7 +2093,7 @@ int main(int argc, char **argv) {
   const char *dirs[] = {"roms", "saves", "states"};
   for (int i = 0; i < 3; i++) {
     snprintf(path, sizeof path, "%s/%s", root, dirs[i]);
-    mkdir(path, 0755);
+    pocket_mkdir(path);
   }
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)) {
     fprintf(stderr, "SDL: %s\n", SDL_GetError());
@@ -2067,7 +2110,7 @@ int main(int argc, char **argv) {
   if (size && (sscanf(size, "%dx%d", &winW, &winH) != 2 || winW < 160 ||
                winH < 144 || winW > 8192 || winH > 8192))
     winW = W, winH = H;
-  window = SDL_CreateWindow("PokeDaisy Linux", SDL_WINDOWPOS_CENTERED,
+  window = SDL_CreateWindow(POCKET_HOST_NAME, SDL_WINDOWPOS_CENTERED,
       SDL_WINDOWPOS_CENTERED, fullscreen?display.w:winW, fullscreen?display.h:winH,
       fullscreen?SDL_WINDOW_FULLSCREEN:SDL_WINDOW_RESIZABLE);
   // Presents wait for the refresh (the pacing, above); a driver without it gets the timer.
@@ -2100,7 +2143,7 @@ int main(int argc, char **argv) {
   audio_open();
   rawTrimui=getenv("POCKET_RAW_TRIMUI") && !strcmp(getenv("POCKET_RAW_TRIMUI"),"1");
   snprintf(path, sizeof path, "%s/gamecontrollerdb.txt", root);
-  if (access(path, R_OK) == 0) {
+  if (pocket_readable(path)) {
     int added = SDL_GameControllerAddMappingsFromFile(path);
     fprintf(stderr, "Controller mappings from %s: %d\n", path, added);
   }
@@ -2111,26 +2154,14 @@ int main(int argc, char **argv) {
   if (rom)
     run_game(rom, frames, shot);
   else {
-    char *names[256];
-    int count = 0;
+    struct rom_names found = {0};
     snprintf(path, sizeof path, "%s/roms", root);
-    DIR *d = opendir(path);
-    struct dirent *e;
-    while (d && (e = readdir(d)) && count < 256) {
-      char *ext = strrchr(e->d_name, '.');
-      if (ext && (!strcasecmp(ext, ".gba") || !strcasecmp(ext, ".gbc") ||
-                  !strcasecmp(ext, ".gb")
-#ifdef POCKET_DSPERATE
-                  || !strcasecmp(ext, ".nds")
-#endif
-                  ))
-        names[count++] = strdup(e->d_name);
-    }
-    if (d)
-      closedir(d);
+    pocket_list_dir(path, rom_name, &found);
+    char **names = found.names;
+    int count = found.count;
     qsort(names, count, sizeof(*names), cmp);
     struct pd_menu menu;
-    pd_menu_init(&menu, "PokeDaisy Linux", (const char *const *)names, count);
+    pd_menu_init(&menu, POCKET_HOST_NAME, (const char *const *)names, count);
     int ticks = 0;
     while (running) {
       events();

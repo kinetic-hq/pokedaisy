@@ -1,0 +1,4 @@
+// pokedaisy.exe's icon and manifest (linux/CMakeLists.txt fills the paths in).
+#include <winuser.h>
+1 ICON "@pd_ico@"
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "@CMAKE_CURRENT_SOURCE_DIR@/windows/pokedaisy.manifest"

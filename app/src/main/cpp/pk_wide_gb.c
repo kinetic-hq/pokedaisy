@@ -43,6 +43,11 @@
 /** A game's addresses (WRAM unless noted; D000-DFFF in WRAM bank 1). Gen 1's and Crystal's share where they mean the
  * same; the rest is one generation's (0 in the other's rows). */
 #include "pk_wide_gb_profile.h"
+#ifdef _WIN32
+// Windows: its headers (through mGBA's) define near / far, names used below.
+#undef near
+#undef far
+#endif
 
 #define GB_LINEAR(bank, addr) ((uint32_t) (bank) * 0x4000u + ((addr) - 0x4000u))
 
