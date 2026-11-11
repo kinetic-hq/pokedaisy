@@ -419,6 +419,10 @@ void updater_finish(void) {
   size_t n = strlen(app);
   if (n && (app[n - 1] == '\\' || app[n - 1] == '/'))
     app[n - 1] = 0;
+  char self[1024];
+  DWORD selfLen = GetModuleFileNameA(NULL, self, sizeof self);
+  if (selfLen == 0 || selfLen >= sizeof self)
+    return;
   // The helper: waits for this process to end, unpacks the zip (Windows' own tar reads zips) and copies the
   // program's files over, leaving DATA alone (robocopy without /MIR deletes nothing).
   char script[1100];
@@ -430,12 +434,24 @@ void updater_finish(void) {
           "@echo off\r\n"
           "setlocal\r\n"
           "cd /d \"%%~dp0\"\r\n"
+          // Windows' own tools by their full path: a PATH with Git's or MSYS2's in front finds their tar (which
+          // can't read a zip) and find first.
+          "set \"SYS=%%SystemRoot%%\\System32\"\r\n"
+          "echo waiting for %%1> apply.log\r\n"
+          // Until PokeDaisy has closed: a running program's file can't be opened for writing. (Not tasklist piped
+          // into find: with no console the pipe never ended and the wait with it.) At most about two minutes.
+          "set /a tries=0\r\n"
           ":wait\r\n"
-          "tasklist /FI \"PID eq %%1\" 2>nul | find \" %%1 \" >nul && (ping -n 2 127.0.0.1 >nul & goto wait)\r\n"
+          "2>nul (>>\"%s\" call ) && goto closed\r\n"
+          "set /a tries+=1\r\n"
+          "if %%tries%% geq 120 goto failed\r\n"
+          "\"%%SYS%%\\PING.EXE\" -n 2 127.0.0.1 >nul\r\n"
+          "goto wait\r\n"
+          ":closed\r\n"
           "if exist staging rmdir /s /q staging\r\n"
           "mkdir staging\r\n"
-          "tar -xf " UPDATER_WINDOWS_ZIP " -C staging || goto failed\r\n"
-          "robocopy \"staging\\pokedaisy-windows-x86_64\" \"%s\" /E /XD DATA /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >nul\r\n"
+          "\"%%SYS%%\\tar.exe\" -xf " UPDATER_WINDOWS_ZIP " -C staging >>apply.log 2>&1 || goto failed\r\n"
+          "\"%%SYS%%\\Robocopy.exe\" \"staging\\pokedaisy-windows-x86_64\" \"%s\" /E /XD DATA /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >>apply.log 2>&1\r\n"
           "if errorlevel 8 goto failed\r\n"
           "rmdir /s /q staging\r\n"
           "del " UPDATER_WINDOWS_ZIP "\r\n"
@@ -444,7 +460,7 @@ void updater_finish(void) {
           ":failed\r\n"
           "echo %s> failed.txt\r\n"
           "exit /b 1\r\n",
-          app, latestVersion, latestVersion);
+          self, app, latestVersion, latestVersion);
   fclose(f);
   char cmd[1400];
   snprintf(cmd, sizeof cmd, "cmd.exe /c \"\"%s\" %lu\"", script, (unsigned long)GetCurrentProcessId());
@@ -452,7 +468,16 @@ void updater_finish(void) {
   memset(&si, 0, sizeof si);
   si.cb = sizeof si;
   PROCESS_INFORMATION pi;
-  if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW | DETACHED_PROCESS, NULL, NULL, &si, &pi)) {
+  // Out of this process's job when it may: Steam and some frontends start games in a job that ends every process
+  // in it when the game closes, which would end the helper before it installs. A job that forbids it: start inside.
+  DWORD flags = CREATE_NO_WINDOW | DETACHED_PROCESS;
+  BOOL started = CreateProcessA(NULL, cmd, NULL, NULL, FALSE, flags | CREATE_BREAKAWAY_FROM_JOB, NULL, NULL, &si, &pi);
+  if (!started) {
+    fprintf(stderr, "Update: can't leave this process's job (%lu), starting the installer inside it\n",
+            (unsigned long)GetLastError());
+    started = CreateProcessA(NULL, cmd, NULL, NULL, FALSE, flags, NULL, NULL, &si, &pi);
+  }
+  if (started) {
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
     fprintf(stderr, "Update: installing %s after PokeDaisy closes\n", latestVersion);
