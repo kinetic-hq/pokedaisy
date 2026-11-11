@@ -216,6 +216,12 @@ companion (`companion.cpp`, Gen4Reader.kt's rules), the shared quick menu and pa
 from the Kotlin (Gen4Reader / Gen4TablesPlatinum / Gen4TownMapPlatinum / NdsArt / Gen4Dex ...) by `gen_data.py`: after
 changing those, run it (`--check` fails in `.github/workflows/linux-ds-experiment.yml`). DSperate states carry the save;
 loading one keeps the battery save in memory (`load_state_keeping_save`), like the GBA host.
+**DS on melonDS** (`-DPOCKET_MELONDS=ON`, Windows and Linux; 2026-11-11): the same frontend over `ds_core.h`'s `DsCore`
+(`linux/dsperate/core_dsperate.cpp` or `linux/melonds/core_melonds.cpp`), melonDS built as the app builds it with the app's
+`pk_nds_platform.cpp` (software renderer, FreeBIOS, direct boot). Its battery save sits beside the ROM as `<stem>.sav`
+(melonDS's raw format, so synced folders keep working), backups in DATA/backups, states `<file>.melonds.ss`. Mouse and SDL
+fingers press the touch screen while it shows (`ds_touch_point`; tests push taps with `POCKET_DS_HOST_TAPS`). CI: Windows'
+`x86_64-ds` job, Linux DS's `melonds` matrix entry; packages `--melonds` (`-ds` zips, melonDS's notices).
 
 ## Testing: quick by default, full runs only with the user's OK
 

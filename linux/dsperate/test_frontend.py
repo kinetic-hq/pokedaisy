@@ -1,22 +1,36 @@
-"""Run the actual launcher/backend with an original cart; inspect its PNG output."""
+"""Run the actual launcher/backend with an original cart; inspect its PNG output.
+
+Works on either DS core the host was built with (DSperate or melonDS): the log names it, its state files carry its
+tag, and melonDS keeps the battery save beside the ROM.
+"""
 from pathlib import Path
 import os
+import re
+import shutil
 import struct
 import subprocess
 import sys
 import tempfile
 import zlib
 
-rom = str(Path(sys.argv[1]).resolve())
 command = sys.argv[2:]  # optional QEMU prefix followed by the actual executable
 with tempfile.TemporaryDirectory(prefix='pd-ds-frontend-') as directory:
+    # A copy of the cart in a folder of its own: melonDS writes the battery save beside the ROM.
+    games = Path(directory) / 'games'
+    games.mkdir()
+    rom = str(games / 'diagnostic.nds')
+    shutil.copyfile(sys.argv[1], rom)
     env = dict(os.environ, SDL_VIDEODRIVER='offscreen' if len(command) > 1 else 'dummy',
                SDL_AUDIODRIVER='dummy', SDL_RENDER_DRIVER='software')
     image = Path(directory) / 'actual.png'
-    result = subprocess.run(command + ['--data', directory, '--frames', '5',
+    # melonDS shows the cart's picture a few frames after DSperate does.
+    result = subprocess.run(command + ['--data', directory, '--frames', '30',
                             '--shot', str(image), rom], env=env, capture_output=True, text=True, timeout=70)
     assert result.returncode == 0, result.stderr
-    assert 'DSperate DSPT' in result.stderr and 'core frames 5' in result.stderr, result.stderr
+    core = re.search(r'(DSperate|melonDS) DSPT', result.stderr)
+    assert core and 'core frames 30' in result.stderr, result.stderr
+    tag = '.dsperate' if core.group(1) == 'DSperate' else '.melonds'
+    print('core', core.group(1))
     png = image.read_bytes()
     assert png[:8] == b'\x89PNG\r\n\x1a\n'
     width, height = struct.unpack_from('>II', png, 16)
@@ -53,7 +67,7 @@ with tempfile.TemporaryDirectory(prefix='pd-ds-frontend-') as directory:
     result = subprocess.run(command + ['--data', directory, '--frames', '10', rom],
                             env=env, capture_output=True, text=True, timeout=70)
     assert result.returncode == 0, result.stderr
-    assert (Path(directory) / 'states' / (Path(rom).name + '.dsperate.ss')).stat().st_size > 1000
+    assert (Path(directory) / 'states' / (Path(rom).name + tag + '.ss')).stat().st_size > 1000
     # DOWN selects LOAD STATE: restore the actual state saved at core frame 2.
     env['POCKET_DS_HOST_KEYS'] = '2:4096:1,4:128:1,6:1:1'
     result = subprocess.run(command + ['--data', directory, '--frames', '10', rom],
@@ -72,8 +86,8 @@ with tempfile.TemporaryDirectory(prefix='pd-ds-frontend-') as directory:
     env.pop('POCKET_DS_COMPANION_AT')
     env.pop('POCKET_DS_RESUME', None)
     root = Path(directory)
-    resume = root / 'states' / (Path(rom).name + '.dsperate.resume.ss')
-    manual = root / 'states' / (Path(rom).name + '.dsperate.ss')
+    resume = root / 'states' / (Path(rom).name + tag + '.resume.ss')
+    manual = root / 'states' / (Path(rom).name + tag + '.ss')
     assert not resume.exists()
     manual.write_bytes(b'manual-slot-must-not-change')
     (root / 'ds-settings.ini').write_text('bottom=0\nresume=1\nunknown=1\n')
@@ -95,13 +109,14 @@ with tempfile.TemporaryDirectory(prefix='pd-ds-frontend-') as directory:
     assert 'auto-resumed' not in log and 'core frames 2' in log, log
     assert resume.read_bytes() == before
     env.pop('POCKET_DS_RESUME')
-    for bad in (b'', b'DSST' + b'\0' * 28, before[:len(before)//2]):
+    for bad in (b'', b'DSST' + b'\0' * 28, b'MELN' + b'\0' * 28, before[:len(before)//2]):
         resume.write_bytes(bad)
         log = run()
         assert 'resume ignored:' in log and 'core frames 2' in log, log
     # A battery save supplied after the resume file takes precedence.
-    battery = root / 'saves' / (Path(rom).name + '.sav')
-    battery.write_bytes(b'\xff' * 65536)
+    battery = (games / 'diagnostic.sav') if tag == '.melonds' else root / 'saves' / (Path(rom).name + '.sav')
+    # melonDS sizes an unknown cart's save as an 8 KB EEPROM; DSperate keeps 64 KB.
+    battery.write_bytes(b'\xff' * (8192 if tag == '.melonds' else 65536))
     now = resume.stat().st_mtime_ns
     os.utime(battery, ns=(now + 2_000_000_000, now + 2_000_000_000))
     log = run()

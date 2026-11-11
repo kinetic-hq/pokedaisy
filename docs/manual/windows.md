@@ -3,13 +3,13 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back]
+keywords: [windows, pc, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
 emulator, quick menu, HUD and companion, on a Windows handheld (an ROG Ally, a
 Legion Go, a OneXPlayer) or any PC. It plays Game Boy, Game Boy Color and Game
-Boy Advance games you own. It is early, like the Linux version, so keep a copy
+Boy Advance games you own, and Nintendo DS games in the DS build (below). It is early, like the Linux version, so keep a copy
 of your saves.
 
 ## Install it
@@ -83,6 +83,31 @@ stays in the middle of the screen in every view but a locked side panel.
   it.
 
 The game moves into its new place smoothly when a view changes.
+
+## Nintendo DS games
+
+The `pokedaisy-windows-x86_64-ds.zip` build also plays Nintendo DS games, on
+melonDS. It is the same program with DS games added, so everything above still
+applies. Put your `.nds` files in `DATA\roms` with the others, or start one
+straight away with `pokedaisy.exe "D:\Games\My Game.nds"`. No BIOS or firmware
+files are needed.
+
+A DS game's save sits beside the game's file, named after it without the
+`.nds` (`My Game.sav`), the way most DS emulators keep it, so a folder you sync
+between devices keeps working. The file is the cartridge's own save memory, so
+a save from another DS emulator works if you copy it there under that name.
+Each time a DS game starts its save is first copied to `DATA\backups`. DS save
+states go to `DATA\states` and never hold the save.
+
+One DS screen shows at a time. R2 (Space on a keyboard) switches between the
+top and the touch screen, and L2 (Tab) opens the quick menu. To touch the touch
+screen, show it and then click it with the mouse or tap it with your finger on
+a touch display; a drag works too. With a controller, hold SELECT, move the
+pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
+and A. Escape pauses the game.
+
+The companion reads one DS game so far, Platinum (USA, revision 1): its party,
+bag, dex and Town Map. For other DS games you get the game alone.
 
 ## When something goes wrong
 

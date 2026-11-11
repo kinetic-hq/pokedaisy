@@ -2,10 +2,11 @@
 from pathlib import Path
 import subprocess,sys,tempfile,zipfile
 binary=Path(sys.argv[1]).resolve()
-options=sys.argv[2:];extra=6 if '--dsperate' in options else 0
+options=sys.argv[2:];extra=6 if '--dsperate' in options else 7 if '--melonds' in options else 0
 arch=int.from_bytes(binary.read_bytes()[18:20],'little')
 name='pokedaisy-linux-'+{62:'x86_64',183:'aarch64'}[arch]
-if extra:name+='-ds-experiment'
+suffix='-ds-experiment' if '--dsperate' in options else '-ds' if '--melonds' in options else ''
+name+=suffix
 script=Path(__file__).with_name('package.py')
 with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
     result=subprocess.run([sys.executable,str(script),*options,str(binary),d],capture_output=True,text=True)
@@ -15,7 +16,10 @@ with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
     with zipfile.ZipFile(archive) as z:
         assert z.testzip() is None
         names=z.namelist();assert len(names)==12+extra,names
-        if extra:
+        if '--melonds' in options:
+            assert name+'/licenses/melonDS-GPL-3.0.txt' in names
+            assert b'melonDS: https://github.com/melonDS-emu/melonDS' in z.read(name+'/SOURCE.txt')
+        if '--dsperate' in options:
             assert name+'/DS-EXPERIMENT.md' in names
             assert name+'/licenses/FreeBIOS-BSD.txt' in names
             assert b'DSperate:' in z.read(name+'/SOURCE.txt')
@@ -30,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
     assert result.returncode!=0 and archive.read_bytes()==before
 # The PortMaster layout: PokeDaisy.sh beside pokedaisy/, which holds the rest.
 pm='pokedaisy-portmaster-'+{62:'x86_64',183:'aarch64'}[arch]
-if extra:pm+='-ds-experiment'
+pm+=suffix
 with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
     result=subprocess.run([sys.executable,str(script),'--portmaster',*options,str(binary),d],capture_output=True,text=True)
     assert result.returncode==0,result.stderr
