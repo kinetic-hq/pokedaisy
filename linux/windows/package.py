@@ -84,6 +84,7 @@ for path, license_name in [('LICENSE', 'mGBA-MPL-2.0.txt'), ('src/third-party/bl
                            ('src/third-party/inih/LICENSE.txt', 'inih-BSD.txt')]:
     shutil.copy2(repo / 'third_party/mgba' / path, licenses / license_name)
 (licenses / 'PixelOperator.txt').write_text('Pixel Operator by Jayvee Enaguas. CC0. See NOTICE.\n')
+(licenses / 'xBRZ.txt').write_text("xBRZ by Zenju. GNU GPL 3.0 with the author's linking exception: see LICENSE and NOTICE.\n")
 if 'sdl2.dll' in ship:
     shutil.copy2(repo / 'linux/windows/SDL2-zlib.txt', licenses / 'SDL2-zlib.txt')
 unknown = sorted(set(ship) - {'sdl2.dll'})

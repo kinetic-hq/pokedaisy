@@ -18,6 +18,7 @@ with tempfile.TemporaryDirectory(prefix='pd-windows-package-') as d:
         assert z.read(name + '/pokedaisy.exe') == exe.read_bytes()
         assert z.read(name + '/SDL2.dll')[:2] == b'MZ'
         assert name + '/licenses/SDL2-zlib.txt' in names and name + '/licenses/mGBA-MPL-2.0.txt' in names
+        assert name + '/licenses/xBRZ.txt' in names
         for folder in ('DATA/', 'DATA/roms/', 'DATA/saves/', 'DATA/states/'):
             assert name + '/' + folder in names, folder
         dlls = [n for n in names if n.lower().endswith('.dll')]

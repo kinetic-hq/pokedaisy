@@ -105,6 +105,9 @@ struct pd_settings {
     int companionView;
     bool panelLocked;
     bool updateCheck; // hosts with hasUpdateCheck: look for a newer release at start
+    int shader;        // hosts with hasShaders: the game picture's SHADER (OFF / SHARP / xBRZ)
+    int colors;        // ... and COLORS (ORIGINAL / HANDHELD / OLED)
+    bool dimCompanion; // ... and DIM COMPANION (its panels drawn darker, against OLED burn-in)
 };
 
 // COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.
@@ -120,6 +123,10 @@ enum pd_companion_view {
 const char* pd_companion_view_name(int view);
 
 enum pd_button { PD_BTN_X, PD_BTN_Y, PD_BTN_L2, PD_BTN_R2, PD_BTN_NONE, PD_BUTTONS };
+
+// SHADER and COLORS' values (the Linux / Windows host's linux/shader.h uses the same numbers).
+#define PD_SHADERS 3
+#define PD_COLORS 3
 
 // GAME SPEED's steps, as the app's SPEED_STEPS: the old five, then the slow two.
 #define PD_GAME_SPEED_COUNT 7
@@ -191,6 +198,7 @@ struct pd_host_info {
     bool hasHud;         // Optional: the host draws the HUD over the game (its SETTINGS row)
     bool hasCompanionView; // Optional: COMPANION VIEW's row (settings.companionView)
     bool hasUpdateCheck;   // Optional: CHECK FOR UPDATES' row (settings.updateCheck)
+    bool hasShaders;       // Optional: SHADER, COLORS and DIM COMPANION's rows
     bool hasDisplayFilter; // host implements OFF / LCD
     bool hasQuickMenu;   // host implements the selectable RING / GRID quick menu
     bool hasButtonRows;  // Optional: QUICK MENU / COMPANION / HUD CURSOR button rows (the host reads settings.*Btn)

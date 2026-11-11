@@ -65,6 +65,11 @@ The app shows every license below in full under Settings > LICENSES.
   License; xBRZ, Copyright (C) Zenju, GNU GPL 3.0 (from HqMAME); ScaleFX,
   Copyright (c) 2016 Sp00kyFox, MIT License
   (third_party/licenses/libretro-shaders.txt).
+- Windows / Linux host's SHADER > xBRZ (linux/shader.cpp): xBRZ (third_party/xbrz),
+  Copyright (C) Zenju, GNU GPL 3.0 with the author's linking exception, from
+  DOSBox-X's copy (https://github.com/joncampbell123/dosbox-x, src/libs/xBRZ),
+  unmodified. Its COLORS > HANDHELD follows libretro's gba-color and nds-color
+  shaders (hunterk, Pokefan531; public domain).
 - Windows package only: SDL2 (SDL2.dll, the official release or MSYS2's build of
   it), Copyright (C) 1997-2024 Sam Lantinga, zlib License - https://www.libsdl.org
   (linux/windows/SDL2-zlib.txt, copied into the package's licenses folder).

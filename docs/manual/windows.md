@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small]
+keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -103,6 +103,23 @@ stays in the middle of the screen in every view but a locked side panel.
   it.
 
 The game moves into its new place smoothly when a view changes.
+
+## Shaders and colours
+
+Three rows in the companion's `SETTINGS` change how the game looks:
+
+- **`SHADER`**: `OFF` draws the game's pixels as they are. `SHARP` keeps every
+  pixel the same size and its edges crisp when the game doesn't fit the screen
+  at a whole number scale. `xBRZ` smooths the edges of the pixel art, for a
+  cleaner picture on a big, sharp screen.
+- **`COLORS`**: `ORIGINAL` shows the game's colours as it sends them.
+  `HANDHELD` gives the softer colours of the handheld's own screen. `OLED` takes
+  a little glare off on an OLED screen, and the panels around the game go true
+  black, which an OLED doesn't light at all.
+- **`DIM COMPANION`**: the companion and the panels beside the game are drawn
+  a little darker, so the game stands out.
+
+DS games have the same three rows in the companion's `SET` tab.
 
 ## Nintendo DS games
 
