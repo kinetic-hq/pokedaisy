@@ -23,14 +23,15 @@ The build uses MinGW-w64 (the UCRT64 environment of [MSYS2](https://www.msys2.or
 ```
 pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-python
 git submodule update --init third_party/mgba
-cmake -S linux -B linux/build-win -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S linux -B linux/build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build linux/build-win
 ctest --test-dir linux/build-win --output-on-failure
 python linux/windows/package.py linux/build-win/pokedaisy.exe linux/build-win/package
 ```
 
 Run these in an MSYS2 UCRT64 shell (or with `C:\msys64\ucrt64\bin` first on
-PATH). The C runtime is linked in, so `SDL2.dll` is the only DLL the package
+PATH). MSYS2's CMake is 4.x, which refuses the pinned mGBA's old
+`cmake_minimum_required` without `CMAKE_POLICY_VERSION_MINIMUM`. The C runtime is linked in, so `SDL2.dll` is the only DLL the package
 needs; `package.py` finds it with `objdump` and refuses any other DLL it has no
 license notice for. The executable carries a manifest that sets the UTF-8 code
 page (paths with accents work in Windows 10 1903 and later) and per-monitor DPI

@@ -34,7 +34,7 @@ jobs:
       - run: git config --global --add safe.directory "$(pwd)" && git submodule update --init third_party/mgba
       - name: Build the host and its tests
         run: |
-          cmake -S linux -B linux/build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_LTO=OFF
+          cmake -S linux -B linux/build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_LTO=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build linux/build-win
       - name: Test
         run: ctest --test-dir linux/build-win --output-on-failure
