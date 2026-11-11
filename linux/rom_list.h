@@ -37,4 +37,17 @@ void rom_list_free(struct rom_list *l);
 void rom_save_beside(char *out, size_t size, const char *rom);
 /* Copies FROM to TO through TO.tmp and a rename; false when it couldn't. FROM is left alone. */
 bool rom_copy_file(const char *from, const char *to);
+
+/* GAME FOLDERS' list, kept in DATA/roms-folders.txt: adds FOLDER (false when it's there already, the list is full or
+ * the file couldn't be written) / removes the INDEXth. */
+bool rom_folders_add(const char *root, const char *folder);
+bool rom_folders_remove(const char *root, int index);
+
+/* The folder browser's steps. DIR "" is the top: the drives (Windows) or HOME and "/". Fills *OUT with what to show:
+ * at the top the roots' full paths, else DIR's folders by name, sorted, hidden ones (a leading dot) left out. */
+int rom_dir_entries(const char *dir, char ***out);
+void rom_dir_entries_free(char **names, int count);
+/* DIR + NAME with one separator between; and DIR one folder up ("" past a drive's root or "/"). */
+void rom_dir_join(char *out, size_t size, const char *dir, const char *name);
+void rom_dir_up(char *dir);
 #endif

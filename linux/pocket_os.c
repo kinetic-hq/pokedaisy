@@ -50,6 +50,22 @@ bool pocket_replace(const char *from, const char *to) {
   free(b);
   return ok;
 }
+bool pocket_is_dir(const char *path) {
+  wchar_t *w = wide(path);
+  DWORD a = w ? GetFileAttributesW(w) : INVALID_FILE_ATTRIBUTES;
+  free(w);
+  return a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_DIRECTORY);
+}
+void pocket_roots(void (*each)(const char *path, void *user), void *user) {
+  DWORD drives = GetLogicalDrives();
+  for (int i = 0; i < 26; i++)
+    if (drives & (1u << i)) {
+      char root[4] = {(char)('A' + i), ':', '\\', 0};
+      UINT type = GetDriveTypeA(root);
+      if (type != DRIVE_NO_ROOT_DIR && type != DRIVE_UNKNOWN)
+        each(root, user);
+    }
+}
 bool pocket_remove(const char *path) {
   wchar_t *w = wide(path);
   bool ok = w && DeleteFileW(w);
@@ -168,6 +184,16 @@ bool pocket_exists(const char *path) {
 }
 bool pocket_readable(const char *path) {
   return access(path, R_OK) == 0;
+}
+bool pocket_is_dir(const char *path) {
+  struct stat s;
+  return stat(path, &s) == 0 && S_ISDIR(s.st_mode);
+}
+void pocket_roots(void (*each)(const char *path, void *user), void *user) {
+  const char *home = getenv("HOME");
+  if (home && *home && strcmp(home, "/"))
+    each(home, user);
+  each("/", user);
 }
 void pocket_localtime(const time_t *t, struct tm *out) {
   localtime_r(t, out);

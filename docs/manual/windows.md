@@ -30,16 +30,18 @@ whole folder to another PC or a memory card.
 ## Games in other folders
 
 Your games can stay where they are, in a folder another emulator or a sync app
-already uses. Make a text file `DATA\roms-folders.txt` and write one folder on
-each line, like `D:\Emulation\roms` on one line and `E:\Handheld\gba` on the
-next.
+already uses. Pick `GAME FOLDERS` at the bottom of the game list, then
+`ADD A FOLDER`: you see your drives, `A` opens a folder, `B` goes back up, and
+`USE THIS FOLDER` adds the one you're in, with a controller or the keyboard.
+Pick a folder on the `GAME FOLDERS` list to take it off the list again; its
+games and saves stay where they are.
 
 PokeDaisy lists the games in each of those folders and in the folders right
 inside them (so `D:\Emulation\roms` also finds `D:\Emulation\roms\gba` and
 `D:\Emulation\roms\nds`, but not a folder deeper down). `DATA\roms` and the
-folders inside it are always listed too. Lines starting with `#` are notes, and
-folders whose name starts with a dot are skipped. The file is read each time
-PokeDaisy starts.
+folders inside it are always listed too, and folders whose name starts with a
+dot are skipped. The list is kept in `DATA\roms-folders.txt`, one folder a
+line, if you'd rather write it yourself.
 
 ## Updates
 

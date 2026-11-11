@@ -28,6 +28,11 @@ bool pocket_rmdir(const char *path);
 /* access(path, F_OK) / R_OK. */
 bool pocket_exists(const char *path);
 bool pocket_readable(const char *path);
+/* PATH is a folder (a drive's root included). */
+bool pocket_is_dir(const char *path);
+/* The places a folder browser starts from: each drive's root ("C:\\") on Windows, "/" and HOME elsewhere. Calls
+ * EACH for each. */
+void pocket_roots(void (*each)(const char *path, void *user), void *user);
 void pocket_localtime(const time_t *t, struct tm *out);
 /* Makes a new empty directory from TEMPLATE ending in XXXXXX (mkdtemp). */
 char *pocket_mkdtemp(char *tmpl);

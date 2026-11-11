@@ -2364,6 +2364,162 @@ cleanup:
  * the download's progress and its outcome. True while it's up: it takes the keys. */
 static int updateSel;
 static bool updateDone; // READY / FAILED read and closed
+/* The game list's own screens (GAME FOLDERS, the folder browser) run their frames here. A headless run (--frames)
+ * ends inside them too and takes its shot there; POCKET_MENU_KEYS ("D D A B": A, B, U(p), D(own), one every 12
+ * frames, a space skips a turn) presses keys for it, so the screens can be pictured without a person. */
+static int menuFrames, menuTicks;
+static const char *menuShot, *menuKeys;
+static bool menu_frame(void) {
+  if (!running)
+    return true; // a screen inside already ended the run (and took its shot)
+  present();
+  if (menuFrames && ++menuTicks >= menuFrames) {
+    // The canvas itself: a read-back after the present can be the frame before.
+    if (menuShot && !pd_png_write(menuShot, canvasW, canvasH, pixels))
+      notice("Capture failed");
+    running = 0;
+    return true;
+  }
+  SDL_Delay(16);
+  return false;
+}
+static void menu_script(void) {
+  static int last = -1;
+  if (!menuKeys || !*menuKeys || menuTicks % 12 || menuTicks == last)
+    return;
+  last = menuTicks;
+  char c = *menuKeys++;
+  int k = c == 'A' ? A : c == 'B' ? B : c == 'U' ? UP : c == 'D' ? DOWN : -1;
+  if (k >= 0)
+    pressed |= 1u << k;
+}
+/* A title that fits the window: a long path keeps its end ("...\Emulation\roms\gba"). */
+static const char *menu_title(const char *title, char *buf, size_t size) {
+  const char *t = title;
+  while (*t && pd_text_width(t) > canvas.w - 40) {
+    t++;
+    snprintf(buf, size, "...%s", t);
+    if (pd_text_width(buf) <= canvas.w - 40)
+      return buf;
+  }
+  return title;
+}
+/* A pick-list: the chosen row, or -1 for B (or the app closing). */
+static int menu_pick(const char *title, const char *const *items, int count, int selected) {
+  char shortTitle[1100];
+  struct pd_menu m;
+  pd_menu_init(&m, menu_title(title, shortTitle, sizeof shortTitle), items, count);
+#ifdef _WIN32
+  m.emptyPath = "DATA\\roms\\";
+#else
+  m.emptyPath = "DATA/roms/";
+#endif
+  m.selected = selected >= 0 && selected < count ? selected : 0;
+  while (running) {
+    events();
+    repeat_directions();
+    menu_script();
+    if (down(B) || down(MENU))
+      return -1;
+    if (down(UP))
+      pd_menu_move(&m, -1);
+    if (down(DOWN))
+      pd_menu_move(&m, 1);
+    if (down(A) && count)
+      return m.selected;
+    companion_canvas();
+    pd_menu_draw(&m, &canvas);
+    if (menu_frame())
+      return -1;
+  }
+  return -1;
+}
+/* ADD A FOLDER's browser: the drives, then folders; A opens one, USE THIS FOLDER picks the one you're in, B goes up
+ * (at the drives, back out). True with the folder in OUT. */
+static bool browse_folder(char *out, size_t size) {
+  char dir[POCKET_FOLDER_MAX] = "", from[POCKET_FOLDER_MAX] = "";
+  while (running) {
+    char **names;
+    int n = rom_dir_entries(dir, &names), extra = *dir ? 1 : 0, selected = 0;
+    const char **items = malloc(sizeof *items * (size_t)(n + 1));
+    if (!items) {
+      rom_dir_entries_free(names, n);
+      return false;
+    }
+    if (extra)
+      items[0] = "USE THIS FOLDER";
+    for (int i = 0; i < n; i++) {
+      items[i + extra] = names[i];
+      if (*from && !strcmp(names[i], from))
+        selected = i + extra; // back up: the folder you came from
+    }
+    int pick = menu_pick(*dir ? dir : "PICK A GAME FOLDER", items, n + extra, selected);
+    bool done = false, ok = false;
+    from[0] = 0;
+    if (pick < 0) {
+      if (!*dir || !running)
+        done = true;
+      else {
+        // The name of the folder left, to land on it.
+        const char *last = dir + strlen(dir);
+        while (last > dir && last[-1] != '/' && last[-1] != '\\')
+          last--;
+        snprintf(from, sizeof from, "%s", *last ? last : dir);
+        rom_dir_up(dir);
+      }
+    } else if (extra && pick == 0) {
+      snprintf(out, size, "%s", dir);
+      done = ok = true;
+    } else {
+      char next[POCKET_FOLDER_MAX];
+      if (*dir)
+        rom_dir_join(next, sizeof next, dir, names[pick - extra]);
+      else
+        snprintf(next, sizeof next, "%s", names[pick]);
+      snprintf(dir, sizeof dir, "%s", next);
+    }
+    free(items);
+    rom_dir_entries_free(names, n);
+    if (done)
+      return ok;
+  }
+  return false;
+}
+/* GAME FOLDERS: the folders the game list reads besides DATA/roms (DATA/roms-folders.txt). True when it changed. */
+static bool folders_screen(void) {
+  static char folders[POCKET_FOLDERS_MAX][POCKET_FOLDER_MAX];
+  bool changed = false;
+  int selected = 0;
+  while (running) {
+    int n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
+    const char *items[POCKET_FOLDERS_MAX + 1];
+    items[0] = "ADD A FOLDER";
+    for (int i = 0; i < n; i++)
+      items[i + 1] = folders[i];
+    int pick = menu_pick("GAME FOLDERS", items, n + 1, selected);
+    if (pick < 0)
+      return changed;
+    selected = pick;
+    if (pick == 0) {
+      char folder[POCKET_FOLDER_MAX];
+      if (browse_folder(folder, sizeof folder)) {
+        if (rom_folders_add(root, folder)) {
+          changed = true;
+          selected = n + 1;
+        } else
+          notice(n >= POCKET_FOLDERS_MAX ? "The list is full" : "That folder is on the list already");
+      }
+    } else {
+      // Off the list only: the games and saves in it are left where they are.
+      static const char *const ask[] = {"REMOVE FROM THE LIST", "KEEP IT"};
+      if (menu_pick(folders[pick - 1], ask, 2, 1) == 0 && rom_folders_remove(root, pick - 1)) {
+        changed = true;
+        selected = pick - 1;
+      }
+    }
+  }
+  return changed;
+}
 static bool update_prompt(void) {
   enum updater_state st = updater_state();
   if (st != UPDATER_AVAILABLE && st != UPDATER_DOWNLOADING &&
@@ -2552,35 +2708,43 @@ int main(int argc, char **argv) {
   if (rom)
     run_game(rom, frames, shot);
   else {
-    // DATA/roms and the folders in DATA/roms-folders.txt, each with its subfolders (rom_list.c).
+    // DATA/roms and the GAME FOLDERS (DATA/roms-folders.txt), each with its subfolders (rom_list.c); the list's last
+    // row opens GAME FOLDERS.
     struct rom_list games = {0};
-#ifdef POCKET_DS
-    rom_list_load(&games, root, true);
-#else
-    rom_list_load(&games, root, false);
-#endif
-    int count = games.count;
+    const char **items = NULL;
+    int count = 0;
     struct pd_menu menu;
-    pd_menu_init(&menu, POCKET_HOST_NAME, (const char *const *)games.labels, count);
-#ifdef _WIN32
-    menu.emptyPath = "DATA\\roms\\";
+    menuFrames = frames;
+    menuShot = shot;
+    menuKeys = getenv("POCKET_MENU_KEYS");
+#define LOAD_GAMES()                                                                                                   \
+  do {                                                                                                                 \
+    rom_list_free(&games);                                                                                             \
+    rom_list_load(&games, root, LIST_NDS);                                                                             \
+    free(items);                                                                                                       \
+    items = malloc(sizeof *items * (size_t)(games.count + 1));                                                         \
+    count = items ? games.count : 0;                                                                                   \
+    for (int i = 0; i < count; i++)                                                                                    \
+      items[i] = games.labels[i];                                                                                      \
+    if (items)                                                                                                         \
+      items[count] = "GAME FOLDERS";                                                                                   \
+    pd_menu_init(&menu, POCKET_HOST_NAME, items, items ? count + 1 : 0);                                               \
+  } while (0)
+#ifdef POCKET_DS
+#define LIST_NDS true
 #else
-    menu.emptyPath = "DATA/roms/";
+#define LIST_NDS false
 #endif
-    int ticks = 0;
+    LOAD_GAMES();
     while (running) {
       events();
       repeat_directions();
+      menu_script();
       companion_canvas();
       pd_menu_draw(&menu, &canvas);
       if (update_prompt()) {
-        present();
-        if (frames && ++ticks >= frames) {
-          if (shot)
-            capture_frame(shot, NULL);
+        if (menu_frame())
           break;
-        }
-        SDL_Delay(16);
         continue;
       }
       if (down(B) || down(MENU))
@@ -2589,21 +2753,26 @@ int main(int argc, char **argv) {
         pd_menu_move(&menu, -1);
       if (down(DOWN))
         pd_menu_move(&menu, 1);
-      if (down(A) && count) {
-        snprintf(path, sizeof path, "%s", games.paths[menu.selected]);
-        run_game(path, 0, NULL);
+      if (down(A) && menu.count) {
+        if (menu.selected == count) {
+          if (folders_screen()) {
+            LOAD_GAMES();
+            menu.selected = count; // stays on GAME FOLDERS
+          }
+        } else {
+          snprintf(path, sizeof path, "%s", games.paths[menu.selected]);
+          run_game(path, 0, NULL);
+        }
       }
       companion_canvas();
       pd_menu_draw(&menu, &canvas);
-      present();
-      if (frames && ++ticks >= frames) {
-        if (shot)
-          capture_frame(shot, NULL);
+      if (menu_frame())
         break;
-      }
-      SDL_Delay(16);
     }
+#undef LOAD_GAMES
+#undef LIST_NDS
     rom_list_free(&games);
+    free(items);
   }
   if (js)
     SDL_JoystickClose(js);
