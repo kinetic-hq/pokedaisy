@@ -10,6 +10,10 @@ set(BUILD_STATIC ON CACHE BOOL "" FORCE)
 if(WIN32)
   # Windows (MinGW-w64): no zlib, so the portable zip carries SDL2.dll alone.
   set(USE_ZLIB OFF CACHE BOOL "" FORCE)
+  # Library only: mGBA's frontends want epoxy on Windows, and the host is its own frontend.
+  set(LIBMGBA_ONLY ON CACHE BOOL "" FORCE)
+  set(M_CORE_GBA ON CACHE BOOL "" FORCE)
+  set(M_CORE_GB ON CACHE BOOL "" FORCE)
 endif()
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/mgba/CMakeLists.txt")
   message(FATAL_ERROR "Initialize the pinned core: git submodule update --init third_party/mgba")
