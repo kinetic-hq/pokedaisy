@@ -246,6 +246,8 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         setting(ui, c, ix, &y, iw, SETTING_COLORS, "COLORS", COLORS[st->colors]);
         setting(ui, c, ix, &y, iw, SETTING_DIM, "DIM COMPANION", st->dimCompanion ? "ON" : "OFF");
     }
+    if (host && host->hasFullscreen)
+        setting(ui, c, ix, &y, iw, SETTING_FULLSCREEN, "FULLSCREEN", st->fullscreen == 1 ? "ON" : "OFF");
     if (host && host->hasSavesBeside)
         setting(ui, c, ix, &y, iw, SETTING_SAVES_BESIDE, "SAVES BESIDE GAMES", st->savesBeside ? "ON" : "OFF");
     if (host && host->hasDisplayFilter)

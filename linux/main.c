@@ -376,6 +376,57 @@ static void fn_keys(void) {
         key(FN1 + i, ev.value != 0);
 #endif
 }
+/* FULLSCREEN: borderless, the desktop's own size (no mode change), switched any time by F11, Alt+Enter, L3 + R3 on a
+ * pad, the GAME menu or SETTINGS; remembered in DATA/settings.ini. */
+static bool fullscreenOn;
+static void fullscreen_set(bool on) {
+  if (!window || SDL_SetWindowFullscreen(window, on ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) != 0)
+    return;
+  fullscreenOn = on;
+  char path[1100];
+  snprintf(path, sizeof path, "%s/settings.ini", root);
+  struct pd_settings st;
+  pd_settings_load(&st, path);
+  if (st.fullscreen != (on ? 1 : 0)) {
+    st.fullscreen = on ? 1 : 0;
+    pd_settings_save(&st, path);
+  }
+}
+static void fullscreen_toggle(void) { fullscreen_set(!fullscreenOn); }
+/* F11 / Alt+Enter on a keyboard, L3 + R3 on a pad (the second stick pressed while the first is held). True when the
+ * event was the toggle's (the game doesn't get it). */
+static bool fullscreen_event(const SDL_Event *e) {
+  if (e->type == SDL_KEYDOWN && !e->key.repeat &&
+      (e->key.keysym.sym == SDLK_F11 ||
+       ((e->key.keysym.sym == SDLK_RETURN || e->key.keysym.sym == SDLK_KP_ENTER) && (e->key.keysym.mod & KMOD_ALT)))) {
+    fullscreen_toggle();
+    return true;
+  }
+  if ((e->type == SDL_KEYDOWN || e->type == SDL_KEYUP) &&
+      (e->key.keysym.sym == SDLK_F11 ||
+       ((e->key.keysym.sym == SDLK_RETURN || e->key.keysym.sym == SDLK_KP_ENTER) && (e->key.keysym.mod & KMOD_ALT))))
+    return true;
+  if (e->type == SDL_CONTROLLERBUTTONDOWN &&
+      (e->cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSTICK || e->cbutton.button == SDL_CONTROLLER_BUTTON_RIGHTSTICK)) {
+    SDL_GameController *pad = SDL_GameControllerFromInstanceID(e->cbutton.which);
+    int other = e->cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSTICK ? SDL_CONTROLLER_BUTTON_RIGHTSTICK
+                                                                      : SDL_CONTROLLER_BUTTON_LEFTSTICK;
+    if (pad && SDL_GameControllerGetButton(pad, other)) {
+      fullscreen_toggle();
+      return true;
+    }
+  }
+  return false;
+}
+/* Is this a handheld's screen (under 10 inches across, by the display's DPI)? An unknown size is not. */
+static bool handheld_screen(void) {
+  float ddpi = 0, hdpi = 0, vdpi = 0;
+  SDL_DisplayMode mode;
+  if (SDL_GetDesktopDisplayMode(0, &mode) || SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) || hdpi < 50 || vdpi < 50)
+    return false;
+  float w = mode.w / hdpi, h = mode.h / vdpi;
+  return w * w + h * h < 100.0f;
+}
 static void events(void) {
   pressed = 0;
   SDL_Event e;
@@ -383,6 +434,8 @@ static void events(void) {
     if (e.type == SDL_QUIT)
       running = 0;
     controller_device_event(&e);
+    if (fullscreen_event(&e))
+      continue;
     if (e.type == SDL_AUDIODEVICEREMOVED && !e.adevice.iscapture && audio &&
         e.adevice.which == audio)
       audioLost = true;
@@ -1549,6 +1602,7 @@ static int ff_frames(const struct pd_settings *s, double hz, double frameMs) {
 #ifdef POCKET_DS
 extern int pd_ds_run(const char*, const char*, int, const char*, SDL_Renderer*, bool (*)(void));
 extern void (*pd_ds_device_event)(const SDL_Event*);
+extern bool (*pd_ds_host_event)(const SDL_Event*);
 static bool ds_running(void) { return running != 0; }
 #endif
 static void run_game(const char *path, int maxFrames, const char *shot) {
@@ -1557,6 +1611,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   if (ext && !strcasecmp(ext, ".nds")) {
     if (audio) { SDL_CloseAudioDevice(audio); audio = 0; }
     pd_ds_device_event = controller_device_event;
+    pd_ds_host_event = fullscreen_event;
     appError = pd_ds_run(path, root, maxFrames, shot, renderer, ds_running);
     // The DS backend owns its device while running. Restore the normal host's
     // device for the next GB/GBA game selected without restarting the app.
@@ -1734,18 +1789,19 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
-                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .count = 1, .labels = {"HOST"}};
+                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .hasFullscreen = true, .count = 1, .labels = {"HOST"}};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
                         "Save state",
                         "Load state",
                         "Toggle fast-forward",
+                        "Toggle fullscreen",
                         "Quit to game list",
                         "About"};
   const char *confirmOpts[] = {"Cancel", "Confirm"};
   struct pd_menu gameMenu, confirmMenu;
-  pd_menu_init(&gameMenu, "GAME", opts, 7);
+  pd_menu_init(&gameMenu, "GAME", opts, 8);
   pd_menu_init(&confirmMenu, "CONFIRM", confirmOpts, 2);
   int menuOpen = 0;
   bool companion = false, ff = false, leave = false;
@@ -1757,6 +1813,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   double hz = (double)c->frequency(c) / c->frameCycles(c);
   pacing_start(hz);
   while (running && !leave) {
+    settings.fullscreen = fullscreenOn ? 1 : 0; // F11 / L3 + R3 changed it behind SETTINGS' back
     uint64_t frameStart = SDL_GetPerformanceCounter();
     if(saveStatus.failed) { appError=1; notice("Save I/O failed; stopping game"); break; }
     // plorpOS: back from a pause (its in-game menu stops this process, as does sleep): what its OPTIONS
@@ -2054,11 +2111,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                 notice(ff ? "Fast-forward on" : "Fast-forward off");
                 break;
               case 5:
+                fullscreen_toggle();
+                break;
+              case 6:
                 menuOpen = 3;
                 confirmMenu.title = "Quit? Save in-game first.";
                 confirmMenu.selected = 0;
                 break;
-              case 6:
+              case 7:
                 menuOpen = 4;
                 break;
               }
@@ -2107,6 +2167,9 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           notice(state(c, ss, false) ? "State loaded" : "State load failed");
           break;
         case PD_ACTION_SETTINGS_CHANGED:
+          if ((settings.fullscreen == 1) != fullscreenOn)
+            fullscreen_set(settings.fullscreen == 1);
+          settings.fullscreen = fullscreenOn ? 1 : 0;
           pd_settings_save(&settings, config);
           break;
         default:
@@ -2645,6 +2708,17 @@ int main(int argc, char **argv) {
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
   SDL_DisplayMode display = {0};
   bool fullscreen = getenv("POCKET_FULLSCREEN") != NULL;
+  if (!fullscreen && !frames) {
+    // FULLSCREEN as last chosen; the first start picks it for a handheld's screen and keeps that.
+    snprintf(path, sizeof path, "%s/settings.ini", root);
+    struct pd_settings st;
+    pd_settings_load(&st, path);
+    if (st.fullscreen < 0) {
+      st.fullscreen = handheld_screen() ? 1 : 0;
+      pd_settings_save(&st, path);
+    }
+    fullscreen = st.fullscreen == 1;
+  }
   if(fullscreen && SDL_GetCurrentDisplayMode(0,&display))fullscreen=false;
   // POCKET_WINDOW=WxH: a window the size of a device's panel, for trying a
   // layout on a desktop (1280x720 Smart Pro, 640x480, 720x720 ...).
@@ -2655,7 +2729,8 @@ int main(int argc, char **argv) {
     winW = W, winH = H;
   window = SDL_CreateWindow(POCKET_HOST_NAME, SDL_WINDOWPOS_CENTERED,
       SDL_WINDOWPOS_CENTERED, fullscreen?display.w:winW, fullscreen?display.h:winH,
-      fullscreen?SDL_WINDOW_FULLSCREEN:SDL_WINDOW_RESIZABLE);
+      SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0));
+  fullscreenOn = fullscreen && window;
   // Presents wait for the refresh (the pacing, above); a driver without it gets the timer.
   renderer = window ? SDL_CreateRenderer(window, -1, getenv("POCKET_NO_VSYNC") ? 0 : SDL_RENDERER_PRESENTVSYNC) : NULL;
   if (!renderer && window)

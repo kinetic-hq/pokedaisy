@@ -137,6 +137,7 @@ enum setting_row {
     SETTING_COLORS,
     SETTING_DIM,
     SETTING_SAVES_BESIDE, // hosts with hasSavesBeside: flips in place, taken at the next game start
+    SETTING_FULLSCREEN,   // hosts with hasFullscreen: flips in place, the host follows at once
 };
 
 int ui_settings_follow(int scroll, int y, int height);
