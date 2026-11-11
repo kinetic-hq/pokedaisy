@@ -37,7 +37,7 @@ UPDATES`.
 | COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
 | DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE` or `LARGE + SMALL`. R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
 | Shaders | `SETTINGS` > `SHADER` (`OFF`, `SHARP`, `xBRZ`), `COLORS` (`ORIGINAL`, `HANDHELD`, `OLED`: true black panels, less glare) and `DIM COMPANION`. DS games have them in the `SET` tab. |
-| Games in other folders | One folder per line in `DATA\roms-folders.txt` (e.g. `D:\Emulation\roms`); each folder and the folders right inside it are listed. |
+| Games in other folders | `GAME FOLDERS` at the bottom of the game list: `ADD A FOLDER` browses your drives with a controller (e.g. `D:\Emulation\roms`); each folder and the folders right inside it are listed (kept in `DATA\roms-folders.txt`). |
 | Save folders | GBA / Game Boy saves in `DATA\saves` for games in `DATA\roms`, and beside the game as `<name>.sav` for games in your own folders (`SETTINGS` > `SAVES BESIDE GAMES` turns that off); backed up to a `pokedaisy-backups` folder next to the save at each start. A DS save sits beside its game as `<name>.sav` (backups in `DATA\backups`). States go to `DATA\states` and never hold the save. |
 | Problems | Opened with a double click, it logs to `DATA\pokedaisy.log`; include it in a report. |
 
@@ -68,9 +68,9 @@ Keep this list current: a pull request that changes what the fork adds updates i
 - **Controllers**: hot plugging, several at once (a handheld's own controls and an Xbox pad together).
 - **Shaders and colours** on the desktop host: `SHARP` and `xBRZ` scaling, `HANDHELD` and `OLED` colours,
   `DIM COMPANION`.
-- **Game folders and saves beside games** on the desktop host: games listed from the folders in
-  `DATA\roms-folders.txt` (and one level inside them), whose GBA / Game Boy saves sit next to the game
-  (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.
+- **Game folders and saves beside games** on the desktop host: folders picked in the app (`GAME FOLDERS`,
+  a folder browser that works with a controller) are listed with one level inside them, and their GBA / Game
+  Boy saves sit next to the game (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change.

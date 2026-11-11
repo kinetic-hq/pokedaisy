@@ -236,3 +236,116 @@ bool rom_copy_file(const char *from, const char *to) {
     pocket_remove(tmp);
   return ok;
 }
+
+static char folderList[POCKET_FOLDERS_MAX][POCKET_FOLDER_MAX];
+
+bool rom_folders_add(const char *root, const char *folder) {
+  int n = rom_folders_read(root, folderList, POCKET_FOLDERS_MAX);
+  if (n >= POCKET_FOLDERS_MAX || !*folder || strlen(folder) >= POCKET_FOLDER_MAX)
+    return false;
+  for (int i = 0; i < n; i++)
+    if (same_path(folderList[i], folder))
+      return false;
+  snprintf(folderList[n++], POCKET_FOLDER_MAX, "%s", folder);
+  return rom_folders_write(root, folderList, n);
+}
+
+bool rom_folders_remove(const char *root, int index) {
+  int n = rom_folders_read(root, folderList, POCKET_FOLDERS_MAX);
+  if (index < 0 || index >= n)
+    return false;
+  memmove(folderList[index], folderList[index + 1], (size_t)(n - index - 1) * POCKET_FOLDER_MAX);
+  return rom_folders_write(root, folderList, n - 1);
+}
+
+struct names {
+  char **names;
+  int count, cap;
+  const char *dir;
+};
+static void push(struct names *n, const char *s) {
+  if (n->count == n->cap) {
+    int cap = n->cap ? n->cap * 2 : 32;
+    char **p = realloc(n->names, (size_t)cap * sizeof *p);
+    if (!p)
+      return;
+    n->names = p;
+    n->cap = cap;
+  }
+  char *copy = strdup(s);
+  if (copy)
+    n->names[n->count++] = copy;
+}
+static void root_each(const char *path, void *user) { push(user, path); }
+static void dir_each(const char *name, void *user) {
+  struct names *n = user;
+  if (name[0] == '.')
+    return;
+  char path[POCKET_FOLDER_MAX + 300];
+  rom_dir_join(path, sizeof path, n->dir, name);
+  if (pocket_is_dir(path))
+    push(n, name);
+}
+static int by_name(const void *a, const void *b) {
+  return strcasecmp(*(char *const *)a, *(char *const *)b);
+}
+
+int rom_dir_entries(const char *dir, char ***out) {
+  struct names n = {.dir = dir};
+  if (!*dir)
+    pocket_roots(root_each, &n);
+  else {
+    pocket_list_dir(dir, dir_each, &n);
+    qsort(n.names, (size_t)n.count, sizeof *n.names, by_name);
+  }
+  *out = n.names;
+  return n.count;
+}
+
+void rom_dir_entries_free(char **names, int count) {
+  for (int i = 0; i < count; i++)
+    free(names[i]);
+  free(names);
+}
+
+static bool separator(char c) {
+#ifdef _WIN32
+  return c == '/' || c == '\\';
+#else
+  return c == '/';
+#endif
+}
+
+void rom_dir_join(char *out, size_t size, const char *dir, const char *name) {
+  size_t n = strlen(dir);
+#ifdef _WIN32
+  const char *sep = "\\";
+#else
+  const char *sep = "/";
+#endif
+  snprintf(out, size, "%s%s%s", dir, n && separator(dir[n - 1]) ? "" : sep, name);
+}
+
+void rom_dir_up(char *dir) {
+  size_t n = strlen(dir);
+  while (n > 1 && separator(dir[n - 1]) && dir[n - 2] != ':')
+    dir[--n] = 0;
+  // A root ("C:\", "/") goes back to the top.
+  if ((n == 1 && separator(dir[0])) || (n == 3 && dir[1] == ':' && separator(dir[2])) || (n == 2 && dir[1] == ':')) {
+    dir[0] = 0;
+    return;
+  }
+  char *cut = NULL;
+  for (char *p = dir; *p; p++)
+    if (separator(*p))
+      cut = p;
+  if (!cut) {
+    dir[0] = 0;
+    return;
+  }
+  // Keep a root's separator: "C:\Games" -> "C:\", "/home" -> "/".
+  if (cut == dir || (cut == dir + 2 && dir[1] == ':'))
+    cut[1] = 0;
+  else
+    *cut = 0;
+}

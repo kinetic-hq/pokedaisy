@@ -122,6 +122,48 @@ int main(void) {
   assert(n == 1 && !strcmp(folders[0], other));
   snprintf(game, sizeof game, "%s/c red.gb", gba);
   assert(!rom_in_added_folder(root, game));
+  // GAME FOLDERS' add / remove.
+  assert(rom_folders_add(root, extra));
+  assert(!rom_folders_add(root, extra)); // already there
+  n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
+  assert(n == 2 && !strcmp(folders[1], extra));
+  assert(rom_folders_remove(root, 0) && !rom_folders_remove(root, 5));
+  n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
+  assert(n == 1 && !strcmp(folders[0], extra));
+
+  // The browser: folders only, sorted, no hidden ones; the top lists roots.
+  char **names;
+  int count = rom_dir_entries(extra, &names);
+  assert(count == 2 && !strcmp(names[0], "gba") && !strcmp(names[1], "nds"));
+  rom_dir_entries_free(names, count);
+  count = rom_dir_entries("", &names);
+  assert(count >= 1);
+  for (int i = 0; i < count; i++)
+    assert(pocket_is_dir(names[i]));
+  rom_dir_entries_free(names, count);
+  char dir[1300];
+  rom_dir_join(dir, sizeof dir, extra, "gba");
+  assert(pocket_is_dir(dir));
+  rom_dir_up(dir);
+  assert(pocket_is_dir(dir) && !strcmp(dir + strlen(dir) - 14, "Emulation roms"));
+  snprintf(dir, sizeof dir, "/home/x/");
+  rom_dir_up(dir);
+  assert(!strcmp(dir, "/home"));
+  rom_dir_up(dir);
+  assert(!strcmp(dir, "/"));
+  rom_dir_up(dir);
+  assert(!strcmp(dir, ""));
+#ifdef _WIN32
+  snprintf(dir, sizeof dir, "D:\\Emulation\\roms");
+  rom_dir_up(dir);
+  assert(!strcmp(dir, "D:\\Emulation"));
+  rom_dir_up(dir);
+  assert(!strcmp(dir, "D:\\"));
+  rom_dir_up(dir);
+  assert(!strcmp(dir, ""));
+  rom_dir_join(dir, sizeof dir, "D:\\", "roms");
+  assert(!strcmp(dir, "D:\\roms"));
+#endif
   puts("rom list ok");
   return 0;
 }
