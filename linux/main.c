@@ -1580,6 +1580,12 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   }
   char sav[1024], ss[1024];
   const char *name = strrchr(path, '/');
+#ifdef _WIN32
+  // A Windows path may use either separator: the save / state is named after the file alone, as on Linux.
+  const char *back = strrchr(path, '\\');
+  if (back && (!name || back > name))
+    name = back;
+#endif
   name = name ? name + 1 : path;
   if (saveFile)
     snprintf(sav, sizeof sav, "%s", saveFile);
@@ -1739,8 +1745,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     }
     if ((!hostMenu && down(MENU)) || ((down(START) || down(SELECT)) &&
                        (held & (1u << START)) && (held & (1u << SELECT)))) {
+      // A second press closes the menu back to the game, like B and RESUME GAME do (it used to leave the
+      // companion open behind it).
+      companion = !menuOpen;
       menuOpen = menuOpen ? 0 : 1;
-      companion = true;
       c->setKeys(c, 0);
       if (audio)
         SDL_ClearQueuedAudio(audio);
