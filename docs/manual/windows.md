@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels]
+keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -26,6 +26,25 @@ Put your `.gba`, `.gbc`, `.gb` and `.nds` files in `DATA\roms`, then open
 `pokedaisy.exe`. It lists your games; pick one with the D-pad and press A.
 Everything the program writes stays in that `DATA` folder, so you can move the
 whole folder to another PC or a memory card.
+
+## Games in other folders
+
+Your games can stay where they are, in a folder another emulator or a sync app
+already uses. Make a text file `DATA\roms-folders.txt` and write one folder on
+each line:
+
+```
+# my games
+D:\Emulation\roms
+E:\Handheld\gba
+```
+
+PokeDaisy lists the games in each of those folders and in the folders right
+inside them (so `D:\Emulation\roms` also finds `D:\Emulation\roms\gba` and
+`D:\Emulation\roms\nds`, but not a folder deeper down). `DATA\roms` and the
+folders inside it are always listed too. Lines starting with `#` are notes, and
+folders whose name starts with a dot are skipped. The file is read each time
+PokeDaisy starts.
 
 ## Updates
 
@@ -50,8 +69,19 @@ companion's `SETTINGS`.
 
 Your in-game saves go to `DATA\saves`, named after the game's file
 (`My Game.gba.sav`). To bring a save from another emulator, copy a backup of it
-there under that name before you start the game. Each time a game starts, the
-save is first copied to `DATA\saves\pokedaisy-backups`, and the newest ten
+there under that name before you start the game.
+
+To keep each save next to its game instead, the way RetroArch and the Android
+app keep them, turn on `SAVES BESIDE GAMES` in the companion's `SETTINGS`. A
+GBA or Game Boy game then saves as `My Game.sav` in the game's own folder, from
+the next time you start it. If that file isn't there yet but the game has a save
+in `DATA\saves`, a copy of it is put beside the game first; the one in
+`DATA\saves` is left as it was. DS games always keep their save beside the
+game.
+
+Each time a game starts, its save is first copied to a `pokedaisy-backups`
+folder next to it (`DATA\saves\pokedaisy-backups` unless the save sits beside
+the game), and the newest ten
 different copies are kept. Save states go to `DATA\states`. A state is written
 to a new file first and then put in place in one step, so a crash while saving a
 state never leaves half a file behind.

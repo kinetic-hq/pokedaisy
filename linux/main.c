@@ -7,6 +7,7 @@
 #include "pd_ui_internal.h"
 #include "pd_map.h"
 #include "host_io.h"
+#include "rom_list.h"
 #include "field_items.h"
 #include "fly.h"
 #include "display_filter.h"
@@ -1617,6 +1618,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     return;
   }
   char sav[1024], ss[1024];
+  struct pocket_save_status saveStatus = {0};
   const char *name = strrchr(path, '/');
 #ifdef _WIN32
   // A Windows path may use either separator: the save / state is named after the file alone, as on Linux.
@@ -1627,10 +1629,26 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   name = name ? name + 1 : path;
   if (saveFile)
     snprintf(sav, sizeof sav, "%s", saveFile);
-  else
+  else {
     snprintf(sav, sizeof sav, "%s/saves/%s.sav", root, name);
+    char ini[1024];
+    snprintf(ini, sizeof ini, "%s/settings.ini", root);
+    struct pd_settings saveSettings;
+    pd_settings_load(&saveSettings, ini);
+    if (saveSettings.savesBeside) {
+      // SAVES BESIDE GAMES: "Game.sav" next to "Game.gba", as RetroArch and the Android app keep it. A game played
+      // before with its save in DATA/saves gets a copy of it there the first time (the old one is left alone).
+      char beside[1024];
+      rom_save_beside(beside, sizeof beside, path);
+      if (!pocket_exists(beside) && pocket_exists(sav) && !rom_copy_file(sav, beside)) {
+        appError = 1;
+        notice("Save copy failed; game not opened");
+        goto cleanup;
+      }
+      snprintf(sav, sizeof sav, "%s", beside);
+    }
+  }
   snprintf(ss, sizeof ss, "%s/states/%s.ss", root, name);
-  struct pocket_save_status saveStatus = {0};
   if (!pocket_save_backup(sav, time(NULL))) {
     appError = 1;
     notice("Save backup failed; game not opened");
@@ -1715,7 +1733,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
-                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .count = 1, .labels = {"HOST"}};
+                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .count = 1, .labels = {"HOST"}};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
@@ -2338,24 +2356,6 @@ cleanup:
   free(romdata);
   held = pressed = 0;
 }
-static int cmp(const void *a, const void *b) {
-  return strcasecmp(*(char *const *)a, *(char *const *)b);
-}
-struct rom_names {
-  char *names[256];
-  int count;
-};
-static void rom_name(const char *name, void *user) {
-  struct rom_names *r = user;
-  const char *ext = strrchr(name, '.');
-  if (r->count < 256 && ext && (!strcasecmp(ext, ".gba") || !strcasecmp(ext, ".gbc") ||
-                                !strcasecmp(ext, ".gb")
-#ifdef POCKET_DS
-                                || !strcasecmp(ext, ".nds")
-#endif
-                                ))
-    r->names[r->count++] = strdup(name);
-}
 #ifndef POCKET_VERSION
 #define POCKET_VERSION "dev"
 #endif
@@ -2551,14 +2551,16 @@ int main(int argc, char **argv) {
   if (rom)
     run_game(rom, frames, shot);
   else {
-    struct rom_names found = {0};
-    snprintf(path, sizeof path, "%s/roms", root);
-    pocket_list_dir(path, rom_name, &found);
-    char **names = found.names;
-    int count = found.count;
-    qsort(names, count, sizeof(*names), cmp);
+    // DATA/roms and the folders in DATA/roms-folders.txt, each with its subfolders (rom_list.c).
+    struct rom_list games = {0};
+#ifdef POCKET_DS
+    rom_list_load(&games, root, true);
+#else
+    rom_list_load(&games, root, false);
+#endif
+    int count = games.count;
     struct pd_menu menu;
-    pd_menu_init(&menu, POCKET_HOST_NAME, (const char *const *)names, count);
+    pd_menu_init(&menu, POCKET_HOST_NAME, (const char *const *)games.labels, count);
 #ifdef _WIN32
     menu.emptyPath = "DATA\\roms\\";
 #else
@@ -2587,7 +2589,7 @@ int main(int argc, char **argv) {
       if (down(DOWN))
         pd_menu_move(&menu, 1);
       if (down(A) && count) {
-        snprintf(path, sizeof path, "%s/roms/%s", root, names[menu.selected]);
+        snprintf(path, sizeof path, "%s", games.paths[menu.selected]);
         run_game(path, 0, NULL);
       }
       companion_canvas();
@@ -2600,8 +2602,7 @@ int main(int argc, char **argv) {
       }
       SDL_Delay(16);
     }
-    for (int i = 0; i < count; i++)
-      free(names[i]);
+    rom_list_free(&games);
   }
   if (js)
     SDL_JoystickClose(js);
