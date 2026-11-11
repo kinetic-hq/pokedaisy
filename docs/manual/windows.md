@@ -31,13 +31,8 @@ whole folder to another PC or a memory card.
 
 Your games can stay where they are, in a folder another emulator or a sync app
 already uses. Make a text file `DATA\roms-folders.txt` and write one folder on
-each line:
-
-```
-# my games
-D:\Emulation\roms
-E:\Handheld\gba
-```
+each line, like `D:\Emulation\roms` on one line and `E:\Handheld\gba` on the
+next.
 
 PokeDaisy lists the games in each of those folders and in the folders right
 inside them (so `D:\Emulation\roms` also finds `D:\Emulation\roms\gba` and
