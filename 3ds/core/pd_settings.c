@@ -45,7 +45,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->shader = 0;
     s->colors = 0;
     s->dimCompanion = false;
-    s->savesBeside = false;
+    s->savesBeside = true;
 }
 
 const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};

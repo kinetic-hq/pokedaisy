@@ -18,6 +18,15 @@ struct rom_list {
 bool rom_list_playable(const char *name, bool nds);
 /* Adds every game in FOLDER and in its folders one level down. */
 void rom_list_scan(struct rom_list *l, const char *folder, bool nds);
+#define POCKET_FOLDERS_MAX 32
+#define POCKET_FOLDER_MAX 1024
+/* The added game folders, DATA/roms-folders.txt's lines (blank lines and # comments skipped, surrounding spaces and
+ * quotes and a trailing separator dropped): how many, at most MAX. */
+int rom_folders_read(const char *root, char folders[][POCKET_FOLDER_MAX], int max);
+/* Writes the list back (through a temporary file and a rename). */
+bool rom_folders_write(const char *root, char folders[][POCKET_FOLDER_MAX], int count);
+/* ROM sits in one of the added folders (or below it). */
+bool rom_in_added_folder(const char *root, const char *rom);
 /* DATA/roms, then each line of DATA/roms-folders.txt (blank lines and # comments skipped, surrounding spaces and
  * quotes dropped); sorted by label, a path listed twice kept once. */
 void rom_list_load(struct rom_list *l, const char *root, bool nds);

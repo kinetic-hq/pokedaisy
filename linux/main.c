@@ -1635,9 +1635,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     snprintf(ini, sizeof ini, "%s/settings.ini", root);
     struct pd_settings saveSettings;
     pd_settings_load(&saveSettings, ini);
-    if (saveSettings.savesBeside) {
-      // SAVES BESIDE GAMES: "Game.sav" next to "Game.gba", as RetroArch and the Android app keep it. A game played
-      // before with its save in DATA/saves gets a copy of it there the first time (the old one is left alone).
+    if (saveSettings.savesBeside && rom_in_added_folder(root, path)) {
+      // SAVES BESIDE GAMES (on by default) for a game in an added folder: "Game.sav" next to "Game.gba", as
+      // RetroArch and the Android app keep it; DATA/roms' games keep DATA/saves. A save already beside the game
+      // wins; else one played before in DATA/saves is copied there the first time (the old one is left alone).
       char beside[1024];
       rom_save_beside(beside, sizeof beside, path);
       if (!pocket_exists(beside) && pocket_exists(sav) && !rom_copy_file(sav, beside)) {

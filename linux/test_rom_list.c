@@ -102,6 +102,26 @@ int main(void) {
   assert(pocket_exists(from) && pocket_exists(to));
   snprintf(from, sizeof from, "%s/missing.sav", gba);
   assert(!rom_copy_file(from, to));
+  // Which games save beside themselves: those in an added folder (or below it), never DATA/roms'.
+  char game[1300];
+  snprintf(game, sizeof game, "%s/c red.gb", gba);
+  assert(rom_in_added_folder(root, game));
+  snprintf(game, sizeof game, "%s/e color.gbc", other);
+  assert(rom_in_added_folder(root, game));
+  snprintf(game, sizeof game, "%s/b game.gba", roms);
+  assert(!rom_in_added_folder(root, game));
+  snprintf(game, sizeof game, "%s-2/x.gba", other); // a folder whose name only starts the same
+  assert(!rom_in_added_folder(root, game));
+
+  // The list round-trips through the file.
+  char folders[POCKET_FOLDERS_MAX][POCKET_FOLDER_MAX];
+  int n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
+  assert(n == 3 && !strcmp(folders[0], extra) && !strcmp(folders[2], other));
+  assert(rom_folders_write(root, folders + 2, 1));
+  n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
+  assert(n == 1 && !strcmp(folders[0], other));
+  snprintf(game, sizeof game, "%s/c red.gb", gba);
+  assert(!rom_in_added_folder(root, game));
   puts("rom list ok");
   return 0;
 }

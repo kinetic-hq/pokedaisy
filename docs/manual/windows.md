@@ -66,13 +66,13 @@ Your in-game saves go to `DATA\saves`, named after the game's file
 (`My Game.gba.sav`). To bring a save from another emulator, copy a backup of it
 there under that name before you start the game.
 
-To keep each save next to its game instead, the way RetroArch and the Android
-app keep them, turn on `SAVES BESIDE GAMES` in the companion's `SETTINGS`. A
-GBA or Game Boy game then saves as `My Game.sav` in the game's own folder, from
-the next time you start it. If that file isn't there yet but the game has a save
-in `DATA\saves`, a copy of it is put beside the game first; the one in
-`DATA\saves` is left as it was. DS games always keep their save beside the
-game.
+A game from one of your own game folders (above) keeps its save next to it
+instead, the way RetroArch and the Android app keep them: `My Game.gba` saves as
+`My Game.sav` in the same folder. If that file isn't there yet but the game has
+a save in `DATA\saves`, a copy of it is put beside the game first; the one in
+`DATA\saves` is left as it was. To keep those saves in `DATA\saves` too, turn
+off `SAVES BESIDE GAMES` in the companion's `SETTINGS`. DS games always keep
+their save beside the game.
 
 Each time a game starts, its save is first copied to a `pokedaisy-backups`
 folder next to it (`DATA\saves\pokedaisy-backups` unless the save sits beside

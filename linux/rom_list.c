@@ -98,15 +98,14 @@ static int by_label(const void *a, const void *b) {
   return c ? c : strcmp(x[1], y[1]);
 }
 
-void rom_list_load(struct rom_list *l, const char *root, bool nds) {
+int rom_folders_read(const char *root, char folders[][POCKET_FOLDER_MAX], int max) {
   char path[1100];
-  snprintf(path, sizeof path, "%s/roms", root);
-  rom_list_scan(l, path, nds);
   snprintf(path, sizeof path, "%s/%s", root, POCKET_ROM_FOLDERS_FILE);
   FILE *f = fopen(path, "r");
+  int n = 0;
   if (f) {
-    char line[1100];
-    while (fgets(line, sizeof line, f)) {
+    char line[POCKET_FOLDER_MAX + 8];
+    while (n < max && fgets(line, sizeof line, f)) {
       char *s = line, *e;
       if ((unsigned char)s[0] == 0xEF && (unsigned char)s[1] == 0xBB && (unsigned char)s[2] == 0xBF)
         s += 3; // Notepad's UTF-8 mark
@@ -121,11 +120,63 @@ void rom_list_load(struct rom_list *l, const char *root, bool nds) {
       }
       while (e > s + 1 && (e[-1] == '/' || e[-1] == '\\') && e[-2] != ':')
         *--e = 0;
-      if (*s && *s != '#')
-        rom_list_scan(l, s, nds);
+      if (*s && *s != '#' && strlen(s) < POCKET_FOLDER_MAX)
+        snprintf(folders[n++], POCKET_FOLDER_MAX, "%s", s);
     }
     fclose(f);
   }
+  return n;
+}
+
+bool rom_folders_write(const char *root, char folders[][POCKET_FOLDER_MAX], int count) {
+  char path[1100], tmp[1200];
+  snprintf(path, sizeof path, "%s/%s", root, POCKET_ROM_FOLDERS_FILE);
+  snprintf(tmp, sizeof tmp, "%s.tmp", path);
+  FILE *f = fopen(tmp, "w");
+  if (!f)
+    return false;
+  fputs("# Game folders PokeDaisy lists, one a line (each searched one level deep).\n", f);
+  for (int i = 0; i < count; i++)
+    fprintf(f, "%s\n", folders[i]);
+  bool ok = fclose(f) == 0 && pocket_replace(tmp, path);
+  if (!ok)
+    pocket_remove(tmp);
+  return ok;
+}
+
+// PATH inside FOLDER: FOLDER, a separator, more.
+static bool inside(const char *path, const char *folder) {
+  size_t n = strlen(folder);
+  if (!n || strlen(path) <= n + 1)
+    return false;
+  char *head = malloc(n + 1);
+  if (!head)
+    return false;
+  memcpy(head, path, n);
+  head[n] = 0;
+  bool same = same_path(head, folder);
+  free(head);
+  char last = folder[n - 1], next = path[n];
+  return same && (last == '/' || last == '\\' || next == '/' || next == '\\');
+}
+
+bool rom_in_added_folder(const char *root, const char *rom) {
+  static char folders[POCKET_FOLDERS_MAX][POCKET_FOLDER_MAX];
+  int n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
+  for (int i = 0; i < n; i++)
+    if (inside(rom, folders[i]))
+      return true;
+  return false;
+}
+
+void rom_list_load(struct rom_list *l, const char *root, bool nds) {
+  char path[1100];
+  snprintf(path, sizeof path, "%s/roms", root);
+  rom_list_scan(l, path, nds);
+  static char folders[POCKET_FOLDERS_MAX][POCKET_FOLDER_MAX];
+  int n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
+  for (int i = 0; i < n; i++)
+    rom_list_scan(l, folders[i], nds);
   // Sorted as pairs (label, path), so both arrays keep in step.
   char **pairs = malloc(2 * (size_t)l->count * sizeof *pairs);
   if (!pairs)
