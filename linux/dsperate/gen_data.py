@@ -8,8 +8,8 @@ import argparse, json, re
 
 root = Path(__file__).resolve().parents[2]
 data = root / 'app/src/main/kotlin/com/pokedaisy/app/companion/data'
-reader = (data / 'Gen4Reader.kt').read_text()
-tables = (data / 'Gen4TablesPlatinum.kt').read_text()
+reader = (data / 'Gen4Reader.kt').read_text(encoding='utf-8')
+tables = (data / 'Gen4TablesPlatinum.kt').read_text(encoding='utf-8')
 config = re.search(r'val GEN4_PLATINUM_US = Gen4Config\((.*?)\n\)', reader, re.S)[1]
 def number(text, name):
     return int(re.search(r'\b' + name + r'(?:\s*:\s*\w+)?\s*=\s*(0x[0-9a-fA-F]+|\d+)', text)[1], 0)
@@ -21,7 +21,7 @@ for name in ('fieldSystemPtr', 'battleTemplate'):
     fields['battle_' + name] = number(battle_config, name)
 for name in ('offChild', 'offAppData', 'offBattleType', 'offBattleCtx', 'offBattleMons'):
     fields['battle_' + name] = number(battle_defaults, name)
-dex = (data / 'Gen4Dex.kt').read_text()
+dex = (data / 'Gen4Dex.kt').read_text(encoding='utf-8')
 # Platinum's dex block size: the read's own, or its floor since other games' blocks came in (maxOf(size, 0x340)).
 fields['dexSize'] = int(re.search(r'val d = r.readCoreMemory\(body \+ off, (?:maxOf\(size, )?(0x[0-9A-Fa-f]+)\)', dex)[1], 0)
 fields['dexMagic'] = int(re.search(r'if \(magic != (0x[0-9A-Fa-f]+)L\)', dex)[1], 0)
@@ -50,9 +50,9 @@ maps = {'species': string_map('speciesNamesPlatinum'),
         'moves': string_map('moveDataPlatinum', True),
         'items': string_map('itemNamesPlatinum'),
         'places': string_map('mapPlacesPlatinum')}
-town = (data / 'Gen4TownMapPlatinum.kt').read_text()
-art = (data / 'NdsArt.kt').read_text()
-model = (data / 'RegionMapModel.kt').read_text().split('private val platinumTownMap:')[1].split('\n}')[0]
+town = (data / 'Gen4TownMapPlatinum.kt').read_text(encoding='utf-8')
+art = (data / 'NdsArt.kt').read_text(encoding='utf-8')
+model = (data / 'RegionMapModel.kt').read_text(encoding='utf-8').split('private val platinumTownMap:')[1].split('\n}')[0]
 map_cfg = re.search(r'data class Gen4TownMap\((.*?)\n\)', reader, re.S)[1]
 fields['fieldSystemPtr'] = number(config.split('townMap = Gen4TownMap(')[1], 'fieldSystemPtr')
 for key in ['offLocation','offPlayerAvatar','offAvatarMapObject','offObjectX','offObjectZ','offExitLocation','varsOff','numVars','firstArrivalFlag']:
@@ -79,21 +79,21 @@ icon_base = int(re.search(r'icon\(narc.member\((\d+) \+ species\)', art)[1])
 icon_egg = int(re.search(r'private const val EGG = (\d+)', art)[1])
 icon_palettes = [int(n) for n in re.findall(r'\d+', re.search(r'val iconPalettesPlatinum: ByteArray = byteArrayOf\((.*?)\n\)', tables, re.S)[1])]
 assert len(icon_palettes) > icon_egg and max(icon_palettes) < 3
-stats = (data / 'MonStats.kt').read_text()
+stats = (data / 'MonStats.kt').read_text(encoding='utf-8')
 natures = re.findall(r'"([^"\n]+)"', re.search(r'private val natureNames = listOf\((.*?)\n\)', stats, re.S)[1])
 assert len(natures) == 25
 maps['natures'] = dict(enumerate(natures))
-charmap = (data / 'Gen4Charmap.kt').read_text()
+charmap = (data / 'Gen4Charmap.kt').read_text(encoding='utf-8')
 def literal(name):
     return json.loads('"'+re.search(name+r'\s*=\s*"((?:\\.|[^"\\])*)"', charmap)[1]+'"')
 codes, values = literal('GEN4_CHAR_CODES'), literal('GEN4_CHAR_VALUES').split('\0')
 chars = {ord(c): v for c, v in zip(codes, values) if v and v.isascii() and v.isprintable()}
-identity = (root / 'app/src/main/kotlin/com/pokedaisy/app/GameTitles.kt').read_text()
+identity = (root / 'app/src/main/kotlin/com/pokedaisy/app/GameTitles.kt').read_text(encoding='utf-8')
 sha = re.search(r'"([a-f0-9]{40})" to "Pokémon Platinum"', identity)[1]
-unova = (data / 'Gen5TablesBlack.kt').read_text()
-johto = (data / 'Gen4TablesHeartGold.kt').read_text()
-unova_items = (data / 'Gen5ItemsBlack.kt').read_text()
-sequels = (data / 'Gen5TablesBlack2.kt').read_text()
+unova = (data / 'Gen5TablesBlack.kt').read_text(encoding='utf-8')
+johto = (data / 'Gen4TablesHeartGold.kt').read_text(encoding='utf-8')
+unova_items = (data / 'Gen5ItemsBlack.kt').read_text(encoding='utf-8')
+sequels = (data / 'Gen5TablesBlack2.kt').read_text(encoding='utf-8')
 maps['unovaSpecies'] = string_map('speciesNamesBlack', source=unova)
 maps['unovaMoves'] = string_map('moveDataBlack', True, unova)
 maps['johtoItems'] = string_map('itemNamesHeartGold', source=johto)
@@ -103,7 +103,7 @@ maps['sequelItems'] = string_map('itemNamesBlack2Added', source=sequels)
 
 johto_config = reader.split(') = Gen4Config(', 1)[1].split('\n)', 1)[0]
 fields['johto_kantoBadgesOff'] = number(johto_config, 'kantoBadgesOff')
-gen5 = (data / 'Gen5Reader.kt').read_text()
+gen5 = (data / 'Gen5Reader.kt').read_text(encoding='utf-8')
 flag_bits, divisor = map(int, re.search(r'GEN4_FLAG_BYTES = (\d+) / (\d+)', reader).groups())
 fields['gen4FlagBytes'] = flag_bits // divisor
 gen5_defaults = gen5.split('data class Gen5Config(', 1)[1].split('\n)', 1)[0]
@@ -164,8 +164,8 @@ out += ['inline constexpr char mapPath[] = '+json.dumps(map_path)+';',
         'inline constexpr int mainHeaders[] = {'+', '.join(map(str,map_headers))+'};',
         'struct MapMark {int x,y,shape,palette,arrival;bool hidden;};',
         'inline constexpr MapMark mapMarks[] = {'+', '.join('{'+','.join(m)+'}' for m in marks)+'};']
-johto_town = (data / 'Gen4TownMapHeartGold.kt').read_text()
-pg = (data / 'PokegearMap.kt').read_text()
+johto_town = (data / 'Gen4TownMapHeartGold.kt').read_text(encoding='utf-8')
+pg = (data / 'PokegearMap.kt').read_text(encoding='utf-8')
 pg_fields = re.search(r'data class Gen4Pokegear\((.*?)\n\)', reader, re.S)[1]
 for key in ('offPlayerAvatar','offAvatarMapObject','offObjectX','offObjectZ','offSpecialSpawn'):
     out.append(f'inline constexpr int pg_{key} = {number(pg_fields,key)};')
@@ -189,7 +189,7 @@ out.append('inline constexpr int pgCovers[][8] = {'+','.join('{'+row+'}' for row
 pg_names = string_map('placeNamesHeartGold',source=johto_town)
 out.append('inline constexpr const char* pgPlaces[] = {'+', '.join(json.dumps(pg_names.get(i,''),ensure_ascii=True) for i in range(max(pg_names)+1))+'};')
 for suffix,key in [('Black','unova'),('Black2','sequel')]:
-    src = (data / f'Gen5TownMap{suffix}.kt').read_text()
+    src = (data / f'Gen5TownMap{suffix}.kt').read_text(encoding='utf-8')
     points = re.findall(r'Gen5TownMapPlace\((-?\d+), (-?\d+), (\d+), (\d+), (\d+), (-?\d+)(?:, shownBy = (0x[0-9a-fA-F]+|-?\d+))?\)',src)
     assert len(points)==src.count('    Gen5TownMapPlace(')
     zones = ''.join(re.findall(r'"([-0-9,]+)"',src.split('private const val TOWN_MAP_ZONES_')[1]))
@@ -214,9 +214,9 @@ assert len(unova_species_types) == 649
 out.insert(-1, 'inline constexpr int unovaSpeciesTypes[][2] = {{-1,-1},'+
            ','.join('{%d,%d}' % unova_species_types[i] for i in range(1,650))+'};')
 for suffix, source, count in (
-        ('Platinum', (data / 'Gen4MachinesPlatinum.kt').read_text(), 100),
+        ('Platinum', (data / 'Gen4MachinesPlatinum.kt').read_text(encoding='utf-8'), 100),
         ('HeartGold', johto, 100),
-        ('Black', (data / 'Gen5DexBlack.kt').read_text(), 101)):
+        ('Black', (data / 'Gen5DexBlack.kt').read_text(encoding='utf-8'), 101)):
     moves = re.search(r'val tmMoves'+suffix+r': IntArray = intArrayOf\((.*?)\n\)', source, re.S)[1]
     ids = re.findall(r'\d+', moves)
     assert len(ids) == count
@@ -230,7 +230,7 @@ parser.add_argument('--check', action='store_true')
 args = parser.parse_args()
 dest = args.output or Path(__file__).with_name('data_gen.h')
 if args.check:
-    assert dest.read_text() == generated, 'Run python3 linux/dsperate/gen_data.py'
+    assert dest.read_text(encoding='utf-8') == generated, 'Run python3 linux/dsperate/gen_data.py'
 else:
-    dest.write_text(generated)
+    dest.write_bytes(generated.encode('utf-8'))
 print('PASS DS data matches Android source declarations')

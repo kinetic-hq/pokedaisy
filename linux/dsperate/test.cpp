@@ -1,6 +1,9 @@
 // GPL-3.0. Real core and captured-RAM tests, never fake application screens.
+#include "ds_core.h"
+#if __has_include("core/nds.h")
 #include "core/nds.h"
-#include "core/state/state.h"
+#define PD_TEST_DSPERATE 1
+#endif
 #include "companion.h"
 #include "battle_view.h"
 #include "pk_nds_field.h"
@@ -91,19 +94,24 @@ int main(int argc,char** argv){
   assert(!ds_read_companion(ram.data(),16).valid);
   auto invalid=ram;std::memset(invalid.data(),0,invalid.size());
   assert(!ds_read_companion(invalid.data(),invalid.size()).valid);
+#if PD_TEST_DSPERATE
   auto nds=std::make_unique<ds::NDS>();
   nds->bus.dma_write32(ds::Cpu::ARM9,0x02000000,0x12345678);
   assert(nds->bus.dma_read32(ds::Cpu::ARM9,0x02000000)==0x12345678);
   nds->io.set_buttons(1);assert(!(nds->io.keyinput&1));nds->io.set_buttons(0);assert(nds->io.keyinput&1);
-  auto boot=std::make_unique<ds::NDS>();std::string error;
-  assert(boot->load_bios("","","",{},&error));assert(boot->load_rom(argv[2]));
-  boot->setup_direct_boot();boot->run_frame();boot->run_frame();boot->gpu.quiesce();
-  assert(boot->gpu.framebuffer(0)[96*256+128]==0xff00fb00u);
-  boot->bus.dma_write32(ds::Cpu::ARM9,0x02010000,0x12345678);
-  ds::state::Writer writer;assert(boot->save_state(writer,error));
-  boot->bus.dma_write32(ds::Cpu::ARM9,0x02010000,0);
-  ds::state::Reader reader(writer.data().data(),writer.data().size());
-  assert(boot->load_state(reader,error));
-  assert(boot->bus.dma_read32(ds::Cpu::ARM9,0x02010000)==0x12345678);
-  std::puts("PASS original DS diagnostic boot, video and state roundtrip");
+#endif
+  // The core the host runs (DSperate or melonDS), through the same interface the frontend uses.
+  std::ifstream romFile(argv[2],std::ios::binary);std::vector<uint8_t> rom{std::istreambuf_iterator<char>(romFile),{}};
+  auto boot=ds_core_create();std::string error;
+  assert(boot->boot(argv[2],rom,error) && boot->start(error));
+  // DSperate draws the cart's picture on its second frame, melonDS a few frames later: wait up to a second for it.
+  for(int i=0;i<60 && boot->framebuffer(0)[96*256+128]!=0xff00fb00u;i++)boot->runFrame();
+  assert(boot->framebuffer(0)[96*256+128]==0xff00fb00u);
+  boot->write32(0x02010000,0x12345678);assert(boot->read32(0x02010000)==0x12345678);
+  std::vector<uint8_t> state;assert(boot->saveState(state,error));
+  boot->write32(0x02010000,0);
+  assert(boot->loadState(state,true,error));
+  assert(boot->read32(0x02010000)==0x12345678);
+  assert(!boot->loadState(std::vector<uint8_t>(4),true,error));
+  std::printf("PASS original DS diagnostic boot, video and state roundtrip on %s\n",boot->name());
 }

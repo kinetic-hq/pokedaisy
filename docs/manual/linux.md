@@ -63,6 +63,13 @@ summaries or firmware power handling. Earlier
 builds ran on the Brick and Smart Pro, but this separated foundation still
 needs fresh device testing. Other Linux handhelds are not verified.
 
+Nintendo DS games run on one of two backends, picked when the program is
+built. `POCKET_MELONDS=ON` uses melonDS, the emulator the Android app uses, and
+keeps a DS game's save beside its file as `My Game.sav`, so a synced folder of
+games and saves works as it does elsewhere. The mouse or a finger on a touch
+display presses the touch screen while it shows. The Windows page has the
+controls.
+
 An optional DSperate backend can be enabled with `POCKET_DSPERATE=ON`.
 Its limited, read-only companion supports Platinum USA rev1, including party,
 bag, dex and a ROM-derived Town Map. L2 opens the shared quick menu; select

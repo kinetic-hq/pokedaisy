@@ -1,5 +1,6 @@
 // melonDS's Platform layer for PokeDaisy: files, threads, clocks and the save write-back, shared by
-// the app's DS core (pk_nds.cpp) and the headless tool (native-capture/nds_dump). No wifi, camera,
+// the app's DS core (pk_nds.cpp), the headless tool (native-capture/nds_dump) and the Windows / Linux
+// SDL host's melonDS backend (linux/melonds/). No wifi, camera,
 // microphone or add-ons: those calls answer "nothing there".
 //
 // The userdata melonDS hands back is a PkNdsHost (pk_nds_platform.h), so each embedder decides where
@@ -17,9 +18,22 @@
 #include <mutex>
 #include <thread>
 
+#ifdef _WIN32
+#include <io.h>
+#include <windows.h>
+#ifndef F_OK
+#define F_OK 0
+#endif
+#ifndef W_OK
+#define W_OK 2
+#endif
+#define ftello _ftelli64
+#define fseeko _fseeki64
+#else
 #include <dlfcn.h>
-#include <sys/stat.h>
 #include <unistd.h>
+#endif
+#include <sys/stat.h>
 
 namespace melonDS::Platform
 {
@@ -99,8 +113,13 @@ u64 FileWriteFormatted(FileHandle* file, const char* fmt, ...)
 }
 u64 FileLength(FileHandle* file)
 {
+#ifdef _WIN32
+    struct _stat64 st {};
+    return _fstat64(_fileno(file->f), &st) == 0 ? (u64) st.st_size : 0;
+#else
     struct stat st {};
     return fstat(fileno(file->f), &st) == 0 ? (u64) st.st_size : 0;
+#endif
 }
 
 // --- logging ---
@@ -230,12 +249,24 @@ float Addon_MotionQuery(MotionQueryType type, void*)
 }
 // The JIT's memory on Android comes from libandroid's ASharedMemory_create, looked up through these
 // (without them melonDS falls back to opening /dev/ashmem, which apps can't since API 29).
+#ifdef _WIN32
+DynamicLibrary* DynamicLibrary_Load(const char* lib) { return reinterpret_cast<DynamicLibrary*>(LoadLibraryA(lib)); }
+void DynamicLibrary_Unload(DynamicLibrary* lib)
+{
+    if (lib) FreeLibrary(reinterpret_cast<HMODULE>(lib));
+}
+void* DynamicLibrary_LoadFunction(DynamicLibrary* lib, const char* name)
+{
+    return lib ? reinterpret_cast<void*>(GetProcAddress(reinterpret_cast<HMODULE>(lib), name)) : nullptr;
+}
+#else
 DynamicLibrary* DynamicLibrary_Load(const char* lib) { return reinterpret_cast<DynamicLibrary*>(dlopen(lib, RTLD_NOW | RTLD_LOCAL)); }
 void DynamicLibrary_Unload(DynamicLibrary* lib)
 {
     if (lib) dlclose(lib);
 }
 void* DynamicLibrary_LoadFunction(DynamicLibrary* lib, const char* name) { return lib ? dlsym(lib, name) : nullptr; }
+#endif
 
 } // namespace melonDS::Platform
 

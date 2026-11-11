@@ -1483,12 +1483,12 @@ static int ff_frames(const struct pd_settings *s, double hz, double frameMs) {
   int n = frameMs > 0 ? (int)(800.0 / hz / frameMs) : 2;
   return n < 2 ? 2 : n > 30 ? 30 : n;
 }
-#ifdef POCKET_DSPERATE
+#ifdef POCKET_DS
 extern int pd_ds_run(const char*, const char*, int, const char*, SDL_Renderer*, bool (*)(void));
 static bool ds_running(void) { return running != 0; }
 #endif
 static void run_game(const char *path, int maxFrames, const char *shot) {
-#ifdef POCKET_DSPERATE
+#ifdef POCKET_DS
   const char *ext = strrchr(path, '.');
   if (ext && !strcasecmp(ext, ".nds")) {
     if (audio) { SDL_CloseAudioDevice(audio); audio = 0; }
@@ -2275,7 +2275,7 @@ static void rom_name(const char *name, void *user) {
   const char *ext = strrchr(name, '.');
   if (r->count < 256 && ext && (!strcasecmp(ext, ".gba") || !strcasecmp(ext, ".gbc") ||
                                 !strcasecmp(ext, ".gb")
-#ifdef POCKET_DSPERATE
+#ifdef POCKET_DS
                                 || !strcasecmp(ext, ".nds")
 #endif
                                 ))

@@ -39,11 +39,15 @@ def diagnostic():
     rom = bytearray(0x10000)
     rom[:12] = b'PD DS TEST  '
     rom[12:16] = b'DSPT'
-    struct.pack_into('<8I', rom, 0x20, 0x200, 0x02000000, 0x02000000,
-                     len(arm9), 0x400, 0x03800000, 0x03800000, 4)
+    # The code sits past the secure area (0x4000-0x7FFF), so melonDS treats the cart as a retail one and gives it
+    # a save (an unknown cart's 8 KB EEPROM); it would give a homebrew-looking cart none.
+    arm9_at, arm7_at = 0x8000, 0x8400
+    assert len(arm9) <= arm7_at - arm9_at
+    struct.pack_into('<8I', rom, 0x20, arm9_at, 0x02000000, 0x02000000,
+                     len(arm9), arm7_at, 0x03800000, 0x03800000, 4)
     struct.pack_into('<II', rom, 0x80, len(rom), 0x200)
-    rom[0x200:0x200 + len(arm9)] = arm9
-    struct.pack_into('<I', rom, 0x400, 0xeafffffe)
+    rom[arm9_at:arm9_at + len(arm9)] = arm9
+    struct.pack_into('<I', rom, arm7_at, 0xeafffffe)
     return rom
 
 

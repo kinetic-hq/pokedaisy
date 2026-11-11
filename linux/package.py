@@ -7,6 +7,7 @@ p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('binary',type=Path);p.add_argument('output',type=Path)
 p.add_argument('--portmaster',action='store_true',help='a PortMaster port: PokeDaisy.sh + pokedaisy/')
 p.add_argument('--dsperate',action='store_true',help='label the opt-in DS experiment and include its notices')
+p.add_argument('--melonds',action='store_true',help='a POCKET_MELONDS build: DS games on melonDS, with its notices')
 a=p.parse_args();repo=Path(__file__).resolve().parents[1]
 header=a.binary.read_bytes()[:20]
 if header[:6] != b'\x7fELF\x02\x01':p.error('Expected a 64-bit little-endian Linux ELF')
@@ -16,6 +17,9 @@ name=('pokedaisy-portmaster-' if a.portmaster else 'pokedaisy-linux-')+('aarch64
 if a.dsperate:
     if b'DSperate %s' not in a.binary.read_bytes():p.error('Expected a POCKET_DSPERATE build')
     name+='-ds-experiment'
+if a.melonds:
+    if b'.melonds' not in a.binary.read_bytes():p.error('Expected a POCKET_MELONDS build')
+    name+='-ds'
 a.output.mkdir(parents=True,exist_ok=True);top=a.output/name
 top.mkdir() # Refuse to overwrite an earlier package.
 # A PortMaster port is its launcher in the ports folder beside the port's own folder.
@@ -45,6 +49,15 @@ if a.dsperate:
             ('src/core/io/dsi_font/LICENSE-NotoSans-OFL-1.1.txt','NotoSans-OFL-1.1.txt')]:
         shutil.copy2(ds/source,licenses/target)
     shutil.copy2(repo/'linux/dsperate/README.md',dest/'DS-EXPERIMENT.md')
+if a.melonds:
+    # melonDS and what it bundles (NOTICE lists them); tiny-AES-c and Steve Reid's SHA-1 carry no license file.
+    ds=repo/'third_party/melonds'
+    for source,target in [(ds/'LICENSE','melonDS-GPL-3.0.txt'),(ds/'src/fatfs/LICENSE.txt','FatFs.txt'),
+            (ds/'src/teakra/LICENSE','Teakra-MIT.txt'),(ds/'src/blip-buf/license.txt','melonDS-blip_buf-LGPL-2.1.txt'),
+            (ds/'src/dolphin/license_dolphin.txt','Dolphin-emitter-GPL-2.0.txt'),
+            (repo/'third_party/licenses/xxHash-BSD-2-Clause.txt','xxHash-BSD-2-Clause.txt')]:
+        shutil.copy2(source,licenses/target)
+    (licenses/'melonDS-public-domain.txt').write_text('tiny-AES-c: The Unlicense (public domain).\nSHA-1 by Steve Reid: public domain.\n')
 sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
 core=subprocess.check_output(['git','rev-parse','HEAD:third_party/mgba'],cwd=repo,text=True).strip()
 (dest/'SOURCE.txt').write_text(f'Source: https://github.com/lidor30/pokedaisy\nFork: https://github.com/keeganwhitacre/pokedaisy-brick\nCommit: {sha}\nmGBA: {core}\nBuild: linux/README.md at this commit\n')
@@ -52,6 +65,10 @@ if a.dsperate:
     ds_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo/'third_party/dsperate',text=True).strip()
     with (dest/'SOURCE.txt').open('a') as f:
         f.write(f'EXPERIMENTAL DS backend: https://github.com/beebono/DSperate\nDSperate: {ds_commit}\nBuild: linux/dsperate/README.md\n')
+if a.melonds:
+    melon=subprocess.check_output(['git','rev-parse','HEAD:third_party/melonds'],cwd=repo,text=True).strip()
+    with (dest/'SOURCE.txt').open('a') as f:
+        f.write(f'melonDS: https://github.com/melonDS-emu/melonDS {melon}\nwith third_party/patches/melonds-pokedaisy.patch at this commit\n')
 archive=a.output/(name+'.zip')
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
     for f in sorted(top.rglob('*')):

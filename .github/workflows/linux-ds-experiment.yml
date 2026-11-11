@@ -5,6 +5,9 @@ on:
       - 'linux/**'
       - '3ds/core/**'
       - 'app/src/main/cpp/nds/pk_nds_field.*'
+      - 'app/src/main/cpp/nds/pk_nds_platform.*'
+      - 'third_party/melonds'
+      - 'third_party/patches/**'
       - 'app/src/main/kotlin/com/pokedaisy/app/companion/data/**'
       - 'app/src/main/kotlin/com/pokedaisy/app/GameTitles.kt'
       - 'third_party/mgba'
@@ -23,13 +26,13 @@ jobs:
   build:
     strategy:
       matrix:
-        target: [native, trimui]
+        target: [native, trimui, melonds]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - run: git submodule update --init third_party/mgba third_party/dsperate
-      - run: sudo apt-get update && sudo apt-get install -y cmake libsdl2-dev qemu-user-static
+      - run: git submodule update --init third_party/mgba ${{ matrix.target == 'melonds' && 'third_party/melonds' || 'third_party/dsperate' }}
+      - run: sudo apt-get update && sudo apt-get install -y cmake libsdl2-dev qemu-user-static pkg-config
       - name: Native build and tests
         if: matrix.target == 'native'
         run: |
@@ -37,6 +40,13 @@ jobs:
           cmake --build linux/build-ds -j2
           ctest --test-dir linux/build-ds --output-on-failure
           python3 linux/package.py --dsperate linux/build-ds/pokedaisy-linux "$RUNNER_TEMP/ds-artifacts"
+      - name: melonDS build and tests
+        if: matrix.target == 'melonds'
+        run: |
+          cmake -S linux -B linux/build-melonds -DCMAKE_BUILD_TYPE=Release -DBUILD_LTO=OFF -DPOCKET_MELONDS=ON
+          cmake --build linux/build-melonds -j2
+          ctest --test-dir linux/build-melonds --output-on-failure
+          python3 linux/package.py --melonds linux/build-melonds/pokedaisy-linux "$RUNNER_TEMP/ds-artifacts"
       - name: TrimUI build and QEMU tests
         if: matrix.target == 'trimui'
         run: |
