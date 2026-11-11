@@ -1,5 +1,7 @@
 #include "pd_menu.h"
 
+#include <stddef.h>
+
 #include "pd_style.h"
 
 #define MARGIN 4
