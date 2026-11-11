@@ -47,7 +47,8 @@ a window you can resize. `POCKET_WINDOW=1920x1080` opens the window at a size
 you choose, to try a handheld's layout on a desktop.
 
 Built in handheld controls and Xbox style controllers work as they come. A
-controller can be plugged in or pulled out while you play. For a controller it
+controller can be plugged in, switched on or pulled out while you play, and on a
+handheld its own controls and an Xbox controller both work at once. For a controller it
 doesn't know, put a line for it in `DATA\gamecontrollerdb.txt` (the community
 file's format). On a keyboard: the arrow keys, Z for A, X for B, Enter for
 START, Backspace for SELECT, Q and E for L and R, Tab for the companion, F for

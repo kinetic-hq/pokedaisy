@@ -107,7 +107,10 @@ enum {
   R3, // COMPANION VIEW: the next view
   NKEYS
 };
-static SDL_GameController *controller;
+static SDL_GameController *controller; // the first open pad (any open pad plays: pads[])
+#define MAX_PADS 8
+static SDL_GameController *pads[MAX_PADS];
+static int padCount;
 static bool rawTrimui;
 static unsigned held, pressed;
 static unsigned repeatAt[NKEYS];
@@ -286,8 +289,11 @@ static void key(int k, bool down) {
 /* Controllers come and go (a USB or Bluetooth pad, a handheld whose built-in
  * one shows up late): SDL reports the ones it has a mapping for as game
  * controllers (its own database, DATA/gamecontrollerdb.txt, or
- * SDL_GAMECONTROLLERCONFIG, which PortMaster sets). The first one is used; an
- * unmapped device is named in the log so a mapping can be added. */
+ * SDL_GAMECONTROLLERCONFIG, which PortMaster sets). Every one is opened and any
+ * of them plays: a handheld's built-in pad and an Xbox / Bluetooth pad side by
+ * side (SDL sends button events only for an opened pad, so opening the first
+ * alone left a second one dead). An unmapped device is named in the log so a
+ * mapping can be added. */
 static void controller_added(int index) {
   if (!SDL_IsGameController(index)) {
     char guid[64];
@@ -297,22 +303,45 @@ static void controller_added(int index) {
             SDL_JoystickNameForIndex(index) ? SDL_JoystickNameForIndex(index) : "?", guid);
     return;
   }
-  if (controller)
+  SDL_JoystickID id = SDL_JoystickGetDeviceInstanceID(index);
+  for (int i = 0; i < padCount; i++)
+    if (SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(pads[i])) == id)
+      return; // already open (a JOYDEVICEADDED and a CONTROLLERDEVICEADDED for one pad)
+  if (padCount == MAX_PADS)
     return;
-  controller = SDL_GameControllerOpen(index);
-  if (controller)
-    fprintf(stderr, "Controller: %s\n", SDL_GameControllerName(controller));
+  SDL_GameController *pad = SDL_GameControllerOpen(index);
+  if (!pad)
+    return;
+  pads[padCount++] = pad;
+  controller = pads[0];
+  fprintf(stderr, "Controller: %s\n", SDL_GameControllerName(pad));
 }
 static void controller_removed(SDL_JoystickID id) {
-  if (!controller ||
-      SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller)) != id)
+  for (int i = 0; i < padCount; i++) {
+    if (SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(pads[i])) != id)
+      continue;
+    fprintf(stderr, "Controller gone: %s\n", SDL_GameControllerName(pads[i]));
+    SDL_GameControllerClose(pads[i]);
+    pads[i] = pads[--padCount];
+    pads[padCount] = NULL;
+    controller = padCount ? pads[0] : NULL;
+    held = 0; // nothing stays pressed on a pad that's gone
     return;
-  SDL_GameControllerClose(controller);
+  }
+}
+static void controllers_close(void) {
+  while (padCount)
+    SDL_GameControllerClose(pads[--padCount]);
   controller = NULL;
-  held = 0; // nothing stays pressed on a pad that's gone
-  for (int i = 0; i < SDL_NumJoysticks() && !controller; i++)
-    if (SDL_IsGameController(i))
-      controller_added(i);
+}
+/* A pad turned on or off while a DS game runs (its own event loop). */
+static void controller_device_event(const SDL_Event *e) {
+  if (e->type == SDL_JOYDEVICEADDED && !SDL_IsGameController(e->jdevice.which))
+    controller_added(e->jdevice.which);
+  if (e->type == SDL_CONTROLLERDEVICEADDED)
+    controller_added(e->cdevice.which);
+  if (e->type == SDL_CONTROLLERDEVICEREMOVED)
+    controller_removed(e->cdevice.which);
 }
 /* plorpOS: keys SDL's joystick never reports (below BTN_MISC: the Brick's Fn keys, KEY_F1 / KEY_F2), read
  * from the pad's own node beside SDL: POCKET_FN_KEYS=NODE:FN1CODE:FN2CODE. */
@@ -339,15 +368,10 @@ static void events(void) {
   while (SDL_PollEvent(&e)) {
     if (e.type == SDL_QUIT)
       running = 0;
-    if (e.type == SDL_JOYDEVICEADDED && !SDL_IsGameController(e.jdevice.which))
-      controller_added(e.jdevice.which);
+    controller_device_event(&e);
     if (e.type == SDL_AUDIODEVICEREMOVED && !e.adevice.iscapture && audio &&
         e.adevice.which == audio)
       audioLost = true;
-    if (e.type == SDL_CONTROLLERDEVICEADDED)
-      controller_added(e.cdevice.which);
-    if (e.type == SDL_CONTROLLERDEVICEREMOVED)
-      controller_removed(e.cdevice.which);
     if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
       if (!e.key.repeat)
         key(keyboard(e.key.keysym.sym), e.type == SDL_KEYDOWN);
@@ -1485,6 +1509,7 @@ static int ff_frames(const struct pd_settings *s, double hz, double frameMs) {
 }
 #ifdef POCKET_DS
 extern int pd_ds_run(const char*, const char*, int, const char*, SDL_Renderer*, bool (*)(void));
+extern void (*pd_ds_device_event)(const SDL_Event*);
 static bool ds_running(void) { return running != 0; }
 #endif
 static void run_game(const char *path, int maxFrames, const char *shot) {
@@ -1492,6 +1517,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   const char *ext = strrchr(path, '.');
   if (ext && !strcasecmp(ext, ".nds")) {
     if (audio) { SDL_CloseAudioDevice(audio); audio = 0; }
+    pd_ds_device_event = controller_device_event;
     appError = pd_ds_run(path, root, maxFrames, shot, renderer, ds_running);
     // The DS backend owns its device while running. Restore the normal host's
     // device for the next GB/GBA game selected without restarting the app.
@@ -2383,9 +2409,11 @@ int main(int argc, char **argv) {
     int added = SDL_GameControllerAddMappingsFromFile(path);
     fprintf(stderr, "Controller mappings from %s: %d\n", path, added);
   }
-  for (int i = 0; i < SDL_NumJoysticks() && !controller; i++)
+  for (int i = 0; i < SDL_NumJoysticks(); i++)
     if (SDL_IsGameController(i))
       controller_added(i);
+  if (!padCount)
+    fprintf(stderr, "No controller yet (one switched on later is picked up)\n");
   SDL_Joystick *js = !controller && rawTrimui && SDL_NumJoysticks() ? SDL_JoystickOpen(0) : NULL;
   if (rom)
     run_game(rom, frames, shot);
@@ -2427,7 +2455,7 @@ int main(int argc, char **argv) {
   }
   if (js)
     SDL_JoystickClose(js);
-  if(controller) {SDL_GameControllerClose(controller);controller=NULL;}
+  controllers_close();
   if (audio)
     SDL_CloseAudioDevice(audio);
   // NULLed: the runtime test runs the app again in a new window.
