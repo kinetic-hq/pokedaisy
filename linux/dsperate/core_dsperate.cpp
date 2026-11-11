@@ -23,6 +23,7 @@ struct DsperateCore final : DsCore {
       return false;
     }
     nds->setup_direct_boot();
+    std::fprintf(stderr, "DSperate %s\n", path.c_str());  // also the marker linux/package.py --dsperate looks for
     nds->io.start_rtc_clock();
     return true;
   }
