@@ -39,6 +39,8 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->ffNormal = false;
     s->cheats = false;
     s->theme = 8; // POKéDAISY
+    s->companionView = PD_VIEW_BATTLE_WINGS;
+    s->panelLocked = false;
 }
 
 const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};
@@ -79,6 +81,8 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "cheats")) s->cheats = atoi(value) != 0;
         else if (!strcmp(key, "theme")) int_in(value, 0, 99, &s->theme);
         else if (!strcmp(key, "aspect")) int_in(value, 0, PD_ASPECTS - 1, &s->aspect);
+        else if (!strcmp(key, "view")) int_in(value, 0, PD_COMPANION_VIEWS - 1, &s->companionView);
+        else if (!strcmp(key, "panellock")) s->panelLocked = atoi(value) != 0;
         else if (!strcmp(key, "autozoom")) {
             int on;
             if (int_in(value, 0, 1, &on)) s->autoZoom = on;
@@ -135,6 +139,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->screenMode, s->ffSpeed, s->guideNotice, s->aspect, s->autoZoom ? 1 : 0, s->wildOff ? 1 : 0, s->tabBar,
             s->hud ? 1 : 0, s->hudHidden, s->quickGrid ? 1 : 0, s->lcdFilter ? 1 : 0);
     fprintf(f, "hudlayout=%d\nhudlook=%d\nhudsize=%d\n", s->hudLayout, s->hudLook, s->hudSize);
+    fprintf(f, "view=%d\npanellock=%d\n", s->companionView, s->panelLocked ? 1 : 0);
     fprintf(f, "scaling=%d\nffaudio=%d\nrewind=%d\nrunindoors=%d\n", s->scaling, s->ffAudio ? 1 : 0,
             s->rewind ? 1 : 0, s->runIndoors ? 1 : 0);
     fprintf(f, "quickbtn=%d\ncompanionbtn=%d\nhudbtn=%d\n", s->quickBtn, s->companionBtn, s->hudBtn);

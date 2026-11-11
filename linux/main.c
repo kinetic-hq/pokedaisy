@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "view_layout.h"
 // The host's name in its window title, menu and SETTINGS.
 #ifdef _WIN32
 #define POCKET_HOST_NAME "PokeDaisy Windows"
@@ -103,6 +104,7 @@ enum {
   SRIGHT,
   FN1,
   FN2,
+  R3, // COMPANION VIEW: the next view
   NKEYS
 };
 static SDL_GameController *controller;
@@ -236,6 +238,10 @@ static int keyboard(SDL_Keycode k) {
     return R2;
   case SDLK_ESCAPE:
     return MENU;
+  case SDLK_v:
+    return R3;
+  case SDLK_k:
+    return L3;
   default:
     return -1;
   }
@@ -250,6 +256,7 @@ static int controller_button(int button) {
     case SDL_CONTROLLER_BUTTON_START:return START;
     case SDL_CONTROLLER_BUTTON_GUIDE:return MENU;
     case SDL_CONTROLLER_BUTTON_LEFTSTICK:return L3;
+    case SDL_CONTROLLER_BUTTON_RIGHTSTICK:return R3;
     case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:return L;
     case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:return R;
     case SDL_CONTROLLER_BUTTON_DPAD_UP:return UP;
@@ -404,7 +411,7 @@ static int key_named(const char *s) {
                {"r1", R},      {"l2", L2},       {"r2", R2},       {"up", UP},         {"down", DOWN},
                {"left", LEFT}, {"right", RIGHT}, {"menu", MENU},   {"select", SELECT}, {"l3", L3},
                {"sup", SUP},   {"sdown", SDOWN}, {"sleft", SLEFT}, {"sright", SRIGHT}, {"fn1", FN1},
-               {"fn2", FN2}};
+               {"fn2", FN2},   {"r3", R3}};
   for (size_t i = 0; i < sizeof names / sizeof names[0]; i++)
     if (!strcmp(s, names[i].name))
       return names[i].key;
@@ -505,10 +512,8 @@ static void companion_size(int ow, int oh, int *w, int *h) {
 }
 /* Before the companion draws: the canvas follows the window (a resize, a
  * rotated panel), with a texture to match. */
-static void companion_canvas(void) {
-  int ow = W, oh = H, w, h;
-  if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
-    ow = W, oh = H;
+static void companion_canvas_for(int ow, int oh) {
+  int w, h;
   companion_size(ow, oh, &w, &h);
   if (w == canvasW && h == canvasH && texture)
     return;
@@ -525,6 +530,12 @@ static void companion_canvas(void) {
   canvasW = w;
   canvasH = h;
   pd_canvas_init(&canvas, w, h, pixels);
+}
+static void companion_canvas(void) {
+  int ow = W, oh = H;
+  if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
+    ow = W, oh = H;
+  companion_canvas_for(ow, oh);
 }
 /* How long the last presents waited (the driver holds each one for the screen's
  * refresh), for POCKET_PERF. */
@@ -656,7 +667,12 @@ static void wide_tick(struct mCore *c, bool skip, const struct pd_settings *s) {
 }
 // Gameplay scales in physical panel pixels; the companion keeps its 512x384
 // grid.
+static SDL_Rect sdl_rect(struct view_rect r) {
+  return (SDL_Rect){r.x, r.y, r.w, r.h};
+}
 static int gameScaling; // plorpOS: enum pd_scaling, for ASPECT ORIGINAL's picture
+static const struct view_layout *gameView; // COMPANION VIEW: where the game goes (NULL = the whole screen)
+static int hudRepelSteps; // the bottom strip's REPEL
 static bool render_game(unsigned gw, unsigned gh) {
   int ow, oh;
   if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
@@ -681,13 +697,17 @@ static bool render_game(unsigned gw, unsigned gh) {
     }
     lastGameRect = (SDL_Rect){(ow - w) / 2, (oh - h) / 2, w, h};
   }
+  // Beside panels (BATTLE WINGS, WINGS, SIDE PANEL locked, STEP BACK): the game's own picture at the view's scale.
+  bool placed = gameView && !gameView->expand && gameView->game.w > 0;
+  if (placed)
+    lastGameRect = sdl_rect(gameView->game);
   // The textures take mGBA's pixels as they are (XBGR: SDL's BGR888).
   if (SDL_UpdateTexture(gameTexture, &(SDL_Rect){0, 0, (int)gw, (int)gh}, video, 256 * 4) < 0) {
     notice(SDL_GetError());
     return false;
   }
   SDL_Texture *drawn = gameTexture;
-  if (wideReady) {
+  if (wideReady && !placed) {
     // The same scale: the window's middle lands on the game's own picture.
     gw = wideW;
     gh = wideH;
@@ -860,6 +880,197 @@ static void present_menu(struct pd_menu *m, unsigned gw, unsigned gh) {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_Rect at = {(ow - w * scale) / 2, (oh - h * scale) / 2, w * scale, h * scale};
   SDL_RenderCopy(renderer, menuTexture, &(SDL_Rect){0, 0, w, h}, &at);
+  timed_present();
+}
+/* COMPANION VIEW (SETTINGS, settings.ini's view=): where the game, the companion and the side panels sit, from
+ * view_layout.c, eased over VIEW_ANIMATION_MS whenever the layout changes (a battle starting, the companion
+ * opening, the window resizing). render_game draws the game where viewShown puts it. */
+static struct view_layout viewShown, viewFrom, viewTo;
+static uint32_t viewSince;
+static bool viewReady;
+static void view_update(const struct pd_settings *st, bool companionOpen, bool battle, unsigned fw, unsigned fh) {
+  int ow = W, oh = H;
+  if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
+    ow = W, oh = H;
+  struct view_state vs = {ow, oh, (int)fw, (int)fh, companionOpen, battle, st->panelLocked};
+  struct view_layout to;
+  view_layout(st->companionView, &vs, &to);
+  uint32_t now = SDL_GetTicks();
+  if (!viewReady) {
+    viewShown = viewFrom = viewTo = to;
+    viewSince = now - VIEW_ANIMATION_MS;
+    viewReady = true;
+  } else if (memcmp(&to, &viewTo, sizeof to)) {
+    viewFrom = viewShown;
+    // A panel or drawer slides in from its edge instead of growing from its middle.
+    if (to.companionSlides && to.companion.w && !viewTo.companion.w) {
+      viewFrom.companion = to.companion;
+      if (to.companion.h >= oh)
+        viewFrom.companion.x = ow;
+      else
+        viewFrom.companion.y = oh;
+    }
+    viewTo = to;
+    viewSince = now;
+  }
+  int t = (int)((now - viewSince) * 1000 / VIEW_ANIMATION_MS);
+  view_layout_lerp(&viewFrom, &viewTo, t > 1000 ? 1000 : t, &viewShown);
+}
+/* Where the open companion goes: its own rectangle, or STEP BACK's right wing. */
+static struct view_rect view_companion(const struct view_layout *v) {
+  return v->companion.w ? v->companion : v->right;
+}
+/* The side panels (party, battle or map, the strips): each a small canvas of its own at the largest whole scale
+ * that keeps a panel 160 pixels wide (a strip 24 tall), never past the companion's, redrawn only when the
+ * companion's data or the panel's size changed. */
+enum { PANEL_LEFT, PANEL_RIGHT, PANEL_TOP, PANEL_BOTTOM, PANELS };
+static uint32_t panelPixels[CANVAS_MAX_W * CANVAS_MAX_H];
+static SDL_Texture *panelTexture[PANELS];
+static uint32_t panelKey[PANELS], panelGen;
+static int panelW[PANELS], panelH[PANELS];
+static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int which, char *a, char *b, char *c,
+                       size_t n) {
+  a[0] = b[0] = c[0] = 0;
+  if (which == PANEL_TOP) {
+    const char *place = s->valid ? pd_mapsec_name(g, s->mapsec) : NULL;
+    snprintf(a, n, "%s", place ? place : "");
+    time_t now = time(NULL);
+    struct tm *tm = localtime(&now);
+    if (tm)
+      strftime(b, n, "%H:%M", tm);
+    if (g->cfg && g->cfg->badgeFlag > 0 && s->valid) {
+      int badges = 0;
+      for (int i = 0; i < 8; i++)
+        badges += pd_flag(s, g->cfg->badgeFlag + i);
+      snprintf(c, n, "BADGES %d", badges);
+    }
+  } else {
+    snprintf(a, n, "X COMPANION");
+    snprintf(b, n, "R3 VIEW");
+    if (hudRepelSteps > 0)
+      snprintf(c, n, "REPEL %d", hudRepelSteps);
+  }
+}
+static void draw_panel(int which, struct view_rect r, const struct pd_game *g, const struct pd_snapshot *s,
+                       bool battle) {
+  if (r.w < 8 || r.h < 8)
+    return;
+  int ow, oh;
+  SDL_GetRendererOutputSize(renderer, &ow, &oh);
+  int scale = ow / canvasW < oh / canvasH ? ow / canvasW : oh / canvasH;
+  int fit = which == PANEL_TOP || which == PANEL_BOTTOM ? r.h / 24 : r.w / 160;
+  if (fit < scale)
+    scale = fit;
+  if (scale < 1)
+    scale = 1;
+  int w = r.w / scale, h = r.h / scale;
+  if (w > CANVAS_MAX_W)
+    w = CANVAS_MAX_W;
+  if (h > CANVAS_MAX_H)
+    h = CANVAS_MAX_H;
+  if (!panelTexture[which]) {
+    panelTexture[which] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING,
+                                            CANVAS_MAX_W, CANVAS_MAX_H);
+    if (!panelTexture[which])
+      return;
+  }
+  char a[64], b[64], c[64];
+  bool strip = which == PANEL_TOP || which == PANEL_BOTTOM;
+  if (strip)
+    panel_text(g, s, which, a, b, c, sizeof a);
+  uint32_t key = panelGen * 2654435761u ^ (uint32_t)(w * 65599 + h) ^ (battle ? 0x80000000u : 0) ^
+                 (strip ? (uint32_t)(a[0] * 31 + b[3] * 7 + b[4] + c[7] * 131) : 0);
+  if (key != panelKey[which] || w != panelW[which] || h != panelH[which]) {
+    struct pd_canvas pc;
+    pd_canvas_init(&pc, w, h, panelPixels);
+    pd_fill(&pc, 0, 0, w, h, 0x101418);
+    if (which == PANEL_LEFT)
+      pd_ui_party_panel(&pc, g, s);
+    else if (which == PANEL_RIGHT && battle)
+      pd_ui_battle_panel(&pc, g, s, NULL);
+    else if (which == PANEL_RIGHT)
+      pd_ui_map_panel(&pc, g, s, false);
+    else
+      pd_ui_strip(&pc, a, b, c);
+    SDL_UpdateTexture(panelTexture[which], &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
+    panelKey[which] = key;
+    panelW[which] = w;
+    panelH[which] = h;
+  }
+  SDL_SetRenderDrawColor(renderer, 0x10, 0x14, 0x18, 255);
+  SDL_RenderFillRect(renderer, &(SDL_Rect){r.x, r.y, r.w, r.h});
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_RenderCopy(renderer, panelTexture[which], &(SDL_Rect){0, 0, w, h},
+                 &(SDL_Rect){r.x + (r.w - w * scale) / 2, r.y + (r.h - h * scale) / 2, w * scale, h * scale});
+}
+static void draw_panels(const struct view_layout *v, const struct pd_game *g, const struct pd_snapshot *s,
+                        bool battle, bool companionInRight) {
+  draw_panel(PANEL_LEFT, v->left, g, s, battle);
+  if (!companionInRight)
+    draw_panel(PANEL_RIGHT, v->right, g, s, battle);
+  draw_panel(PANEL_TOP, v->top, g, s, battle);
+  draw_panel(PANEL_BOTTOM, v->bottom, g, s, battle);
+}
+static bool view_has_panels(const struct view_layout *v) {
+  return v->left.w || v->right.w || v->top.w || v->bottom.w;
+}
+/* The game with its side panels, no companion open. */
+static void present_view_game(const struct pd_game *g, const struct pd_snapshot *s, bool battle, unsigned gw,
+                              unsigned gh) {
+  if (!render_game(gw, gh))
+    return;
+  draw_panels(&viewShown, g, s, battle, false);
+  timed_present();
+}
+/* The open companion where the view puts it: over the dimmed game (WINDOW), beside it (SIDE PANEL, STEP BACK)
+ * or as a see-through drawer (GLASS DRAWER); its canvas is sized for where it lands, then drawn into the
+ * rectangle the animation has reached. */
+static void present_view_companion(const struct pd_game *g, const struct pd_snapshot *s, bool battle, unsigned gw,
+                                   unsigned gh) {
+  if (SDL_GetTicks() < messageUntil) {
+    pd_fill(&canvas, 4, canvasH - 50, canvasW - 8, 24, 0x181818);
+    pd_text_fit(&canvas, 10, canvasH - 46, canvasW - 20, message, 0xffffff, PD_NO_SHADOW);
+  }
+  if (!render_game(gw, gh))
+    return;
+  struct view_rect target = view_companion(&viewTo), shown = view_companion(&viewShown);
+  draw_panels(&viewShown, g, s, battle, !viewShown.companion.w);
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+  if (viewShown.dim) {
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 120);
+    SDL_RenderFillRect(renderer, NULL);
+  }
+  if (target.w <= 0 || target.h <= 0 || shown.w <= 0 || shown.h <= 0) {
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    timed_present();
+    return;
+  }
+  if (!viewShown.dim) {
+    // Beside the game the companion sits on a backdrop of its own (see-through as a drawer).
+    SDL_SetRenderDrawColor(renderer, 0x10, 0x14, 0x18, viewShown.companionGlass ? 170 : 255);
+    SDL_RenderFillRect(renderer, &(SDL_Rect){shown.x, shown.y, shown.w, shown.h});
+  }
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  if (SDL_UpdateTexture(texture, NULL, pixels, canvasW * 4) < 0) {
+    notice(SDL_GetError());
+    return;
+  }
+  int scale = target.w / canvasW < target.h / canvasH ? target.w / canvasW : target.h / canvasH;
+  if (scale < 1)
+    scale = 1;
+  long fw = (long)canvasW * scale, fh = (long)canvasH * scale;
+  long fx = target.x + (target.w - fw) / 2, fy = target.y + (target.h - fh) / 2;
+  SDL_Rect at = {shown.x + (int)((fx - target.x) * shown.w / target.w), shown.y + (int)((fy - target.y) * shown.h / target.h),
+                 (int)(fw * shown.w / target.w), (int)(fh * shown.h / target.h)};
+  if (viewShown.companionGlass) {
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureAlphaMod(texture, 215);
+  }
+  SDL_RenderCopy(renderer, texture, NULL, &at);
+  SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+  SDL_SetTextureAlphaMod(texture, 255);
   timed_present();
 }
 static bool capture_frame(const char *path, unsigned *lit) {
@@ -1434,7 +1645,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
-                              .expandGame = wideSupported, .count = 1, .labels = {"HOST"}};
+                              .expandGame = wideSupported, .hasCompanionView = true, .count = 1, .labels = {"HOST"}};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
@@ -1488,6 +1699,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     if (hkFired & (1u << HK_LOAD))
       notice(!pocket_exists(ss) ? "No state saved yet" : state(c, ss, false) ? "State loaded" : "State load failed");
     bool ffHeld = hkOn & (1u << HK_FF), rewinding = (hkOn & (1u << HK_REWIND)) && rewindOn;
+    if (down(R3) && !quickOpen) {
+      settings.companionView = (settings.companionView + 1) % PD_COMPANION_VIEWS;
+      notice(pd_companion_view_name(settings.companionView));
+      pd_settings_save(&settings, config);
+    }
     if (down(X)) {
       menuOpen = 0;
       companion = !companion;
@@ -1770,6 +1986,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       } else {
         if (down(B) && !map_cursor_back(&ui) && !pd_ui_back(&ui))
           companion = false;
+        if (down(L3) && settings.companionView == PD_VIEW_SIDE_PANEL) {
+          settings.panelLocked = !settings.panelLocked;
+          notice(settings.panelLocked ? "Side panel locked" : "Side panel unlocked");
+          pd_settings_save(&settings, config);
+        }
         if (down(L) || down(R)) {
           pd_ui_next_tab(&ui, down(R) ? 1 : -1);
         }
@@ -1841,8 +2062,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     }
     // The companion's data: fresh when it opens (it pauses the game), else twice a
     // second - read through the bus byte by byte, every frame cost frame time.
-    if (!snap.valid || (companion && !companionWas) || (!companion && frames % 30 == 0))
+    if (!snap.valid || (companion && !companionWas) || (!companion && frames % 30 == 0)) {
       pd_snapshot_read(&snap, &game, read_memory, c);
+      panelGen++;
+    }
     companionWas = companion;
     // FLY's steps, each between two frames the game's own code can be called in (pk_call_safe), as the app's
     // field-item jobs wait for one.
@@ -1937,6 +2160,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       job = JOB_NONE;
       notice(item_reason(ITEM_FAILED));
     }
+    bool viewBattle = snap.inBattle || (fieldFlags & PK_FIELD_BATTLE);
+    // With the companion open the game stands still, so the view keeps a companion open only while it is drawn.
+    view_update(&settings, companion && (!menuOpen || menuOpen == 4), viewBattle, gw, gh);
+    gameView = &viewShown;
     if (quickOpen && !companion) {
       companion_canvas();
       const char *const *rows = flyList ? flyNames : repelList ? repelNames : NULL;
@@ -1946,6 +2173,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     } else if (companion && menuOpen && menuOpen != 4) {
       present_menu(menuOpen == 1 ? &gameMenu : &confirmMenu, gw, gh);
     } else if (companion) {
+      {
+        struct view_rect cr = view_companion(&viewTo);
+        if (cr.w > 0 && cr.h > 0)
+          companion_canvas_for(cr.w, cr.h);
+      }
       if (menuOpen) {
         if (menuOpen == 4) {
           pd_splash_draw(&canvas, "Based on PokeDaisy by Lidor Itzhari",
@@ -1963,18 +2195,22 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         map_cursor_sync(&ui, &game, &snap);
         focus_draw(&ui, focus_resolve(&ui));
       }
-      present();
+      present_view_companion(&game, &snap, viewBattle, gw, gh);
     } else {
       bool field = (fieldFlags & PK_FIELD_KNOWN) && !(fieldFlags & (PK_FIELD_LOCKED | PK_FIELD_BATTLE)) &&
                    (!wideSupported || pk_wide_scene() == PK_WIDE_SCENE_FIELD) && flyStage == 0;
       hudFieldFrames = field ? hudFieldFrames + 1 : 0;
-      if (settings.hud && game.cfg && c->platform(c) == mPLATFORM_GBA && hudFieldFrames >= 20) {
+      if (view_has_panels(&viewShown)) {
+        companion_canvas();
+        present_view_game(&game, &snap, viewBattle, gw, gh);
+      } else if (settings.hud && viewShown.hud && game.cfg && c->platform(c) == mPLATFORM_GBA && hudFieldFrames >= 20) {
         int steps = repel_steps(c, game.cfg);
         if (steps <= 0)
           hudState.repelFull = 0;
         else if (!hudState.repelFull || steps > hudState.repelFull)
           hudState.repelFull = hud_repel_full(steps);
         hudState.repel = steps > 0 ? steps : 0;
+        hudRepelSteps = hudState.repel;
         hudState.pc = pcOk;
         hudState.wild = hud_wild_uncaught(&game, &snap);
         companion_canvas();

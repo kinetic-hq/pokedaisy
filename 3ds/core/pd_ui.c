@@ -511,6 +511,7 @@ static void act(struct pd_ui* ui, int id) {
             if (ui->overlay == PD_OVERLAY_PICK_ASPECT && i < PD_ASPECTS) ui->settings->aspect = i;
             if (ui->overlay == PD_OVERLAY_PICK_SPEED) ui->settings->gameSpeed = i;
             if (ui->overlay == PD_OVERLAY_PICK_VOLUME) ui->settings->gameVolume = (i + 1) * 20;
+            if (ui->overlay == PD_OVERLAY_PICK_VIEW && i < PD_COMPANION_VIEWS) ui->settings->companionView = i;
             close_overlay(ui, PD_ACTION_SETTINGS_CHANGED);
         } else if (id == HIT_YES) {
             enum pd_action a = ui->overlay == PD_OVERLAY_CONFIRM_SAVE ? PD_ACTION_SAVE_STATE
@@ -597,6 +598,8 @@ static void act(struct pd_ui* ui, int id) {
     } else if (id >= HIT_SETTING + SETTING_QUICK_BTN && id <= HIT_SETTING + SETTING_HUD_BTN) {
         cycle_button(ui->settings, id - HIT_SETTING);
         ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_VIEW) {
+        ui->overlay = PD_OVERLAY_PICK_VIEW;
     } else if (id == HIT_SETTING + SETTING_PERF) {
         ui->settings->showPerf = !ui->settings->showPerf;
         ui->action = PD_ACTION_SETTINGS_CHANGED;

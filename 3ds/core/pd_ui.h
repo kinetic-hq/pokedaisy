@@ -100,7 +100,23 @@ struct pd_settings {
     bool ffNormal;   // FF MODE: NORMAL; off = SMART, 1x while the game waits for the player
     bool cheats;     // CHEATS: the game's file's codes on
     int theme;       // THEME: a pd_themes[] id
+    // Hosts with hasCompanionView (the Linux / Windows host): where the companion goes, enum pd_companion_view, and
+    // SIDE PANEL's lock (the panel kept beside the game).
+    int companionView;
+    bool panelLocked;
 };
+
+// COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.
+enum pd_companion_view {
+    PD_VIEW_BATTLE_WINGS, // the field fills the screen; a battle gets the party and the matchup beside it
+    PD_VIEW_WINDOW,       // a window over the dimmed game
+    PD_VIEW_SIDE_PANEL,   // slides in from the right; locked, it keeps the right half
+    PD_VIEW_WINGS,        // the party left, the map or battle right, all the time
+    PD_VIEW_GLASS_DRAWER, // a see-through sheet over the bottom of the screen
+    PD_VIEW_STEP_BACK,    // the game two sizes smaller with the companion round it
+    PD_COMPANION_VIEWS,
+};
+const char* pd_companion_view_name(int view);
 
 enum pd_button { PD_BTN_X, PD_BTN_Y, PD_BTN_L2, PD_BTN_R2, PD_BTN_NONE, PD_BUTTONS };
 
@@ -172,6 +188,7 @@ struct pd_host_info {
     bool hasExpand;      // Optional: the host can EXPAND (ASPECT / AUTO ZOOM IN rows) ...
     bool expandGame;     // ... and does for this game (else ASPECT reads N/A)
     bool hasHud;         // Optional: the host draws the HUD over the game (its SETTINGS row)
+    bool hasCompanionView; // Optional: COMPANION VIEW's row (settings.companionView)
     bool hasDisplayFilter; // host implements OFF / LCD
     bool hasQuickMenu;   // host implements the selectable RING / GRID quick menu
     bool hasButtonRows;  // Optional: QUICK MENU / COMPANION / HUD CURSOR button rows (the host reads settings.*Btn)
@@ -221,6 +238,7 @@ enum pd_overlay {
     PD_OVERLAY_PICK_VOLUME,
     PD_OVERLAY_CONFIRM_RESTART,
     PD_OVERLAY_FLY,     // MAP's FLY: the towns
+    PD_OVERLAY_PICK_VIEW, // COMPANION VIEW's pick-list
 };
 
 // Optional presentation data for another emulator; IDs stay native to that backend.
@@ -530,6 +548,14 @@ enum pd_action pd_ui_take_action(struct pd_ui* ui);
 // screen animates and needs a redraw (the MAP cursor's blink, the TRAINER
 // CARD's colon and flip).
 bool pd_ui_tick(struct pd_ui* ui, unsigned ms);
+
+// COMPANION VIEW's narrow panels (the Linux / Windows host's wings), each filling the canvas it is given: the party
+// down a column, the battle's matchup (the foe, its types, your moves with their verdicts), the map round the player,
+// and a strip of up to three texts (left, centre, right) for above and below the game.
+void pd_ui_party_panel(struct pd_canvas*, const struct pd_game*, const struct pd_snapshot*);
+void pd_ui_battle_panel(struct pd_canvas*, const struct pd_game*, const struct pd_snapshot*, const struct pd_battle_source*);
+void pd_ui_map_panel(struct pd_canvas*, const struct pd_game*, const struct pd_snapshot*, bool blink);
+void pd_ui_strip(struct pd_canvas*, const char* left, const char* middle, const char* right);
 
 const char* pd_screen_mode_name(int mode);
 const char* pd_aspect_name(int aspect);

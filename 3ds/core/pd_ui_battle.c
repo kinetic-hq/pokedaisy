@@ -458,3 +458,69 @@ bool ui_battle_act(struct pd_ui* ui, int id) {
     }
     return false;
 }
+
+// --- COMPANION VIEW's battle panel (the Linux / Windows host's right wing) ---
+
+// A battler stacked for a narrow column: icon and name, then the level and HP bar, then its types.
+static int narrow_card(struct pd_canvas* c, const struct battle_data* d, int x, int y, int w, const struct mon_view* m,
+                       const char* side) {
+    char buf[40];
+    icon(c, d, m->species, m->shiny, x, y, false);
+    int tx = x + PD_ICON + 6, right = x + w;
+    pd_text(c, tx, y + 1, side, PD_VALUE, PD_VALUE_SHADOW);
+    pd_text_fit(c, tx, y + LINE + 1, right - tx, species_name(d, m->species, buf, sizeof(buf)), PD_LABEL,
+                PD_LABEL_SHADOW);
+    int ty = y + PD_ICON + 4;
+    char lv[12];
+    snprintf(lv, sizeof(lv), "Lv%d", m->level);
+    int bx = x + pd_text(c, x, ty, lv, PD_LABEL, PD_LABEL_SHADOW) + 5;
+    const char* status = pd_status_label(m->status);
+    if (*status) {
+        ui_status_badge(c, bx, ty + 1, m->status);
+        bx += pd_text_width(status) + 10;
+    }
+    int barW = right - bx - 18;
+    if (barW >= 16) ui_hp_bar(c, bx, ty + 5, barW, m->hp, m->maxHp);
+    ty += LINE + 2;
+    if (m->type1 != PD_TYPE_NONE) {
+        int tx2 = x + ui_type_badge(c, x, ty + 2, m->type1) + 3;
+        if (m->type2 != m->type1 && m->type2 != PD_TYPE_NONE) ui_type_badge(c, tx2, ty + 2, m->type2);
+    }
+    return ty + LINE - y;
+}
+
+void pd_ui_battle_panel(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s,
+                        const struct pd_battle_source* source) {
+    ui_game = g;
+    const struct battle_data data = {g, source};
+    int f = pd_title_box(c, 0, 0, c->w, c->h, PD_TITLE_FILL);
+    int ix = f + 4, iy = f + 4, iw = c->w - 2 * (f + 4), bottom = c->h - f - 4;
+    const struct pd_battle_mon* youB = &s->battlers[PD_POS_PLAYER_LEFT];
+    if (!s->inBattle || !youB->species) {
+        pd_text_wrap(c, ix, iy, iw, LINE, 3, "NO BATTLE", PD_MUTED, PD_MUTED_SHADOW);
+        return;
+    }
+    struct mon_view you = from_battler(youB), foeView;
+    const struct mon_view* foe = NULL;
+    if (s->battlers[PD_POS_OPPONENT_LEFT].species) {
+        foeView = from_battler(&s->battlers[PD_POS_OPPONENT_LEFT]);
+        foe = &foeView;
+    }
+    int y = iy;
+    if (foe) y += narrow_card(c, &data, ix, y, iw, foe, s->isTrainer ? "FOE" : "WILD");
+    else {
+        pd_text_wrap(c, ix, y, iw, LINE, 2, "NO FOE ON THE FIELD", PD_MUTED, PD_MUTED_SHADOW);
+        y += 2 * LINE;
+    }
+    rule(c, ix, y, iw);
+    y += RULE;
+    y += narrow_card(c, &data, ix, y, iw, &you, "YOU");
+    rule(c, ix, y, iw);
+    y += RULE;
+    // The moves, one under another, each with its verdict on the foe.
+    int gap = 3, cellH = 2 * LINE + 6;
+    int room = (bottom - y - 3 * gap) / PD_NUM_MOVES;
+    if (room < cellH) cellH = room;
+    for (int i = 0; i < PD_NUM_MOVES && cellH >= 2 * LINE; i++)
+        move_cell(c, &data, ix, y + i * (cellH + gap), iw, cellH, you.moves[i], you.pp[i], foe);
+}

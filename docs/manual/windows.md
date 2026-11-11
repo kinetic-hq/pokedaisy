@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen]
+keywords: [windows, pc, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -51,11 +51,38 @@ controller can be plugged in or pulled out while you play. For a controller it
 doesn't know, put a line for it in `DATA\gamecontrollerdb.txt` (the community
 file's format). On a keyboard: the arrow keys, Z for A, X for B, Enter for
 START, Backspace for SELECT, Q and E for L and R, Tab for the companion, F for
-the quick menu and Escape for the game menu.
+the quick menu, V for the next companion view, K to lock the side panel and
+Escape for the game menu.
 
 To start a game straight away, for a frontend or a shortcut, give its file:
 `pokedaisy.exe "D:\Games\My Game.gba"`. `--data FOLDER` uses another data
 folder than the one beside the program.
+
+## Companion views
+
+On a wide screen the companion doesn't have to cover the game. Pick how it
+shares the screen in the companion's `SETTINGS` > `COMPANION VIEW`, or press the
+right stick (V on a keyboard) to step to the next one as you play. The game
+stays in the middle of the screen in every view but a locked side panel.
+
+- **`BATTLE WINGS`** (the first choice): on the field the game fills the screen
+  with the HUD, and the companion opens as a window over the dimmed game. When a
+  battle starts, the game shrinks to the largest whole size that leaves room on
+  both sides: your party on the left, the matchup on the right (the foe, its
+  types and how each of your moves does against it). On a 16:10 screen a strip
+  above the game shows where you are, the time and your badges, and one below
+  it the buttons and the steps left on the spray.
+- **`WINDOW`**: the companion as a window in the middle, over the dimmed game.
+- **`SIDE PANEL`**: the companion slides in from the right. Press the left stick
+  (K on a keyboard) while it's open to lock it: the game moves into the left
+  half and the panel keeps the right half.
+- **`WINGS`**: the battle layout all the time, with the map on the right when
+  you're not in a battle.
+- **`GLASS DRAWER`**: a see-through sheet over the bottom of the screen.
+- **`STEP BACK`**: the game steps back two sizes and the companion sits around
+  it.
+
+The game moves into its new place smoothly when a view changes.
 
 ## When something goes wrong
 

@@ -37,6 +37,9 @@ it or any of its parts off in the companion's `SETTINGS` > `HUD`. In
 Press the companion button to pause the game and open its companion. Use the
 D-pad to focus an option, A to choose it and B to go back. The shoulder buttons
 change tabs. While a list or dialog is open, the D-pad stays inside it.
+`SETTINGS` > `COMPANION VIEW` picks where the companion goes: a window over
+the game, a side panel, or your party and the matchup beside a battle. The
+right stick steps through them; see [Companion views](windows.md#companion-views).
 Your game menu has cancel-first save, load and quit confirmations.
 
 In `MAP`, move the orange cursor across the grid with the D-pad. Towns, routes

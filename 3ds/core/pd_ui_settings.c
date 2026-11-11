@@ -19,6 +19,13 @@ const char* pd_aspect_name(int aspect) {
     return aspect >= 0 && aspect < PD_ASPECTS ? ASPECT_NAMES[aspect] : "";
 }
 
+static const char* const VIEW_NAMES[PD_COMPANION_VIEWS] = {
+    "BATTLE WINGS", "WINDOW", "SIDE PANEL", "WINGS", "GLASS DRAWER", "STEP BACK",
+};
+const char* pd_companion_view_name(int view) {
+    return view >= 0 && view < PD_COMPANION_VIEWS ? VIEW_NAMES[view] : VIEW_NAMES[0];
+}
+
 const char* pd_screen_mode_name(int mode) {
     return mode >= 0 && mode < PD_SCREEN_MODES ? SCREEN_NAMES[mode] : "";
 }
@@ -225,6 +232,8 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
             muted_row(c, ix, &y, iw, "ASPECT", "N/A");
         }
     }
+    if (host && host->hasCompanionView)
+        setting(ui, c, ix, &y, iw, SETTING_VIEW, "COMPANION VIEW", pd_companion_view_name(st->companionView));
     if (host && host->hasHud) setting(ui, c, ix, &y, iw, SETTING_HUD, "HUD", st->hud ? "ON" : "OFF");
     if (host && host->hasPerf) setting(ui, c, ix, &y, iw, SETTING_PERF, "FPS / CPU", st->showPerf ? "ON" : "OFF");
     if (host && host->hasDisplayFilter)
@@ -450,6 +459,12 @@ void ui_overlay(struct pd_ui* ui, struct pd_canvas* c) {
             names[n++] = pd_themes[i].label;
         }
         pick_list(ui, c, "THEME", names, n, current);
+        break;
+    }
+    case PD_OVERLAY_PICK_VIEW: {
+        static const char* names[PD_COMPANION_VIEWS];
+        for (int i = 0; i < PD_COMPANION_VIEWS; i++) names[i] = pd_companion_view_name(i);
+        pick_list(ui, c, "COMPANION VIEW", names, PD_COMPANION_VIEWS, ui->settings->companionView);
         break;
     }
     case PD_OVERLAY_PICK_VOLUME:
