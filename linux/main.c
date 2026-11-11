@@ -330,6 +330,7 @@ static void events(void) {
   pressed = 0;
   SDL_Event e;
   while (SDL_PollEvent(&e)) {
+    if (getenv("POCKET_DEBUG_KEYS") && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) fprintf(stderr, "DBG key type=%x sym=%d repeat=%d\n", (unsigned)e.type, (int)e.key.keysym.sym, (int)e.key.repeat);
     if (e.type == SDL_QUIT)
       running = 0;
     if (e.type == SDL_JOYDEVICEADDED && !SDL_IsGameController(e.jdevice.which))
@@ -1476,6 +1477,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     lcdEnabled = settings.lcdFilter;
     gameScaling = settings.aspect == PD_ASPECT_ORIGINAL || !wideSupported ? settings.scaling : PD_SCALE_INTEGER;
     events();
+    if (getenv("POCKET_DEBUG_KEYS") && pressed) fprintf(stderr, "DBG loop pressed=%x held=%x companion=%d menuOpen=%d\n", (unsigned)pressed, (unsigned)held, (int)companion, menuOpen);
     audio_check();
     repeat_directions();
     // plorpOS's hotkeys, over the game only.
