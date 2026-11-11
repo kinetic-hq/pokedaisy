@@ -420,7 +420,7 @@ static void test_frame(struct mCore* c,bool companion,int frame,struct pd_ui* ui
     tap(SDLK_ESCAPE);
   } else if(frame==3) {
     if(!companion)fprintf(stderr,"DEBUG frame3 held=%x pressed=%x hostMenu=%d hotkeyMask=%x pending=%d
-",held,pressed,hostMenu,hotkeyMask,SDL_PeepEvents(NULL,0,SDL_PEEKEVENT,SDL_FIRSTEVENT,SDL_LASTEVENT));
+",(unsigned)held,(unsigned)pressed,(int)hostMenu,(unsigned)hotkeyMask,(int)SDL_PeepEvents(NULL,0,SDL_PEEKEVENT,SDL_FIRSTEVENT,SDL_LASTEVENT));
     assert(companion);tap(SDLK_x);
   } else if(frame==4) {
     assert(!companion);
