@@ -44,7 +44,7 @@
 #ifdef _WIN32
 #define POCKET_HOST_NAME "PokeDaisy Windows"
 #else
-#define POCKET_HOST_NAME POCKET_HOST_NAME
+#define POCKET_HOST_NAME "PokeDaisy Linux"
 #endif
 // The window's size without POCKET_FULLSCREEN / POCKET_WINDOW, and the companion's
 // canvas until a screen says otherwise (companion_size).

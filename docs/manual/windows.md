@@ -39,13 +39,8 @@ state never leaves half a file behind.
 
 ## Full screen and controllers
 
-To fill the screen, start it with `POCKET_FULLSCREEN` set. From a command
-prompt in the folder:
-
-```
-set POCKET_FULLSCREEN=1
-pokedaisy.exe
-```
+To fill the screen, start it with `POCKET_FULLSCREEN` set to `1`. From a command
+prompt in the folder, type `set POCKET_FULLSCREEN=1`, then `pokedaisy.exe`.
 
 A frontend or a shortcut can set it the same way. Without it, the program opens
 a window you can resize. `POCKET_WINDOW=1920x1080` opens the window at a size
