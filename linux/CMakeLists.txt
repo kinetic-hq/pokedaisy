@@ -31,7 +31,8 @@ target_compile_definitions(pd_linux_common PUBLIC _GNU_SOURCE _POSIX_C_SOURCE=20
 if(WIN32)
   # libmgba uses Windows threads there (its threading.h picks them without USE_PTHREADS),
   # and the host's main is its own, not SDL2main's.
-  target_compile_definitions(pd_linux_common PUBLIC SDL_MAIN_HANDLED __USE_MINGW_ANSI_STDIO=1)
+  # _WIN32_WINNT as libmgba's threading.h sets it, so including it after a system header is no redefinition.
+  target_compile_definitions(pd_linux_common PUBLIC SDL_MAIN_HANDLED __USE_MINGW_ANSI_STDIO=1 _WIN32_WINNT=0x0600)
 else()
   # plorpOS: libmgba is, and pk_rewind.c needs its threaded mCoreRewindContext
   target_compile_definitions(pd_linux_common PUBLIC USE_PTHREADS)
