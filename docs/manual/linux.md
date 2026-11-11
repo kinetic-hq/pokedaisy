@@ -67,8 +67,8 @@ Nintendo DS games run on one of two backends, picked when the program is
 built. `POCKET_MELONDS=ON` uses melonDS, the emulator the Android app uses, and
 keeps a DS game's save beside its file as `My Game.sav`, so a synced folder of
 games and saves works as it does elsewhere. The mouse or a finger on a touch
-display presses the touch screen while it shows. The Windows page has the
-controls.
+display presses the touch screen while it shows, and `DS LAYOUT` places the
+two screens in the window. The Windows page has the controls and the layouts.
 
 An optional DSperate backend can be enabled with `POCKET_DSPERATE=ON`.
 Its limited, read-only companion supports Platinum USA rev1, including party,

@@ -7,6 +7,7 @@
 #include "display.h"
 #include "map_art.h"
 #include "pk_nds_field.h"
+#include "ds_layout.h"
 #include <SDL.h>
 #include <algorithm>
 #include <filesystem>
@@ -57,8 +58,8 @@ bool atomic_file(const std::string& path,const uint8_t* data,size_t size){
 // the console held before the load, still waiting for its flush if it was.
 struct DsPrefs {
   bool bottom=false, resume=false, hud=true;
-  int battle=0;
-  bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud;}
+  int battle=0, layout=DSL_ONE;
+  bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud || layout!=other.layout;}
 };
 DsPrefs load_prefs(const std::string& path){
   DsPrefs p;std::ifstream f(path);std::string line;
@@ -68,11 +69,12 @@ DsPrefs load_prefs(const std::string& path){
     else if(line=="hud=1")p.hud=true;else if(line=="hud=0")p.hud=false;
     else if(line=="bottom=1")p.bottom=true;else if(line=="bottom=0")p.bottom=false;
     else if(line=="resume=1")p.resume=true;else if(line=="resume=0")p.resume=false;
+    else if(line.rfind("layout=",0)==0){int v=std::atoi(line.c_str()+7);if(v>=0 && v<DSL_COUNT)p.layout=v;}
   }
   return p;
 }
 bool save_prefs(const std::string& path,const DsPrefs& p){
-  std::string text="# PokeDaisy DS preferences\nbottom="+std::to_string(p.bottom)+"\nresume="+std::to_string(p.resume)+"\nbattle="+std::to_string(p.battle)+"\nhud="+std::to_string(p.hud)+"\n";
+  std::string text="# PokeDaisy DS preferences\nbottom="+std::to_string(p.bottom)+"\nresume="+std::to_string(p.resume)+"\nbattle="+std::to_string(p.battle)+"\nhud="+std::to_string(p.hud)+"\nlayout="+std::to_string(p.layout)+"\n";
   return atomic_file(path,reinterpret_cast<const uint8_t*>(text.data()),text.size());
 }
 int keyboard(SDL_Keycode k){switch(k){
@@ -94,14 +96,16 @@ void blit(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,int w,int h,int ow,i
   SDL_UpdateTexture(t,nullptr,px,w*4);int scale=std::max(1,std::min(ow/w,oh/h));
   SDL_Rect dst{(ow-w*scale)/2,(oh-h*scale)/2,w*scale,h*scale};SDL_RenderCopy(r,t,nullptr,&dst);
 }
-// A point in the renderer's output pixels on the touch screen as blit() draws it, in DS pixels (clamped to the
-// screen while a press drags off it). False when a new press lands outside the picture.
-bool ds_touch_point(SDL_Renderer* r,float px,float py,bool clamp,int& x,int& y){
-  int ow=0,oh=0;if(SDL_GetRendererOutputSize(r,&ow,&oh)!=0 || ow<=0 || oh<=0)return false;
-  const int w=256,h=192;int scale=std::max(1,std::min(ow/w,oh/h));
-  int dx=int(px)-(ow-w*scale)/2,dy=int(py)-(oh-h*scale)/2;
-  if(!clamp && (dx<0 || dy<0 || dx>=w*scale || dy>=h*scale))return false;
-  x=std::clamp(dx/scale,0,w-1);y=std::clamp(dy/scale,0,h-1);return true;
+// A DS screen drawn into its DS LAYOUT box.
+void draw_screen(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,const DsBox& box){
+  if(!box.shown())return;
+  SDL_UpdateTexture(t,nullptr,px,256*4);SDL_Rect dst{box.x,box.y,box.w,box.h};SDL_RenderCopy(r,t,nullptr,&dst);
+}
+// A thin dark frame round an inset or floating screen, so it reads as its own screen over the other.
+void frame_screen(SDL_Renderer* r,const DsBox& box){
+  int t=std::max(2,box.w/128);SDL_SetRenderDrawColor(r,24,24,32,255);
+  SDL_Rect sides[4]={{box.x-t,box.y-t,box.w+2*t,t},{box.x-t,box.y+box.h,box.w+2*t,t},{box.x-t,box.y,t,box.h},{box.x+box.w,box.y,t,box.h}};
+  SDL_RenderFillRects(r,sides,4);
 }
 void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int selected,bool summary,int scroll,int page,const DsPrefs& prefs,int setting,const DsMapArt& art,int mapX,int mapY){
   pd_fill(&c,0,0,c.w,c.h,0x50a8a8);pd_title_box(&c,5,5,c.w-10,25,0xffffff);
@@ -111,8 +115,8 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
   pd_list_box(&c,5,61,c.w-10,c.h-86);int y=68;
   auto line=[&](const std::string& t){pd_text_fit(&c,13,y,c.w-26,t.c_str(),0x303030,PD_NO_SHADOW);y+=20;};
   if(tab==4){
-    const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF")};
-    for(int i=0;i<4;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,20,0xffe4a0);line(rows[i]);}
+    const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("DS LAYOUT: ")+ds_layout_name(prefs.layout),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF")};
+    for(int i=0;i<5;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,20,0xffe4a0);line(rows[i]);}
     line("Resume saves on clean exit");line("Separate from manual states");
   }
   else if(!supported)line("Companion: Platinum USA Rev 1 only");
@@ -220,9 +224,10 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   audio.id=SDL_OpenAudioDevice(nullptr,0,&want,&got,SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
   if(audio.id){audio.stream=SDL_NewAudioStream(AUDIO_S16SYS,2,int(std::lround(nds->audioRate())),got.format,got.channels,got.freq);SDL_PauseAudioDevice(audio.id,0);}
   Texture top{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,256,192)};
+  Texture touchTex{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,256,192)};
   Texture overlay{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,341,256)};
   Texture ui{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB888,SDL_TEXTUREACCESS_STREAMING,341,256)};
-  if(!top.p || !ui.p || !overlay.p)return 1;
+  if(!top.p || !touchTex.p || !ui.p || !overlay.p)return 1;
   SDL_SetTextureBlendMode(overlay.p,SDL_BLENDMODE_BLEND);
   std::vector<uint32_t> uiPixels(341*256);pd_canvas canvas;pd_canvas_init(&canvas,341,256,uiPixels.data());
   const auto* field=supported?pk_nds_field_game(code,revision):nullptr;
@@ -239,10 +244,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   struct Tap{int at,x,y,n;};std::vector<Tap> hostTaps;
   if(auto s=std::getenv("POCKET_DS_HOST_TAPS")){std::string text=s;size_t pos=0;while(pos<text.size()){Tap t{};int used=0;if(std::sscanf(text.c_str()+pos,"%d:%d:%d:%d%n",&t.at,&t.x,&t.y,&t.n,&used)!=4)break;hostTaps.push_back(t);pos+=used+1;}}
   // The mouse's left button and a finger on a touch display press the DS touch screen where it's drawn.
-  bool pointerDown=false,shownBottom=false;int pointerX=0,pointerY=0;SDL_FingerID pointerFinger=-1;
+  bool pointerDown=false;const char* driver=SDL_GetCurrentVideoDriver();const bool headless=driver && !std::strcmp(driver,"dummy");int pointerX=0,pointerY=0;SDL_FingerID pointerFinger=-1;
+  DsBox touchBox;  // where the touch screen was last drawn, in output pixels (none = not shown)
+  // DS LAYOUT: ONE SCREEN floats the touch screen in when the game wants it (PK_NDS_FIELD_TOUCH, held a few frames
+  // so a flicker doesn't flash it). A game without touch rules can't say so, so its ONE SCREEN is PICTURE IN PICTURE.
+  int touchOn=0,touchOff=0;bool touchWanted=false;
   auto pointerAt=[&](float px,float py,bool start){
-    if(!shownBottom || showCompanion || showQuick || paused){pointerDown=false;return;}
-    int x,y;if(!ds_touch_point(renderer,px,py,!start,x,y)){if(start)pointerDown=false;return;}
+    if(!touchBox.shown() || showCompanion || showQuick || paused){pointerDown=false;return;}
+    int x,y;if(!ds_touch_at(touchBox,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return;}
     pointerX=x;pointerY=y;if(start)pointerDown=true;
   };
   // Mouse events are in window coordinates; the picture is laid out in the renderer's output pixels.
@@ -282,7 +291,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(e.type==SDL_FINGERMOTION && pointerDown && e.tfinger.fingerId==pointerFinger){int ow=1,oh=1;SDL_GetRendererOutputSize(renderer,&ow,&oh);pointerAt(e.tfinger.x*ow,e.tfinger.y*oh,false);}
       if(e.type==SDL_FINGERUP && e.tfinger.fingerId==pointerFinger){pointerDown=false;pointerFinger=-1;}
       if(!pointerDown)pointerFinger=-1;
-      if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST){keys=0;pointerDown=false;nds->setButtons(0);nds->setTouch(0,0,false);paused=true;}
+      // A headless (dummy driver) window has no focus to lose: it pausing there kept test runs from playing.
+      if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST && !headless){keys=0;pointerDown=false;nds->setButtons(0);nds->setTouch(0,0,false);paused=true;}
     }
     // Test the same host input path as real controls, rather than only guest buttons.
     for(auto p:hostScript)for(int k=0;k<16;k++)if(p.mask&(1u<<k)){
@@ -291,6 +301,12 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     unsigned now=SDL_GetTicks();for(int k=4;k<8;k++){if(pressed&(1u<<k))repeat[k]=now+400;else if((keys&(1u<<k)) && int(now-repeat[k])>=0){pressed|=1u<<k;repeat[k]=now+90;}}
     if(companionAt>=0 && frame==companionAt)showCompanion=true;
     blocked &= keys;
+    // SELECT + R2 / L2 step DS LAYOUT forward / back (the app's R2 hotkey); SELECT is then kept from the game.
+    if((keys&(1u<<2)) && (pressed&((1u<<12)|(1u<<13))) && !showCompanion && !paused){
+      prefs.layout=(prefs.layout+((pressed&(1u<<13))?1:DSL_COUNT-1))%DSL_COUNT;
+      std::fprintf(stderr,"DS LAYOUT %s\n",ds_layout_name(prefs.layout));
+      blocked|=keys&4095u;pressed&=~((1u<<12)|(1u<<13));nds->setButtons(0);nds->setTouch(0,0,false);
+    }
     if(pressed&(1u<<12)){
       if(showCompanion)showCompanion=false;else showQuick=!showQuick;
       paused=false;blocked|=keys&4095u;nds->setButtons(0);nds->setTouch(0,0,false);
@@ -308,7 +324,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       }else bottom=!bottom;
     }
     view=ds_battle_view(prefs.battle,inBattle,choosing,bottom,overrideScreen);
-    shownBottom=view.bottom;
+    bool wants=field && !inBattle && (fieldBits&PK_NDS_FIELD_TOUCH);
+    if(wants){touchOff=0;if(++touchOn>=2)touchWanted=true;}else{touchOn=0;if(++touchOff>=6)touchWanted=false;}
+    int layout=prefs.layout==DSL_ONE && !field?DSL_PIP:prefs.layout;
     if(choosing && std::getenv("POCKET_DS_STOP_ON_BATTLE_INPUT"))limit=frame+1;
     if(pressed&(1u<<15)){paused=!paused;showQuick=false;blocked|=keys&4095u;}
     DsCompanion snap=supported?ds_read_companion(nds->mainRam(),nds->mainRamSize()):DsCompanion{};
@@ -354,9 +372,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         mapX=std::clamp(mapX,0,29);mapY=std::clamp(mapY,minY,maxY);
       }
       if(tab==4){
-        if(pressed&(1u<<6))setting=(setting+3)%4;
-        if(pressed&(1u<<7))setting=(setting+1)%4;
-        if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1)prefs.resume=!prefs.resume;else if(setting==2)prefs.battle=1-prefs.battle;else prefs.hud=!prefs.hud;}
+        if(pressed&(1u<<6))setting=(setting+4)%5;
+        if(pressed&(1u<<7))setting=(setting+1)%5;
+        if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1)prefs.layout=(prefs.layout+1)%DSL_COUNT;else if(setting==2)prefs.resume=!prefs.resume;else if(setting==3)prefs.battle=1-prefs.battle;else prefs.hud=!prefs.hud;}
       }
       if(tab!=4 && tab!=5 && (pressed&(1u<<6))){if(tab==1 || tab==2)scroll=std::max(0,scroll-1);else selected=std::max(0,selected-1);}
       if(tab!=4 && tab!=5 && (pressed&(1u<<7))){if(tab==1 || tab==2)scroll=std::min(std::max(0,(tab==1?int(snap.bag.size()):int(snap.dexSeen.size())-1)-1),scroll+1);else selected=std::min(std::max(0,int(snap.party.size())-1),selected+1);}
@@ -369,9 +387,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(pressed&(1u<<1)){if(summary)summary=false;else showCompanion=false;}
     }else if(!done){
       uint32_t gameKeys=keys&~blocked;
-      bool touchMode=view.bottom && (gameKeys&(1u<<2));
+      bool touchMode=touchBox.shown() && (gameKeys&(1u<<2));
       if(touchMode){if(gameKeys&(1u<<4))touchX=std::min(255,touchX+3);if(gameKeys&(1u<<5))touchX=std::max(0,touchX-3);if(gameKeys&(1u<<6))touchY=std::max(0,touchY-3);if(gameKeys&(1u<<7))touchY=std::min(191,touchY+3);}
-      if(!view.bottom)pointerDown=false;
+      if(!touchBox.shown())pointerDown=false;
       if(pointerDown)nds->setTouch(pointerX,pointerY,true);
       else nds->setTouch(touchX,touchY,touchMode && (gameKeys&1));
       uint32_t held=touchMode?0:gameKeys&4095u;for(auto p:script)if(frame>=p.at && frame<p.at+p.n)held|=p.mask;
@@ -388,7 +406,18 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     if(!ds_display_pixels(renderer,ow,oh)){std::fprintf(stderr,"DS display setup failed: %s\n",SDL_GetError());failed=true;break;}
     SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_RenderClear(renderer);
     if(showCompanion){companion(canvas,snap,supported,tab,selected,summary,scroll,page,prefs,setting,mapArt,mapX,mapY);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);}
-    else blit(renderer,top.p,nds->framebuffer(view.bottom?1:0),256,192,ow,oh);
+    else{
+      DsPlacement place=ds_place(layout,ow,oh,view.bottom,touchWanted && !view.bottom);
+      bool topInset=place.inset && view.bottom;  // PICTURE IN PICTURE swapped: the top screen is the small one
+      if(topInset)draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
+      draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
+      if(place.touchFloats){SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer,0,0,0,150);SDL_RenderFillRect(renderer,nullptr);SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_NONE);}
+      if(place.touchFloats || place.inset)frame_screen(renderer,topInset?place.top:place.touch);
+      if(topInset)draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
+      else draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
+      touchBox=paused?DsBox{}:place.touch;
+    }
+    if(showCompanion)touchBox={};
     if(!showCompanion && !paused && (showQuick || (prefs.hud && snap.valid && !view.bottom && !inBattle && (fieldBits&PK_NDS_FIELD_SCREEN) && !(fieldBits&(PK_NDS_FIELD_LOCKED|PK_NDS_FIELD_MENU))))){
       for(auto& p:uiPixels)p=QUICK_CLEAR;
       if(showQuick)quick_draw(&canvas,nullptr,quickItems,4,quickSelected);
@@ -417,9 +446,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       }
       quick_finish(&canvas);blit(renderer,overlay.p,uiPixels.data(),341,256,ow,oh);
     }
-    if(view.bottom && !showCompanion && !paused && !showQuick && (keys&(1u<<2))){
-      int w=256,h=192;
-      int scale=std::max(1,std::min(ow/w,oh/h)),x=(ow-w*scale)/2+touchX*scale,y=(oh-h*scale)/2+touchY*scale;
+    if(touchBox.shown() && !showCompanion && !paused && !showQuick && (keys&(1u<<2))){
+      int x=touchBox.x+touchX*touchBox.w/256,y=touchBox.y+touchY*touchBox.h/192;
       SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_Rect outline{x-5,y-5,11,11};SDL_RenderDrawRect(renderer,&outline);
       SDL_SetRenderDrawColor(renderer,255,255,255,255);SDL_RenderDrawLine(renderer,x-4,y,x+4,y);SDL_RenderDrawLine(renderer,x,y-4,x,y+4);
     }
