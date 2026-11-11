@@ -26,7 +26,7 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
       - run: git submodule update --init third_party/mgba
-      - run: sudo apt-get update && sudo apt-get install -y cmake libsdl2-dev
+      - run: bash .github/scripts/apt-install.sh cmake libsdl2-dev
       - name: Shared host capability and legacy previews
         run: make -C 3ds test-host-display test-configs-gen preview
       - name: Build native host and tests
@@ -70,7 +70,7 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
       - run: git submodule update --init third_party/mgba
-      - run: sudo apt-get update && sudo apt-get install -y cmake qemu-user-static
+      - run: bash .github/scripts/apt-install.sh cmake qemu-user-static
       - name: Prepare checksum-pinned toolchain and SDK
         run: |
           python3 linux/setup_trimui_sdk.py "$RUNNER_TEMP/trimui-sdk"
