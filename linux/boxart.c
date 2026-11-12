@@ -215,7 +215,54 @@ static char *from_libretro(const struct boxart_game *g, size_t *len) {
   return NULL;
 }
 
-/* SteamGridDB: the title searched, the first game's tallest grid (600x900, else any) as a PNG or JPEG. */
+/* A title's words for matching: lower case ASCII ("Pokémon" -> "pokemon"), letters and digits, split at anything
+ * else, without the words every entry has ("pokemon", "version", "the"). Returns how many (at most 16). */
+static int title_words(const char *s, char words[16][32]) {
+  int n = 0;
+  size_t len = 0;
+  char w[32];
+  for (const unsigned char *p = (const unsigned char *)s;; p++) {
+    int ch = *p;
+    if (ch == 0xC3 && (p[1] == 0xA9 || p[1] == 0x89)) {
+      ch = 'e';
+      p++;
+    }
+    if (ch && ch < 0x80 && isalnum(ch)) {
+      if (len + 1 < sizeof w)
+        w[len++] = (char)tolower(ch);
+      continue;
+    }
+    if (len) {
+      w[len] = 0;
+      len = 0;
+      if (strcmp(w, "pokemon") && strcmp(w, "version") && strcmp(w, "the") && n < 16)
+        snprintf(words[n++], 32, "%s", w);
+    }
+    if (!ch)
+      break;
+  }
+  return n;
+}
+
+/* SteamGridDB's entry is this game: the same words, none missing and none added. "Pokemon Black" isn't
+ * "Pokemon Black 2", and a hack's name never matches Pinball or another spin-off. */
+bool boxart_title_matches(const char *want, const char *got) {
+  char a[16][32], b[16][32];
+  int na = title_words(want, a), nb = title_words(got, b);
+  if (!na || na != nb)
+    return false;
+  for (int i = 0; i < na; i++) {
+    bool found = false;
+    for (int j = 0; j < nb && !found; j++)
+      found = !strcmp(a[i], b[j]);
+    if (!found)
+      return false;
+  }
+  return true;
+}
+
+/* SteamGridDB: the title searched, the first entry with the same name (boxart_title_matches), its first English
+ * grid (600x900, else any) as a PNG or JPEG. None that match: nothing, so a hack falls back to its base game's box. */
 static char *from_steamgriddb(const struct boxart_game *g, const char *key, size_t *len) {
   if (!*key)
     return NULL;
@@ -237,7 +284,13 @@ static char *from_steamgriddb(const struct boxart_game *g, const char *key, size
   size_t jlen;
   char *json = http_get(url, auth, MAX_JSON, &jlen);
   const char *data = json ? strstr(json, "\"data\"") : NULL;
-  bool found = data && json_value(data, "id", id, sizeof id);
+  bool found = false;
+  for (const char *p = data; p && !found && (p = strstr(p, "\"id\"")); p += 4) {
+    char name[256];
+    if (json_value(p, "id", id, sizeof id) && json_value(p, "name", name, sizeof name) &&
+        boxart_title_matches(ascii, name))
+      found = true;
+  }
   free(json);
   if (!found)
     return NULL;
@@ -248,7 +301,17 @@ static char *from_steamgriddb(const struct boxart_game *g, const char *key, size
     json = http_get(url, auth, MAX_JSON, &jlen);
     char art[1024];
     data = json ? strstr(json, "\"data\"") : NULL;
-    bool got = data && json_value(data, "url", art, sizeof art);
+    // Each grid is an object from its "id" on, its "language" before its "url": the first in English.
+    bool got = false;
+    for (const char *p = data; p && !got && (p = strstr(p, "{\"id\"")); p += 5) {
+      const char *next = strstr(p + 5, "{\"id\"");
+      const char *lang = strstr(p, "\"language\"");
+      if (!lang || (next && lang > next))
+        continue;
+      char code[8];
+      if (json_value(lang, "language", code, sizeof code) && !strcmp(code, "en") && json_value(p, "url", art, sizeof art))
+        got = true;
+    }
     free(json);
     if (got) {
       char *img = fetch_image(art, NULL, len);
@@ -385,11 +448,28 @@ bool boxart_progress(int *done, int *total) {
   return busy;
 }
 
+/* Art found before matching was strict (any SteamGridDB hit, in any language) is looked for again, once: everything
+ * but the player's own (boxart/custom) goes. */
+static void forget_found(const char *name, void *dir) {
+  size_t n = strlen(name);
+  if ((n > 4 && !strcmp(name + n - 4, ".img")) || (n > 5 && (!strcmp(name + n - 5, ".none") || !strcmp(name + n - 5, ".base")))) {
+    char path[1400];
+    snprintf(path, sizeof path, "%s/%s", (const char *)dir, name);
+    pocket_remove(path);
+  }
+}
+
 void boxart_init(const char *data) {
   snprintf(root, sizeof root, "%s", data);
   char dir[1100];
   snprintf(dir, sizeof dir, "%s/boxart", root);
   pocket_mkdir(dir);
+  char mark[1200];
+  snprintf(mark, sizeof mark, "%s/matching-v2", dir);
+  if (!pocket_exists(mark)) {
+    pocket_list_dir(dir, forget_found, dir);
+    write_file(mark, "", 0);
+  }
   snprintf(dir, sizeof dir, "%s/boxart/custom", root);
   pocket_mkdir(dir);
   if (!lock)

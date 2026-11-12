@@ -1,4 +1,5 @@
 /* The game list's names (game_display_name): file names only, no game data. */
+#include "boxart.h"
 #include "game_name.h"
 #include <assert.h>
 #include <stdio.h>
@@ -48,7 +49,7 @@ int main(void) {
   check("Pokemon McGuffin Quest.gba", false, "Pok" E "mon McGuffin Quest");
   // Nothing left: the file's own name.
   check("(USA).gba", false, "(USA).gba");
-  // The grid's version line and ORIGINAL / ROM HACK tag.
+  // The grid's version line and ORIGINAL / ROMHACK tag.
   {
     static const char *const V[][2] = {
         {"Pokemon - Ash Gray (v4.5.3).gba", "v4.5.3"},
@@ -74,6 +75,15 @@ int main(void) {
     assert(game_is_original("Pokemon Black 2.nds"));
     assert(!game_is_original("pokemon radical red v4.1.gba"));
     assert(!game_is_original("Pokemon Emerald Rogue.gba"));
+  }
+  {
+    // SteamGridDB's entry must be the same game: no sequels, no spin-offs.
+    assert(boxart_title_matches("Pokemon Black", "Pok\xC3\xA9mon Black Version"));
+    assert(!boxart_title_matches("Pokemon Black", "Pok\xC3\xA9mon Black Version 2"));
+    assert(!boxart_title_matches("Pok\xC3\xA9mon HeartFelt Gold", "Pok\xC3\xA9mon Pinball"));
+    assert(!boxart_title_matches("Pokemon HeartFelt Gold", "Pokemon HeartGold Version"));
+    assert(boxart_title_matches("Pokemon Radical Red", "Pok\xC3\xA9mon Radical Red"));
+    assert(!boxart_title_matches("Pokemon", "Pokemon Pinball"));
   }
   puts("game names ok");
   return 0;

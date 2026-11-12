@@ -2,6 +2,7 @@
 #include "../3ds/desktop/pd_png.h"
 #include "boxart.h"
 #include "game_grid.h"
+#include "game_support.h"
 #include "game_name.h"
 #include "pd_menu.h"
 #include "pd_layout_pick.h"
@@ -1175,6 +1176,9 @@ static void timed_present(void) {
 static struct game_grid *gridOverlay;
 static char **gridStems; // the grid's games' art names, by item
 static const char *presentShot; // present(): a screenshot of the window as drawn, then forgotten
+// A dialog over the grid this frame (canvas pixels): the art goes under the dim, and the dialog is put back over it.
+static bool gridModal;
+static SDL_Rect gridModalRect;
 static void grid_art_draw(void) {
   if (!gridOverlay || !gridStems || canvasAt.w <= 0 || canvasW <= 0)
     return;
@@ -1189,10 +1193,13 @@ static void grid_art_draw(void) {
     SDL_Texture *t = boxart_texture(renderer, gridStems[a->index], &tw, &th);
     if (!t || tw <= 0 || th <= 0)
       continue;
-    // Cover: the art fills the well, its overhang cut off evenly (a box a little off 3:4 loses a sliver).
-    double wx = a->w * k, wy = a->h * k, f = wx / tw > wy / th ? wx / tw : wy / th;
-    int dw = (int)(tw * f + 0.5), dh = (int)(th * f + 0.5);
+    // The whole cover, never cut (a GBA or DS box is about square, SteamGridDB's art 2:3): as large as fits in the
+    // well, over a blurred, darkened copy of itself filling the rest.
+    double wx = a->w * k, wy = a->h * k, f = wx / tw < wy / th ? wx / tw : wy / th;
+    double cf = wx / tw > wy / th ? wx / tw : wy / th;
+    int dw = (int)(tw * f + 0.5), dh = (int)(th * f + 0.5), cw = (int)(tw * cf + 0.5), ch = (int)(th * cf + 0.5);
     SDL_Rect dst = {canvasAt.x + (int)(a->x * k + (wx - dw) / 2), canvasAt.y + (int)(a->y * k + (wy - dh) / 2), dw, dh};
+    SDL_Rect fill = {canvasAt.x + (int)(a->x * k + (wx - cw) / 2), canvasAt.y + (int)(a->y * k + (wy - ch) / 2), cw, ch};
     int top = a->y > a->clipY ? a->y : a->clipY;
     int bottom = a->y + a->h < a->clipY + a->clipH ? a->y + a->h : a->clipY + a->clipH;
     if (bottom > limit)
@@ -1203,10 +1210,37 @@ static void grid_art_draw(void) {
                      (int)((bottom - top) * k + 0.5)};
     if (clip.w > wx + 0.5)
       clip.w = (int)(wx + 0.5);
+    bool fits = dw >= (int)(wx + 0.5) - 1 && dh >= (int)(wy + 0.5) - 1;
+    if (!fits) {
+      // The blur: the cover squeezed into a few pixels, then stretched back with smoothing.
+      static SDL_Texture *small;
+      if (!small) {
+        small = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 12, 12);
+        if (small)
+          SDL_SetTextureScaleMode(small, SDL_ScaleModeLinear);
+      }
+      if (small && SDL_SetRenderTarget(renderer, small) == 0) {
+        SDL_RenderCopy(renderer, t, NULL, NULL);
+        SDL_SetRenderTarget(renderer, NULL);
+        SDL_RenderSetLogicalSize(renderer, 0, 0);
+        SDL_RenderSetClipRect(renderer, &clip);
+        SDL_SetTextureColorMod(small, 150, 150, 150);
+        SDL_RenderCopy(renderer, small, NULL, &fill);
+      }
+    }
     SDL_RenderSetClipRect(renderer, &clip);
+    if (gridModal)
+      SDL_SetTextureColorMod(t, 64, 64, 64); // pd_dim's 0xC0
     SDL_RenderCopy(renderer, t, NULL, &dst);
+    if (gridModal)
+      SDL_SetTextureColorMod(t, 255, 255, 255);
   }
   SDL_RenderSetClipRect(renderer, NULL);
+  if (gridModal && gridModalRect.w > 0) {
+    SDL_Rect to = {canvasAt.x + (int)(gridModalRect.x * k), canvasAt.y + (int)(gridModalRect.y * k),
+                   (int)(gridModalRect.w * k + 0.5), (int)(gridModalRect.h * k + 0.5)};
+    SDL_RenderCopy(renderer, texture, &gridModalRect, &to);
+  }
 }
 static void present(void) {
   SDL_RenderSetLogicalSize(renderer, canvasW, canvasH);
@@ -4900,6 +4934,7 @@ static bool update_prompt(void) {
   pd_dim(c, 0xC0);
   int w = c->w - 40 < 280 ? c->w - 40 : 280, h = 74 + 18 * (rowCount ? rowCount : 1);
   int x = (c->w - w) / 2, y = (c->h - h) / 2;
+  gridModalRect = (SDL_Rect){x - 2, y - 2, w + 4, h + 4};
   int f = pd_title_box(c, x, y, w, h, PD_TITLE_FILL);
   int ix = x + f + 6, iw = w - 2 * f - 12, ty = y + f + 4;
   pd_text(c, ix, ty, st == UPDATER_READY ? "UPDATE READY" : st == UPDATER_FAILED ? "UPDATE FAILED" : "UPDATE AVAILABLE",
@@ -5192,9 +5227,11 @@ static void library_load(struct library *l) {
     boxart_base_of_rom(l->games.paths[i], l->art[i].base, sizeof l->art[i].base, &l->art[i].baseSystem);
     game_version(label, l->versions[i], sizeof l->versions[i]);
     l->items[i] = (struct game_grid_item){l->games.names[i], l->versions[i], l->art[i].system, l->art[i].hack,
-                                          boxart_is_base(l->stems[i])};
+                                          boxart_is_base(l->stems[i]), GAME_SUPPORT_UNKNOWN};
   }
   l->count = count;
+  // FULL / PARTLY / PLAY ONLY, worked out in the background (cached in DATA).
+  game_support_start(root, (const char *const *)l->games.paths, count, POCKET_VERSION);
   game_grid_init(&l->grid, l->items, count);
   l->grid.selected = keep >= 0 && keep < count ? keep : 0;
   l->grid.focus = count ? focus : GAME_GRID_TILES;
@@ -5618,12 +5655,14 @@ static void save_editor(const char *rom, const char *gameName) {
 }
 /* A game's options. Returns the game to play, else -1; *reload when the list changed; *finding when FIND started. */
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
-  enum { OPT_PLAY, OPT_FIND, OPT_SET, OPT_CLEAR, OPT_RENAME, OPT_RESET, OPT_EDIT };
+  enum { OPT_PLAY, OPT_FIND, OPT_SET, OPT_CLEAR, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_SUPPORT };
   const char *stem = l->stems[g], *label = l->games.labels[g];
   char custom[256];
   bool hasArt = boxart_has_custom(stem), hasName = game_custom_name(root, label, custom, sizeof custom);
-  const char *rows[9];
-  int ids[9], n = 0;
+  const char *rows[10];
+  int ids[10], n = 0;
+  char supportDetail[96], supportRow[140];
+  int support = game_support_get(g, supportDetail, sizeof supportDetail);
 #define OPT(id, text)                                                                                                  \
   do {                                                                                                                 \
     rows[n] = text;                                                                                                    \
@@ -5638,12 +5677,22 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   if (hasName)
     OPT(OPT_RESET, "USE THE FILE'S NAME");
   OPT(OPT_EDIT, "EDIT SAVE");
+  if (game_support_word(support)) { // the companion's support, and what it lacks (A shows it whole)
+    snprintf(supportRow, sizeof supportRow, "COMPANION\t%s", game_support_word(support));
+    OPT(OPT_SUPPORT, supportRow);
+  }
 #undef OPT
   int pick = menu_pick(l->games.names[g], rows, n, 0);
   int id = pick >= 0 ? ids[pick] : -1;
   switch (id) {
   case OPT_PLAY:
     return g;
+  case OPT_SUPPORT: {
+    char line[128];
+    snprintf(line, sizeof line, "%s: %s", game_support_word(support), supportDetail);
+    notice(line);
+    break;
+  }
   case OPT_FIND:
     boxart_find(&l->art[g]);
     *finding = true;
@@ -5719,7 +5768,10 @@ static void library_screen(void) {
     companion_canvas();
     game_grid_draw(grid, &canvas);
     if (update_prompt()) {
-      if (library_frame(&lib))
+      gridModal = true; // the dialog over a dimmed grid, not the box art over the dialog
+      bool quit = library_frame(&lib);
+      gridModal = false;
+      if (quit)
         break;
       continue;
     }
@@ -5782,6 +5834,12 @@ static void library_screen(void) {
         grid_set_art(lib.stems[grid->selected], droppedFile);
       free(droppedFile);
       droppedFile = NULL;
+    }
+    static int supportSeen = -1;
+    if (supportSeen != game_support_generation()) {
+      supportSeen = game_support_generation();
+      for (int i = 0; i < lib.count; i++)
+        lib.items[i].support = game_support_get(i, NULL, 0);
     }
     static int artSeen = -1;
     if (artSeen != boxart_generation()) { // new art: a hack may now show its base game's box, with a banner
@@ -5855,6 +5913,7 @@ static void library_screen(void) {
   gridStems = NULL;
   boxart_quit();
   boxart_textures_free();
+  game_support_stop();
   library_free(&lib);
 }
 
