@@ -22,8 +22,42 @@ permissions:
   contents: read
 
 jobs:
+  # Whether a PR / push to main touches the Android app (or what it builds from). The app's unit tests take the
+  # longest, so they run only then; tags, Nightly and anything else always run them. A skipped job counts as
+  # passed for a required check.
+  changes:
+    name: Android changes?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      android: ${{ steps.diff.outputs.android }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          base=""
+          if [ "$EVENT" = pull_request ]; then base="$PR_BASE"; fi
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then base="$BEFORE"; fi
+          android=true
+          if [ -n "$base" ] && [ "$base" != 0000000000000000000000000000000000000000 ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            if ! git diff --name-only "$base" HEAD | grep -Eq '^(app/|gamedata/|scripts/|ui-preview/|gradle/|third_party/|build\.gradle|settings\.gradle|gradle\.properties|gradlew|Makefile|\.gitmodules|\.github/workflows/ci\.yml)'; then
+              android=false
+            fi
+          fi
+          echo "android=$android" | tee -a "$GITHUB_OUTPUT"
+
   app:
     name: Unit tests + debug build
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
