@@ -491,6 +491,23 @@ bool pd_ui_caught_here(const struct pd_game* g, const struct pd_snapshot* s, int
     return n > 0;
 }
 
+int pd_ui_wild_here(const struct pd_game* g, const struct pd_snapshot* s, int* species, bool* caught, int max) {
+    if (!g || !s || max <= 0) return 0;
+    static struct pd_wild_set wild;
+    if (!pd_wild_here(g, s, &wild)) return 0;
+    int n = 0;
+    for (int m = 0; m < PD_WILD_METHODS; m++) {
+        for (int i = 0; i < wild.count[m] && n < max; i++) {
+            int sp = wild.mons[m][i].species, k = 0;
+            while (k < n && species[k] != sp) k++;
+            if (k < n) continue;
+            species[n] = sp;
+            caught[n++] = caught_species(g, s, sp);
+        }
+    }
+    return n;
+}
+
 static void build_bosses(const struct pd_game* g, const struct pd_snapshot* s, const struct pd_guide* gd) {
     int best = 0;
     for (int i = 0; i < s->partyCount; i++) {

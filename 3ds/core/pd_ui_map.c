@@ -7,6 +7,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "pd_icon.h"
 #include "pd_map.h"
 #include "pd_games.h"
 #include "pd_gb.h"
@@ -484,7 +485,11 @@ struct pd_map_viewport pd_ui_map_view(struct pd_canvas* c, const struct pd_map_s
 // Under a wing's map: the badges (as pips), the play time, the next boss, this area's catches, the Pokedex and the
 // money, each a label over its value. What the save doesn't give, and what the host's bars already show
 // (pd_ui_bar_facts), is left out.
-struct wing_fact { char label[24], value[48]; int pips; }; // pips >= 0: that many of 8 badges, drawn as dots
+struct wing_fact { char label[24], value[48]; int pips; }; // pips >= 0: that many of 8 badges, drawn as dots;
+                                                           // WILD_ICONS: the value beside the label, the icons under
+enum { WILD_ICONS = -2, WILD_MAX = 24 };
+static int wildSpecies[WILD_MAX], wildCount;
+static bool wildCaught[WILD_MAX];
 
 static int wing_facts(const struct pd_game* g, const struct pd_snapshot* s, struct wing_fact* rows) {
     if (!s->valid) return 0;
@@ -512,6 +517,7 @@ static int wing_facts(const struct pd_game* g, const struct pd_snapshot* s, stru
         atSave = s;
         cap = pd_ui_next_boss(g, s, boss, sizeof(boss));
         if (!pd_ui_caught_here(g, s, &here, &kinds)) kinds = 0;
+        wildCount = kinds > 0 ? pd_ui_wild_here(g, s, wildSpecies, wildCaught, WILD_MAX) : 0;
     }
     if (cap > 0 && boss[0] && !(bars & PD_BAR_BOSS)) {
         snprintf(rows[n].label, sizeof(rows[n].label), "NEXT BOSS");
@@ -521,7 +527,8 @@ static int wing_facts(const struct pd_game* g, const struct pd_snapshot* s, stru
     if (kinds > 0 && !(bars & PD_BAR_HERE)) {
         snprintf(rows[n].label, sizeof(rows[n].label), "CAUGHT HERE");
         snprintf(rows[n].value, sizeof(rows[n].value), "%d / %d", here, kinds);
-        rows[n++].pips = -1;
+        // The area's kinds as icons under it, the ones not caught yet faded.
+        rows[n++].pips = wildCount > 0 && pd_mon_icon_pixels(g, wildSpecies[0], false) ? WILD_ICONS : -1;
     }
     if (s->dexOk && s->dexCount > 0) {
         int seen = 0, caught = 0;
@@ -560,12 +567,35 @@ static int wing_facts(const struct pd_game* g, const struct pd_snapshot* s, stru
     return n;
 }
 #define WING_FACTS_MAX 6
+#define WILD_ROW_H (16 + PD_ICON + 4)
+
+static int fact_height(const struct wing_fact* f) { return f->pips == WILD_ICONS ? WILD_ROW_H : 2 * 16 + 4; }
+
+// The area's icons in one row across w: a step apart (overlapping when they don't fit), as many as fit at 12 px.
+static void wild_icons(struct pd_canvas* c, const struct pd_game* g, int x, int y, int w) {
+    int n = wildCount, step = PD_ICON;
+    if (n * PD_ICON > w) {
+        step = n > 1 ? (w - PD_ICON) / (n - 1) : PD_ICON;
+        if (step < 12) {
+            step = 12;
+            n = (w - PD_ICON) / step + 1;
+        }
+    }
+    for (int i = 0; i < n; i++) pd_draw_mon_icon(c, g, wildSpecies[i], x + i * step, y, !wildCaught[i]);
+}
 
 static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, int x, int y, int w,
                       int bottom) {
     struct wing_fact rows[WING_FACTS_MAX];
     int n = wing_facts(g, s, rows);
-    for (int i = 0; i < n && y + 2 * 16 <= bottom; i++, y += 2 * 16 + 4) {
+    for (int i = 0; i < n && y + fact_height(&rows[i]) - 4 <= bottom; y += fact_height(&rows[i]), i++) {
+        if (rows[i].pips == WILD_ICONS) {
+            int vw = pd_number_width(rows[i].value);
+            pd_heading_fit(c, x, y, w - vw - 8, rows[i].label, PD_MUTED, PD_MUTED_SHADOW);
+            pd_number_right(c, x + w, y, rows[i].value, PD_LABEL, PD_LABEL_SHADOW);
+            wild_icons(c, ui_game, x, y + 16, w);
+            continue;
+        }
         pd_heading_fit(c, x, y, w, rows[i].label, PD_MUTED, PD_MUTED_SHADOW);
         if (rows[i].pips >= 0 && w - 4 >= 8 * 10) {
             // A new badge's dot pops: drawn bigger for POP_MS, then settles.
@@ -603,8 +633,9 @@ static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct
 // How tall map_facts' rows come out.
 static int map_facts_height(const struct pd_game* g, const struct pd_snapshot* s) {
     struct wing_fact rows[WING_FACTS_MAX];
-    int n = wing_facts(g, s, rows);
-    return n ? n * (2 * 16 + 4) - 4 : 0;
+    int n = wing_facts(g, s, rows), h = 0;
+    for (int i = 0; i < n; i++) h += fact_height(&rows[i]);
+    return h ? h - 4 : 0;
 }
 
 // COMPANION VIEW's map panel (the Linux / Windows host's right wing off a battle): the place's name over the map, as
@@ -636,7 +667,7 @@ void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct 
     // full height) gets the map at its own size instead, a window round the player, and what the place is under it.
     int mw = crop.r - crop.l, mh = crop.b - crop.t;
     int vw = w - 2 * FRAME, vh = vw * mh / mw, room = c->h - f - 3 - y - 2 * FRAME;
-    int factsH = 5 * (2 * 16 + 4);
+    int factsH = 5 * (2 * 16 + 4) + PD_ICON;
     bool window = vw < mw && room - factsH >= vw;
     if (window) {
         vh = room - factsH - 2 * FRAME;

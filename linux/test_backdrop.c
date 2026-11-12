@@ -20,10 +20,27 @@ int main(void) {
   assert(pocket_background_resolve(POCKET_BACKGROUND_THEME, true, false) == POCKET_BACKGROUND_THEME);
   assert(pocket_background_resolve(7, false, false) == POCKET_BACKGROUND_THEME);
   assert(!strcmp(pocket_background_name(POCKET_BACKGROUND_BLACK), "BLACK"));
+  assert(!strcmp(pocket_background_name(POCKET_BACKGROUND_BLUR), "BLUR"));
+  assert(pocket_background_resolve(POCKET_BACKGROUND_BLUR, true, true) == POCKET_BACKGROUND_BLUR);
+  // BLUR: DARK's cards with the game round them; the others draw no game.
+  struct pocket_backdrop blur = pocket_backdrop_for(POCKET_BACKGROUND_BLUR);
+  assert(blur.blur && blur.cards && blur.card == pocket_backdrop_for(POCKET_BACKGROUND_DARK).card);
+  assert(!pocket_backdrop_for(POCKET_BACKGROUND_DARK).blur && !pocket_backdrop_for(POCKET_BACKGROUND_THEME).blur);
+
+  // WING LOOK: COMFY keeps the scale, COMPACT a step down, BIG a step up while the canvas stays big enough.
+  assert(pocket_wing_look_scale(3, POCKET_WING_COMFY, 420, 1080, 1024, 768) == 3);
+  assert(pocket_wing_look_scale(3, POCKET_WING_COMPACT, 420, 1080, 1024, 768) == 2);
+  assert(pocket_wing_look_scale(1, POCKET_WING_COMPACT, 420, 700, 1024, 768) == 1);
+  assert(pocket_wing_look_scale(3, POCKET_WING_BIG, 420, 1080, 1024, 768) == 4);
+  assert(pocket_wing_look_scale(3, POCKET_WING_BIG, 300, 1080, 1024, 768) == 3); // 300 / 4 < POCKET_WING_MIN_W
+  assert(pocket_wing_look_scale(2, POCKET_WING_COMPACT, 420, 1200, 1024, 768) == 2); // 1200 / 1 > 768
+  assert(!strcmp(pocket_wing_look_name(POCKET_WING_BIG), "BIG"));
 
   struct pocket_backdrop black = pocket_backdrop_for(POCKET_BACKGROUND_BLACK);
   assert(black.outside == 0x000000 && black.cards);
-  for (int bg = POCKET_BACKGROUND_BLACK; bg <= POCKET_BACKGROUND_DARK; bg++) {
+  for (int bg = POCKET_BACKGROUND_BLACK; bg < POCKET_BACKGROUNDS; bg++) {
+    if (bg == POCKET_BACKGROUND_THEME)
+      continue;
     struct pocket_backdrop b = pocket_backdrop_for(bg);
     for (int i = 0; i < 3; i++) {
       // A near-black card (0x0E..0x1B), lighter than what's round it, with a faint edge and a gutter in between.

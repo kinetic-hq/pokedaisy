@@ -7,11 +7,24 @@
  * On BLACK and DARK the wings are cards: a near-black surface with a faint 1 px edge, so they don't read as black on
  * black, and their text a little off white. Against burn-in, a wing that sits still dims after a minute without
  * input or change, and its content moves a pixel or two every few minutes (never the game). A thin dark grey gutter
- * round the game keeps a bright game edge off pure black. Pure, so the tests (test_backdrop.c) check it as is. */
+ * round the game keeps a bright game edge off pure black. BLUR is DARK's cards on the game's own picture, blurred
+ * and darkened, round them (the host draws it: `blur`). Pure, so the tests (test_backdrop.c) check it as is.
+ *
+ * WING LOOK (pocket_wing_look_scale): COMPACT draws the wings a screen pixel per font pixel smaller (more fits),
+ * COMFY as worked out, BIG a step larger (fewer things, easier to read across a room). */
 #include <stdbool.h>
 #include <stdint.h>
 
-enum pocket_background { POCKET_BACKGROUND_BLACK, POCKET_BACKGROUND_DARK, POCKET_BACKGROUND_THEME, POCKET_BACKGROUNDS };
+enum pocket_background {
+  POCKET_BACKGROUND_BLACK,
+  POCKET_BACKGROUND_DARK,
+  POCKET_BACKGROUND_THEME,
+  POCKET_BACKGROUND_BLUR, // appended: settings files keep their numbers
+  POCKET_BACKGROUNDS
+};
+enum pocket_wing_size { POCKET_WING_COMPACT, POCKET_WING_COMFY, POCKET_WING_BIG, POCKET_WING_LOOKS };
+#define POCKET_WING_MIN_W 100 // the narrowest wing canvas BIG goes to
+#define POCKET_WING_MIN_H 220
 #define POCKET_BACKGROUND_AUTO (-1)
 #define POCKET_WING_IDLE_MS 60000u   // a still wing dims after this
 #define POCKET_WING_SHIFT_MS 180000u // and moves a step this often
@@ -22,11 +35,29 @@ struct pocket_backdrop {
   uint32_t border;     // the cards' 1 px edge (drawn over the card at borderAlpha)
   uint8_t borderAlpha; // 0: no edge
   uint32_t gutter;     // the thin line round the game
-  bool cards;          // wings as cards (BLACK / DARK); THEME fills each wing
+  bool cards;          // wings as cards (BLACK / DARK / BLUR); THEME fills each wing
+  bool blur;           // the game's picture, blurred and dark, round the cards (BLUR)
 };
 
+static inline const char *pocket_wing_look_name(int look) {
+  return look == POCKET_WING_COMPACT ? "COMPACT" : look == POCKET_WING_BIG ? "BIG" : "COMFY";
+}
+
+/* The wings' scale (screen pixels a canvas pixel) for WING LOOK, from COMFY's: never below 1, never a canvas wider
+ * than maxW, and BIG never a canvas under POCKET_WING_MIN_W x POCKET_WING_MIN_H. */
+static inline int pocket_wing_look_scale(int scale, int look, int roomW, int roomH, int maxW, int maxH) {
+  if (look == POCKET_WING_COMPACT && scale > 1 && roomW / (scale - 1) <= maxW && roomH / (scale - 1) <= maxH)
+    return scale - 1;
+  if (look == POCKET_WING_BIG && roomW / (scale + 1) >= POCKET_WING_MIN_W && roomH / (scale + 1) >= POCKET_WING_MIN_H)
+    return scale + 1;
+  return scale < 1 ? 1 : scale;
+}
+
 static inline const char *pocket_background_name(int background) {
-  return background == POCKET_BACKGROUND_BLACK ? "BLACK" : background == POCKET_BACKGROUND_DARK ? "DARK" : "THEME";
+  return background == POCKET_BACKGROUND_BLACK  ? "BLACK"
+         : background == POCKET_BACKGROUND_DARK ? "DARK"
+         : background == POCKET_BACKGROUND_BLUR ? "BLUR"
+                                                : "THEME";
 }
 
 /* The background in force: the one picked, else COLORS' (oled: COLORS is OLED), else DARK MODE's (dark). */
@@ -38,6 +69,7 @@ static inline int pocket_background_resolve(int background, bool oled, bool dark
 
 static inline struct pocket_backdrop pocket_backdrop_for(int background) {
   struct pocket_backdrop b;
+  b.blur = background == POCKET_BACKGROUND_BLUR;
   if (background == POCKET_BACKGROUND_BLACK) {
     b.outside = 0x000000;
     b.card = 0x111216;
@@ -45,7 +77,7 @@ static inline struct pocket_backdrop pocket_backdrop_for(int background) {
     b.borderAlpha = 26;
     b.gutter = 0x1c1d21;
     b.cards = true;
-  } else if (background == POCKET_BACKGROUND_DARK) {
+  } else if (background == POCKET_BACKGROUND_DARK || background == POCKET_BACKGROUND_BLUR) {
     b.outside = 0x0b0c0e;
     b.card = 0x16171b;
     b.border = 0xffffff;
