@@ -32,6 +32,17 @@ library does: a file's region and dump tags, version numbers, underscores and
 dashes are left out, the game's own spelling is used, and "Pokémon" goes first.
 Your files keep their names.
 
+## Get started
+
+The first time you open PokeDaisy with no games yet, `GET STARTED` walks you
+through the choices that matter most, one page each, like the app's first
+time setup: `GAME FOLDERS` (add the folders that hold your games),
+`BUTTON LAYOUT`, `FULLSCREEN`, `COMPANION VIEW`, `DS LAYOUT` and `COLORS`
+(`OLED` keeps everything around the game black), then your game list. A picks
+a row and moves on, B goes back a page, and each choice is saved as you make
+it. `SKIP SETUP` on the welcome page leaves it for later. To see it again, open
+`SETTINGS` > `APP` > `RUN SETUP`.
+
 ## Games in other folders
 
 Your games can stay where they are, in a folder another emulator or a sync app
@@ -138,7 +149,7 @@ row reaches `+ ADD GAMES`. `SETTINGS` there is in the app's groups: `SCREEN`
 (`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
 `GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`), `CONTROLS` (`GAME BUTTONS`,
-`HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `VERSION`). The companion's
+`HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `RUN SETUP`, `VERSION`). The companion's
 `SETTINGS` has the same rows (see "Where the settings are" below).
 
 `ORIENTATION` turns the whole picture for a screen that is mounted another way:

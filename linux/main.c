@@ -2847,12 +2847,13 @@ static const char *menu_title(const char *title, char *buf, size_t size) {
 #else
 #define ROMS_PATH "DATA/roms/"
 #endif
-/* A pick-list: the chosen row, or -1 for B (or the app closing). */
-static int menu_pick(const char *title, const char *const *items, int count, int selected) {
+/* A pick-list: the chosen row, or -1 for B (or the app closing). HINT, when set, is a line under the list. */
+static int menu_pick_hint(const char *title, const char *hint, const char *const *items, int count, int selected) {
   char shortTitle[1100];
   struct pd_menu m;
   pd_menu_init(&m, menu_title(title, shortTitle, sizeof shortTitle), items, count);
   m.emptyPath = ROMS_PATH;
+  m.hint = hint;
   m.selected = selected >= 0 && selected < count ? selected : 0;
   while (running) {
     events();
@@ -2875,6 +2876,9 @@ static int menu_pick(const char *title, const char *const *items, int count, int
       return -1;
   }
   return -1;
+}
+static int menu_pick(const char *title, const char *const *items, int count, int selected) {
+  return menu_pick_hint(title, NULL, items, count, selected);
 }
 #ifdef POCKET_DS
 extern const struct pd_layout_option *pd_ds_layouts(int *count);
@@ -3070,6 +3074,174 @@ static int rail_taps(struct pd_menu *m, int *act) {
   m->navPicked = m->actionPicked = -1;
   return open;
 }
+/* GET STARTED (the app's first-time setup): a welcome, then GAME FOLDERS, BUTTON LAYOUT, FULLSCREEN, the
+ * COMPANION VIEW and DS LAYOUT pickers and COLORS, one page each, then the game list. Shown on a first start with no
+ * games and no DATA/setup-done; SETTINGS > APP > RUN SETUP brings it back. A on a row picks it and goes on, B goes
+ * back a page (on the welcome: skips setup). Every choice is saved as it is made. True when the game list needs
+ * reading again (a folder was added). */
+static bool setup_done(void) {
+  char path[1100];
+  snprintf(path, sizeof path, "%s/setup-done", root);
+  return pocket_readable(path);
+}
+static void setup_mark_done(void) {
+  char path[1100];
+  snprintf(path, sizeof path, "%s/setup-done", root);
+  FILE *f = fopen(path, "wb");
+  if (f) {
+    fputs("1\n", f);
+    fclose(f);
+  }
+}
+enum { SETUP_WELCOME, SETUP_FOLDERS, SETUP_BUTTONS, SETUP_FULL, SETUP_VIEW, SETUP_DS, SETUP_COLORS, SETUP_DONE };
+static bool get_started(void) {
+  static const char *const COLOR_ROWS[PD_COLORS] = {"ORIGINAL\tTHE GAME AS MADE", "HANDHELD\tA HANDHELD SCREEN'S TINT",
+                                                    "OLED\tTRUE BLACK AROUND IT"};
+  char path[1100];
+  snprintf(path, sizeof path, "%s/settings.ini", root);
+  bool changed = false;
+  int step = SETUP_WELCOME;
+#ifdef POCKET_DS
+  const int steps = 6; // the numbered pages: folders, buttons, fullscreen, view, DS layout, colours
+#else
+  const int steps = 5;
+#endif
+  static char hints[SETUP_DONE + 1][160]; // a buffer per page
+  while (running) {
+    char *hint = hints[step];
+    const size_t hintSize = sizeof hints[0];
+    struct pd_settings st;
+    pd_settings_load(&st, path);
+    int pick = -1, number = step - SETUP_WELCOME;
+#ifndef POCKET_DS
+    if (step > SETUP_DS)
+      number--;
+#endif
+    switch (step) {
+    case SETUP_WELCOME: {
+      static const char *const rows[] = {"GET STARTED", "SKIP SETUP"};
+      pick = menu_pick_hint("WELCOME TO POKEDAISY", "A few choices to start. SETTINGS can change any of them later.",
+                            rows, 2, 0);
+      if (pick == 1 || (pick < 0 && running)) {
+        setup_mark_done();
+        return changed;
+      }
+      if (pick == 0)
+        step = SETUP_FOLDERS;
+      break;
+    }
+    case SETUP_FOLDERS: {
+      static char folders[POCKET_FOLDERS_MAX][POCKET_FOLDER_MAX];
+      int n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
+      char count[64];
+      snprintf(count, sizeof count, "YOUR FOLDERS\t%d", n);
+      const char *rows[] = {"NEXT", "ADD A FOLDER", count};
+      snprintf(hint, hintSize, "STEP %d OF %d. Add the folders that hold your games.", number,
+               steps);
+      pick = menu_pick_hint("GAME FOLDERS", hint, rows, n ? 3 : 2, 0);
+      if (pick < 0)
+        step = SETUP_WELCOME;
+      else if (pick == 0)
+        step = SETUP_BUTTONS;
+      else if (pick == 1) {
+        char folder[POCKET_FOLDER_MAX];
+        if (browse_folder(folder, sizeof folder)) {
+          if (rom_folders_add(root, folder))
+            changed = true;
+          else
+            notice(n >= POCKET_FOLDERS_MAX ? "The list is full" : "That folder is on the list already");
+        }
+      } else if (folders_screen())
+        changed = true;
+      break;
+    }
+    case SETUP_BUTTONS: {
+      static const char *const rows[] = {"NINTENDO\tA ON THE RIGHT", "XBOX\tA AT THE BOTTOM"};
+      snprintf(hint, hintSize, "STEP %d OF %d. Which button is A on your controller?", number, steps);
+      pick = menu_pick_hint("BUTTON LAYOUT", hint, rows, 2, st.buttonLayout == PD_LAYOUT_XBOX ? 1 : 0);
+      if (pick < 0)
+        step = SETUP_FOLDERS;
+      else {
+        st.buttonLayout = pick == 1 ? PD_LAYOUT_XBOX : PD_LAYOUT_NINTENDO;
+        pd_settings_save(&st, path);
+        controls_load();
+        step = SETUP_FULL;
+      }
+      break;
+    }
+    case SETUP_FULL: {
+      static const char *const rows[] = {"WINDOW", "FULLSCREEN"};
+      snprintf(hint, hintSize, "STEP %d OF %d. F11 (or L3 + R3 on a pad) switches it any time.", number, steps);
+      pick = menu_pick_hint("FULLSCREEN", hint, rows, 2, fullscreenOn ? 1 : 0);
+      if (pick < 0)
+        step = SETUP_BUTTONS;
+      else {
+        if ((pick == 1) != fullscreenOn)
+          fullscreen_set(pick == 1);
+        step = SETUP_VIEW;
+      }
+      break;
+    }
+    case SETUP_VIEW: {
+      snprintf(hint, hintSize, "COMPANION VIEW (STEP %d OF %d)", number, steps);
+      int v = layout_pick(hint, companion_layouts(), POCKET_VIEWS, st.companionView);
+      if (v < 0)
+        step = SETUP_FULL;
+      else {
+        st.companionView = v;
+        pd_settings_save(&st, path);
+        step = SETUP_DS;
+      }
+      break;
+    }
+    case SETUP_DS: {
+#ifdef POCKET_DS
+      int dsCount = 0;
+      const struct pd_layout_option *dsLayouts = pd_ds_layouts(&dsCount);
+      snprintf(hint, hintSize, "DS LAYOUT (STEP %d OF %d)", number, steps);
+      int l = layout_pick(hint, dsLayouts, dsCount, pd_ds_layout_load(root));
+      if (l < 0) {
+        step = SETUP_VIEW;
+        break;
+      }
+      if (!pd_ds_layout_save(root, l))
+        notice("Couldn't save DS LAYOUT");
+#endif
+      step = SETUP_COLORS;
+      break;
+    }
+    case SETUP_COLORS: {
+      snprintf(hint, hintSize, "STEP %d OF %d. OLED keeps everything around the game black.", number, steps);
+      pick = menu_pick_hint("COLORS", hint, COLOR_ROWS, PD_COLORS, st.colors >= 0 && st.colors < PD_COLORS ? st.colors : 0);
+      if (pick < 0) {
+#ifdef POCKET_DS
+        step = SETUP_DS;
+#else
+        step = SETUP_VIEW;
+#endif
+      } else {
+        st.colors = pick;
+        pd_settings_save(&st, path);
+        pocket_shader_set(st.shader, st.colors, false);
+        oledBlack = st.colors == POCKET_COLORS_OLED;
+        step = SETUP_DONE;
+      }
+      break;
+    }
+    default: {
+      static const char *const rows[] = {"GO TO MY GAMES"};
+      pick = menu_pick_hint("YOU'RE ALL SET", "SETTINGS > APP > RUN SETUP brings this back.", rows, 1, 0);
+      if (pick < 0 && running)
+        step = SETUP_COLORS;
+      else {
+        setup_mark_done();
+        return changed;
+      }
+    }
+    }
+  }
+  return changed;
+}
 /* The game list's SETTINGS: the app's top-screen Settings in its groups and order (SCREEN, LIBRARY, CONTROLS, APP;
  * its FF / SPEED and ONLINE rows have nothing to set here), with its sub-pages DISPLAY OPTIONS, GAME BUTTONS and
  * HOTKEYS. COMPANION VIEW and DS LAYOUT open the LAYOUT pickers. Saved to DATA/settings.ini (DS LAYOUT:
@@ -3092,6 +3264,7 @@ enum {
   ROW_ORIENT,
   ROW_TOUCH,
   ROW_LAYOUT,
+  ROW_SETUP,
   ROW_HOTKEY0 = 100
 };
 static int settings_page(bool *foldersChanged) {
@@ -3141,6 +3314,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_HOTKEYS, "HOTKEYS" PD_MENU_PAGE);
       ROW(0, PD_MENU_GROUP "APP");
       ROW(ROW_UPDATES, "CHECK FOR UPDATES\t%s", st.updateCheck ? "ON" : "OFF");
+      ROW(ROW_SETUP, "RUN SETUP" PD_MENU_PAGE);
       ROW(0, "VERSION\t" PD_MENU_MUTED "%s", POCKET_VERSION);
     } else if (page == PAGE_SET_DISPLAY) {
       ROW(ROW_SHADER, "SHADER\t%s", SHADERS[st.shader >= 0 && st.shader < PD_SHADERS ? st.shader : 0]);
@@ -3252,6 +3426,11 @@ static int settings_page(bool *foldersChanged) {
       break;
     case ROW_UPDATES:
       st.updateCheck = !st.updateCheck;
+      break;
+    case ROW_SETUP:
+      if (get_started())
+        *foldersChanged = true;
+      save = false;
       break;
     case ROW_SHADER:
       st.shader = (st.shader + 1) % PD_SHADERS;
@@ -3534,6 +3713,11 @@ int main(int argc, char **argv) {
 #define LIST_NDS false
 #endif
     LOAD_GAMES();
+    // POCKET_SETUP=1 shows GET STARTED whatever DATA holds (a headless look at it).
+    if ((!count && !setup_done()) || (getenv("POCKET_SETUP") && !strcmp(getenv("POCKET_SETUP"), "1"))) {
+      if (get_started())
+        LOAD_GAMES();
+    }
     while (running) {
       events();
       repeat_directions();
