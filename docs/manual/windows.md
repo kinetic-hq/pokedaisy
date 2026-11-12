@@ -378,8 +378,10 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   screen, and `LARGE` is the old, bigger size, easier to read from a distance.
   A DS game's companion follows it too.
 - **`WING ROOM`**: how the width is shared between the game and the panels
-  beside it. `BALANCED` (the default) keeps the game large with roomy panels;
-  `GAME FIRST` makes the game as large as it goes, and `WINGS FIRST` gives the
+  beside it. `AUTO` (the default) gives the panels the most room whenever the
+  game still fills most of the screen's height (a Game Boy game, or a taller
+  16:10 screen), and otherwise uses `BALANCED`. `BALANCED` keeps the game large
+  with roomy panels; `GAME FIRST` makes the game as large as it goes, and `WINGS FIRST` gives the
   panels more room for a slightly smaller game. The game always keeps its shape.
   The DS layouts with panels beside the top screen (`WINGS`, `TOUCH IN WING`,
   `TOUCH PIECES`) follow it as well: `GAME FIRST` fills the height and

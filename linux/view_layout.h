@@ -52,7 +52,12 @@ struct view_layout {
 #define VIEW_WING_MIN_PERCENT 12
 // WING ROOM: each wing's least share of the width, per mille. GAME FIRST keeps the old 12%; BALANCED about 240 px at
 // 1920 wide (GBA 6x on 1080p and 1200p); WINGS FIRST about 320 px there.
-enum { VIEW_WING_ROOM_GAME_FIRST, VIEW_WING_ROOM_BALANCED, VIEW_WING_ROOM_WINGS_FIRST, VIEW_WING_ROOMS };
+// AUTO (the default): WINGS FIRST when the game it leaves still fills VIEW_WING_ROOM_AUTO_PERCENT of the screen's
+// height (a Game Boy game on 16:9, most games on 16:10), else BALANCED.
+enum { VIEW_WING_ROOM_GAME_FIRST, VIEW_WING_ROOM_BALANCED, VIEW_WING_ROOM_WINGS_FIRST, VIEW_WING_ROOM_AUTO,
+       VIEW_WING_ROOMS };
+#define VIEW_WING_ROOM_AUTO_PERCENT 80
+int view_wing_room_pick(int room, int screenW, int screenH, int frameW, int frameH);
 #define VIEW_STRETCH_PERCENT 5
 int view_wing_room_permille(int room);
 /* Strips go above and below the game only when that many percent of the height is free each side. */

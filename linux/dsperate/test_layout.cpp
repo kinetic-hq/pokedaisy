@@ -71,6 +71,8 @@ int main(){
   assert(ds_place(DSL_WING,1920,1080,false,false,false,DS_WING_ROOM_WINGS_FIRST).top.w==1024);  // 448 px
   assert(ds_place(DSL_WINGS,1280,720,false,false,false,DS_WING_ROOM_WINGS_FIRST).used==DSL_WINGS);
   assert(ds_place(DSL_WINGS,1920,1080,false,false,false,DS_WING_ROOM_BALANCED).top.w==1280);   // the old size
+  assert(ds_place(DSL_WINGS,1920,1080,false,false,false,DS_WING_ROOM_AUTO).top.w==1280);  // 16:9: WINGS FIRST is 71%
+  assert(ds_place(DSL_WINGS,1920,1200,false,false,false,DS_WING_ROOM_AUTO).top.w==1280);  // 16:10: 5x, 80%
   // SPLIT TOUCH: the top screen as WINGS places it, a half of the touch screen filling each wing, level with the top
   // screen's bottom, the left half (DS x 0-127) on the left; DS WING SIDE swaps them.
   struct Split{int w,h,top,half,halfH;} splits[]={

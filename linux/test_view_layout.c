@@ -136,6 +136,11 @@ int main(void) {
       CHECK(l.game.h * 100 <= 160 * l.scale * (100 + VIEW_STRETCH_PERCENT));
       CHECK(l.game.h <= sizes[i][1] && centred(l.game, sizes[i][0], sizes[i][1]));
     }
+    // AUTO: WINGS FIRST only when the game still fills 80% of the height.
+    CHECK(view_wing_room_pick(VIEW_WING_ROOM_AUTO, 1920, 1080, 240, 160) == VIEW_WING_ROOM_BALANCED);  // 5x: 74%
+    CHECK(view_wing_room_pick(VIEW_WING_ROOM_AUTO, 1920, 1080, 160, 144) == VIEW_WING_ROOM_WINGS_FIRST); // 7x: 93%
+    CHECK(view_wing_room_pick(VIEW_WING_ROOM_GAME_FIRST, 1920, 1080, 160, 144) == VIEW_WING_ROOM_GAME_FIRST);
+    CHECK(view_wing_room_pick(9, 1920, 1080, 240, 160) == VIEW_WING_ROOM_BALANCED);
     puts("PASS wing room and stretch");
   }
 

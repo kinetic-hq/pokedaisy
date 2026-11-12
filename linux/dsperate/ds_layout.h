@@ -43,13 +43,19 @@ inline DsBox ds_fit(int boxX,int boxY,int boxW,int boxH,int w,int h,bool whole=t
 }
 
 // WING ROOM (the host's SCREEN setting, linux/view_layout.h): 0 GAME FIRST, 1 BALANCED (the default), 2 WINGS FIRST.
-enum {DS_WING_ROOM_GAME_FIRST,DS_WING_ROOM_BALANCED,DS_WING_ROOM_WINGS_FIRST};
+// AUTO: WINGS FIRST when its top screen still fills 80% of the height (16:10), else BALANCED.
+enum {DS_WING_ROOM_GAME_FIRST,DS_WING_ROOM_BALANCED,DS_WING_ROOM_WINGS_FIRST,DS_WING_ROOM_AUTO};
 
 // The top screen centred with a wing on each side at least minWing / 8 of its width: the largest whole scale that
 // leaves them (one step under the largest that fits, at most), or under 3x the full height. Zero size: no room.
 // WING ROOM: GAME FIRST fills the height when that still leaves the wings; WINGS FIRST wants two eighths more
 // (or one) when there's room for that.
 inline DsBox ds_winged_top(int ow,int oh,int minWing,int room=DS_WING_ROOM_BALANCED){
+  if(room==DS_WING_ROOM_AUTO){
+    DsBox wide=ds_winged_top(ow,oh,minWing,DS_WING_ROOM_WINGS_FIRST);
+    if(wide.shown() && wide.h*5>=oh*4)return wide;
+    room=DS_WING_ROOM_BALANCED;
+  }
   if(room==DS_WING_ROOM_WINGS_FIRST){
     for(int more=2;more>=1;more--){DsBox wide=ds_winged_top(ow,oh,minWing+more);if(wide.shown())return wide;}
     // else as BALANCED
