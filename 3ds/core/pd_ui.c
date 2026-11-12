@@ -47,7 +47,7 @@ bool ui_tab_available(const struct pd_ui* ui, const struct pd_game* g, enum pd_t
     if (ui->content) return true;
     const struct pd_config* cfg = g ? g->cfg : NULL;
     switch (t) {
-    case PD_TAB_DEX: return cfg && (cfg->dexEntries || pd_dex_gb_count(g));
+    case PD_TAB_DEX: return pd_dex_tab(g);
     case PD_TAB_GUIDE: return !g || pd_guide_for(g) != NULL;
     case PD_TAB_CARD: return cfg && cfg->cardStyle;
     case PD_TAB_STATES: return ui->hostHasStates;
