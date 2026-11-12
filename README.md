@@ -192,6 +192,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   the HUD and EXPAND, on the app's Gen 5 reader and field reads.
 - **Origin HeartGold's type chart on Android** is found inside the game's own code, so other dumps of the same build
   read the right matchups instead of stray bytes.
+- **Renegade Platinum on the desktop host**: its own names, species types, moves, Fairy type, type chart, TMs and icon
+  palettes come from the cart, so `PARTY`, `BATTLE` and `DEX` show the hack's data; its `GUIDE` tab is hidden (as on
+  Android), and so is Origin HeartGold's.
 - **Origin HeartGold on the desktop host**: `PARTY`, `BAG`, `MAP` and `DEX` (Pokédex pages, pictures, learnsets,
   machines, evolutions) on its own save offsets, with its species, moves, items, Fairy type and type chart read from
   the cart. No `BATTLE` panes yet.

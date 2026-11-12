@@ -121,7 +121,7 @@ void DsCompanionUi::set_game(DsGame value,bool soulSilverVersion){
   game=value;
   soulSilver=soulSilverVersion;
   switch(game){
-    case DsGame::Platinum:presentation.title="Pokémon Platinum";break;
+    case DsGame::Platinum:presentation.title=ds_renegade()?"Pokémon Renegade Platinum":"Pokémon Platinum";break;
     case DsGame::Johto:presentation.title=soulSilver?"Pokémon SoulSilver":"Pokémon HeartGold";break;
     case DsGame::Black:presentation.title="Pokémon Black";break;
     case DsGame::White:presentation.title="Pokémon White";break;
@@ -130,6 +130,12 @@ void DsCompanionUi::set_game(DsGame value,bool soulSilverVersion){
     default:presentation.title=nullptr;break;
   }
   frame.availableTabs=dsTabs;
+  // Renegade Platinum and Origin HeartGold have trainers and wild sets of their own, so the original game's guide would
+  // be wrong: no GUIDE, as on Android.
+  if((game==DsGame::Platinum && ds_renegade()) || (game==DsGame::Johto && ds_origin())){
+    frame.availableTabs&=~(1<<PD_TAB_GUIDE);
+    if(frame.tab==PD_TAB_GUIDE)frame.tab=PD_TAB_PARTY;
+  }
   if(game==DsGame::Unsupported){
     frame.availableTabs=1<<PD_TAB_PARTY;
     frame.tab=PD_TAB_SETTINGS;

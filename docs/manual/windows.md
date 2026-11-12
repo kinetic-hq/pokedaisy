@@ -579,8 +579,9 @@ gear at the end opens `SETTINGS`: your trainer facts, then the DS rows (`SCREEN`
 
 It reads Platinum (USA) in full. It goes by the game code inside the file
 (`CPUE`, revision 0 or 1), so a trimmed or re-dumped copy works too, and so does
-Renegade Platinum (read as the original game, so types, stats and the `GUIDE`
-are the original game's). HeartGold and SoulSilver (USA) are read in full
+Renegade Platinum, with its own creatures' types, moves, Fairy type, type
+chart and machines read from its cart. Renegade Platinum and Origin HeartGold
+have no `GUIDE` tab: their trainers and wild creatures are their own. HeartGold and SoulSilver (USA) are read in full
 too, with the party's icons in the HUD and the wings. So are Black, White,
 Black 2 and White 2 (USA / Europe), with their own Town Map, Pokédex pages and
 guide; they go by the game code too, so another dump of the same cart works.

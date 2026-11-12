@@ -17,10 +17,16 @@ extern "C" {
 #include "../hud.h"
 #include "../quick_menu.h"
 }
+// The BATTLE tab's reader (linux/libretro-ds/battle_strip.cpp), as frontend.cpp declares it.
+void ds_read_battle_companion(const PkNdsFieldGame*,uint32_t (*read32)(uint32_t),const uint8_t* ram,size_t ramSize,
+                              const DsCompanion&,pd_snapshot&);
 static std::vector<uint8_t> battleRam;
 static uint32_t battle_read32(uint32_t addr){
   if(addr<0x02000000 || addr>0x023ffffc)return 0;
   uint32_t value;std::memcpy(&value,battleRam.data()+addr-0x02000000,4);return value;
+}
+static std::vector<uint8_t> read_file_bytes(const std::string& path){
+  std::ifstream f(path,std::ios::binary);return {std::istreambuf_iterator<char>(f),{}};
 }
 int main(int argc,char** argv){
   {
@@ -177,6 +183,42 @@ int main(int argc,char** argv){
       assert(sylveon);
       ds_set_origin(nullptr);
       std::puts("PASS Origin HeartGold's cart: names, types, chart, forms, machines, icons and DEX pages");
+    }
+    // Renegade Platinum's tables from its cart, when one is given (PD_RENEGADE_ROM; RenegadePlatinumTest's values).
+    if(const char* path=std::getenv("PD_RENEGADE_ROM")){
+      std::ifstream cart(path,std::ios::binary);std::vector<uint8_t> rom{std::istreambuf_iterator<char>(cart),{}};
+      assert(ds_renegade_platinum(rom.data(),rom.size()));
+      DsOrigin t=ds_read_renegade(rom);
+      assert(!t.species.empty() && t.moves[32]=="Drill Run" && t.moves[66]=="Play Rough" && t.moves[33]=="Tackle");
+      assert((t.speciesTypes[35]==std::array<uint8_t,2>{9,9}) && (t.speciesTypes[429]==std::array<uint8_t,2>{7,9}));
+      assert((t.speciesTypes[330]==std::array<uint8_t,2>{6,16}) && (t.speciesTypes[387]==std::array<uint8_t,2>{12,12}));
+      assert((t.moveMeta[33]==std::array<uint8_t,2>{0,40}) && (t.moveMeta[461]==std::array<uint8_t,2>{9,95}) && t.moveMeta[174][0]==7);
+      assert((t.moveMeta[66]==std::array<uint8_t,2>{9,t.moveMeta[66][1]}));
+      assert(t.chart[9*18+16]==8 && t.chart[16*18+9]==0 && t.chart[8*18+9]==8 && t.chart[9*18+8]==2);
+      assert(t.chart[7*18+8]==4 && t.chart[17*18+8]==4 && t.chart[0*18+7]==0);
+      assert(t.machines[56]==344 && t.machines[61]==405 && t.machines[82]==304 && t.machines[84]==295 && t.machines[87]==239);
+      assert(t.machines[0]==264 && t.machines[92]==15);   // TM01 and HM01 as retail
+      assert(t.iconPalettes.size()==0x21C);
+      ds_set_renegade(&t);
+      assert(!std::strcmp(ds_move(66,DsGame::Platinum),"Play Rough") && ds_move_type(66,DsGame::Platinum)==9);
+      assert(ds_species_type(35,0,DsGame::Platinum)==9 && ds_species_type(429,1,DsGame::Platinum)==9);
+      assert(ds_party_icons(rom,DsGame::Platinum).size()>493);
+      auto dex=ds_dex_art(rom,DsGame::Platinum);
+      bool tm57=false;for(const auto& m:ds_dex_page(dex,DsGame::Platinum,151).machines)tm57|=!m.hm && m.number==57 && m.move==344;
+      assert(tm57);
+      // A wild battle in it (RenegadePlatinumTest's renegade_platinum_battle): TURTWIG against CLEFAIRY, Fairy here.
+      battleRam=read_file_bytes((std::filesystem::path(argv[1]).parent_path().parent_path()/"renegade_platinum_battle"/"mainram.bin").string());
+      assert(battleRam.size()==4*1024*1024);
+      pd_snapshot fight{};
+      const auto save=ds_read_companion(battleRam.data(),battleRam.size());
+      ds_read_battle_companion(pk_nds_field_game("CPUE",1),battle_read32,battleRam.data(),battleRam.size(),save,fight);
+      assert(fight.valid && fight.inBattle && !fight.isTrainer && !fight.isDouble);
+      assert(fight.battlers[0].species==387 && fight.battlers[1].species==35 && fight.battlers[0].pp[0]==35);
+      assert(ds_species_type(fight.battlers[1].species,0,DsGame::Platinum)==9);
+      assert(!std::strcmp(ds_move(fight.battlers[0].moves[0],DsGame::Platinum),"Tackle"));
+      ds_set_renegade(nullptr);
+      assert(ds_species_type(35,0,DsGame::Platinum)!=9);
+      std::puts("PASS Renegade Platinum's cart: names, Fairy types, moves, chart, machines, icon palettes and DEX machines");
     }
   }
 #if PD_TEST_DSPERATE
