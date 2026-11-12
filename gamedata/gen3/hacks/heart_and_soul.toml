@@ -92,5 +92,11 @@ handleInputChooseTarget = 0
 # gActionSelectionCursor / gMoveSelectionCursor (EWRAM bytes walking 0 -> 1 -> 3 / 0 -> 1 in those dumps).
 actionCursor = 0x020003A4
 moveCursor = 0x020003A8
+# FOE TEAM: the heart_and_soul_battle fixture's wild HOOTHOOT Lv2 is at gEnemyParty 0x020342B4, after the two
+# party counts (0x020342A4 / 0x020342A5) and 1200 bytes before gPlayerParty; the block at 0x020371F4 holds a copy
+# of both parties during battle only. gBattlerPartyIndexes is 8 bytes before gBattlerPositions, as in Lazarus and
+# Emerald Rogue. The gBattleStruct pointer was empty in that dump, so the foe's next Pokemon isn't read.
+enemyParty = 0x020342B4
+battlerPartyIndexes = 0x02000230
 pokedex = 'POKEDEX_HEART_AND_SOUL'
 guideTables = 'GUIDE_TABLES_HEART_AND_SOUL'

@@ -159,6 +159,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   the app's HeartGold field read (`BATTLE`, auto battles, the HUD and wings with the party's icons).
 - **FireRed rev 0's tables**: the USA/Europe 1.0 cart gets the `DEX` pages, the `GUIDE`'s trainers and wild
   Pokemon, and the foe's team in `BATTLE`, on the desktop, the 3DS port and Android alike.
+- **Foe teams in four hacks**: Gaia, Odyssey, Unbound and Heart and Soul show the trainer's whole team in `BATTLE`,
+  on the desktop, the 3DS port and Android alike.
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 0 or 1 cart gets the Platinum companion (rev 1 as on
   Android, rev 0 too here: its addresses are the same; a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
   (game, region, revision, code) and the one it needs.
