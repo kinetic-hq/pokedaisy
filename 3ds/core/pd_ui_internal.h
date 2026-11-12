@@ -141,7 +141,18 @@ enum setting_row {
     SETTING_BUTTON_LAYOUT, // hosts with hasButtonLayout: flips in place
     SETTING_ORIENTATION,  // hosts with hasOrientation: steps in place, the host turns the picture at once
     SETTING_GAME_TOUCH,   // hosts with hasGameTouch: flips in place
+    // fullSettings' sub-pages (the app's SPEED OPTIONS, DISPLAY OPTIONS, GAME BUTTONS, HOTKEYS, QUICK MENU): each opens
+    // its page in the SETTINGS tab (ui->settingsPage = the row - SETTING_PAGE_SPEED + 1).
+    SETTING_PAGE_SPEED,
+    SETTING_PAGE_DISPLAY,
+    SETTING_PAGE_BUTTONS,
+    SETTING_PAGE_HOTKEYS,
+    SETTING_PAGE_QUICK,
+    SETTING_REWIND,    // androidMenus with hasRewind: flips in place
+    SETTING_FF_MUSIC,  // androidMenus with hasFfMusic: SPED-UP / OFF
 };
+// SETTINGS' pages (ui->settingsPage): HOME, then one per SETTING_PAGE_* row in their order.
+enum settings_page { PAGE_HOME, PAGE_SPEED, PAGE_DISPLAY, PAGE_BUTTONS, PAGE_HOTKEYS, PAGE_QUICK };
 
 int ui_settings_follow(int scroll, int y, int height);
 

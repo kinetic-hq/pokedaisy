@@ -17,6 +17,8 @@
 #include "pd_game.h"
 #include "pd_snapshot.h"
 
+struct pd_layout_option; // pd_layout_pick.h
+
 #define PD_UI_WIDTH 320
 #define PD_UI_HEIGHT 240
 
@@ -218,7 +220,11 @@ struct pd_host_info {
     bool hasExpand;      // Optional: the host can EXPAND (ASPECT / AUTO ZOOM IN rows) ...
     bool expandGame;     // ... and does for this game (else ASPECT reads N/A)
     bool hasHud;         // Optional: the host draws the HUD over the game (its SETTINGS row)
-    bool hasCompanionView; // Optional: COMPANION VIEW's row (settings.companionView)
+    bool hasCompanionView; // Optional: COMPANION VIEW's row (settings.companionView) ...
+    // ... opening LAYOUT's drawn picker when the host hands its layouts over (else a plain pick-list), one per
+    // enum pd_companion_view in order (pd_layout_pick.h).
+    const struct pd_layout_option* layouts;
+    int layoutCount;
     bool hasUpdateCheck;   // Optional: CHECK FOR UPDATES' row (settings.updateCheck)
     bool hasShaders;       // Optional: SHADER, COLORS and DIM COMPANION's rows
     bool hasSavesBeside;   // Optional: SAVES BESIDE GAMES' row (settings.savesBeside)
@@ -235,6 +241,10 @@ struct pd_host_info {
     bool hasState;      // a save state exists for LOAD STATE
     char stateWhen[24]; // when it was made, shown beside LOAD STATE
     bool fullSettings;  // Optional: SETTINGS' groups and the rows the 3DS has
+    // Optional, with fullSettings: the app's companion SETTINGS (its groups' order and sub-pages), showing only the
+    // rows this host does something with: these say which (the desktop host's).
+    bool androidMenus;
+    bool hasGameSpeed, hasSound, hasAutoRun, hasFfMode, hasRewind, hasFfMusic;
     bool wildSupported, fieldSupported; // WILD ENCOUNTERS / the field read works on this game
     int batteryPct;     // -1 = unknown
     bool flyReady;      // MAP's FLY button: someone in the party can
@@ -276,6 +286,7 @@ enum pd_overlay {
     PD_OVERLAY_CONFIRM_RESTART,
     PD_OVERLAY_FLY,     // MAP's FLY: the towns
     PD_OVERLAY_PICK_VIEW, // COMPANION VIEW's pick-list
+    PD_OVERLAY_LAYOUT,    // COMPANION VIEW's drawn picker (host->layouts)
 };
 
 // Optional presentation data for another emulator; IDs stay native to that backend.
@@ -518,6 +529,10 @@ struct pd_ui {
     int settingsNavId, settingsNavCount, settingsNavHeight;
     struct { int id, top; } settingsNav[PD_UI_MAX_HITS];
     int settingsScroll; // SETTINGS' list, in canvas pixels
+    int settingsPage;   // fullSettings: the sub-page open in SETTINGS (0 = its home)
+    int layoutScroll;   // LAYOUT's picker: its first row shown
+    const struct pd_layout_option* layoutHost; // the host's layouts, kept from the last SETTINGS draw
+    int layoutHostCount;
     struct pd_settings* settings;
     enum pd_action action;
     int actionSlot;

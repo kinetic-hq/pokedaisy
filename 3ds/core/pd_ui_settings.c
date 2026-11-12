@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "pd_layout_pick.h"
 #include "pd_ui_internal.h"
 
 #define TITLE_H 24
@@ -92,17 +93,183 @@ static void group(struct pd_canvas* c, int x, int* y, const char* title) {
     *y += ROW_H;
 }
 
+// A row that opens a page of its own: the app's chevron at its right end.
+static void page_row(struct pd_ui* ui, struct pd_canvas* c, int x, int* y, int w, enum setting_row row, const char* label) {
+    int ry = *y;
+    setting(ui, c, x, y, w, row, label, NULL);
+    pd_triangle(c, x + w - 8, ry + 5, 4, PD_RIGHT, PD_VALUE);
+}
+
+static const char* on_off(bool on) { return on ? "ON" : "OFF"; }
+
+// fullSettings (the Linux / Windows host): the app's companion SETTINGS, group by group in its order, the rows it has
+// and this host's own in the group they fit; sub-pages for the set-once ones.
+static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s,
+                      const struct pd_host_info* host, int ix, int* yp, int iw) {
+    struct pd_settings* st = ui->settings;
+    char buf[40];
+    int y = *yp;
+    static const char* const SHADERS[PD_SHADERS] = {"OFF", "SHARP", "xBRZ"};
+    static const char* const COLORS[PD_COLORS] = {"ORIGINAL", "HANDHELD", "OLED"};
+    static const char* const BUTTONS[PD_BUTTONS] = {"X", "Y", "L2", "R2", "NONE"};
+    static const char* const ORIENT[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED", "PORTRAIT FLIPPED"};
+    switch (ui->settingsPage) {
+    case PAGE_SPEED:
+        if (host->hasFfMode) setting(ui, c, ix, &y, iw, SETTING_FF_MODE, "FF MODE", st->ffNormal ? "NORMAL" : "SMART");
+        if (host->hasFfMusic) setting(ui, c, ix, &y, iw, SETTING_FF_MUSIC, "FF MUSIC", st->ffAudio ? "SPED-UP" : "OFF");
+        *yp = y;
+        return;
+    case PAGE_DISPLAY:
+        if (!host->hideScreenMode) setting(ui, c, ix, &y, iw, SETTING_SCREEN, "SCREEN", pd_screen_mode_name(st->screenMode));
+        if (host->hasShaders) {
+            setting(ui, c, ix, &y, iw, SETTING_SHADER, "SHADER", SHADERS[st->shader]);
+            setting(ui, c, ix, &y, iw, SETTING_COLORS, "COLORS", COLORS[st->colors]);
+        }
+        if (host->hasDisplayFilter) setting(ui, c, ix, &y, iw, SETTING_FILTER, "FILTER", st->lcdFilter ? "LCD" : "OFF");
+        if (host->hasShaders) setting(ui, c, ix, &y, iw, SETTING_DIM, "DIM COMPANION", on_off(st->dimCompanion));
+        if (host->hasFullscreen) setting(ui, c, ix, &y, iw, SETTING_FULLSCREEN, "FULLSCREEN", on_off(st->fullscreen == 1));
+        if (host->hasOrientation)
+            setting(ui, c, ix, &y, iw, SETTING_ORIENTATION, "ORIENTATION",
+                    ORIENT[st->orientation >= 0 && st->orientation < PD_ORIENTATIONS ? st->orientation : 0]);
+        if (host->hasGameTouch)
+            setting(ui, c, ix, &y, iw, SETTING_GAME_TOUCH, "GAME TOUCH",
+                    st->gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
+        *yp = y;
+        return;
+    case PAGE_BUTTONS:
+        setting(ui, c, ix, &y, iw, SETTING_BUTTON_LAYOUT, "BUTTON LAYOUT", st->buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
+        *yp = y;
+        return;
+    case PAGE_HOTKEYS:
+        setting(ui, c, ix, &y, iw, SETTING_QUICK_BTN, "QUICK MENU", BUTTONS[st->quickBtn]);
+        setting(ui, c, ix, &y, iw, SETTING_COMPANION_BTN, "COMPANION", BUTTONS[st->companionBtn]);
+        if (host->hasHud) setting(ui, c, ix, &y, iw, SETTING_HUD_BTN, "HUD CURSOR", BUTTONS[st->hudBtn]);
+        *yp = y;
+        return;
+    case PAGE_QUICK:
+        setting(ui, c, ix, &y, iw, SETTING_QUICK_MENU, "STYLE", st->quickGrid ? "GRID" : "RING");
+        *yp = y;
+        return;
+    default:
+        break;
+    }
+    if (s->valid) {
+        const char* place = pd_mapsec_name(g, s->mapsec);
+        ui_row(c, ix, y, iw, "PLACE", *place ? place : "-", false);
+        y += ROW_H;
+        pd_ui_format_money(s->money, buf, sizeof(buf));
+        ui_row(c, ix, y, iw, "MONEY", buf, false);
+        y += ROW_H;
+    }
+    for (int i = 0; i < host->count && i < PD_UI_HOST_LINES; i++) {
+        ui_row(c, ix, y, iw, host->labels[i], host->values[i], false);
+        y += ROW_H;
+    }
+    pd_fill(c, ix, y + 1, iw, 1, PD_DIVIDER);
+    y += 4;
+
+    group(c, ix, &y, "FF / SPEED");
+    setting(ui, c, ix, &y, iw, SETTING_FF_TOGGLE, "FF", on_off(host->ffOn));
+    if (st->ffSpeed) snprintf(buf, sizeof(buf), "%dx", st->ffSpeed);
+    else snprintf(buf, sizeof(buf), "MAX");
+    setting(ui, c, ix, &y, iw, SETTING_FF, "FF SPEED", buf);
+    if (host->hasGameSpeed) setting(ui, c, ix, &y, iw, SETTING_GAME_SPEED, "GAME SPEED", PD_GAME_SPEEDS[st->gameSpeed]);
+    if (host->hasRewind) setting(ui, c, ix, &y, iw, SETTING_REWIND, "REWIND", on_off(st->rewind));
+    if (host->hasFfMode || host->hasFfMusic) page_row(ui, c, ix, &y, iw, SETTING_PAGE_SPEED, "SPEED OPTIONS");
+
+    if (host->hasSound) {
+        group(c, ix, &y, "SOUND");
+        snprintf(buf, sizeof(buf), "%d%%", st->gameVolume);
+        setting(ui, c, ix, &y, iw, SETTING_VOLUME, "GAME VOLUME", buf);
+        setting(ui, c, ix, &y, iw, SETTING_MUTE, "MUTE GAME", on_off(st->gameMuted));
+    }
+
+    group(c, ix, &y, "GAMEPLAY");
+    if (host->wildSupported) setting(ui, c, ix, &y, iw, SETTING_WILD, "WILD ENCOUNTERS", on_off(!st->wildOff));
+    else muted_row(c, ix, &y, iw, "WILD ENCOUNTERS", "N/A");
+    if (host->fieldSupported) {
+        if (host->hasAutoRun) setting(ui, c, ix, &y, iw, SETTING_AUTO_RUN, "AUTO-RUN", on_off(st->autoRun));
+        setting(ui, c, ix, &y, iw, SETTING_RUN_INDOORS, "RUN INDOORS", on_off(st->runIndoors));
+    } else {
+        if (host->hasAutoRun) muted_row(c, ix, &y, iw, "AUTO-RUN", "N/A");
+        muted_row(c, ix, &y, iw, "RUN INDOORS", "N/A");
+    }
+    if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", on_off(st->cheats));
+
+    group(c, ix, &y, "SCREEN");
+    ui->pixelOff = host->expandGame && st->aspect != PD_ASPECT_ORIGINAL;
+    if (host->hasExpand) {
+        if (host->expandGame) {
+            setting(ui, c, ix, &y, iw, SETTING_ASPECT, "ASPECT", pd_aspect_name(st->aspect));
+            if (st->aspect == PD_ASPECT_ZOOM_OUT)
+                setting(ui, c, ix, &y, iw, SETTING_AUTO_ZOOM, "AUTO ZOOM IN", on_off(st->autoZoom));
+        } else {
+            muted_row(c, ix, &y, iw, "ASPECT", "N/A");
+        }
+    }
+    if (host->hasHud) setting(ui, c, ix, &y, iw, SETTING_HUD, "HUD", on_off(st->hud));
+    page_row(ui, c, ix, &y, iw, SETTING_PAGE_DISPLAY, "DISPLAY OPTIONS");
+    if (host->hasCompanionView)
+        setting(ui, c, ix, &y, iw, SETTING_VIEW, "COMPANION VIEW", pd_companion_view_name(st->companionView));
+    const char* themeName = pd_themes[0].label;
+    for (int i = 0; i < pd_theme_count; i++)
+        if (pd_themes[i].id == st->theme) themeName = pd_themes[i].label;
+    setting(ui, c, ix, &y, iw, SETTING_THEME, "THEME", themeName);
+    setting(ui, c, ix, &y, iw, SETTING_DARK, "DARK MODE", on_off(st->darkMode));
+    if (host->hasPerf) setting(ui, c, ix, &y, iw, SETTING_PERF, "FPS / CPU", on_off(st->showPerf));
+
+    group(c, ix, &y, "COMPANION");
+    setting(ui, c, ix, &y, iw, SETTING_HINTS, "BATTLE HINTS", on_off(!st->hideHints));
+    setting(ui, c, ix, &y, iw, SETTING_ONE_TAP, "ONE-TAP MOVES", on_off(st->oneTapMoves));
+    snprintf(buf, sizeof(buf), "%d TABS", ui_bar_count(ui));
+    setting(ui, c, ix, &y, iw, SETTING_TAB_BAR, "TAB BAR", buf);
+
+    if (host->hasButtonLayout || host->hasButtonRows || host->hasQuickMenu) {
+        group(c, ix, &y, "CONTROLS");
+        if (host->hasButtonLayout) page_row(ui, c, ix, &y, iw, SETTING_PAGE_BUTTONS, "GAME BUTTONS");
+        if (host->hasButtonRows) page_row(ui, c, ix, &y, iw, SETTING_PAGE_HOTKEYS, "HOTKEYS");
+        if (host->hasQuickMenu) page_row(ui, c, ix, &y, iw, SETTING_PAGE_QUICK, "QUICK MENU");
+    }
+    if (host->hasUpdateCheck) {
+        group(c, ix, &y, "APP");
+        setting(ui, c, ix, &y, iw, SETTING_UPDATES, "CHECK FOR UPDATES", on_off(st->updateCheck));
+    }
+
+    y += 3;
+    pd_fill(c, ix, y, iw, 1, PD_DIVIDER);
+    y += 5;
+    int bw = (iw - 6) / 2;
+    if (y >= listTop && y + 22 <= listBottom) {
+        ui_button(ui, c, ix, y, bw, 22, "CLOSE GAME", HIT_SETTING + SETTING_LEAVE);
+        ui_button(ui, c, ix + bw + 6, y, bw, 22, "RESTART GAME", HIT_SETTING + SETTING_RESTART);
+    } else if (!host->frontendOwnsPlayback) {
+        pd_title_box(c, ix, y, bw, 22, PD_TITLE_FILL);
+        pd_title_box(c, ix + bw + 6, y, bw, 22, PD_TITLE_FILL);
+    }
+    y += 26;
+    *yp = y;
+}
+
 void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s,
                      const struct pd_host_info* host) {
     ui->settingsNavCount = 0;
+    ui->layoutHost = host ? host->layouts : NULL;
+    ui->layoutHostCount = host ? host->layoutCount : 0;
     int x = MARGIN, w = c->w - 2 * MARGIN;
     int f = pd_title_box(c, x, CONTENT_Y, w, TITLE_H, PD_TITLE_FILL);
     int ty = pd_text_y(CONTENT_Y, TITLE_H);
-    pd_text(c, x + f + 6, ty, ui->optionSource ? ui->optionSource->title : "SETTINGS", PD_TITLE_TEXT, PD_TITLE_SHADOW);
+    static const char* const PAGE_TITLES[] = {"SETTINGS", "SPEED OPTIONS", "DISPLAY OPTIONS", "GAME BUTTONS", "HOTKEYS",
+                                              "QUICK MENU"};
+    const bool full = host && host->fullSettings;
+    if (!full || !host->androidMenus || ui->settingsPage < 0 || ui->settingsPage > PAGE_QUICK) ui->settingsPage = PAGE_HOME;
+    const char* pageTitle = ui->optionSource ? ui->optionSource->title : PAGE_TITLES[ui->settingsPage];
+    pd_text(c, x + f + 6, ty, pageTitle, PD_TITLE_TEXT, PD_TITLE_SHADOW);
     int right = x + w - f - 6;
     // The TRAINER CARD opens from here (the list below is full): a grey chip at
     // the title window's right, white while pressed, like the tab bar's.
-    if (host && host->batteryPct >= 0 && host->fullSettings) {
+    if (ui->settingsPage != PAGE_HOME) {
+        // A sub-page: its title alone (BACK returns to SETTINGS).
+    } else if (host && host->batteryPct >= 0 && host->fullSettings) {
         char pct[16];
         snprintf(pct, sizeof(pct), "%d%%", host->batteryPct);
         right -= pd_text_width(pct);
@@ -125,7 +292,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
             settings_outline(c, bx, by, bw, bh);
         right = bx - 8;
     }
-    if (g->title) {
+    if (g->title && ui->settingsPage == PAGE_HOME) {
         int tx = x + f + 6 + pd_text_width("SETTINGS") + 12;
         int tw = pd_text_width(g->title);
         if (tw > right - tx) tw = right - tx;
@@ -170,6 +337,10 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
     if (lastTotal >= 0) ui->settingsScroll = ui_clamp_scroll(ui->settingsScroll, lastTotal, listBottom - listTop);
     int y = listTop - ui->settingsScroll;
     char buf[40];
+    if (full && host->androidMenus) {
+        full_rows(ui, c, g, s, host, ix, &y, iw);
+        goto done;
+    }
     if (s->valid) {
         const char* place = pd_mapsec_name(g, s->mapsec);
         ui_row(c, ix, y, iw, "PLACE", *place ? place : "-", false);
@@ -186,7 +357,6 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
     y += 4;
 
     struct pd_settings* st = ui->settings;
-    bool full = host && host->fullSettings;
     if (full) {
         group(c, ix, &y, "FF / SPEED");
         setting(ui, c, ix, &y, iw, SETTING_FF_TOGGLE, "FF", host->ffOn ? "ON" : "OFF");
@@ -308,6 +478,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         }
         setting(ui, c, ix, &y, iw, SETTING_LEAVE, "LEAVE GAME", NULL);
     }
+done:
     pd_unclip(c);
     int total = y + ui->settingsScroll - listTop, view = listBottom - listTop;
     lastTotal = total;
@@ -493,6 +664,20 @@ void ui_overlay(struct pd_ui* ui, struct pd_canvas* c) {
         pick_list(ui, c, "COMPANION VIEW", names, PD_COMPANION_VIEWS, ui->settings->companionView);
         break;
     }
+    case PD_OVERLAY_LAYOUT:
+        if (ui->layoutHost && ui->layoutHostCount > 0) {
+            static int tiles[PD_LAYOUT_OPTIONS][4];
+            int n = ui->layoutHostCount > PD_LAYOUT_OPTIONS ? PD_LAYOUT_OPTIONS : ui->layoutHostCount;
+            int sel = ui->pressedId >= HIT_OPTION && ui->pressedId < HIT_OPTION + n ? ui->pressedId - HIT_OPTION : -1;
+            int focus = ui->focusId >= HIT_OPTION && ui->focusId < HIT_OPTION + n ? ui->focusId - HIT_OPTION
+                : ui->settings->companionView;
+            pd_layout_picker_draw(c, "COMPANION VIEW", ui->layoutHost, n, ui->settings->companionView, focus, sel,
+                                  &ui->layoutScroll, tiles);
+            ui->startId = HIT_OPTION + ui->settings->companionView;
+            for (int i = 0; i < n; i++)
+                if (tiles[i][2]) ui_add_hit(ui, tiles[i][0], tiles[i][1], tiles[i][2], tiles[i][3], HIT_OPTION + i);
+        }
+        break;
     case PD_OVERLAY_PICK_VOLUME:
         pick_list(ui, c, "GAME VOLUME", VOLUMES, 5, ui->settings->gameVolume / 20 - 1);
         break;
