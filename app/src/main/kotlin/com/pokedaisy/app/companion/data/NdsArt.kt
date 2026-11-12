@@ -369,7 +369,7 @@ object NdsArt {
             if (m.size >= 4) moves[id] = MoveInfo(name, u8(m, 0), u8(m, 3))
         }
         val chart = HashMap<Int, Int>()
-        val c = f.read(OriginHeartGold.TYPE_CHART_OFFSET, 18 * 18)
+        val c = originChart(f, header) ?: return null
         for (atk in 0 until 18) for (def in 0 until 18) {
             val pct = u8(c, atk * 18 + def) * 25
             if (pct != 100) chart[atk * 100 + def] = pct
@@ -802,6 +802,30 @@ object NdsArt {
         tmp.writeBytes(bytes)
         tmp.renameTo(out)
     }
+
+    /**
+     * Origin HeartGold's type chart, found in overlay 14: [OriginHeartGold.TYPE_CHART_OFFSET] is the mapped build's cart
+     * offset, but other dumps of the same build keep their overlays elsewhere. It's the 324 bytes that start with
+     * Normal's row (Rock and Steel 1/2, Ghost 0) and hold only 0, 2, 4 and 8.
+     */
+    private fun originChart(f: RandomAccessFile, header: ByteArray): ByteArray? {
+        val table = u32(header, 0x50)
+        if (u32(header, 0x54) < 15 * 32) return null
+        val id = u32(f.read(table + 14 * 32 + 0x18, 4), 0)
+        val fat = f.read(u32(header, 0x48) + id * 8, 8)
+        val start = u32(fat, 0)
+        val end = minOf(u32(fat, 4), f.length())
+        if (end - start < 324 || end - start > 0x400000) return null
+        val o = f.read(start, (end - start).toInt())
+        for (at in 0..o.size - 324) {
+            if ((0 until 18).any { o[at + it].toInt() != ORIGIN_NORMAL_ROW[it] }) continue
+            if ((0 until 324).all { o[at + it].toInt().let { v -> v == 0 || v == 2 || v == 4 || v == 8 } })
+                return o.copyOfRange(at, at + 324)
+        }
+        return null
+    }
+
+    private val ORIGIN_NORMAL_ROW = intArrayOf(4, 4, 4, 4, 4, 2, 4, 0, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4)
 
     private fun RandomAccessFile.read(off: Long, len: Int): ByteArray {
         val b = ByteArray(len)
