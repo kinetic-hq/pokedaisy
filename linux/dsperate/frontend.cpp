@@ -109,7 +109,8 @@ int pad(int b){
   case SDL_CONTROLLER_BUTTON_DPAD_UP:return 6;case SDL_CONTROLLER_BUTTON_DPAD_DOWN:return 7;
   case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:return 8;case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:return 9;
   case SDL_CONTROLLER_BUTTON_Y:return 10;case SDL_CONTROLLER_BUTTON_X:return 11;
-  case SDL_CONTROLLER_BUTTON_GUIDE:return 15;case SDL_CONTROLLER_BUTTON_RIGHTSTICK:return 14;default:return -1;}}
+  // GUIDE / HOME: the quick menu (L2's own), as it opens the game menu in a GBA game; Escape still pauses.
+  case SDL_CONTROLLER_BUTTON_GUIDE:return 12;case SDL_CONTROLLER_BUTTON_RIGHTSTICK:return 14;default:return -1;}}
 // DS LAYOUT's drawings for the picker: each layout placed by ds_place() on a 16:9 screen. ONE SCREEN and WINGS are drawn
 // with the touch screen floated in over the dimmed game, as they show when the game wants it. All but TOUCH IN WING,
 // WINGS and TOUCH PIECES are the app's.
@@ -259,7 +260,7 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
     }
   }
   else {line("TRAINER: "+s.trainer);line("MONEY: "+std::to_string(s.money));line(std::string("PLACE: ")+ds_place(s.map));line("MAP: "+std::to_string(s.map));line(s.dexValid?(s.nationalDex?"NATIONAL DEX: UNLOCKED":"NATIONAL DEX: LOCKED"):"DEX: UNAVAILABLE");}
-  pd_text_fit(&c,9,c.h-20,c.w-18,tab==5?"D-pad move  A player  L/R tabs":tab==4?"Up/Down select  A change  L/R tabs":tab==0 && summary?"Left/Right info/moves  Up/Down Pokemon":tab==1 || tab==2?"Up/Down scroll  Left/Right page  L/R tabs":"L/R tabs  A summary  B back  L2 game",0xffffff,PD_NO_SHADOW);
+  pd_text_fit(&c,9,c.h-20,c.w-18,tab==5?"D-pad move  A player  L/R tabs":tab==4?"Up/Down select  A change  L/R tabs":tab==0 && summary?"Left/Right info/moves  Up/Down Pokemon":tab==1 || tab==2?"Up/Down scroll  Left/Right page  L/R tabs":"L/R tabs  A summary  B back  HOME game",0xffffff,PD_NO_SHADOW);
 }
 }
 // The party as the GBA panels and HUD read it: nicknames, HP, level, status (the DS species drawn by the caller).
@@ -504,6 +505,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // R3: a tap steps DS LAYOUT (skipping layouts drawn the same on this window), a hold opens the picker; the
   // layout's name shows a moment either way (toast). r3Chord: L3 + R3 went to FULLSCREEN, no step.
   uint32_t r3Since=0;bool r3Held=false,r3Chord=false;std::string toast;uint32_t toastUntil=0;
+  // FF TOGGLE (L3 by default): three frames a turn, muted. ZOOM: WING ROOM for this run (-1 the setting's).
+  bool fastForward=false;int zoomStep=0,zoomRoom=-1;
   auto showToast=[&](const char* text){toast=text;toastUntil=SDL_GetTicks()+1500;std::fprintf(stderr,"DS LAYOUT %s\n",text);};
   int mapX=-1,mapY=-1,setting=0,page=0,tab=0,selected=0,scroll=0,touchX=128,touchY=96;uint32_t keys=0,lastActivityKeys=0,wingActivity=SDL_GetTicks(),wingSign=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
   const int raw[]={1,0,11,10,9,8,2,3,15,-1,12,13};const bool rawTrimui=std::getenv("POCKET_RAW_TRIMUI")!=nullptr;
@@ -513,6 +516,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   if(auto s=std::getenv("POCKET_DS_KEYS")){std::string text=s;size_t pos=0;while(pos<text.size()){Press p{};int used=0;if(std::sscanf(text.c_str()+pos,"%d:%u:%d%n",&p.at,&p.mask,&p.n,&used)!=3)break;script.push_back(p);pos+=used+1;}}
   if(auto s=std::getenv("POCKET_DS_HOST_KEYS")){std::string text=s;size_t pos=0;while(pos<text.size()){Press p{};int used=0;if(std::sscanf(text.c_str()+pos,"%d:%u:%d%n",&p.at,&p.mask,&p.n,&used)!=3)break;hostScript.push_back(p);pos+=used+1;}}
   int companionAt=std::getenv("POCKET_DS_COMPANION_AT")?std::atoi(std::getenv("POCKET_DS_COMPANION_AT")):-1;
+  // Tests: HOTKEYS actions (main.c's HA_* numbers) as if their buttons were pressed, frame:action pairs.
+  std::vector<std::pair<int,int>> actionScript;
+  if(auto s=std::getenv("POCKET_DS_ACTIONS")){int at,a,used;const char* p=s;while(std::sscanf(p,"%d:%d%n",&at,&a,&used)==2){actionScript.push_back({at,a});p+=used;if(*p!=',')break;p++;}}
   // Tests: left-button presses pushed through SDL's own queue (frame:x:y:frames, window pixels).
   struct Tap{int at,x,y,n;};std::vector<Tap> hostTaps;
   if(auto s=std::getenv("POCKET_DS_HOST_TAPS")){std::string text=s;size_t pos=0;while(pos<text.size()){Tap t{};int used=0;if(std::sscanf(text.c_str()+pos,"%d:%d:%d:%d%n",&t.at,&t.x,&t.y,&t.n,&used)!=4)break;hostTaps.push_back(t);pos+=used+1;}}
@@ -592,9 +598,19 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     }
     unsigned now=SDL_GetTicks();for(int k=4;k<8;k++){if(pressed&(1u<<k))repeat[k]=now+400;else if((keys&(1u<<k)) && int(now-repeat[k])>=0){pressed|=1u<<k;repeat[k]=now+90;}}
     if(companionAt>=0 && frame==companionAt)showCompanion=true;
-    if(unsigned act=pd_ds_host_actions?pd_ds_host_actions():0u){
-      if(act&(1u<<1))pressed|=1u<<15;                                 // GAME MENU: the pause menu
+    unsigned scripted=0;for(auto& sa:actionScript)if(sa.first==frame)scripted|=1u<<sa.second;
+    if(unsigned act=(pd_ds_host_actions?pd_ds_host_actions():0u)|scripted){
+      if(act&(1u<<1)){showQuick=!showQuick;showCompanion=false;paused=false;}  // GAME MENU: the quick menu, as GUIDE
       if(act&(1u<<2)){showCompanion=!showCompanion;showQuick=false;}  // COMPANION
+      if(act&(1u<<3)){fastForward=!fastForward;showToast(fastForward?"FAST FORWARD ON":"FAST FORWARD OFF");}  // FF TOGGLE
+      // ZOOM IN / OUT (LT / RT by default, as in a GBA game): the game's size against the wings (WING ROOM, for this
+      // run); with SELECT held, DS LAYOUT back / next as SELECT + L2 / R2 always did.
+      if(act&((1u<<11)|(1u<<12))){
+        if(keys&(1u<<2)){
+          prefs.layout=(prefs.layout+((act&(1u<<11))?1:DSL_COUNT-1))%DSL_COUNT;
+          showToast(ds_layout_name(prefs.layout));blocked|=keys&4095u;nds->setButtons(0);
+        }else zoomStep=(act&(1u<<11))?1:-1;
+      }
       if(act&((1u<<8)|(1u<<9))){
         prefs.layout=(prefs.layout+((act&(1u<<8))?1:DSL_COUNT-1))%DSL_COUNT;
         showToast(ds_layout_name(prefs.layout));
@@ -617,7 +633,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         r3Held=true;showCompanion=true;layoutPick=true;layoutSel=prefs.layout;layoutScroll=0;
         blocked|=keys&4095u;nds->setButtons(0);nds->setTouch(0,0,false);
       }else if(!r3){
-        if(!r3Held && !r3Chord){
+        if(!r3Held && !r3Chord && (keys&(1u<<2))){  // SELECT + R3: SWAP SCREENS (R2's own when R2 is USUAL USE)
+          pressed|=1u<<13;blocked|=keys&4095u;nds->setButtons(0);
+        }else if(!r3Held && !r3Chord){
           int ow=1024,oh=768;SDL_GetRendererOutputSize(renderer,&ow,&oh);
           prefs.layout=ds_layout_cycle(prefs.layout,ow,oh,prefs.wingLeft,field!=nullptr);
           showToast(ds_layout_name(prefs.layout));
@@ -743,6 +761,10 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         }
         nds->setButtons(held);
         nds->runFrame();
+        if(fastForward){  // two more frames, and no sound (it would only stutter at three times the speed)
+          for(int i=0;i<2;i++)nds->runFrame();
+          int16_t drop[2048];while(nds->takeAudio(drop,1024)){}
+        }
       }
       if(nds->batteryWrites()!=lastWrites){lastWrites=nds->batteryWrites();quiet=0;}else quiet++;
       if(quiet>=60 && nds->batteryDirty()){auto s=nds->battery();if(!s.empty() && !atomic_file(save,s.data(),s.size())){failed=true;done=true;}else nds->clearBatteryDirty();}
@@ -765,8 +787,19 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(layoutPick)pd_layout_picker_draw(&canvas,"DS LAYOUT",ds_layout_options(),DSL_COUNT,prefs.layout,layoutSel,-1,&layoutScroll,layoutTiles);
       uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
     else{
-      DsPlacement place=ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom,prefs.wingLeft,
-                                             pd_ds_wing_room);
+      auto placeIn=[&](int room){return ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom,
+                                                             prefs.wingLeft,room);};
+      if(zoomStep){
+        // Larger game = less wing room: WINGS FIRST, BALANCED, GAME FIRST (AUTO starts from BALANCED).
+        int room=zoomRoom>=0?zoomRoom:pd_ds_wing_room;if(room<0||room>2)room=DS_WING_ROOM_BALANCED;
+        if(placeIn(DS_WING_ROOM_GAME_FIRST).top.w==placeIn(DS_WING_ROOM_WINGS_FIRST).top.w)showToast("ZOOM: NO WINGS IN THIS LAYOUT");
+        else{
+          zoomRoom=std::clamp(room-zoomStep,int(DS_WING_ROOM_GAME_FIRST),int(DS_WING_ROOM_WINGS_FIRST));
+          static const char* const rooms[3]={"ZOOM: GAME FIRST","ZOOM: BALANCED","ZOOM: WINGS FIRST"};showToast(rooms[zoomRoom]);
+        }
+        zoomStep=0;
+      }
+      DsPlacement place=placeIn(zoomRoom>=0?zoomRoom:pd_ds_wing_room);
       DsPieceLayout lay;
       if(place.pieces){int sc=ds_pieces_detect(*pieceGame,nds->framebuffer(1));if(sc>=0)lay=ds_pieces_arrange(*pieceGame,sc,place.wing);}
       if(lay.shown()!=pieceLay.shown() || lay.screen!=pieceLay.screen)pointerDown=false;  // the screen changed under a press

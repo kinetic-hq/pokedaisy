@@ -2749,6 +2749,53 @@ static bool ds_running(void) { return running != 0; }
 #endif
 #ifdef POCKET_DS
 /* The DS loop's share of the HOTKEYS: its bits, cleared once read (pd_ds_host_actions). */
+/* A DS game's controller events, before the DS loop's own use of them: FULLSCREEN's keys, then HOTKEYS as a GBA game
+ * has them (stick_hotkeys, the extra buttons): LT / RT ZOOM OUT / IN, L3 FF TOGGLE and R3 USUAL USE (DS LAYOUT, held
+ * the picker) by default. A button left on USUAL USE goes on to the DS loop: L2 its quick menu, R2 SWAP SCREENS. */
+static bool ds_host_event(const SDL_Event *e) {
+  if (fullscreen_event(e))
+    return true;
+  static bool trigger[2];
+  if (e->type == SDL_CONTROLLERAXISMOTION &&
+      (e->caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT || e->caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT)) {
+    int i = e->caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT, action = hotkeyMap[i ? PD_HOTKEY_R2 : PD_HOTKEY_L2];
+    bool down = e->caxis.value > 16000;
+    if (!action)
+      return false;
+    if (action == HA_REWIND)
+      rewindHeld = down;
+    else if (down && !trigger[i])
+      hotkey_fire(action);
+    trigger[i] = down;
+    return true;
+  }
+  if (e->type == SDL_CONTROLLERBUTTONDOWN || e->type == SDL_CONTROLLERBUTTONUP) {
+    bool down = e->type == SDL_CONTROLLERBUTTONDOWN;
+    int slot = e->cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSTICK    ? PD_HOTKEY_L3
+               : e->cbutton.button == SDL_CONTROLLER_BUTTON_RIGHTSTICK ? PD_HOTKEY_R3
+                                                                       : -1;
+    for (int i = 0; slot < 0 && i < PD_HOTKEY_BUTTONS; i++)
+      if (HOTKEY_BUTTONS[i] >= 0 && HOTKEY_BUTTONS[i] == e->cbutton.button)
+        slot = i;
+    bool stick = slot == PD_HOTKEY_L3 || slot == PD_HOTKEY_R3;
+    bool chord = stickChord;
+    if (stick && !down) { // both sticks up: the next release is an action again
+      SDL_GameController *pad = SDL_GameControllerFromInstanceID(e->cbutton.which);
+      if (!pad || (!SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_LEFTSTICK) &&
+                   !SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_RIGHTSTICK)))
+        stickChord = false;
+    }
+    if (slot < 0 || !hotkeyMap[slot])
+      return false;
+    int action = hotkeyMap[slot];
+    if (action == HA_REWIND)
+      rewindHeld = down;
+    else if (stick ? !down && !chord : down) // a stick's action on its release, so L3 + R3 stays FULLSCREEN
+      hotkey_fire(action);
+    return true;
+  }
+  return false;
+}
 static unsigned ds_host_actions(void) {
   unsigned bits = hostActions;
   hostActions = 0;
@@ -2858,7 +2905,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   if (ext && !strcasecmp(ext, ".nds")) {
     if (audio) { SDL_CloseAudioDevice(audio); audio = 0; }
     pd_ds_device_event = controller_device_event;
-    pd_ds_host_event = fullscreen_event;
+    pd_ds_host_event = ds_host_event;
     pd_ds_xbox_layout = buttonLayout == PD_LAYOUT_XBOX;
     pd_ds_host_actions = ds_host_actions;
     pd_ds_present = timed_present;
