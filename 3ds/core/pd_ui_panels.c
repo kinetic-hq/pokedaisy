@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "pd_experience.h"
+#include "pd_gb.h"
 #include "pd_icon.h"
 #include "pd_tables.h"
 #include "pd_ui_internal.h"
@@ -15,6 +17,7 @@
 uint32_t pd_ui_now_ms;
 bool pd_ui_reduce_motion;
 bool pd_ui_panel_moving;
+uint32_t pd_ui_bar_facts;
 
 static uint32_t mix(uint32_t a, uint32_t b, int t256) {
     uint32_t r = 0;
@@ -50,6 +53,33 @@ static void ui_card(struct pd_canvas* c, int x, int y, int w, int h, uint32_t fi
         int sy = y + CARD_R / 2 + 2, sh = h - CARD_R - 4;
         if (sh > 4) pd_round_rect(c, x + 3, sy, 3, sh, 1, accent);
     }
+}
+
+// How far a Pokemon is to its next level, 0..100 (-1: the game's curve isn't known).
+static int exp_filled(const struct pd_game* g, const struct pd_mon* m) {
+    if (!g || !g->cfg || !m->hasExperience) return -1;
+    struct pd_exp e;
+    bool ok = g->cfg->gb ? pd_exp_progress(pd_polished_growth(g, m->species), m->level, m->experience, 100, &e)
+                         : !g->hackMaps && pd_retail_exp_progress(m->species, m->level, m->experience, 100, &e);
+    return ok ? e.filled : -1;
+}
+
+// The EXP line under an HP bar: a thin blue bar, as in the games' summary.
+static void exp_line(struct pd_canvas* c, int x, int y, int w, int filled) {
+    if (filled < 0 || w < 8) return;
+    pd_fill(c, x, y, w, 2, mix(PD_LIST_FILL, 0x000000, 90));
+    int f = filled * w / 100;
+    if (f > w) f = w;
+    if (f > 0) pd_fill(c, x, y, f, 2, 0x48A8F8);
+}
+
+// An empty party place's Poke Ball, drawn as an outline.
+static void empty_ball(struct pd_canvas* c, int x, int y, uint32_t ink, uint32_t back) {
+    pd_round_rect(c, x, y, 12, 12, 6, ink);
+    pd_round_rect(c, x + 1, y + 1, 10, 10, 5, back);
+    pd_fill(c, x + 1, y + 5, 10, 2, ink);
+    pd_round_rect(c, x + 4, y + 4, 4, 4, 2, ink);
+    pd_fill(c, x + 5, y + 5, 2, 2, back);
 }
 
 // What a party slot showed last draw, for the HP bar's easing and the cards' slide when the party changes.
@@ -105,8 +135,11 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
     // The places of a party not yet six: an empty card each, so the wing reads as six evenly whatever's in it.
     for (int i = s->partyCount < 0 ? 0 : s->partyCount, ey = y + i * rowH; i < PD_PARTY_SIZE && ey + rowMin <= bottom;
          i++, ey += rowH) {
-        pd_round_rect(c, x, ey, w, rowH - 4, CARD_R, mix(PD_LIST_FILL, PD_TITLE_FILL, 128));
-        pd_round_rect(c, x + 2, ey + 2, w - 4, rowH - 8, CARD_R - 2, PD_TITLE_FILL);
+        // An outline card with a Poke Ball's outline where the icon would be: seen on a dark wing too.
+        uint32_t ink = luma(PD_TITLE_FILL) < 128 ? mix(PD_TITLE_FILL, 0xFFFFFF, 44) : mix(PD_TITLE_FILL, 0x000000, 44);
+        pd_round_rect(c, x, ey, w, rowH - 4, CARD_R, ink);
+        pd_round_rect(c, x + 1, ey + 1, w - 2, rowH - 6, CARD_R - 1, PD_TITLE_FILL);
+        empty_ball(c, x + 8 + (PD_ICON - 12) / 2, ey + (rowH - 4 - 12) / 2, ink, PD_TITLE_FILL);
     }
     // A new party (a Pokemon in or out, the order changed): the cards slide in from the left, one after another.
     uint32_t key = 2166136261u;
@@ -144,6 +177,11 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         if (!egg && m->heldItem) ui_held_mark(c, iconX + PD_ICON - 8, iconY + PD_ICON - 8);
         int tx = iconX + PD_ICON + 3, right = cx + w - 6;
         const char* name = m->nickname[0] || !g ? m->nickname : pd_species_name(g, m->species, buf, sizeof(buf));
+        // A long name takes the icon's see-through right edge and most of the card's right margin before it's cut.
+        if (pd_text_width(name) + (m->shiny ? pd_text_width("*") + 2 : 0) > right - tx) {
+            tx = iconX + PD_ICON - 3;
+            right = cx + w - 3;
+        }
         int ty = y + (cardH - (tall ? 3 * LINE + 2 : 2 * LINE)) / 2;
         if (m->species == PD_SPECIES_EGG) {
             pd_text_fit(c, tx, y + (cardH - LINE) / 2, right - tx, name, PD_LABEL, PD_LABEL_SHADOW);
@@ -152,9 +190,10 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         char lv[12];
         snprintf(lv, sizeof(lv), "%d", m->level);
         int lvW = pd_text_width("Lv") + pd_number_width(lv);
-        // Too narrow for the level beside the name: it goes before the HP bar.
-        bool lvRight = !tall && right - tx >= lvW + 40; // a tall card: the whole name, the level under it
+        // The level beside the name only while the whole name fits next to it; else it goes before the HP bar, so
+        // a name is cut only when it's wider than the card itself.
         int starW = m->shiny ? pd_text_width("*") + 2 : 0;
+        bool lvRight = !tall && right - tx >= pd_text_width(name) + starW + lvW + 6; // tall: the level under it
         int nameW = pd_text_fit(c, tx, ty, right - tx - starW - (lvRight ? lvW + 4 : 0), name, PD_LABEL, PD_LABEL_SHADOW);
         if (m->shiny) pd_text(c, tx + nameW + 2, ty, "*", 0xF8C830, PD_LABEL_SHADOW); // shiny: a gold star
         int by = ty + LINE + 1, bx = tx;
@@ -175,13 +214,19 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
             char hp[16];
             snprintf(hp, sizeof(hp), "%d/%d", m->hp, m->maxHp);
             int hpShown = eased_hp(i, m->personality ^ (uint32_t)m->species, m->hp);
-            if (right - bx - 18 >= 12) ui_hp_bar(c, bx, by, right - bx - 18, hpShown, m->maxHp);
+            if (right - bx - 18 >= 12) {
+                ui_hp_bar(c, bx, by, right - bx - 18, hpShown, m->maxHp);
+                exp_line(c, bx + 16, by + 8, right - bx - 18, exp_filled(g, m));
+            }
             pd_number_right(c, right, by + 5, hp, PD_MUTED, PD_MUTED_SHADOW);
             continue;
         }
         int barW = right - bx - 18;
         int hpShown = eased_hp(i, m->personality ^ (uint32_t)m->species, m->hp);
-        if (barW >= 12) ui_hp_bar(c, bx, by + 5, barW, hpShown, m->maxHp);
+        if (barW >= 12) {
+            ui_hp_bar(c, bx, by + 5, barW, hpShown, m->maxHp);
+            exp_line(c, bx + 16, by + 13, barW, exp_filled(g, m));
+        }
     }
 }
 

@@ -57,7 +57,7 @@ int main(void) {
   {
     int items[3] = {BEZEL_HINTS, BEZEL_NEXT_BOSS, BEZEL_NONE};
     char bar[3][64];
-    bezel_bar_text(items, NULL, &k, bar);
+    bezel_bar_text(items, NULL, &k, bar, NULL);
     // The faded hints take the first filler not shown yet (NEXT BOSS is): CAUGHT HERE. NONE stays empty.
     if (strcmp(bar[0], "CAUGHT HERE 2/5") || strcmp(bar[1], "NEXT BROCK  CAP Lv14") || bar[2][0]) {
       printf("bar fill: '%s' '%s' '%s'\n", bar[0], bar[1], bar[2]);
@@ -65,9 +65,15 @@ int main(void) {
     }
     // What the other bar shows is never a filler here: CAUGHT HERE is the other bar's, so LEAD comes next.
     int other[3] = {BEZEL_CAUGHT_HERE, BEZEL_NONE, BEZEL_NONE};
-    bezel_bar_text(items, other, &k, bar);
+    bool shown[BEZEL_ITEMS] = {false};
+    bezel_bar_text(items, other, &k, bar, shown);
     if (strcmp(bar[0], "PIKACHU 12/20  85 EXP TO GO")) {
       printf("bar fill other: '%s'\n", bar[0]);
+      failures++;
+    }
+    // What the bar drew is reported, so the wings don't say it again; an empty NONE isn't.
+    if (!shown[BEZEL_LEAD] || !shown[BEZEL_NEXT_BOSS] || shown[BEZEL_NONE] || shown[BEZEL_CAUGHT_HERE]) {
+      puts("bar shown");
       failures++;
     }
   }

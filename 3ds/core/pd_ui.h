@@ -639,6 +639,9 @@ void pd_ui_party_panel(struct pd_canvas*, const struct pd_game*, const struct pd
 // bar moving, a card sliding in) sets pd_ui_panel_moving, and the host draws it again next frame.
 extern uint32_t pd_ui_now_ms;
 extern bool pd_ui_reduce_motion;
+// What the host's bezel bars show right now (PD_BAR_*): the right wing leaves those facts out, so nothing is said twice.
+enum { PD_BAR_MONEY = 1, PD_BAR_BADGES = 2, PD_BAR_TIME = 4, PD_BAR_BOSS = 8, PD_BAR_HERE = 16 };
+extern uint32_t pd_ui_bar_facts;
 extern bool pd_ui_panel_moving;
 // The same, each slot's icon drawn by ICON (false: a Poke Ball stands in) for a host whose species aren't the GBA's
 // (the DS games); the game may be NULL, then the names are the snapshot's nicknames.
