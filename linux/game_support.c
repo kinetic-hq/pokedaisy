@@ -31,15 +31,24 @@ static bool ends_with(const char *s, const char *tail) {
  * Platinum too) and HeartGold / SoulSilver (USA rev 0). Everything else plays without one. */
 static int ds_support(const char *path, char *detail, size_t size) {
   FILE *f = fopen(path, "rb");
-  unsigned char head[0x20] = {0};
+  unsigned char head[0x20] = {0}, mark[4] = {0};
   size_t n = f ? fread(head, 1, sizeof head, f) : 0;
+  // Renegade Platinum's mark (linux/dsperate/companion.cpp's ds_renegade_platinum): overlay 16's pointer to its type chart.
+  bool renegade = f && !fseek(f, 0x221060, SEEK_SET) && fread(mark, 1, 4, f) == 4 &&
+                  (mark[0] | mark[1] << 8 | mark[2] << 16 | (uint32_t)mark[3] << 24) == 0x021E9F81u;
   if (f)
     fclose(f);
   if (n < sizeof head) {
     snprintf(detail, size, "Couldn't read the cart");
     return GAME_SUPPORT_UNKNOWN;
   }
-  if (!memcmp(head + 12, "CPUE", 4)) { // Platinum, and Renegade Platinum (the Android app's own support)
+  if (!memcmp(head + 12, "CPUE", 4) && head[30] <= 1) {
+    // Renegade Platinum runs on Platinum's reader (docs/manual/desktop-game-support.md): its own types, stats, DEX
+    // pages and GUIDE aren't followed yet.
+    if (head[30] == 1 && renegade) {
+      snprintf(detail, size, "Read as Platinum: its own types, stats, DEX and GUIDE aren't followed yet");
+      return GAME_SUPPORT_PARTLY;
+    }
     snprintf(detail, size, "Every companion tab");
     return GAME_SUPPORT_FULL;
   }
@@ -89,7 +98,9 @@ int game_support_of_rom(const char *path, char *detail, size_t size) {
   pd_game_identify(&g);
   int level;
   if (!g.cfg) {
-    snprintf(detail, size, "%s", g.unsupported ? g.unsupported : "No companion for this game yet: it runs");
+    // (pd_game.c's reasons were written for the 3DS port; on the desktop a hack it doesn't know just runs.)
+    const char *why = g.unsupported && !strstr(g.unsupported, "3DS") ? g.unsupported : NULL;
+    snprintf(detail, size, "%s", why ? why : "A version the companion doesn't know yet: the game runs");
     level = GAME_SUPPORT_PLAY;
   } else {
     // The tabs the companion shows for it (pd_ui.c's ui_tab_available) and the battle's foe team.
@@ -238,7 +249,8 @@ void game_support_start(const char *root, const char *const *list, int n, const 
   if (!lock)
     lock = SDL_CreateMutex();
   snprintf(cachePath, sizeof cachePath, "%s/support-cache.tsv", root);
-  snprintf(stampText, sizeof stampText, "pokedaisy %s", stamp ? stamp : "?");
+  // The rules' own revision too, so a build that changes them looks again within a version.
+  snprintf(stampText, sizeof stampText, "pokedaisy %s rules 2", stamp ? stamp : "?");
   entries = calloc((size_t)n + 1, sizeof *entries);
   paths = calloc((size_t)n + 1, sizeof *paths);
   if (!entries || !paths || !lock)
