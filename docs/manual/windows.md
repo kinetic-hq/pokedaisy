@@ -46,19 +46,29 @@ it. `SKIP SETUP` on the welcome page leaves it for later. To see it again, open
 
 ## Your game list
 
-Your games open as a grid of box art. Each game shows its name, the system
-(`GBA`, `GBC`, `GB` or `NDS`), `ORIGINAL` or `ROM HACK`, and its version when
-the file name has one. Move with the D-pad, the mouse or a finger; `A` or a tap
-plays, the mouse wheel or a drag scrolls, and `Y` opens `SETTINGS`. `GAME FOLDERS`
-and `SETTINGS` sit in the bar along the top: press UP from the first row to
-reach them.
+Your games open as a grid of box art. Each tile has the shape of a game box,
+and the art fills it. Each game shows its name (on up to three lines when it is
+long), the system (`GBA`, `GBC`, `GB` or `NDS`), `ORIGINAL` or `ROM HACK`
+(`HACK` on a narrow tile), and its version when the file name has one. Move with
+the D-pad, the mouse or a finger; `A` or a tap plays, the mouse wheel or a drag
+scrolls, and `Y` opens `SETTINGS`. `SYNC BOX ART`, `GAME FOLDERS` and `SETTINGS`
+sit in the bar along the top: press UP from the first row to reach them.
 
 Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 `BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
-games, then SteamGridDB when you add your own key, which has many ROM hacks. To
-add one, make a free key on steamgriddb.com (Preferences, API), copy it, then
-pick `SETTINGS` > `LIBRARY` > `STEAMGRIDDB KEY` > `PASTE THE KEY FROM THE CLIPBOARD`.
-Box art is kept in `DATA\boxart`.
+games, by the file's name and then by the game the file itself says it is (so a
+game under a name of your own still gets its box), then SteamGridDB when you add
+your own key, which has many ROM hacks. To add one, make a free key on
+steamgriddb.com (Preferences, API), copy it, then pick `SETTINGS` > `LIBRARY` >
+`STEAMGRIDDB KEY` > `PASTE THE KEY FROM THE CLIPBOARD`. A ROM hack nobody has art
+for gets the box of the game it was made from, with the hack's name on an orange
+banner across the bottom. Box art is kept in `DATA\boxart`.
+
+`SYNC BOX ART` looks for every game at once, with its progress along the bottom
+of the screen. `MISSING ONLY` tries the games that have no art yet, even those it
+found nothing for before. `ALL AGAIN` looks again for every game and replaces the
+art it found before (for a hack that got a new box on SteamGridDB, say). Your own
+pictures always stay.
 
 Press `X`, right click or hold a finger on a game for its options:
 
