@@ -337,7 +337,7 @@ void gutter_screen(SDL_Renderer* r,const DsBox& box,int background){
   SDL_Rect sides[4]={{box.x-t,box.y-t,box.w+2*t,t},{box.x-t,box.y+box.h,box.w+2*t,t},{box.x-t,box.y,t,box.h},{box.x+box.w,box.y,t,box.h}};
   SDL_RenderFillRects(r,sides,4);
 }
-void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,DsBox box,int which,const DsCompanion& s,bool supported,const std::vector<std::vector<uint32_t>>& art,bool dim,int oh,int background,uint32_t idleMs){
+void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,DsBox box,int which,const DsCompanion& s,bool supported,bool facts,const std::vector<std::vector<uint32_t>>& art,bool dim,int oh,int background,uint32_t idleMs){
   if(!box.shown() || box.w<64 || box.h<64)return;
   // BLACK / DARK: the wing is a card inset in its room, on the background, its content moved a step now and then.
   pocket_backdrop look=pocket_backdrop_for(background);int dx=0,dy=0;
@@ -348,22 +348,33 @@ void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,Ds
   pd_canvas c;pd_canvas_init(&c,w,h,px.data());pd_fill(&c,0,0,w,h,look.card);
   pocket_wing_look wl;pocket_wing_look_begin(background,&wl);
   if(which==0){
-    pd_snapshot hs=ds_party_snapshot(s);if(!supported)hs.valid=false;
+    pd_snapshot hs=ds_party_snapshot(s);if(!facts)hs.valid=false;
     struct Ctx {const DsCompanion* s;const std::vector<std::vector<uint32_t>>* art;} ctx{&s,&art};
     pd_ui_party_panel_icons(&c,nullptr,&hs,[](pd_canvas* c,void* data,int slot,int x,int y,bool fainted){
       auto& ctx=*static_cast<Ctx*>(data);return ds_party_icon(c,ctx.s->party[slot],*ctx.art,x,y,fainted);
     },&ctx);
   }else{
     std::vector<std::string> rows;
-    if(!supported)rows.push_back("COMPANION\tPLATINUM ONLY");
+    if(!facts)rows.push_back("COMPANION\tPLATINUM ONLY");
     else if(!s.valid)rows.push_back("WAITING\tFor the game's save");
     else{
       rows.push_back("TRAINER\t"+s.trainer);
       const char* place=ds_place(s.map,s.game);rows.push_back(std::string("PLACE\t")+(place&&*place?place:"?"));
       rows.push_back("MONEY\t$"+std::to_string(s.money));
-      rows.push_back("BADGES\t"+std::to_string(s.badges));
+      {int n=0;for(int b=s.badges;b;b&=b-1)n++;rows.push_back("BADGES\t"+std::to_string(n));} // a bit per badge
       if(s.dexValid)rows.push_back("POKEDEX\t"+std::to_string(s.seenCount)+" SEEN, "+std::to_string(s.caughtCount)+" OWN");
       if(s.repelSteps>0)rows.push_back("REPEL\t"+std::to_string(s.repelSteps)+" STEPS");
+      // The time of day the game goes by (its clock is the computer's: core_melonds sets it from local time).
+      std::time_t now=std::time(nullptr);
+      if(const std::tm* local=std::localtime(&now))
+        if(const char* period=ds_day_period(s.game,local->tm_hour))rows.push_back(std::string("TIME\t")+period);
+      if(s.hasPots)
+        for(int i=0;i<4;++i){
+          const DsBerryPot& pot=s.pots[i];
+          std::string name=pot.item?ds_item(pot.item,s.game):"";
+          if(name.size()>6&&name.compare(name.size()-6,6," Berry")==0)name.resize(name.size()-6);
+          rows.push_back("POT "+std::to_string(i+1)+"\t"+(pot.item?name+": "+ds_berry_pot_text(pot):std::string("EMPTY")));
+        }
     }
     std::vector<const char*> list;for(auto& row:rows)list.push_back(row.c_str());
     pd_ui_facts_panel(&c,"TRAINER",list.data(),int(list.size()));
@@ -397,7 +408,11 @@ extern "C" { bool (*pd_ds_rewind_held)(void)=nullptr; int pd_ds_rewind_on=0; }
 extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* shot,SDL_Renderer* renderer,bool (*keepRunning)()) {
   auto bytes=read_file(rom);if(bytes.size()<512 || bytes.size()>512u*1024*1024){std::fprintf(stderr,"DS: invalid ROM size\n");return 1;}
   char hex[41];{pd_sha1 h;pd_sha1_init(&h);pd_sha1_update(&h,bytes.data(),bytes.size());pd_sha1_hex(&h,hex);}
-  bool supported=!std::strcmp(hex,pd_ds_data::sha1);char code[5]={};std::memcpy(code,bytes.data()+12,4);int revision=bytes[30];
+  bool supported=!std::strcmp(hex,pd_ds_data::sha1);
+  // HeartGold / SoulSilver: the TRAINER wing's facts only (time of day, Berry Pots, money, place) for now.
+  // It only reads RAM, so a US cart's other dumps (by its header) count too.
+  const bool johto=!supported&&(ds_companion_game(ds_canonical_sha1(hex))==DsGame::Johto||
+                                ((!std::memcmp(bytes.data()+12,"IPKE",4)||!std::memcmp(bytes.data()+12,"IPGE",4))&&bytes[30]==0));char code[5]={};std::memcpy(code,bytes.data()+12,4);int revision=bytes[30];
   DsMapArt mapArt=supported?ds_map_art(bytes):DsMapArt{};
   auto partyArt=supported?ds_party_icons(bytes):std::vector<std::vector<uint32_t>>{};
   auto nds=ds_core_create();active=nds.get();
@@ -611,7 +626,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     int layout=prefs.layout==DSL_ONE && !field?DSL_PIP:prefs.layout;
     if(choosing && std::getenv("POCKET_DS_STOP_ON_BATTLE_INPUT"))limit=frame+1;
     if(pressed&(1u<<15)){paused=!paused;showQuick=false;blocked|=keys&4095u;}
-    DsCompanion snap=supported?ds_read_companion(nds->mainRam(),nds->mainRamSize()):DsCompanion{};
+    DsCompanion snap=supported?ds_read_companion(nds->mainRam(),nds->mainRamSize()):
+      johto?ds_read_companion(nds->mainRam(),nds->mainRamSize(),DsGame::Johto):DsCompanion{};
     quick_item quickItems[4]{};
     quickItems[0].action=QUICK_COMPANION;
     quickItems[1].action=QUICK_SAVE_STATE;
@@ -737,7 +753,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       // TOUCH IN WING / WINGS: the companion's panels in the wings (under a floating touch screen's dim).
       if(place.panel[0].shown() || place.panel[1].shown() || place.split())gutter_screen(renderer,topInset?place.touch:place.top,look);
-      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,partyArt,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
+      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,supported||johto,partyArt,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
       wingPanels=place.panel[0].shown();
       if(place.touchFloats){SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer,0,0,0,150);SDL_RenderFillRect(renderer,nullptr);SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_NONE);}
       if(place.touchFloats || place.inset)frame_screen(renderer,topInset?place.top:place.touch);
