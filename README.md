@@ -31,7 +31,8 @@ UPDATES`.
 
 | Thing | How |
 | --- | --- |
-| Controls | Built in handheld controls and Xbox style controllers work as they come, and can be plugged in mid game. Keyboard: arrows, Z = A, X = B, Enter = START, Backspace = SELECT, Q / E = L / R, Tab = companion, F = quick menu, V = next companion view, K = lock the side panel, Escape = game menu. Other controllers: a line in `DATA\gamecontrollerdb.txt`. |
+| Controls | Built in handheld controls and any SDL controller work as they come, and can be plugged in mid game. Keyboard: arrows, Z = A, X = B, Enter = START, Backspace = SELECT, Q / E = L / R, Tab = companion, F = quick menu, V = next companion view, K = lock the side panel, Escape = game menu. Other controllers: a line in `DATA\gamecontrollerdb.txt`. |
+| Button layout and hotkeys | `CONTROLS` at the bottom of the game list (and `SETTINGS` > `BUTTON LAYOUT`): `NINTENDO` (right button = A, the default) or `XBOX` (the button printed A = A); pick the one printed on your pad. GUIDE, SHARE, the four back paddles, L3 and R3 can each open the game menu or companion, fast forward, save / load a state, take a screenshot (`DATA\screenshots`), switch full screen, step the DS layout or swap the DS screens. |
 | Full screen | F11, Alt+Enter, L3 + R3 on a controller, the game menu or `SETTINGS` > `FULLSCREEN` switch it any time (borderless, remembered; on by default on a handheld's screen). `POCKET_FULLSCREEN=1` forces it; `POCKET_WINDOW=1920x1080` opens a window of that size. |
 | Start a game directly | `pokedaisy.exe "D:\Games\My Game.gba"`; `--data FOLDER` uses another data folder. |
 | COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
@@ -73,6 +74,9 @@ Keep this list current: a pull request that changes what the fork adds updates i
   Boy saves sit next to the game (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.
 - **Full screen** on the desktop host: `FULLSCREEN` (borderless) switched any time by F11, Alt+Enter, L3 + R3, the
   game menu or `SETTINGS`, remembered, and on by default the first time on a handheld's screen.
+- **Button layout and hotkeys** on the desktop host: `BUTTON LAYOUT` `NINTENDO` / `XBOX` picks which face button is
+  A, and the extra buttons (GUIDE, SHARE, back paddles, L3 / R3) can be given a job: game menu, companion, fast
+  forward, states, screenshot, full screen, DS layout, swap screens.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change.

@@ -66,6 +66,14 @@ int pd_ff_index(int speed);
 enum pd_scaling { PD_SCALE_INTEGER, PD_SCALE_FIT, PD_SCALE_STRETCH, PD_SCALINGS };
 
 // What the player set; the host loads and saves it (pd_settings.h).
+// BUTTON LAYOUT: which face button is the game's A on a controller.
+enum pd_button_layout {
+    PD_LAYOUT_NINTENDO, // by position: the right button is A, the bottom one B (a Nintendo-style pad's labels)
+    PD_LAYOUT_XBOX,     // by label: the button printed A is A (the bottom one on an Xbox-style pad)
+    PD_BUTTON_LAYOUTS,
+};
+#define PD_HOTKEY_BUTTONS 8
+#define PD_HOTKEY_ACTIONS 11
 struct pd_settings {
     int screenMode; // enum pd_screen_mode
     int ffSpeed;    // PD_FF_MIN..PD_FF_MAX
@@ -110,6 +118,10 @@ struct pd_settings {
     bool dimCompanion; // ... and DIM COMPANION (its panels drawn darker, against OLED burn-in)
     bool savesBeside;  // hosts with hasSavesBeside: SAVES BESIDE GAMES (on), an added folder's game saves next to it
     int fullscreen;    // hosts with hasFullscreen: FULLSCREEN, 1 / 0, -1 = not chosen yet (the host picks by screen size)
+    int buttonLayout;  // hosts with hasButtonLayout: BUTTON LAYOUT, enum pd_button_layout
+    // The desktop host's extra pad buttons (GUIDE, SHARE, the four back paddles, L3, R3): an action each, 0 = their
+    // usual use (linux/main.c's HOTKEY_ACTIONS).
+    unsigned char hotkeys[PD_HOTKEY_BUTTONS];
 };
 
 // COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.
@@ -203,6 +215,7 @@ struct pd_host_info {
     bool hasShaders;       // Optional: SHADER, COLORS and DIM COMPANION's rows
     bool hasSavesBeside;   // Optional: SAVES BESIDE GAMES' row (settings.savesBeside)
     bool hasFullscreen;    // Optional: FULLSCREEN's row (settings.fullscreen)
+    bool hasButtonLayout;  // Optional: BUTTON LAYOUT's row (settings.buttonLayout)
     bool hasDisplayFilter; // host implements OFF / LCD
     bool hasQuickMenu;   // host implements the selectable RING / GRID quick menu
     bool hasButtonRows;  // Optional: QUICK MENU / COMPANION / HUD CURSOR button rows (the host reads settings.*Btn)

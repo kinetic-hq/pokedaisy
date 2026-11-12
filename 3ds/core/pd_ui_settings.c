@@ -248,6 +248,9 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
     }
     if (host && host->hasFullscreen)
         setting(ui, c, ix, &y, iw, SETTING_FULLSCREEN, "FULLSCREEN", st->fullscreen == 1 ? "ON" : "OFF");
+    if (host && host->hasButtonLayout)
+        setting(ui, c, ix, &y, iw, SETTING_BUTTON_LAYOUT, "BUTTON LAYOUT",
+                st->buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
     if (host && host->hasSavesBeside)
         setting(ui, c, ix, &y, iw, SETTING_SAVES_BESIDE, "SAVES BESIDE GAMES", st->savesBeside ? "ON" : "OFF");
     if (host && host->hasDisplayFilter)
