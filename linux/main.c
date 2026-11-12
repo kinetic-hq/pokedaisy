@@ -2743,7 +2743,8 @@ extern void (*pd_ds_point)(float, float, float *, float *);
 extern int pd_ds_game_touch_off;
 extern bool (*pd_ds_rewind_held)(void);
 extern int pd_ds_rewind_on;
-extern int pd_ds_ui_size, pd_ds_wing_room;
+extern int pd_ds_ui_size, pd_ds_wing_room, pd_ds_theme;
+extern bool pd_ds_dark;
 static bool ds_rewind_held(void) { return rewindHeld || rewindKey; }
 static bool ds_running(void) { return running != 0; }
 #endif
@@ -2920,6 +2921,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       pd_settings_load(&st, cfg);
       pd_ds_rewind_on = st.rewind || rewind_hotkey();
       pd_ds_ui_size = st.uiSize;     // UI SIZE and WING ROOM: the DS layouts follow the screen's settings
+      pd_ds_theme = st.theme;        // THEME and DARK MODE: the DS companion wears the app's look
+      pd_ds_dark = st.darkMode;
       pd_ds_wing_room = st.wingRoom;
     }
     appError = pd_ds_run(path, root, maxFrames, shot, renderer, ds_running);

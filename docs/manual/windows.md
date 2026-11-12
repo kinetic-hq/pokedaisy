@@ -371,8 +371,8 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `APP` | | `BATTERY SAVER`, `THIS GAME ONLY`, `RESUME GAMES`, `CHECK FOR UPDATES` |
 
 Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close
-with B. DS games keep their own `SET` tab, which has `DS LAYOUT` and
-`DS WING SIDE`.
+with B. A DS game's companion keeps its own `SETTINGS` (the gear tab), which has
+`DS LAYOUT` and `DS WING SIDE`.
 
 ## Shaders and colours
 
@@ -452,7 +452,7 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   wearing off), a short note shows at the top of the right wing for a couple
   of seconds and fades away.
 
-DS games have the same rows in the companion's `SET` tab.
+DS games have the same rows in the companion's `SETTINGS` (the gear tab).
 
 ## Nintendo DS games
 
@@ -469,7 +469,7 @@ Each time a DS game starts its save is first copied to `DATA\backups`. DS save
 states go to `DATA\states` and never hold the save.
 
 `DS LAYOUT` picks where the two DS screens go in the window. Change it in the
-companion's `SET` tab, in the game list's `SETTINGS`, or hold
+DS companion's `SETTINGS`, in the game list's `SETTINGS`, or hold
 SELECT (Backspace) and press RT (Space) for the next one or LT (Tab) for the one
 before. A tap on R3 also steps to the next one. The picker shows each layout as a small picture of the window, marked
 the same way as the companion views (`TOUCH IN WING`, `WINGS` and
@@ -536,13 +536,19 @@ smaller against the wings instead.
 The DS companion fills the window and wears the same theme and `DARK MODE` as
 the Game Boy Advance companion; `UI SIZE` sets how large its text is.
 
-The companion reads one DS game so far, Platinum (USA): its party, bag, dex
-and Town Map. It goes by the game code inside the file (`CPUE`, revision 0 or
-1), so a trimmed or re-dumped copy works too, and so does Renegade
-Platinum (its party, bag and map; types and stats still come from the original
-game). HeartGold and SoulSilver (USA) get the `TRAINER` facts. For other DS
-games you get the game alone, and the companion tells you which game and
-revision it found, and which one it needs.
+The DS companion has the same tabs as on a handheld: `PARTY` with each
+member's summary, `BAG` with its pockets, `DEX` with each entry's page, `MAP`
+with `PLACES`, `GUIDE`, and in a battle `BATTLE`, which shows the foe and how
+well each of your moves does against it. L and R move between the tabs and the
+gear at the end opens `SETTINGS`: your trainer facts, then the DS rows (`SCREEN`,
+`DS LAYOUT` and the rest).
+
+It reads Platinum (USA) in full. It goes by the game code inside the file
+(`CPUE`, revision 0 or 1), so a trimmed or re-dumped copy works too, and so does
+Renegade Platinum (read as the original game, so types, stats and the `GUIDE`
+are the original game's). HeartGold and SoulSilver (USA) get every tab but
+`BATTLE`. For other DS games you get the game alone, and `SETTINGS` tells you
+which game and revision it found, and which ones the companion reads.
 
 ## When something goes wrong
 

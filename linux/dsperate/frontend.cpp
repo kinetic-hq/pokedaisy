@@ -9,6 +9,8 @@
 #include "pk_nds_field.h"
 #include "ds_layout.h"
 #include "touch_pieces.h"
+#include "companion_ui.h"
+#include "retro_pad.h"
 #include "../shader.h"
 #include "../backdrop.h"
 #include "../wing_look.h"
@@ -41,7 +43,10 @@ bool pocket_save_backup(const char*,time_t);
 extern const char* pocket_backup_dir;
 extern int pd_ds_xbox_layout;  // BUTTON LAYOUT XBOX, set by the host (outside the unnamed namespace, so it links)
 }
-extern "C" { extern int pd_ds_ui_size; }  // UI SIZE, set by the host (main.c), defined below
+extern "C" { extern int pd_ds_ui_size; extern int pd_ds_theme; extern bool pd_ds_dark; }
+// The handheld DS core's battle reader (linux/libretro-ds/battle_strip.cpp): the BATTLE tab's foe and matchup.
+void ds_read_battle_companion(const PkNdsFieldGame*,uint32_t (*read32)(uint32_t),const uint8_t* ram,size_t ramSize,
+                              const DsCompanion&,pd_snapshot&);  // UI SIZE, set by the host (main.c), defined below
 namespace {
 DsCore* active=nullptr;
 uint32_t read32(uint32_t a){return active->read32(a);}
@@ -193,80 +198,6 @@ void frame_screen(SDL_Renderer* r,const DsBox& box){
   SDL_RenderFillRects(r,sides,4);
 }
 std::string ds_unsupported_label; // the cart, when the companion can't read it (ds_cart_label)
-void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int selected,bool summary,int scroll,int page,const DsPrefs& prefs,int setting,const DsMapArt& art,int mapX,int mapY){
-  // The GBA companion's look (pd_style: the theme, DARK MODE): its backdrop, title and list windows, tab colours.
-  pd_backdrop(&c);pd_title_box(&c,5,5,c.w-10,25,PD_TITLE_FILL);
-  pd_text(&c,12,pd_text_y(5,25),"POKEDAISY DS",PD_TITLE_TEXT,PD_TITLE_SHADOW);
-  const char* tabs[]={"PARTY","BAG","DEX","STATUS","SET","MAP"};
-  for(int i=0;i<6;i++){
-    int x=5+i*(c.w-10)/6,w=(c.w-10)/6-2;
-    pd_title_box(&c,x,34,w,23,i==tab?pd_cur->tabSelectedFill:pd_cur->tabIdleFill);
-    pd_text(&c,x+(w-pd_text_width(tabs[i]))/2,pd_text_y(34,23),tabs[i],i==tab?PD_TITLE_TEXT:PD_MUTED,i==tab?PD_TITLE_SHADOW:PD_MUTED_SHADOW);
-  }
-  pd_list_box(&c,5,61,c.w-10,c.h-86);int y=68;
-  auto line=[&](const std::string& t){pd_text_fit(&c,13,y,c.w-26,t.c_str(),PD_LABEL,PD_LABEL_SHADOW);y+=20;};
-  if(tab==4){
-    const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("DS LAYOUT: ")+ds_layout_name(prefs.layout),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF"),std::string("SHADER: ")+pocket_shader_name(prefs.shader),std::string("COLORS: ")+pocket_colors_name(prefs.colors),std::string("DIM COMPANION: ")+(prefs.dim?"ON":"OFF"),std::string("DS WING SIDE: TOUCH ")+(prefs.wingLeft?"LEFT":"RIGHT"),std::string("BACKGROUND: ")+pocket_background_name(prefs.look())};
-    for(int i=0;i<DS_SETTINGS;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,18,PD_ROW_SELECTED);pd_text_fit(&c,13,y,c.w-26,rows[i].c_str(),PD_LABEL,PD_LABEL_SHADOW);y+=17;}
-  }
-  else if(!supported){
-    // What this cart is and what the companion reads, so a player knows which dump to look for.
-    line("No companion for this game yet.");
-    line("This is "+ds_unsupported_label+".");
-    line("Full companion: Platinum (USA) (CPUE).");
-    line("TRAINER facts: HeartGold, SoulSilver (USA).");
-  }
-  else if(!s.valid){line("Waiting for the game's save data");line("Return to the game to finish booting");}
-  else if(tab==5){
-    if(art.background.empty())line("Map art unavailable");
-    else {
-      int ox=(c.w-art.width)/2,oy=std::max(61,61+(c.h-86-art.height)/2);  // centred in the list window
-      for(int y=0;y<art.height;y++)for(int x=0;x<art.width;x++)c.px[(oy+y)*c.w+ox+x]=art.background[y*art.width+x]&0xffffff;
-      auto sprite=[&](const std::vector<uint32_t>& img,int cx,int cy){for(int y=0;y<16;y++)for(int x=0;x<16;x++){
-        int dx=cx-8+x,dy=cy-8+y;if(dx>=0 && dx<art.width && dy>=0 && dy<art.height && (img[y*16+x]>>24))c.px[(oy+dy)*c.w+ox+dx]=img[y*16+x]&0xffffff;
-      }};
-      for(auto mark:pd_ds_data::mapMarks){
-        bool visited=mark.arrival<56 && ((s.arrivals>>mark.arrival)&1);
-        if(mark.hidden && !visited)continue;
-        int variant=visited?1+mark.palette:0,index=mark.shape*3+variant;
-        if(index<int(art.blocks.size()))sprite(art.blocks[index],mark.x-pd_ds_data::mapLeft,mark.y-pd_ds_data::mapTop);
-      }
-      if(s.mapX>=0 && s.mapY>=0 && !art.heads.empty())sprite(art.heads[s.playerGender==1?1:0],pd_ds_data::mapOriginX+s.mapX*pd_ds_data::mapTile+3,pd_ds_data::mapOriginY+s.mapY*pd_ds_data::mapTile+3);
-      int cx=ox+pd_ds_data::mapOriginX+mapX*pd_ds_data::mapTile,cy=oy+pd_ds_data::mapOriginY+mapY*pd_ds_data::mapTile;
-      pd_clip(&c,ox,oy,art.width,art.height);
-      pd_fill(&c,cx,cy,7,1,0xe84840);pd_fill(&c,cx,cy+6,7,1,0xe84840);pd_fill(&c,cx,cy,1,7,0xe84840);pd_fill(&c,cx+6,cy,1,7,0xe84840);pd_unclip(&c);
-      pd_fill(&c,10,9,c.w-20,17,PD_TITLE_FILL);
-      const char* name=ds_map_name(ds_map_section(mapX,mapY));pd_text_fit(&c,12,10,c.w-24,*name?name:"No location",PD_TITLE_TEXT,PD_TITLE_SHADOW);
-    }
-  }
-  else if(tab==0 && summary && selected<int(s.party.size())){
-    auto& m=s.party[selected];line(m.nickname+"  Lv"+std::to_string(m.level));
-    line(std::string(ds_species(m.species))+"  HP "+std::to_string(m.hp)+"/"+std::to_string(m.maxHp));
-    line(std::string("ITEM: ")+ds_item(m.heldItem));
-    if(page){
-      line(std::string("NATURE: ")+ds_nature(m.nature));
-      line("EXP: "+std::to_string(m.experience)+(m.level==100?"  MAX LEVEL":""));
-      line(std::string("STATUS: ")+ds_status(m));
-      line(std::string(m.egg?"EGG  ":"")+"GENDER: "+(m.gender==1?"MALE":m.gender==2?"FEMALE":"NONE"));
-    }else for(int i=0;i<4;i++)if(m.moves[i])line(std::string(ds_move(m.moves[i]))+"  PP "+std::to_string(m.pp[i]));
-  }else if(tab==0){for(size_t i=0;i<s.party.size();i++){
-    auto& m=s.party[i];if(int(i)==selected)pd_fill(&c,10,y-2,c.w-20,20,PD_ROW_SELECTED);
-    line(m.nickname+" Lv"+std::to_string(m.level)+"  "+std::to_string(m.hp)+"/"+std::to_string(m.maxHp));
-  }}else if(tab==1){int rows=(c.h-100)/20;for(int i=scroll;i<int(s.bag.size()) && i<scroll+rows;i++)line(std::string(ds_item(s.bag[i].id))+" x"+std::to_string(s.bag[i].count));}
-  else if(tab==2){
-    if(!s.dexValid)line("Pokedex data unavailable");
-    else {
-      line("SEEN "+std::to_string(s.seenCount)+"  OWN "+std::to_string(s.caughtCount));
-      int rows=(c.h-120)/20;
-      for(int n=scroll+1;n<int(s.dexSeen.size()) && n<scroll+1+rows;n++){
-        char number[16];std::snprintf(number,sizeof number,"%03d ",n);
-        line(std::string(number)+(s.dexSeen[n]?ds_species(n):"???")+(s.dexCaught[n]?"  OWN":s.dexSeen[n]?"  SEEN":""));
-      }
-    }
-  }
-  else {line("TRAINER: "+s.trainer);line("MONEY: "+std::to_string(s.money));line(std::string("PLACE: ")+ds_place(s.map));line("MAP: "+std::to_string(s.map));line(s.dexValid?(s.nationalDex?"NATIONAL DEX: UNLOCKED":"NATIONAL DEX: LOCKED"):"DEX: UNAVAILABLE");}
-  pd_text_fit(&c,9,c.h-20,c.w-18,tab==5?"D-pad move  A player  L/R tabs":tab==4?"Up/Down select  A change  L/R tabs":tab==0 && summary?"Left/Right info/moves  Up/Down Pokemon":tab==1 || tab==2?"Up/Down scroll  Left/Right page  L/R tabs":"L/R tabs  A summary  B back  HOME game",PD_ON_BACKDROP,PD_ON_BACKDROP_SHADOW);
-}
 }
 // The party as the GBA panels and HUD read it: nicknames, HP, level, status (the DS species drawn by the caller).
 pd_snapshot ds_party_snapshot(const DsCompanion& snap){
@@ -417,7 +348,7 @@ extern "C" { bool (*pd_ds_host_event)(const SDL_Event*)=nullptr; }
 // BUTTON LAYOUT XBOX: the bottom face button is A (SDL reports pads by position); else the right one, as before.
 extern "C" { int pd_ds_xbox_layout=0; }
 // UI SIZE and WING ROOM, the host's SCREEN settings, for the DS companion and the layouts with wings.
-extern "C" { int pd_ds_ui_size=1; int pd_ds_wing_room=1; }
+extern "C" { int pd_ds_ui_size=1; int pd_ds_wing_room=1; int pd_ds_theme=0; bool pd_ds_dark=false; }
 // The host's HOTKEYS (main.c's HA_* bits: 1 GAME MENU, 2 COMPANION, 4 SAVE STATE, 5 LOAD STATE, 8 / 9 DS LAYOUT
 // NEXT / BACK, 10 SWAP SCREENS), read and cleared once a frame; and its screenshot, taken before a present.
 extern "C" { unsigned (*pd_ds_host_actions)(void)=nullptr; }
@@ -442,6 +373,18 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
                                 ((!std::memcmp(bytes.data()+12,"IPKE",4)||!std::memcmp(bytes.data()+12,"IPGE",4))&&bytes[30]==0));char code[5]={};std::memcpy(code,bytes.data()+12,4);int revision=bytes[30];
   DsMapArt mapArt=supported?ds_map_art(bytes):DsMapArt{};
   auto partyArt=supported?ds_party_icons(bytes):std::vector<std::vector<uint32_t>>{};
+  // The companion: the handheld DS core's shell (PARTY, BAG, DEX, MAP, GUIDE, BATTLE), with HeartGold and SoulSilver's
+  // own art read from their cart.
+  const DsGame shellGame=supported?DsGame::Platinum:johto?DsGame::Johto:DsGame::Unsupported;
+  DsMapArt johtoMap=johto?ds_map_art(bytes,DsGame::Johto):DsMapArt{};
+  auto johtoIcons=johto?ds_party_icons(bytes,DsGame::Johto):std::vector<std::vector<uint32_t>>{};
+  DsMapArt& shellMap=johto?johtoMap:mapArt;
+  const auto& shellIcons=johto?johtoIcons:partyArt;
+  auto shell=std::make_unique<DsCompanionUi>();
+  shell->init(root);
+  shell->set_game(shellGame,johto && !std::memcmp(bytes.data()+12,"IPG",3));
+  if(shellGame!=DsGame::Unsupported)shell->dexArt=ds_dex_art(bytes,shellGame);
+  DsCompanion shellSnap;bool shellOpen=false;
   auto nds=ds_core_create();active=nds.get();
   std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,supported?"Platinum":"unsupported");
   std::deque<std::vector<uint8_t>> rewindRing;int rewindTick=0,rewindStep=0;
@@ -505,7 +448,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // Platinum rev 0 runs on rev 1's field addresses (its party, field and battle structs sit at the same places).
   const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):nullptr;
   bool& bottom=prefs.bottom;
-  bool done=false,showCompanion=false,showQuick=false,paused=false,summary=false,failed=false;
+  bool done=false,showCompanion=false,showQuick=false,paused=false,failed=false;
   int quickSelected=0;uint32_t blocked=0;
   bool layoutPick=false;int layoutSel=0,layoutScroll=0,layoutTiles[DSL_COUNT][4]={};
   // R3: a tap steps DS LAYOUT (skipping layouts drawn the same on this window), a hold opens the picker; the
@@ -514,7 +457,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // FF TOGGLE (L3 by default): three frames a turn, muted. ZOOM: WING ROOM for this run (-1 the setting's).
   bool fastForward=false;int zoomStep=0,zoomRoom=-1;
   auto showToast=[&](const char* text){toast=text;toastUntil=SDL_GetTicks()+1500;std::fprintf(stderr,"DS LAYOUT %s\n",text);};
-  int mapX=-1,mapY=-1,setting=0,page=0,tab=0,selected=0,scroll=0,touchX=128,touchY=96;uint32_t keys=0,lastActivityKeys=0,wingActivity=SDL_GetTicks(),wingSign=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
+  int setting=0,touchX=128,touchY=96;uint32_t keys=0,lastActivityKeys=0,wingActivity=SDL_GetTicks(),wingSign=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
   const int raw[]={1,0,11,10,9,8,2,3,15,-1,12,13};const bool rawTrimui=std::getenv("POCKET_RAW_TRIMUI")!=nullptr;
   struct Press{int at,n;uint32_t mask;};std::vector<Press> script,hostScript;
   // POCKET_DS_REWIND=AT:FRAMES holds REWIND from loop frame AT for FRAMES (headless checks).
@@ -713,34 +656,18 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         if(!layoutPick)r3Held=false;
         pressed=0;
       }
-      if(tab==0 && summary && (pressed&((1u<<4)|(1u<<5))))page=1-page;
-      if(pressed&(1u<<8)){tab=(tab+1)%6;summary=false;scroll=0;}
-      if(pressed&(1u<<9)){tab=(tab+5)%6;summary=false;scroll=0;}
-      if(tab==5){
-        int minY=std::max(0,int(std::ceil(double(-pd_ds_data::mapOriginY-3)/pd_ds_data::mapTile)));
-        int maxY=std::min(29,int((pd_ds_data::mapHeight-1-pd_ds_data::mapOriginY-3)/pd_ds_data::mapTile));
-        if(mapX<0 || (pressed&((1u<<8)|(1u<<9)|1))){mapX=snap.mapX>=0?snap.mapX:0;mapY=snap.mapY>=0?snap.mapY:minY;}
-        if(pressed&(1u<<4))mapX++;
-        if(pressed&(1u<<5))mapX--;
-        if(pressed&(1u<<6))mapY--;
-        if(pressed&(1u<<7))mapY++;
-        mapX=std::clamp(mapX,0,29);mapY=std::clamp(mapY,minY,maxY);
-      }
-      if(tab==4){
+      // The shell's own controls (as the handheld core's: the DS keys in libretro's order); SET's rows are ours.
+      static const int retroBit[12]={RETRO_DEVICE_ID_JOYPAD_A,RETRO_DEVICE_ID_JOYPAD_B,RETRO_DEVICE_ID_JOYPAD_SELECT,
+        RETRO_DEVICE_ID_JOYPAD_START,RETRO_DEVICE_ID_JOYPAD_RIGHT,RETRO_DEVICE_ID_JOYPAD_LEFT,RETRO_DEVICE_ID_JOYPAD_UP,
+        RETRO_DEVICE_ID_JOYPAD_DOWN,RETRO_DEVICE_ID_JOYPAD_R,RETRO_DEVICE_ID_JOYPAD_L,RETRO_DEVICE_ID_JOYPAD_X,RETRO_DEVICE_ID_JOYPAD_Y};
+      unsigned retro=0;for(int k=0;k<12;k++)if(pressed&(1u<<k))retro|=1u<<retroBit[k];
+      if(shell->frame.tab==PD_TAB_SETTINGS && shell->frame.overlay==PD_OVERLAY_NONE && !layoutPick){
         if(pressed&(1u<<6))setting=(setting+DS_SETTINGS-1)%DS_SETTINGS;
         if(pressed&(1u<<7))setting=(setting+1)%DS_SETTINGS;
         if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1){layoutPick=true;layoutSel=prefs.layout;}else if(setting==2)prefs.resume=!prefs.resume;else if(setting==3)prefs.battle=1-prefs.battle;else if(setting==4)prefs.hud=!prefs.hud;
           else if(setting==5)prefs.shader=(prefs.shader+1)%POCKET_SHADERS;else if(setting==6)prefs.colors=(prefs.colors+1)%POCKET_COLORS_COUNT;else if(setting==7)prefs.dim=!prefs.dim;else if(setting==8)prefs.wingLeft=!prefs.wingLeft;else prefs.background=(prefs.look()+1)%POCKET_BACKGROUNDS;}
       }
-      if(tab!=4 && tab!=5 && (pressed&(1u<<6))){if(tab==1 || tab==2)scroll=std::max(0,scroll-1);else selected=std::max(0,selected-1);}
-      if(tab!=4 && tab!=5 && (pressed&(1u<<7))){if(tab==1 || tab==2)scroll=std::min(std::max(0,(tab==1?int(snap.bag.size()):int(snap.dexSeen.size())-1)-1),scroll+1);else selected=std::min(std::max(0,int(snap.party.size())-1),selected+1);}
-      if(tab==1 || tab==2){
-        int last=std::max(0,(tab==1?int(snap.bag.size()):int(snap.dexSeen.size())-1)-1);
-        if(pressed&(1u<<4))scroll=std::min(last,scroll+7);
-        if(pressed&(1u<<5))scroll=std::max(0,scroll-7);
-      }
-      if(tab==0 && (pressed&1))summary=true;
-      if(pressed&(1u<<1)){if(summary)summary=false;else showCompanion=false;}
+      if(retro && shell->control(retro) && (!shell->frame.moreOpened || !pd_ui_back(&shell->frame)))showCompanion=false;
     }else if(!done){
       uint32_t gameKeys=keys&~blocked;
       bool touchMode=ds_touch_shown(touchPlace) && (gameKeys&(1u<<2));
@@ -800,8 +727,38 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     {uint32_t sign=uint32_t(snap.map)*2654435761u^uint32_t(snap.money)^uint32_t(snap.badges)<<20^uint32_t(snap.party.size())<<26;
      for(auto& m:snap.party)sign=sign*31+uint32_t(m.hp);
      if(keys!=lastActivityKeys || pointerDown || sign!=wingSign){wingActivity=SDL_GetTicks();lastActivityKeys=keys;wingSign=sign;}}
+    if(!showCompanion)shellOpen=false;
     bool wingPanels=false;  // the party is in a wing: no HUD party row over the game
-    if(showCompanion){companion(canvas,snap,supported,tab,selected,summary,scroll,page,prefs,setting,mapArt,mapX,mapY);
+    if(showCompanion){
+      if(!shellOpen){
+        // Opening: the game stands still while the companion shows, so it reads the save, map and battle once.
+        shellSnap=snap;ds_map_update(shellMap,shellSnap);
+        if(shellSnap.mapX>=0 && shellSnap.mapY>=0){shell->mapX=shellSnap.mapX;shell->mapY=shellSnap.mapY;}
+        shell->guideLoadedPage=-1;pd_ui_guide_reset(&shell->frame);
+        ds_read_battle_companion(field,read32,nds->mainRam(),nds->mainRamSize(),shellSnap,shell->battle);
+        shell->update_battle();shellOpen=true;
+      }
+      shell->settings.theme=pd_ds_theme;shell->darkMode=pd_ds_dark;
+      // SET: the facts (TRAINER, PLACE, MONEY, DEX, or what this cart is), then this app's DS settings.
+      char money[32];pd_ui_format_money(shellSnap.valid?shellSnap.money:-1,money,sizeof money);
+      const std::string values[]={bottom?"BOTTOM":"TOP",ds_layout_name(prefs.layout),prefs.resume?"ON":"OFF",prefs.battle?"AUTO":"OFF",prefs.hud?"ON":"OFF",
+        pocket_shader_name(prefs.shader),pocket_colors_name(prefs.colors),prefs.dim?"ON":"OFF",std::string("TOUCH ")+(prefs.wingLeft?"LEFT":"RIGHT"),pocket_background_name(look)};
+      static const char* const labels[DS_SETTINGS]={"SCREEN","DS LAYOUT","AUTO-RESUME","BATTLES","HUD","SHADER","COLORS","DIM COMPANION","DS WING SIDE","BACKGROUND"};
+      pd_option_row rows[4+DS_SETTINGS];int info=0;
+      if(shellGame==DsGame::Unsupported){
+        rows[info++]={"THIS CART",ds_unsupported_label.c_str()};
+        rows[info++]={"COMPANION","PLATINUM, HEARTGOLD, SOULSILVER (USA)"};
+      }else{
+        rows[info++]={"TRAINER",shellSnap.valid?shellSnap.trainer.c_str():"-"};
+        rows[info++]={"PLACE",shellSnap.valid?ds_place(shellSnap.map,shellGame):"-"};
+        rows[info++]={"MONEY",money};
+        rows[info++]={"NATIONAL DEX",!shellSnap.dexValid?"-":shellSnap.nationalDex?"UNLOCKED":"LOCKED"};
+      }
+      for(int i=0;i<DS_SETTINGS;i++)rows[info+i]={labels[i],values[i].c_str()};
+      shell->hostRows=rows;shell->hostRowCount=info+DS_SETTINGS;shell->hostInfo=info;shell->hostSelected=setting;
+      shell->draw(&canvas,shellSnap,shellGame!=DsGame::Unsupported,shellMap,shellIcons);
+      shell->hostRows=nullptr;
+      pd_settings hostLook{};hostLook.theme=pd_ds_theme;hostLook.darkMode=pd_ds_dark;pd_look_apply(nullptr,&hostLook);
       if(layoutPick)pd_layout_picker_draw(&canvas,"DS LAYOUT",ds_layout_options(),DSL_COUNT,prefs.layout,layoutSel,-1,&layoutScroll,layoutTiles);
       uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),canvas.w,canvas.h,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
     else{
