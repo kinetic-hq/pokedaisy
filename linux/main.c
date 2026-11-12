@@ -5098,10 +5098,19 @@ static void save_editor(const char *rom, const char *gameName) {
       }
       char backup[1100];
       if (se_save(e, backup, sizeof backup, err, sizeof err)) {
+        /* A resume state from before the edit would bring the old save back with CONTINUE: set it aside. */
+        char states[1100];
+        const char *file = rom;
+        for (const char *s = rom; *s; s++)
+          if (*s == '/' || *s == '\\')
+            file = s + 1;
+        snprintf(states, sizeof states, "%s/states", root);
+        int aside = se_set_resume_aside(states, file, time(NULL));
         char done[1400];
         snprintf(done, sizeof done,
-                 "Saved. The old save is kept as %s. Start the game from its save (not CONTINUE from a state) to see the "
-                 "changes.",
+                 aside < 0 ? "Saved. The old save is kept as %s. Start the game from its save (not CONTINUE) to see "
+                             "the changes."
+                           : "Saved. The old save is kept as %s. The game starts from the edited save next time.",
                  backup);
         editor_say("SAVED", done);
       } else

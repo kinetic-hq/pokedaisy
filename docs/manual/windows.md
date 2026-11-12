@@ -187,9 +187,11 @@ doesn't check out, is refused and left alone.
   copied next to it as `<save>.before-edit-<date>-<time>.sav`, and the new file
   is read back and checked; if that fails, the old save is put back.
 
-Leaving with changes you haven't saved asks you first. After saving, start the
-game from its save: answer `Start from save` if you're asked to continue where
-you left off, or the game would go back to where it was before the edit.
+Leaving with changes you haven't saved asks you first. Saving also sets aside
+the game's `Continue where you left off?` point from before the edit (it would
+take you back to the old save), so the next start is from the edited save. That
+point isn't deleted: it's kept in `DATA\states` with `.before-edit-` and the date
+added to its name.
 
 ## Full screen and controllers
 

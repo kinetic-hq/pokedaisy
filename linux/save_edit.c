@@ -13,6 +13,7 @@
 #include "pd_game.h"
 #include "pd_snapshot.h"
 #include "pd_tables.h"
+#include "pocket_os.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -115,6 +116,38 @@ struct save_edit *se_open(const char *save, const char *rom, char *err, size_t e
 void se_close(struct save_edit *e) {
   if (e && e->ops)
     e->ops->free(e);
+}
+
+struct resume_scan {
+  const char *prefix;
+  char names[16][512];
+  int count;
+};
+static void resume_each(const char *name, void *user) {
+  struct resume_scan *s = user;
+  size_t n = strlen(name), p = strlen(s->prefix), tail = strlen(".resume.ss");
+  if (s->count < 16 && n >= p + tail && n < sizeof s->names[0] && !strncmp(name, s->prefix, p) &&
+      !strcmp(name + n - tail, ".resume.ss"))
+    snprintf(s->names[s->count++], sizeof s->names[0], "%s", name);
+}
+int se_set_resume_aside(const char *statesDir, const char *romFile, time_t now) {
+  struct resume_scan s = {romFile, {{0}}, 0};
+  if (!pocket_list_dir(statesDir, resume_each, &s))
+    return 0; /* no states folder: nothing to set aside */
+  struct tm tm;
+  pocket_localtime(&now, &tm);
+  char stamp[32];
+  strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", &tm);
+  int moved = 0;
+  for (int i = 0; i < s.count; i++) {
+    char from[1100], to[1200];
+    snprintf(from, sizeof from, "%s/%s", statesDir, s.names[i]);
+    snprintf(to, sizeof to, "%s.before-edit-%s", from, stamp);
+    if (!pocket_replace(from, to))
+      return -1;
+    moved++;
+  }
+  return moved;
 }
 
 bool se_save(struct save_edit *e, char *backup, size_t backupSize, char *err, size_t errSize) {
