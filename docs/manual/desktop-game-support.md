@@ -36,10 +36,10 @@ foe team is listed as a gap even then.
 
 Of the 71 rows:
 
-- **52** get the companion at the same level as on Android, every tab
+- **54** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **12** get a companion that falls short of Android's somewhere.
+- **10** get a companion that falls short of Android's somewhere.
 - **7** get no companion at all yet.
 
 By tab:
@@ -90,12 +90,12 @@ By tab:
 | Renegade Platinum (DS) | 1.2.0, 1.3.0 and 1.3.0 Classic (CPUE rev 1) | works | works | no | works | partly | partly | Read as Platinum: types, stats, `DEX` pages and the `GUIDE` are the original game's |
 | Unbound | 2.1.1.1; SHA-1 b4776b82 | works | works | partly | works | works | works | None |
 | Unbound | 2.1.1.1 French; SHA-1 0ce2a880 | works | works | partly | works | works | works | None |
-| Radical Red | 4.1; SHA-1 964f951a | works | works | partly | works | works | works | No foe team in battle |
+| Radical Red | 4.1; SHA-1 964f951a | works | works | partly | works | works | works | None |
 | Gaia | 3.2; SHA-1 d5b1e779 | works | works | partly | works | works | works | None |
 | Odyssey | 4.1.1; SHA-1 8745ddbd | works | works | partly | works | works | works | None |
 | Heart and Soul | 2.0.6; SHA-1 79ee6df0 | works | works | partly | works | no | works | No `DEX` tab |
 | Amethyst | 1.3.0 (SHA-1 00e70c03), 1.4.1 (91291aad) | works | works | partly | works | works | works | None |
-| Celia's Stupid Romhack | 1.1.4; SHA-1 3cbd5a2e | works | works | partly | works | works | works | No foe team in battle |
+| Celia's Stupid Romhack | 1.1.4; SHA-1 3cbd5a2e | works | works | partly | works | works | works | None |
 | Orange Islands | Beta 5.7 and an older beta; SHA-1 8bac897d, d2e3800e | works | works | partly | works | works | works | None |
 | Ultra Violet | 1.22; SHA-1 3b6c51d8 | works | works | partly | works | works | works | None |
 | FireRed Rocket Edition | The one release; SHA-1 033d0537 | works | works | partly | works | works | works | None |
@@ -139,10 +139,9 @@ By tab:
   Seaglass, Too Many Types 2, Emerald Imperium, Wishes of Tomorrow, Dreamstone
   Mysteries, Monomyth, Emerald Rogue and SoulGold, the desktop
   hides the `DEX` tab, though the app shows one.
-- **No foe team in battle.** In Radical Red, Celia's hack and
-  the German, French, Italian and Japanese FireRed and LeafGreen carts, the
-  battle panes show your side and the Pokémon you face, but not the rest of the
-  foe's team.
+- **No foe team in battle.** In the German, French, Italian and Japanese FireRed
+  and LeafGreen carts, the battle panes show your side and the Pokémon you face,
+  but not the rest of the foe's team.
 - **No guide for the Japanese carts** of FireRed, LeafGreen, Ruby, Sapphire and
   Emerald.
 - **Builds the desktop doesn't know**: Modern Emerald 3.6 and the 2026 Spanish

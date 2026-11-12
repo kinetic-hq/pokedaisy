@@ -68,6 +68,12 @@ waitForMonSelection = 0x08039E99
 actionCursor = 0x020240AC
 moveCursor = 0x020240B0
 battlerPartyIndexes = 0x02023BE2
+# FOE TEAM: celia_battle's wild PIKACHU Lv5 is at gEnemyParty 0x020240E4 (3 bytes past the party count, as in
+# FireRed); the gBattleStruct pointer sits 0x10 before the action cursor, its monToSwitchIntoId 4 bytes later than
+# FireRed's (06 06 06 06 at +0x60, then battlerPartyOrders).
+enemyParty = 0x020240E4
+battleStructPtr = 0x0202409C
+monToSwitchIntoOff = 0x60
 handleInputChooseTarget = 0
 pokedex = 'POKEDEX_CELIA'
 guideTables = 'GUIDE_TABLES_CELIA'

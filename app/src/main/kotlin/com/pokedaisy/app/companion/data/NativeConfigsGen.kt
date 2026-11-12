@@ -2942,6 +2942,12 @@ val NATIVE_CELIA = NATIVE_FIRERED_REV0.copy(
     actionCursor = 0x020240ACL,
     moveCursor = 0x020240B0L,
     battlerPartyIndexes = 0x02023BE2L,
+    // FOE TEAM: celia_battle's wild PIKACHU Lv5 is at gEnemyParty 0x020240E4 (3 bytes past the party count, as in
+    // FireRed); the gBattleStruct pointer sits 0x10 before the action cursor, its monToSwitchIntoId 4 bytes later than
+    // FireRed's (06 06 06 06 at +0x60, then battlerPartyOrders).
+    enemyParty = 0x020240E4L,
+    battleStructPtr = 0x0202409CL,
+    monToSwitchIntoOff = 0x60,
     handleInputChooseTarget = 0,
     pokedex = POKEDEX_CELIA,
     guideTables = GUIDE_TABLES_CELIA,
@@ -4355,6 +4361,13 @@ val NATIVE_RADICAL_RED_V4_1 = NATIVE_FIRERED_REV0.copy(
     // FireRed's battle menu cursors (CFRU's EWRAM), checked headless like Unbound's (radical_red_battle's README).
     actionCursor = 0x02023FF8L,
     moveCursor = 0x02023FFCL,
+    // FOE TEAM: FireRed's battle EWRAM too. radical_red_battle's wild PIKACHU is at gEnemyParty 0x0202402C (its name at
+    // +8), gBattlerPositions 8 bytes past gBattlerPartyIndexes, and the gBattleStruct pointer's monToSwitchIntoId reads
+    // 06 06 06 06 at +0x5C.
+    enemyParty = NATIVE_FIRERED_REV1.enemyParty,
+    battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
+    monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
 )
 
 // ---- gamedata/gen3/hacks/recharged_emerald.toml ----
