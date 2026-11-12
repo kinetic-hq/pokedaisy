@@ -46,6 +46,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->colors = 0;
     s->dimCompanion = false;
     s->savesBeside = true;
+    s->fullscreen = -1;
 }
 
 const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};
@@ -123,6 +124,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "volume")) int_in(value, 20, 100, &s->gameVolume);
         else if (!strcmp(key, "shader")) int_in(value, 0, PD_SHADERS - 1, &s->shader);
         else if (!strcmp(key, "colors")) int_in(value, 0, PD_COLORS - 1, &s->colors);
+        else if (!strcmp(key, "fullscreen")) int_in(value, -1, 1, &s->fullscreen);
         else {
             int on;
             bool* b = !strcmp(key, "ffaudio") ? &s->ffAudio : !strcmp(key, "rewind") ? &s->rewind
@@ -156,6 +158,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);
     fprintf(f, "updatecheck=%d\nshader=%d\ncolors=%d\ndim=%d\nsavesbeside=%d\n", s->updateCheck ? 1 : 0, s->shader,
             s->colors, s->dimCompanion ? 1 : 0, s->savesBeside ? 1 : 0);
+    fprintf(f, "fullscreen=%d\n", s->fullscreen);
     if (fclose(f) != 0) return false;
 #ifdef _WIN32
     // rename() won't replace a file on Windows; MoveFileEx does, in one step (paths are UTF-8: the host's manifest).

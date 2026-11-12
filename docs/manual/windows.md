@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
+keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -85,12 +85,18 @@ state never leaves half a file behind.
 
 ## Full screen and controllers
 
-To fill the screen, start it with `POCKET_FULLSCREEN` set to `1`. From a command
-prompt in the folder, type `set POCKET_FULLSCREEN=1`, then `pokedaisy.exe`.
+Press F11 or Alt+Enter to switch between full screen and a window, any time: in
+the game list, in a GBA game or in a DS game. On a controller, press both
+sticks down together (L3 and R3). The game's menu has `Toggle fullscreen` too,
+and the companion's `SETTINGS` has a `FULLSCREEN` row. Full screen covers the
+whole display at its own resolution, with no black flash, and your choice is
+remembered for the next start.
 
-A frontend or a shortcut can set it the same way. Without it, the program opens
-a window you can resize. `POCKET_WINDOW=1920x1080` opens the window at a size
-you choose, to try a handheld's layout on a desktop.
+The first time PokeDaisy starts it picks for you: full screen on a handheld's
+screen (under about 10 inches), a window on a bigger one. A window can be
+resized. `POCKET_FULLSCREEN=1` still starts it full screen whatever you chose,
+for a frontend or a shortcut, and `POCKET_WINDOW=1920x1080` opens the window at
+a size you choose, to try a handheld's layout on a desktop.
 
 Built in handheld controls and Xbox style controllers work as they come. A
 controller can be plugged in, switched on or pulled out while you play, and on a

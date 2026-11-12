@@ -32,7 +32,7 @@ UPDATES`.
 | Thing | How |
 | --- | --- |
 | Controls | Built in handheld controls and Xbox style controllers work as they come, and can be plugged in mid game. Keyboard: arrows, Z = A, X = B, Enter = START, Backspace = SELECT, Q / E = L / R, Tab = companion, F = quick menu, V = next companion view, K = lock the side panel, Escape = game menu. Other controllers: a line in `DATA\gamecontrollerdb.txt`. |
-| Full screen | Set `POCKET_FULLSCREEN=1` before starting it (a shortcut or frontend can too). `POCKET_WINDOW=1920x1080` opens a window of that size. |
+| Full screen | F11, Alt+Enter, L3 + R3 on a controller, the game menu or `SETTINGS` > `FULLSCREEN` switch it any time (borderless, remembered; on by default on a handheld's screen). `POCKET_FULLSCREEN=1` forces it; `POCKET_WINDOW=1920x1080` opens a window of that size. |
 | Start a game directly | `pokedaisy.exe "D:\Games\My Game.gba"`; `--data FOLDER` uses another data folder. |
 | COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
 | DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE` or `LARGE + SMALL`. R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
@@ -71,6 +71,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
 - **Game folders and saves beside games** on the desktop host: folders picked in the app (`GAME FOLDERS`,
   a folder browser that works with a controller) are listed with one level inside them, and their GBA / Game
   Boy saves sit next to the game (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.
+- **Full screen** on the desktop host: `FULLSCREEN` (borderless) switched any time by F11, Alt+Enter, L3 + R3, the
+  game menu or `SETTINGS`, remembered, and on by default the first time on a handheld's screen.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change.

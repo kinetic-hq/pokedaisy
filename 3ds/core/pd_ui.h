@@ -109,6 +109,7 @@ struct pd_settings {
     int colors;        // ... and COLORS (ORIGINAL / HANDHELD / OLED)
     bool dimCompanion; // ... and DIM COMPANION (its panels drawn darker, against OLED burn-in)
     bool savesBeside;  // hosts with hasSavesBeside: SAVES BESIDE GAMES (on), an added folder's game saves next to it
+    int fullscreen;    // hosts with hasFullscreen: FULLSCREEN, 1 / 0, -1 = not chosen yet (the host picks by screen size)
 };
 
 // COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.
@@ -201,6 +202,7 @@ struct pd_host_info {
     bool hasUpdateCheck;   // Optional: CHECK FOR UPDATES' row (settings.updateCheck)
     bool hasShaders;       // Optional: SHADER, COLORS and DIM COMPANION's rows
     bool hasSavesBeside;   // Optional: SAVES BESIDE GAMES' row (settings.savesBeside)
+    bool hasFullscreen;    // Optional: FULLSCREEN's row (settings.fullscreen)
     bool hasDisplayFilter; // host implements OFF / LCD
     bool hasQuickMenu;   // host implements the selectable RING / GRID quick menu
     bool hasButtonRows;  // Optional: QUICK MENU / COMPANION / HUD CURSOR button rows (the host reads settings.*Btn)
