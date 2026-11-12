@@ -276,8 +276,20 @@ int main(int argc,char** argv){
       assert(cartTables.mapWild.size()==540 && cartTables.wildSets.size()==149 && cartTables.mapWild[9]==111 && cartTables.mapWild[65]==89);
       const auto day=ds_guide_here(DsGame::Johto,9,12,6);
       assert(day.count>=2 && day.entries[0].method==0 && day.entries[0].species==10 && day.entries[1].species==19 && day.entries[0].low==2);
-      assert(ds_guide_here(DsGame::Johto,65,12,6).count>0 && ds_guide_page_count(DsGame::Johto)==1);
+      assert(ds_guide_here(DsGame::Johto,65,12,6).count>0 && ds_guide_page_count(DsGame::Johto)==2);
       assert(!ds_guide_spots(DsGame::Johto,10).empty());
+      // NEXT BOSS from its trpoke (28 bytes a mon): Kanto first by level, so Brock (253) leads with a Lv12 Geodude, as
+      // a headless fight showed; Lance's Lv100 ace comes after the Elite Four, and RED (moved to 956) is in the list.
+      {
+        assert(cartTables.trainers.size()==1024);
+        DsCompanion s{};s.game=DsGame::Johto;s.eventFlags.assign(512,0);
+        const auto rows=ds_guide_rows(s,GuidePage::NextBoss,false);
+        assert(rows.size()>=8 && rows[0].heading && rows[0].title=="NEXT: LEADER BROCK");
+        assert(rows[1].detail=="Lv12" && rows[1].answer.rfind(std::string(ds_species(74,DsGame::Johto))+":",0)==0);
+        std::vector<std::string> titles;for(const auto& row:rows)if(row.heading)titles.push_back(row.title);
+        assert(titles.size()==22 && titles[1]=="LEADER MISTY" && titles.back()=="CHAMPION LANCE");
+        assert(std::find(titles.begin(),titles.end(),"RED")!=titles.end());
+      }
       assert(!std::strcmp(ds_species(1028,DsGame::Johto),"Charizard") && !std::strcmp(ds_move(52,DsGame::Johto),"Ember"));
       assert(ds_species_type(700,0,DsGame::Johto)==9);
       auto icons=ds_party_icons(rom,DsGame::Johto);

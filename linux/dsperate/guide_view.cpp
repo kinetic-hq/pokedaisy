@@ -344,15 +344,25 @@ bool boss_flag(const DsCompanion& s,int flag){
   return ds_event_flag(s,flag);
 }
 
-// Renegade Platinum's team for a trainer id, from its trpoke (Platinum's format: the trdata type's bit 0 adds 4 moves,
-// bit 1 an item, to { u8, u8, u16 level, u16 species (10 bits) and form, ..., u16 seal }).
+// A hack's team for a trainer id, from its trpoke. Renegade Platinum keeps Platinum's format (the trdata type's bit 0
+// adds 4 moves, bit 1 an item, to { u8, u8, u16 level, u16 species (10 bits) and form, ..., u16 seal }); Origin
+// HeartGold gives every mon a fixed 28 bytes (level at 6, species at 8, item at 10, the moves at 12), which no Platinum
+// type's size matches.
 std::vector<BossMon> cart_team(const DsOrigin& o,int trainer){
   std::vector<BossMon> team;
   if(trainer<0 || size_t(trainer)>=o.trainers.size() || o.trainers[trainer].size()<4)return team;
   const auto& t=o.trainers[trainer];
   const auto& p=o.trainerParties[trainer];
-  const int type=t[0],size=8+(type&2?2:0)+(type&1?8:0);
   const auto u16=[&](size_t at){return int(p[at]|p[at+1]<<8);};
+  if(t[3] && p.size()==size_t(t[3])*28){
+    for(int i=0;i<std::min<int>(t[3],6);++i){
+      BossMon mon{u16(i*28+6),u16(i*28+8)&0x7FF,u16(i*28+10),{}};
+      for(int k=0;k<4;++k)mon.moves[k]=u16(i*28+12+2*k);
+      team.push_back(mon);
+    }
+    return team;
+  }
+  const int type=t[0],size=8+(type&2?2:0)+(type&1?8:0);
   for(int i=0;i<std::min<int>(t[3],6) && size_t((i+1)*size)<=p.size();++i){
     size_t at=size_t(i*size)+6;
     BossMon mon{u16(i*size+2),u16(i*size+4)&0x3FF,0,{}};
@@ -363,6 +373,8 @@ std::vector<BossMon> cart_team(const DsOrigin& o,int trainer){
   return team;
 }
 
+constexpr int originRed=956;
+
 template<size_t N>
 std::vector<GuideRow> boss_rows(const DsCompanion& s,const BossTeam (&teams)[N],const BossMon* mons,
                                 const DsOrigin* cart=nullptr){
@@ -370,7 +382,21 @@ std::vector<GuideRow> boss_rows(const DsCompanion& s,const BossTeam (&teams)[N],
   const char* first=nullptr;
   int best=0;
   for(const auto& member:s.party)if(!member.egg)best=std::max(best,int(member.level));
-  for(const auto& boss:teams){
+  // Origin HeartGold sends you to Kanto first, its leaders the weakest: its bosses go in order of their aces' levels.
+  std::vector<const BossTeam*> order;
+  for(const auto& boss:teams)order.push_back(&boss);
+  if(cart && cart==ds_origin()){
+    const auto ace=[&](const BossTeam* boss){
+      int level=0;
+      for(const auto& mon:cart_team(*cart,boss->trainer==260?originRed:boss->trainer))level=std::max(level,mon.level);
+      return level;
+    };
+    std::stable_sort(order.begin(),order.end(),[&](const BossTeam* a,const BossTeam* b){return ace(a)<ace(b);});
+  }
+  for(const BossTeam* entry:order){
+    BossTeam boss=*entry;
+    // Origin moved RED to its own trainer id; the defeat flag follows it (trainer flags run in id order).
+    if(cart && cart==ds_origin() && boss.trainer==260){boss.done+=originRed-260;boss.trainer=originRed;}
     if(boss_flag(s,boss.done) || boss_flag(s,boss.doneAfter))continue;
     if(!first)first=boss.title;
     const bool next=std::strcmp(first,boss.title)==0;
@@ -414,7 +440,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
     if(s.eventFlags.empty())return {};
     switch(s.game){
       case DsGame::Platinum:return boss_rows(s,ptBossTeams,ptBossMons,origin_wild(s.game));
-      case DsGame::Johto:return boss_rows(s,hgBossTeams,hgBossMons);
+      case DsGame::Johto:return boss_rows(s,hgBossTeams,hgBossMons,origin_wild(s.game)==ds_origin()?ds_origin():nullptr);
       case DsGame::Black:return boss_rows(s,blackBossTeams,blackBossMons);
       case DsGame::White:return boss_rows(s,whiteBossTeams,whiteBossMons);
       case DsGame::Black2:return boss_rows(s,black2BossTeams,black2BossMons);
@@ -424,7 +450,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
   }
   std::vector<GuideRow> rows;
   // Origin HeartGold and Renegade Platinum: HERE's wild encounters from the cart only (their items and tips are their
-  // own, unmapped; Renegade's bosses come from its cart above, Origin's are unmapped).
+  // own, unmapped; Renegade's and Origin's bosses come from their carts above).
   const bool origin=origin_wild(s.game)!=nullptr;
   if(page!=GuidePage::Here){
     if(!origin)authored_rows(rows,s,page,soulSilver);
@@ -467,7 +493,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
 }
 
 int ds_guide_page_count(DsGame game){
-  if(origin_wild(game))return game==DsGame::Platinum?2:1;  // HERE (and Renegade's NEXT BOSS)
+  if(const auto* o=origin_wild(game))return o->trainers.empty()?1:2;  // HERE, and NEXT BOSS from the cart
   return game==DsGame::Platinum || game==DsGame::Johto?int(GuidePage::Count):int(GuidePage::Stuck);
 }
 

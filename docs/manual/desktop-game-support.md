@@ -89,7 +89,7 @@ By tab:
 | White (DS) | USA/Europe (IRAO, SHA-1 bc696a0d) and every language | works | works | partly | works | works | works | Same as Black |
 | Black 2 (DS) | USA/Europe (IREO, SHA-1 e51e6dfb) and every language | works | works | partly | works | works | works | Same as Black |
 | White 2 (DS) | USA/Europe (IRDO, SHA-1 b5d7490b) and every language | works | works | partly | works | works | works | Same as Black |
-| Origin HeartGold (DS) | 4.0.3 English 1.0.0 (IPKJ rev 0) | works | works | partly | works | works | partly | Its guide has `HERE` only: the wild creatures read from its cart (no guide on Android) |
+| Origin HeartGold (DS) | 4.0.3 English 1.0.0 (IPKJ rev 0) | works | works | partly | works | works | partly | Its guide has `HERE` and `NEXT BOSS` only, both read from its cart (no guide on Android) |
 | Renegade Platinum (DS) | 1.2.0, 1.3.0 and 1.3.0 Classic (CPUE rev 1) | works | works | works | works | works | partly | None. Its guide has `HERE` and `NEXT BOSS`, read from its cart (no guide on Android) |
 | Unbound | 2.1.1.1; SHA-1 b4776b82 | works | works | partly | works | works | works | None |
 | Unbound | 2.1.1.1 French; SHA-1 0ce2a880 | works | works | partly | works | works | works | None |

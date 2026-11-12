@@ -55,7 +55,7 @@ static int ds_support(const char *path, char *detail, size_t size) {
     return GAME_SUPPORT_FULL;
   }
   if (!memcmp(head + 12, "IPKJ", 4) && !head[30] && origin) {
-    snprintf(detail, size, "Every companion tab; GUIDE has its wild creatures only");
+    snprintf(detail, size, "Every companion tab; GUIDE has HERE and NEXT BOSS");
     return GAME_SUPPORT_PARTLY;
   }
   // HeartFelt Gold (ds_heartfelt_cart): HeartGold's header with its ARM9 grown to 0x111EF8 bytes.
