@@ -298,6 +298,66 @@ std::vector<std::string> dex_text(const Bytes& bank,bool unova,int speciesCount)
 }
 }
 
+namespace {
+// Where a cart keeps what GUIDE's item lists read.
+struct FieldItemLayout {
+  size_t headers;unsigned maps,scriptsAt;const char *events,*scripts;unsigned itemFile;uint8_t setvar;
+  size_t hidden;unsigned hiddenCount,hiddenFlags;bool ownScripts;
+};
+// The item balls and hidden items, map by map: each map header's events (the u16 at 16) and scripts (the u16 at
+// scriptsAt). An item ball is an object with sprite 87: script 7000+n is the item script file's script n (setvar 0x8008
+// item, 0x8009 count), and, with ownScripts (Origin HeartGold), the map's own script (playse, lockall, setvar 0x8004
+// item, 0x8005 count). A hidden item is a background event with script 8000+n, the ARM9's table entry n { u16 item,
+// u8 count, u8, u16, u16 index }, its flag hiddenFlags + index. A failure only costs the lists.
+void field_items(DsOrigin& o,const Bytes& rom,const FieldItemLayout& l){
+  try{
+    const auto events=file(rom,l.events),scripts=file(rom,l.scripts);
+    const auto starts=[](const Bytes& code){
+      std::vector<size_t> at;
+      for(size_t p=0;p+4<=code.size() && u16(code,p)!=0xFD13;p+=4)at.push_back(p+4+u32(code,p));
+      return at;
+    };
+    const auto matches=[](const Bytes& code,size_t at,std::initializer_list<uint8_t> want){
+      return at+want.size()<=code.size() && std::equal(want.begin(),want.end(),code.begin()+at);
+    };
+    const auto itemScripts=member(scripts,l.itemFile);
+    const auto itemStarts=starts(itemScripts);
+    const unsigned banks=u16(events,24);
+    for(uint16_t map=0;map<l.maps;++map){
+      const unsigned bank=u16(rom,l.headers+map*24+16);
+      if(bank>=banks)continue;
+      const auto ev=member(events,bank);
+      const size_t bgs=u32(ev,0),objs=4+bgs*20+4,objCount=u32(ev,4+bgs*20);
+      for(size_t i=0;i<bgs;++i){
+        const unsigned script=u16(ev,4+i*20);
+        if(script<8000 || script>=8000+l.hiddenCount)continue;
+        const size_t entry=l.hidden+(script-8000)*8;
+        if(const uint16_t item=u16(rom,entry))
+          o.fieldItems.push_back({map,item,uint16_t(l.hiddenFlags+u16(rom,entry+6)),rom.at(entry+2),true});
+      }
+      Bytes code;
+      std::vector<size_t> local;
+      if(l.ownScripts){code=member(scripts,u16(rom,l.headers+map*24+l.scriptsAt));local=starts(code);}
+      for(size_t i=0;i<objCount;++i){
+        const size_t ob=objs+i*32;
+        if(u16(ev,ob+2)!=87)continue;
+        const unsigned script=u16(ev,ob+10);
+        const uint16_t flag=u16(ev,ob+8);
+        if(script>=7000 && script<7000+itemStarts.size()){
+          const size_t at=itemStarts[script-7000];
+          if(matches(itemScripts,at,{l.setvar,0,0x08,0x80}) && matches(itemScripts,at+6,{l.setvar,0,0x09,0x80}))
+            o.fieldItems.push_back({map,u16(itemScripts,at+4),flag,uint8_t(u16(itemScripts,at+10)),false});
+        }else if(script>=1 && script<=local.size()){
+          const size_t at=local[script-1];
+          if(matches(code,at,{0x49,0,0xdc,0x05,0x60,0,l.setvar,0,0x04,0x80}) && matches(code,at+12,{l.setvar,0,0x05,0x80}))
+            o.fieldItems.push_back({map,u16(code,at+10),flag,uint8_t(u16(code,at+16)),false});
+        }
+      }
+    }
+  }catch(const std::exception&){o.fieldItems.clear();}
+}
+}
+
 DsOrigin ds_read_origin(const std::vector<uint8_t>& rom){
   DsOrigin o;
   auto rom32=[&](size_t off){return u32(rom,off);};
@@ -365,57 +425,9 @@ DsOrigin ds_read_origin(const std::vector<uint8_t>& rom){
         o.trainerParties.push_back(member(trpoke,i));
       }
     }catch(const std::exception&){o.trainers.clear();o.trainerParties.clear();}
-    // GUIDE's items: each map header's events (/a/0/3/2, the u16 at 16) and scripts (/a/0/1/2, the u16 at 6). An item
-    // ball is an object with sprite 87: script 7000+n is retail's item script n (scr_seq 141: setvar 0x8008 item, 0x8009
-    // count), and most of the hack's are the map's own scripts (playse, lockall, setvar 0x8004 item, 0x8005 count). A
-    // hidden item is a background event with script 8000+n, the ARM9's table entry n { u16 item, u8 count, u8, u16,
-    // u16 index }, its flag 800 + index (retail HeartGold's hidden item flags, which the retail guide's items match).
-    try{
-      constexpr size_t headers=0x4000+0xF37C4,hidden=0x4000+0xF7194;
-      constexpr unsigned hiddenCount=231;
-      const auto events=file(rom,"/a/0/3/2"),scripts=file(rom,"/a/0/1/2");
-      const auto starts=[](const Bytes& code){
-        std::vector<size_t> at;
-        for(size_t o=0;o+4<=code.size() && u16(code,o)!=0xFD13;o+=4)at.push_back(o+4+u32(code,o));
-        return at;
-      };
-      const auto matches=[](const Bytes& code,size_t at,std::initializer_list<uint8_t> want){
-        return at+want.size()<=code.size() && std::equal(want.begin(),want.end(),code.begin()+at);
-      };
-      const auto itemScripts=member(scripts,141);
-      const auto itemStarts=starts(itemScripts);
-      const unsigned banks=u16(events,24);
-      for(uint16_t map=0;map<540;++map){
-        const unsigned bank=u16(rom,headers+map*24+16);
-        if(bank>=banks)continue;
-        const auto ev=member(events,bank);
-        const auto code=member(scripts,u16(rom,headers+map*24+6));
-        const auto local=starts(code);
-        const size_t bgs=u32(ev,0),objs=4+bgs*20+4,objCount=u32(ev,4+bgs*20);
-        for(size_t i=0;i<bgs;++i){
-          const unsigned script=u16(ev,4+i*20);
-          if(script<8000 || script>=8000+hiddenCount)continue;
-          const size_t entry=hidden+(script-8000)*8;
-          if(const uint16_t item=u16(rom,entry))
-            o.fieldItems.push_back({map,item,uint16_t(800+u16(rom,entry+6)),rom.at(entry+2),true});
-        }
-        for(size_t i=0;i<objCount;++i){
-          const size_t ob=objs+i*32;
-          if(u16(ev,ob+2)!=87)continue;
-          const unsigned script=u16(ev,ob+10);
-          const uint16_t flag=u16(ev,ob+8);
-          if(script>=7000 && script<7000+itemStarts.size()){
-            const size_t at=itemStarts[script-7000];
-            if(matches(itemScripts,at,{0x29,0,0x08,0x80}) && matches(itemScripts,at+6,{0x29,0,0x09,0x80}))
-              o.fieldItems.push_back({map,u16(itemScripts,at+4),flag,uint8_t(u16(itemScripts,at+10)),false});
-          }else if(script>=1 && script<=local.size()){
-            const size_t at=local[script-1];
-            if(matches(code,at,{0x49,0,0xdc,0x05,0x60,0,0x29,0,0x04,0x80}) && matches(code,at+12,{0x29,0,0x05,0x80}))
-              o.fieldItems.push_back({map,u16(code,at+10),flag,uint8_t(u16(code,at+16)),false});
-          }
-        }
-      }
-    }catch(const std::exception&){o.fieldItems.clear();}
+    // GUIDE's items (field_items): the map headers' events (/a/0/3/2) and scripts (/a/0/1/2), retail's item scripts in
+    // scr_seq 141, the hidden item table at ARM9 0xF7194 (231 entries, flags 800 + index, retail HeartGold's).
+    field_items(o,rom,{0x4000+0xF37C4,540,6,"/a/0/3/2","/a/0/1/2",141,0x29,0x4000+0xF7194,231,800,true});
   }catch(const std::exception& e){std::fprintf(stderr,"Origin HeartGold tables: %s\n",e.what());o.species.clear();}
   return o;
 }
@@ -527,6 +539,10 @@ DsOrigin ds_read_renegade(const std::vector<uint8_t>& rom){
         o.trainerParties.push_back(member(trpoke,i));
       }
     }catch(const std::exception&){o.mapWild.clear();o.wildSets.clear();o.trainers.clear();o.trainerParties.clear();}
+    // GUIDE's items (field_items): Platinum's events and scripts, its item scripts in scr_seq 404 (setvar is 0x28), the
+    // hidden item table at ARM9 0xEA378 (257 entries, flags 730 + index, as retail Platinum's guide data has them).
+    field_items(o,rom,{0x4000+0xE601C,593,4,"/fielddata/eventdata/zone_event.narc","/fielddata/script/scr_seq.narc",404,
+                       0x28,0x4000+0xEA378,257,730,false});
   }catch(const std::exception& e){std::fprintf(stderr,"Renegade Platinum tables: %s\n",e.what());o.species.clear();}
   return o;
 }

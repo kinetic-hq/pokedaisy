@@ -352,6 +352,20 @@ int main(int argc,char** argv){
         assert(rows.size()>=8 && rows[0].heading && rows[0].title.rfind("NEXT: ",0)==0);
         assert(rows[1].detail=="Lv15" && rows[6].detail=="Lv16" && rows[7].heading);
       }
+      // HERE's items from its events and scripts: map 3's hidden item (flag 891) and item ball (flag 1272), the flags
+      // retail Platinum's guide data has for that place.
+      {
+        const auto* cart=ds_renegade();
+        const auto has=[&](int map,int item,int flag,bool hidden){
+          return std::any_of(cart->fieldItems.begin(),cart->fieldItems.end(),[&](const DsOrigin::FieldItem& f){
+            return f.map==map && f.item==item && f.flag==flag && f.hidden==hidden;});
+        };
+        assert(cart->fieldItems.size()>500 && has(3,90,891,true) && has(3,17,1272,false) && has(411,111,931,true));
+        DsCompanion s{};s.game=DsGame::Platinum;s.eventFlags.assign(512,0);s.map=3;
+        const auto rows=ds_guide_rows(s,GuidePage::Here,false);
+        const auto items=std::find_if(rows.begin(),rows.end(),[](const GuideRow& row){return row.heading && row.title=="ITEMS";});
+        assert(items!=rows.end() && std::any_of(items,rows.end(),[](const GuideRow& row){return row.title=="HIDDEN ITEM";}));
+      }
       assert(!std::strcmp(ds_move(66,DsGame::Platinum),"Play Rough") && ds_move_type(66,DsGame::Platinum)==9);
       assert(ds_species_type(35,0,DsGame::Platinum)==9 && ds_species_type(429,1,DsGame::Platinum)==9);
       assert(ds_party_icons(rom,DsGame::Platinum).size()>493);
