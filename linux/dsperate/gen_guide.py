@@ -262,7 +262,7 @@ def boss_data(folder, filename, game):
     records = []
 
     def add(title, where, key, done, done_after=0, variant='', rematch=False):
-        _, offset, count = teams[key]
+        trainer, offset, count = teams[key]
         if rematch:
             rematch_key = key[:-2]+'_2_C' if key.endswith('_C') else key+'_2'
             _, rematch_offset, rematch_count = teams[rematch_key]
@@ -270,7 +270,7 @@ def boss_data(folder, filename, game):
             rematch_offset, rematch_count = 0, 0
         records.append((title,where,variant,done,done_after,
                         constants['B2W2_FLAG_CLEARED'] if rematch else 0,
-                        offset,count,rematch_offset,rematch_count))
+                        offset,count,rematch_offset,rematch_count,trainer))
 
     for call in arguments('('+body):
         name = call.split('(',1)[0]

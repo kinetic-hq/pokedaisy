@@ -1,5 +1,6 @@
 // GPL-3.0. Real core and captured-RAM tests, never fake application screens.
 #include "ds_core.h"
+#include <algorithm>
 #if __has_include("core/nds.h")
 #include "core/nds.h"
 #define PD_TEST_DSPERATE 1
@@ -272,7 +273,23 @@ int main(int argc,char** argv){
       assert(t.machines[56]==344 && t.machines[61]==405 && t.machines[82]==304 && t.machines[84]==295 && t.machines[87]==239);
       assert(t.machines[0]==264 && t.machines[92]==15);   // TM01 and HM01 as retail
       assert(t.iconPalettes.size()==0x21C);
+      assert(t.mapWild.size()==593 && t.wildSets.size()==183 && t.mapWild[342]==140 && t.trainers.size()==1066);
       ds_set_renegade(&t);
+      // GUIDE from the cart. HERE on Route 201 (map 342, set 140): by day its two Starly and Bidoof slots first (Lv4-5),
+      // the day's Pidgey in slots 2 and 3; by night Hoothoot and Kricketot instead.
+      const auto day=ds_guide_here(DsGame::Platinum,342,12,6);
+      assert(day.count>=5 && day.entries[0].species==396 && day.entries[0].low==4 && day.entries[0].high==5 && day.entries[0].chance==30);
+      assert(day.entries[1].species==399 && day.entries[2].species==16 && day.entries[2].chance==20);
+      const auto night=ds_guide_here(DsGame::Platinum,342,22,6);
+      assert(std::any_of(night.entries,night.entries+night.count,[](const DsGuideEncounter& e){return e.species==163;}));
+      assert(ds_guide_page_count(DsGame::Platinum)==2 && !ds_guide_spots(DsGame::Platinum,396).empty());
+      // NEXT BOSS: the leaders at retail's trainer ids with the hack's teams; Roark (246) has six, Lv15 and a Lv16 ace.
+      {
+        DsCompanion s{};s.game=DsGame::Platinum;s.eventFlags.assign(512,0);
+        const auto rows=ds_guide_rows(s,GuidePage::NextBoss,false);
+        assert(rows.size()>=8 && rows[0].heading && rows[0].title.rfind("NEXT: ",0)==0);
+        assert(rows[1].detail=="Lv15" && rows[6].detail=="Lv16" && rows[7].heading);
+      }
       assert(!std::strcmp(ds_move(66,DsGame::Platinum),"Play Rough") && ds_move_type(66,DsGame::Platinum)==9);
       assert(ds_species_type(35,0,DsGame::Platinum)==9 && ds_species_type(429,1,DsGame::Platinum)==9);
       assert(ds_party_icons(rom,DsGame::Platinum).size()>493);

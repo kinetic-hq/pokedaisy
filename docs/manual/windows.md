@@ -580,8 +580,10 @@ gear at the end opens `SETTINGS`: your trainer facts, then the DS rows (`SCREEN`
 It reads Platinum (USA) in full. It goes by the game code inside the file
 (`CPUE`, revision 0 or 1), so a trimmed or re-dumped copy works too, and so does
 Renegade Platinum, with its own creatures' types, moves, Fairy type, type
-chart and machines read from its cart. Renegade Platinum has no `GUIDE` tab:
-its trainers and wild creatures are its own. HeartGold and SoulSilver (USA) are read in full
+chart and machines read from its cart. Renegade Platinum's `GUIDE` has two
+pages, read from its cart: `HERE` lists the wild creatures where you stand by
+time of day, and `NEXT BOSS` shows the next gym leader or League member with
+the hack's own team. HeartGold and SoulSilver (USA) are read in full
 too, with the party's icons in the HUD and the wings. So are Black, White,
 Black 2 and White 2 (USA / Europe), with their own Town Map, Pokédex pages and
 guide; they go by the game code too, so another dump of the same cart works.

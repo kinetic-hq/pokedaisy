@@ -46,9 +46,9 @@ static int ds_support(const char *path, char *detail, size_t size) {
     return GAME_SUPPORT_UNKNOWN;
   }
   if (!memcmp(head + 12, "CPUE", 4) && head[30] <= 1) {
-    // Renegade Platinum reads its own tables (docs/manual/desktop-game-support.md); its trainers are its own: no GUIDE.
+    // Renegade Platinum reads its own tables (docs/manual/desktop-game-support.md); its guide is HERE and NEXT BOSS.
     if (head[30] == 1 && renegade) {
-      snprintf(detail, size, "Every companion tab but GUIDE");
+      snprintf(detail, size, "Every companion tab; GUIDE has HERE and NEXT BOSS");
       return GAME_SUPPORT_PARTLY;
     }
     snprintf(detail, size, "Every companion tab");

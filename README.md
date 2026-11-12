@@ -198,6 +198,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Origin HeartGold's `GUIDE` on the desktop host** (beyond Android, which has none for it): `HERE` lists the wild
   creatures where you stand by time of day, read from the cart's own map headers and encounter tables, and the `DEX`
   page's where-to-find uses them too.
+- **Renegade Platinum's `GUIDE` on the desktop host** (beyond Android, which has none for it): `HERE` lists the wild
+  creatures where you stand by time of day, from the cart's own map headers and encounter tables, and `NEXT BOSS` shows
+  the next gym leader or League member with the hack's own team, read from the cart's trainer data.
 - **Origin HeartGold's `BATTLE` on the desktop host**: its own battle engine's objects are read (as on Android): your
   creature and the foe with their stats, types and moves, and a trainer's team.
 - **HeartFelt Gold on the desktop host** (an hg-engine build of HeartGold, not read on Android): `PARTY`, `BAG` and
