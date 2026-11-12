@@ -48,6 +48,33 @@ int main(void) {
   check("Pokemon McGuffin Quest.gba", false, "Pok" E "mon McGuffin Quest");
   // Nothing left: the file's own name.
   check("(USA).gba", false, "(USA).gba");
+  // The grid's version line and ORIGINAL / ROM HACK tag.
+  {
+    static const char *const V[][2] = {
+        {"Pokemon - Ash Gray (v4.5.3).gba", "v4.5.3"},
+        {"pokemon wishes of tomorrow 1.2.6.gba", "v1.2.6"},
+        {"Pokemon - FireRed Version (USA, Europe) (Rev 1).gba", "Rev 1"},
+        {"Pokemon - Emerald Version (USA, Europe).gba", ""},
+        {"Pokemon R.O.W.E. (V2.0).gba", "v2.0"},
+    };
+    for (size_t i = 0; i < sizeof V / sizeof *V; i++) {
+      char out[64];
+      game_version(V[i][0], out, sizeof out);
+      if (strcmp(out, V[i][1])) {
+        fprintf(stderr, "version %s -> \"%s\", want \"%s\"\n", V[i][0], out, V[i][1]);
+        assert(0);
+      }
+    }
+    assert(game_is_original("Pokemon - FireRed Version (USA, Europe) (Rev 1).gba"));
+    assert(game_is_original("Pokemon - SoulSilver Version (USA).nds"));
+    assert(!game_is_original("Pokemon - Ash Gray (v4.5.3).gba"));
+    assert(!game_is_original("Pokemon Emerald (USA) (Hack).gba"));
+    assert(!game_is_original("Pokemon Unbound (v2.1.1.1).gba"));
+    assert(game_is_original("pokemon firered.gba"));
+    assert(game_is_original("Pokemon Black 2.nds"));
+    assert(!game_is_original("pokemon radical red v4.1.gba"));
+    assert(!game_is_original("Pokemon Emerald Rogue.gba"));
+  }
   puts("game names ok");
   return 0;
 }

@@ -43,11 +43,39 @@ a row and moves on, B goes back a page, and each choice is saved as you make
 it. `SKIP SETUP` on the welcome page leaves it for later. To see it again, open
 `SETTINGS` > `APP` > `RUN SETUP`.
 
+## Your game list
+
+Your games open as a grid of box art. Each game shows its name, the system
+(`GBA`, `GBC`, `GB` or `NDS`), `ORIGINAL` or `ROM HACK`, and its version when
+the file name has one. Move with the D-pad, the mouse or a finger; `A` or a tap
+plays, the mouse wheel or a drag scrolls, and `Y` opens `SETTINGS`. `GAME FOLDERS`
+and `SETTINGS` sit in the bar along the top: press UP from the first row to
+reach them.
+
+Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
+`BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
+games, then SteamGridDB when you add your own key, which has many ROM hacks. To
+add one, make a free key on steamgriddb.com (Preferences, API), copy it, then
+pick `SETTINGS` > `LIBRARY` > `STEAMGRIDDB KEY` > `PASTE THE KEY FROM THE CLIPBOARD`.
+Box art is kept in `DATA\boxart`.
+
+Press `X`, right click or hold a finger on a game for its options:
+
+- **`FIND BOX ART`** looks again now, even for a game it found nothing for before.
+- **`SET BOX ART`** uses your own picture: copy a PNG or JPG file's path, or an
+  https link to one, then pick `USE THE COPIED PATH OR LINK`. You can also drop
+  an image on the window to set the selected game's art. Your own art always
+  wins, and `REMOVE MY BOX ART` goes back to the downloaded one.
+- **`RENAME`** gives the game a name of your own, typed on a real keyboard or
+  picked key by key with a controller (`B` deletes, `Y` is a space, `START` is
+  done). `USE THE FILE'S NAME` takes it back. Names are kept in `DATA\names.txt`;
+  the files themselves are never renamed.
+
 ## Games in other folders
 
 Your games can stay where they are, in a folder another emulator or a sync app
-already uses. Pick `+ ADD GAMES` at the top of the game list (or `SETTINGS` >
-`GAME FOLDERS` on its rail), then `ADD A FOLDER`: you see your drives, `A` opens a folder, `B` goes back up, and
+already uses. Pick `GAME FOLDERS` in the bar at the top of the game list (or
+`SETTINGS` > `LIBRARY` > `GAME FOLDERS`), then `ADD A FOLDER`: you see your drives, `A` opens a folder, `B` goes back up, and
 `USE THIS FOLDER` adds the one you're in, with a controller or the keyboard.
 Pick a folder on the `GAME FOLDERS` list to take it off the list again; its
 games and saves stay where they are.
@@ -153,12 +181,11 @@ SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
 
 ### Screen, touch and orientation
 
-The game list has a rail down its left: `GAMES` (the list) and `SETTINGS`.
-Press LEFT to reach the rail and RIGHT to go back to the list; UP from the top
-row reaches `+ ADD GAMES`. `SETTINGS` there is in the app's groups: `SCREEN`
+The game list's `SETTINGS` (in the bar at its top, or `Y`) is in the app's groups: `SCREEN`
 (`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
-`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`), `CONTROLS` (`GAME BUTTONS`,
+`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `BOX ART DOWNLOAD`,
+`STEAMGRIDDB KEY`), `CONTROLS` (`GAME BUTTONS`,
 `HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `RUN SETUP`, `VERSION`). The companion's
 `SETTINGS` has the same rows (see "Where the settings are" below).
 

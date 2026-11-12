@@ -90,6 +90,8 @@ The app shows every license below in full under Settings > LICENSES.
   3ds/tools/gen_font_faces.py: the desktop wings' headings), Copyright 2001 The Silkscreen Project Authors
   (Jason Kottke), SIL Open Font License 1.1 (third_party/fonts/silkscreen/OFL.txt). The wings' numbers are
   Atkinson Hyperlegible Bold, drawn the same way.
+- stb_image 2.30 (third_party/stb/stb_image.h; the desktop host's box art), Sean Barrett, MIT License or public
+  domain (its own choice of either, at the end of the file).
 - PokeAPI (https://pokeapi.co), BSD 3-Clause: the National Dex species list
   (third_party/licenses/PokeAPI-BSD-3-Clause.txt).
 - AndroidX, Jetpack Compose, Kotlin, kotlinx.coroutines and Apache Commons

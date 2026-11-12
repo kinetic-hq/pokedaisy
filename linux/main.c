@@ -1,5 +1,8 @@
 /* Native single-screen host for PokeDaisy. GPL-3.0, see ../NOTICE. */
 #include "../3ds/desktop/pd_png.h"
+#include "boxart.h"
+#include "game_grid.h"
+#include "game_name.h"
 #include "pd_menu.h"
 #include "pd_layout_pick.h"
 #include "view_layout.h"
@@ -538,6 +541,17 @@ static struct tap taps[32];
 static int tapCount;
 static bool tapHeld;
 static SDL_FingerID tapFinger = -1;
+/* The game list's extras: a file dropped on the window (SET BOX ART), the mouse wheel, a right click (a game's
+ * options) and typing (RENAME), each taken by the screen that wants it. */
+static char *droppedFile;
+static int wheelSteps;
+static bool rightClicked;
+static int rightClickX, rightClickY;
+static bool textEntry;   // RENAME's keyboard is up: the keyboard types instead of pressing buttons
+static char textTyped[64];
+static int textBackspaces;
+static bool textEnter, textEscape;
+static bool window_to_canvas(int mx, int my, int *x, int *y);
 static void canvas_at(SDL_Rect at, int w, int h) {
   canvasAt = at;
   canvasAtW = w;
@@ -558,6 +572,18 @@ static void tap_push(float nx, float ny, int phase) { // phase: 0 down, 1 moved,
   int y = canvasAt.h > 0 ? (int)((py - canvasAt.y) * canvasAtH / canvasAt.h) : 0;
   taps[tapCount++] = (struct tap){x, y, phase != 2};
   tapHeld = phase != 2;
+}
+static bool window_to_canvas(int mx, int my, int *x, int *y) {
+  int ww = 1, wh = 1;
+  SDL_GetWindowSize(window, &ww, &wh);
+  float px, py;
+  pd_host_point((float)mx / (ww > 0 ? ww : 1), (float)my / (wh > 0 ? wh : 1), &px, &py);
+  if (canvasAt.w <= 0 || canvasAt.h <= 0 || px < canvasAt.x || py < canvasAt.y || px >= canvasAt.x + canvasAt.w ||
+      py >= canvasAt.y + canvasAt.h)
+    return false;
+  *x = (int)((px - canvasAt.x) * canvasAtW / canvasAt.w);
+  *y = (int)((py - canvasAt.y) * canvasAtH / canvasAt.h);
+  return true;
 }
 static void tap_event(const SDL_Event *e) {
   if ((e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP) && e->button.button == SDL_BUTTON_LEFT &&
@@ -697,6 +723,42 @@ static void events(void) {
     if (e.type == SDL_AUDIODEVICEREMOVED && !e.adevice.iscapture && audio &&
         e.adevice.which == audio)
       audioLost = true;
+    if (e.type == SDL_DROPFILE) {
+      free(droppedFile);
+      droppedFile = e.drop.file ? strdup(e.drop.file) : NULL;
+      SDL_free(e.drop.file);
+      continue;
+    }
+    if (e.type == SDL_MOUSEWHEEL) {
+      wheelSteps += e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -e.wheel.y : e.wheel.y;
+      continue;
+    }
+    if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_RIGHT && e.button.which != SDL_TOUCH_MOUSEID) {
+      int mx, my;
+      SDL_GetMouseState(&mx, &my);
+      rightClicked = window_to_canvas(mx, my, &rightClickX, &rightClickY);
+      continue;
+    }
+    if (textEntry && e.type == SDL_TEXTINPUT) {
+      size_t n = strlen(textTyped);
+      snprintf(textTyped + n, sizeof textTyped - n, "%s", e.text.text);
+      continue;
+    }
+    if (textEntry && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {
+      SDL_Keycode k = e.key.keysym.sym;
+      bool arrow = k == SDLK_UP || k == SDLK_DOWN || k == SDLK_LEFT || k == SDLK_RIGHT;
+      if (!arrow) {
+        if (e.type == SDL_KEYDOWN) {
+          if (k == SDLK_BACKSPACE)
+            textBackspaces++;
+          else if (k == SDLK_RETURN || k == SDLK_KP_ENTER)
+            textEnter = true;
+          else if (k == SDLK_ESCAPE)
+            textEscape = true;
+        }
+        continue; // typing, not buttons
+      }
+    }
     if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
       if (!e.key.repeat)
         key(keyboard(e.key.keysym.sym), e.type == SDL_KEYDOWN);
@@ -1061,6 +1123,40 @@ static void timed_present(void) {
   host_present();
   presentMs += (double)(SDL_GetPerformanceCounter() - t) * 1000.0 / SDL_GetPerformanceFrequency();
 }
+/* The game grid's box art over the canvas, at the screen's own resolution (gridOverlay: while the grid is up). */
+static struct game_grid *gridOverlay;
+static char **gridStems; // the grid's games' art names, by item
+static const char *presentShot; // present(): a screenshot of the window as drawn, then forgotten
+static void grid_art_draw(void) {
+  if (!gridOverlay || !gridStems || canvasAt.w <= 0 || canvasW <= 0)
+    return;
+  SDL_RenderSetLogicalSize(renderer, 0, 0); // output pixels
+  double k = (double)canvasAt.w / canvasW;
+  int limit = SDL_GetTicks() < messageUntil ? canvasH - 50 : canvasH; // the notice stays on top
+  for (int i = 0; i < gridOverlay->artCount; i++) {
+    const struct game_grid_art *a = &gridOverlay->art[i];
+    if (a->index < 0 || a->index >= gridOverlay->count)
+      continue;
+    int tw, th;
+    SDL_Texture *t = boxart_texture(renderer, gridStems[a->index], &tw, &th);
+    if (!t || tw <= 0 || th <= 0)
+      continue;
+    double wx = a->w * k, wy = a->h * k, f = wx / tw < wy / th ? wx / tw : wy / th;
+    int dw = (int)(tw * f + 0.5), dh = (int)(th * f + 0.5);
+    SDL_Rect dst = {canvasAt.x + (int)(a->x * k + (wx - dw) / 2), canvasAt.y + (int)(a->y * k + (wy - dh) / 2), dw, dh};
+    int top = a->y > a->clipY ? a->y : a->clipY;
+    int bottom = a->y + a->h < a->clipY + a->clipH ? a->y + a->h : a->clipY + a->clipH;
+    if (bottom > limit)
+      bottom = limit;
+    if (bottom <= top)
+      continue;
+    SDL_Rect clip = {canvasAt.x + (int)(a->x * k), canvasAt.y + (int)(top * k), (int)(a->w * k + 0.5),
+                     (int)((bottom - top) * k + 0.5)};
+    SDL_RenderSetClipRect(renderer, &clip);
+    SDL_RenderCopy(renderer, t, NULL, &dst);
+  }
+  SDL_RenderSetClipRect(renderer, NULL);
+}
 static void present(void) {
   SDL_RenderSetLogicalSize(renderer, canvasW, canvasH);
   SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
@@ -1085,6 +1181,13 @@ static void present(void) {
   if (SDL_RenderCopy(renderer, texture, NULL, NULL) < 0) {
     notice(SDL_GetError());
     return;
+  }
+  grid_art_draw();
+  if (presentShot) {
+    // The window as drawn, art and all (the canvas alone hasn't the art).
+    if (!capture_frame(presentShot, NULL))
+      notice("Capture failed");
+    presentShot = NULL;
   }
   timed_present();
 }
@@ -3170,10 +3273,13 @@ static const char *menuShot, *menuKeys;
 static bool menu_frame(void) {
   if (!running)
     return true; // a screen inside already ended the run (and took its shot)
+  bool last = menuFrames && menuTicks + 1 >= menuFrames;
+  if (last && menuShot && gridOverlay)
+    presentShot = menuShot; // the box art is drawn over the canvas: the window, read before it's shown
   present();
   if (menuFrames && ++menuTicks >= menuFrames) {
     // The canvas itself: a read-back after the present can be the frame before.
-    if (menuShot && !pd_png_write(menuShot, canvasW, canvasH, pixels))
+    if (menuShot && !gridOverlay && !pd_png_write(menuShot, canvasW, canvasH, pixels))
       notice("Capture failed");
     running = 0;
     return true;
@@ -3187,7 +3293,8 @@ static void menu_script(void) {
     return;
   last = menuTicks;
   char c = *menuKeys++;
-  int k = c == 'A' ? A : c == 'B' ? B : c == 'U' ? UP : c == 'D' ? DOWN : c == 'L' ? LEFT : c == 'R' ? RIGHT : -1;
+  int k = c == 'A' ? A : c == 'B' ? B : c == 'U' ? UP : c == 'D' ? DOWN : c == 'L' ? LEFT : c == 'R' ? RIGHT
+          : c == 'X' ? X : c == 'Y' ? Y : -1;
   if (k >= 0)
     pressed |= 1u << k;
 }
@@ -3377,7 +3484,6 @@ static bool folders_screen(void) {
  * runs) and the game list's header button (the app's +, here ADD GAMES: GAME FOLDERS). */
 static const char *const RAIL[] = {"GAMES", "SETTINGS"};
 enum { RAIL_GAMES, RAIL_SETTINGS };
-static const char *const GAMES_ACTIONS[] = {"+ ADD GAMES"};
 static void rail_setup(struct pd_menu *m, int open) {
   m->nav = RAIL;
   m->navCount = 2;
@@ -3618,6 +3724,8 @@ enum {
   ROW_DS_SIDE,
   ROW_DISPLAY,
   ROW_FOLDERS,
+  ROW_BOXART,
+  ROW_SGDB,
   ROW_BUTTONS,
   ROW_HOTKEYS,
   ROW_UPDATES,
@@ -3679,6 +3787,12 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_DISPLAY, "DISPLAY OPTIONS" PD_MENU_PAGE);
       ROW(0, PD_MENU_GROUP "LIBRARY");
       ROW(ROW_FOLDERS, "GAME FOLDERS" PD_MENU_PAGE);
+      ROW(ROW_BOXART, "BOX ART DOWNLOAD	%s", st.boxartAuto ? "ON" : "OFF");
+      {
+        char key[80];
+        boxart_key(key, sizeof key);
+        ROW(ROW_SGDB, "STEAMGRIDDB KEY	%s", *key ? "SET" : "NONE");
+      }
       ROW(0, PD_MENU_GROUP "CONTROLS");
       ROW(ROW_BUTTONS, "GAME BUTTONS" PD_MENU_PAGE);
       ROW(ROW_HOTKEYS, "HOTKEYS" PD_MENU_PAGE);
@@ -3825,6 +3939,42 @@ static int settings_page(bool *foldersChanged) {
     case ROW_UPDATES:
       st.updateCheck = !st.updateCheck;
       break;
+    case ROW_BOXART:
+      st.boxartAuto = !st.boxartAuto;
+      *foldersChanged = true; // the list looks again (or stops)
+      break;
+    case ROW_SGDB: {
+      static const char *const keyRows[] = {"PASTE THE KEY FROM THE CLIPBOARD", "REMOVE THE KEY"};
+      int k = menu_pick_hint("STEAMGRIDDB KEY",
+                             "More box art for ROM hacks. Make a free key at steamgriddb.com (Preferences, API), copy it, "
+                             "then paste it here.",
+                             keyRows, 2, 0);
+      if (k == 0) {
+        char *clip = SDL_HasClipboardText() ? SDL_GetClipboardText() : NULL;
+        char key[128] = "";
+        if (clip) {
+          // Its letters and digits only (a copy often brings spaces or a line end).
+          size_t n = 0;
+          for (const char *c = clip; *c && n + 1 < sizeof key; c++)
+            if ((*c >= '0' && *c <= '9') || (*c >= 'a' && *c <= 'z') || (*c >= 'A' && *c <= 'Z'))
+              key[n++] = *c;
+          key[n] = 0;
+          SDL_free(clip);
+        }
+        if (!*key)
+          notice("Nothing to paste: copy the key first");
+        else if (boxart_key_save(key)) {
+          notice("SteamGridDB key saved");
+          *foldersChanged = true;
+        } else
+          notice("That isn't a SteamGridDB key");
+      } else if (k == 1) {
+        boxart_key_save("");
+        notice("SteamGridDB key removed");
+      }
+      save = false;
+      break;
+    }
     case ROW_SETUP:
       if (get_started())
         *foldersChanged = true;
@@ -3996,6 +4146,501 @@ static bool update_prompt(void) {
   }
   return true;
 }
+/* RENAME's keyboard: the D-pad walks the keys and A presses one, a tap presses one, and a real keyboard just types.
+ * B deletes (with nothing left, leaves), Y is a space, START is DONE. True with the name in BUF. */
+static bool text_entry(const char *title, char *buf, size_t size) {
+  static const char *const ROWS[] = {"1234567890", "QWERTYUIOP", "ASDFGHJKL'", "ZXCVBNM-.&"};
+  static const char *const WIDE[] = {"aA", "SPACE", "DEL", "DONE"};
+  enum { COLS = 10, ROW_N = 4 };
+  int row = 1, col = 0, pressedKey = -1;
+  bool lower = false, done = false, ok = false;
+  held = 0;
+  textEntry = true;
+  textTyped[0] = 0;
+  textBackspaces = 0;
+  textEnter = textEscape = false;
+  SDL_StartTextInput();
+  int keyX[ROW_N + 1][COLS], keyW[ROW_N + 1][COLS], keyY[ROW_N + 1], keyH = 0;
+  memset(keyX, 0, sizeof keyX);
+  memset(keyW, 0, sizeof keyW);
+  memset(keyY, 0, sizeof keyY);
+#define DEL_ONE()                                                                                                      \
+  do {                                                                                                                 \
+    size_t n_ = strlen(buf);                                                                                           \
+    while (n_ && ((unsigned char)buf[n_ - 1] & 0xC0) == 0x80)                                                          \
+      n_--;                                                                                                            \
+    if (n_)                                                                                                            \
+      n_--;                                                                                                            \
+    buf[n_] = 0;                                                                                                       \
+  } while (0)
+#define ADD(str)                                                                                                       \
+  do {                                                                                                                 \
+    size_t n_ = strlen(buf), a_ = strlen(str);                                                                         \
+    if (n_ + a_ < size && n_ + a_ < 60)                                                                                \
+      memcpy(buf + n_, str, a_ + 1);                                                                                   \
+  } while (0)
+  while (running && !done) {
+    events();
+    repeat_directions();
+    menu_script();
+    // A real keyboard.
+    if (*textTyped) {
+      ADD(textTyped);
+      textTyped[0] = 0;
+    }
+    for (; textBackspaces > 0; textBackspaces--)
+      DEL_ONE();
+    if (textEnter)
+      done = ok = true;
+    if (textEscape || down(MENU))
+      done = true;
+    int press = -1; // a key: row * COLS + col
+    if (down(LEFT))
+      col = row == ROW_N ? (col + 3) % 4 : (col + COLS - 1) % COLS;
+    if (down(RIGHT))
+      col = row == ROW_N ? (col + 1) % 4 : (col + 1) % COLS;
+    if (down(UP) && row > 0) {
+      if (row == ROW_N)
+        col = col * COLS / 4 + 1;
+      row--;
+    }
+    if (down(DOWN) && row < ROW_N) {
+      row++;
+      if (row == ROW_N)
+        col = col * 4 / COLS;
+    }
+    if (down(A))
+      press = row * COLS + col;
+    if (down(Y))
+      ADD(" ");
+    if (down(START))
+      done = ok = true;
+    if (down(B)) {
+      if (*buf)
+        DEL_ONE();
+      else
+        done = true;
+    }
+    for (int i = 0; i < tapCount; i++) {
+      int hit = -1;
+      for (int r = 0; r <= ROW_N && hit < 0; r++)
+        for (int c2 = 0; c2 < (r == ROW_N ? 4 : COLS); c2++)
+          if (taps[i].y >= keyY[r] && taps[i].y < keyY[r] + keyH && taps[i].x >= keyX[r][c2] &&
+              taps[i].x < keyX[r][c2] + keyW[r][c2])
+            hit = r * COLS + c2;
+      if (taps[i].down)
+        pressedKey = hit;
+      else if (hit >= 0 && hit == pressedKey) {
+        press = hit;
+        row = hit / COLS;
+        col = hit % COLS;
+        pressedKey = -1;
+      } else
+        pressedKey = -1;
+    }
+    tapCount = 0;
+    if (press >= 0) {
+      int r = press / COLS, c2 = press % COLS;
+      if (r < ROW_N) {
+        char ch[2] = {ROWS[r][c2], 0};
+        if (lower && ch[0] >= 'A' && ch[0] <= 'Z')
+          ch[0] = (char)(ch[0] - 'A' + 'a');
+        ADD(ch);
+      } else if (c2 == 0)
+        lower = !lower;
+      else if (c2 == 1)
+        ADD(" ");
+      else if (c2 == 2)
+        DEL_ONE();
+      else
+        done = ok = true;
+    }
+    // Drawn.
+    bool dark = pd_dark;
+    uint32_t page = dark ? 0x111318 : 0xE9ECF1, keyC = dark ? 0x1C1F26 : 0xFFFFFF,
+             edge = dark ? 0x2A2E37 : 0xD3D8E0, text = dark ? 0xF2F4F8 : 0x1E2229, muted = dark ? 0x8B93A1 : 0x6B7280;
+    const uint32_t ring = 0xFF8A1E;
+    companion_canvas();
+    pd_fill(&canvas, 0, 0, canvas.w, canvas.h, page);
+    pd_heading_fit(&canvas, 10, 6, canvas.w - 20, title, ring, PD_NO_SHADOW);
+    int fy = 28;
+    pd_round_rect(&canvas, 10, fy, canvas.w - 20, 24, 5, edge);
+    pd_round_rect(&canvas, 11, fy + 1, canvas.w - 22, 22, 4, keyC);
+    int tw = pd_text_width(buf);
+    int tx = 16 + (tw > canvas.w - 40 ? canvas.w - 40 - tw : 0);
+    pd_clip(&canvas, 12, fy, canvas.w - 24, 24);
+    pd_text(&canvas, tx, fy + 2, buf, text, PD_NO_SHADOW);
+    if ((SDL_GetTicks() / 500) % 2)
+      pd_fill(&canvas, tx + tw + 1, fy + 5, 1, 14, ring);
+    pd_unclip(&canvas);
+    int gap = 3, top = fy + 32, bottom = canvas.h - 18;
+    keyH = (bottom - top - gap * ROW_N) / (ROW_N + 1);
+    if (keyH > 26)
+      keyH = 26;
+    int kw = (canvas.w - 20 - gap * (COLS - 1)) / COLS;
+    for (int r = 0; r <= ROW_N; r++) {
+      keyY[r] = top + r * (keyH + gap);
+      int n = r == ROW_N ? 4 : COLS;
+      for (int c2 = 0; c2 < n; c2++) {
+        int w = r == ROW_N ? (canvas.w - 20 - gap * 3) / 4 : kw;
+        int x = 10 + c2 * (w + gap);
+        keyX[r][c2] = x;
+        keyW[r][c2] = w;
+        bool on = r == row && c2 == col;
+        pd_round_rect(&canvas, x, keyY[r], w, keyH, 4, on ? ring : edge);
+        pd_round_rect(&canvas, x + 1, keyY[r] + 1, w - 2, keyH - 2, 3, on ? ring : keyC);
+        char ch[8];
+        if (r < ROW_N) {
+          ch[0] = ROWS[r][c2];
+          ch[1] = 0;
+          if (lower && ch[0] >= 'A' && ch[0] <= 'Z')
+            ch[0] = (char)(ch[0] - 'A' + 'a');
+        } else
+          snprintf(ch, sizeof ch, "%s", WIDE[c2 & 3]);
+        pd_text(&canvas, x + (w - pd_text_width(ch)) / 2, keyY[r] + (keyH - 16) / 2 - 1, ch, on ? 0xFFFFFF : text,
+                PD_NO_SHADOW);
+      }
+    }
+    pd_text_fit(&canvas, 10, canvas.h - 18, canvas.w - 20, "A KEY   B DELETE   Y SPACE   START DONE   OR JUST TYPE",
+                muted, PD_NO_SHADOW);
+    if (menu_frame())
+      break;
+  }
+#undef DEL_ONE
+#undef ADD
+  SDL_StopTextInput();
+  textEntry = false;
+  held = 0;
+  size_t n = strlen(buf);
+  while (n && buf[n - 1] == ' ')
+    buf[--n] = 0;
+  return ok && running;
+}
+
+/* The landing page: the games as a grid of box art (game_grid.h), GAME FOLDERS and SETTINGS in its top bar. A game's
+ * options (X, a right click, a long press): PLAY, FIND BOX ART, SET BOX ART, RENAME. */
+static int grid_system(const char *file) {
+  const char *dot = strrchr(file, '.');
+  if (!dot)
+    return BOXART_GBA;
+  if (!strcasecmp(dot, ".nds"))
+    return BOXART_NDS;
+  if (!strcasecmp(dot, ".gbc"))
+    return BOXART_GBC;
+  if (!strcasecmp(dot, ".gb"))
+    return BOXART_GB;
+  return BOXART_GBA;
+}
+static void grid_stem(const char *file, char *out, size_t size) {
+  snprintf(out, size, "%s", file);
+  char *dot = strrchr(out, '.');
+  if (dot && dot != out)
+    *dot = 0;
+}
+/* SET BOX ART from a path or link: quotes and spaces round it dropped (a copied path keeps them). */
+static void grid_set_art(const char *stem, const char *source) {
+  char s[1500];
+  snprintf(s, sizeof s, "%s", source);
+  char *p = s;
+  while (*p == ' ' || *p == '"' || *p == '\'' || *p == '\t')
+    p++;
+  size_t n = strlen(p);
+  while (n && (p[n - 1] == ' ' || p[n - 1] == '"' || p[n - 1] == '\'' || p[n - 1] == '\n' || p[n - 1] == '\r' ||
+               p[n - 1] == '\t'))
+    p[--n] = 0;
+  if (!*p) {
+    notice("Nothing to use: copy an image file's path or a link first");
+    return;
+  }
+  char err[160] = "";
+  if (boxart_set_custom(stem, p, err, sizeof err))
+    notice("Box art set");
+  else
+    notice(*err ? err : "Couldn't use that picture");
+}
+enum { GRID_BAR_FOLDERS, GRID_BAR_SETTINGS };
+struct library {
+  struct rom_list games;
+  struct game_grid_item *items;
+  struct boxart_game *art;
+  char **stems;
+  char (*versions)[48];
+  struct game_grid grid;
+  int count;
+};
+static const char *const LIBRARY_BAR[] = {"GAME FOLDERS", "SETTINGS"};
+static void library_free(struct library *l) {
+  for (int i = 0; i < l->count; i++)
+    free(l->stems[i]);
+  free(l->stems);
+  free(l->items);
+  free(l->art);
+  free(l->versions);
+  rom_list_free(&l->games);
+  l->stems = NULL;
+  l->items = NULL;
+  l->art = NULL;
+  l->versions = NULL;
+  l->count = 0;
+}
+static void library_load(struct library *l) {
+#ifdef POCKET_DS
+  const bool listNds = true;
+#else
+  const bool listNds = false;
+#endif
+  int keep = l->grid.selected, focus = l->grid.focus, scroll = l->grid.scrollY;
+  library_free(l);
+  rom_list_load(&l->games, root, listNds);
+  int count = l->games.count;
+  l->items = calloc((size_t)count + 1, sizeof *l->items);
+  l->art = calloc((size_t)count + 1, sizeof *l->art);
+  l->stems = calloc((size_t)count + 1, sizeof *l->stems);
+  l->versions = calloc((size_t)count + 1, sizeof *l->versions);
+  if (!l->items || !l->art || !l->stems || !l->versions)
+    count = 0;
+  for (int i = 0; i < count; i++) {
+    const char *label = l->games.labels[i];
+    grid_stem(label, l->art[i].stem, sizeof l->art[i].stem);
+    snprintf(l->art[i].title, sizeof l->art[i].title, "%s", l->games.names[i]);
+    l->art[i].system = grid_system(label);
+    l->stems[i] = strdup(l->art[i].stem);
+    if (!l->stems[i]) {
+      count = i;
+      break;
+    }
+    game_version(label, l->versions[i], sizeof l->versions[i]);
+    l->items[i] = (struct game_grid_item){l->games.names[i], l->versions[i], l->art[i].system, !game_is_original(label)};
+  }
+  l->count = count;
+  game_grid_init(&l->grid, l->items, count);
+  l->grid.selected = keep >= 0 && keep < count ? keep : 0;
+  l->grid.focus = count ? focus : GAME_GRID_TILES;
+  l->grid.scrollY = scroll;
+  l->grid.title = POCKET_HOST_NAME;
+  l->grid.bar = LIBRARY_BAR;
+  l->grid.barCount = 2;
+  l->grid.hint = "A PLAY   X OPTIONS   Y SETTINGS   B QUIT";
+  l->grid.emptyPath = ROMS_PATH;
+  char path[1100];
+  snprintf(path, sizeof path, "%s/settings.ini", root);
+  struct pd_settings st;
+  pd_settings_load(&st, path);
+  pd_look_apply(NULL, &st); // DARK MODE on the landing page too
+  // Never from a headless check unless asked (POCKET_BOXART): those don't go online.
+  if (st.boxartAuto && (!menuFrames || getenv("POCKET_BOXART")))
+    boxart_queue(l->art, count);
+}
+/* A game's options. Returns the game to play, else -1; *reload when the list changed; *finding when FIND started. */
+static int library_options(struct library *l, int g, bool *reload, bool *finding) {
+  enum { OPT_PLAY, OPT_FIND, OPT_SET, OPT_CLEAR, OPT_RENAME, OPT_RESET };
+  const char *stem = l->stems[g], *label = l->games.labels[g];
+  char custom[256];
+  bool hasArt = boxart_has_custom(stem), hasName = game_custom_name(root, label, custom, sizeof custom);
+  const char *rows[8];
+  int ids[8], n = 0;
+#define OPT(id, text)                                                                                                  \
+  do {                                                                                                                 \
+    rows[n] = text;                                                                                                    \
+    ids[n++] = id;                                                                                                     \
+  } while (0)
+  OPT(OPT_PLAY, "PLAY");
+  OPT(OPT_FIND, "FIND BOX ART");
+  OPT(OPT_SET, "SET BOX ART");
+  if (hasArt)
+    OPT(OPT_CLEAR, "REMOVE MY BOX ART");
+  OPT(OPT_RENAME, "RENAME");
+  if (hasName)
+    OPT(OPT_RESET, "USE THE FILE'S NAME");
+#undef OPT
+  int pick = menu_pick(l->games.names[g], rows, n, 0);
+  int id = pick >= 0 ? ids[pick] : -1;
+  switch (id) {
+  case OPT_PLAY:
+    return g;
+  case OPT_FIND:
+    boxart_find(&l->art[g]);
+    *finding = true;
+    notice("Looking for box art...");
+    break;
+  case OPT_SET: {
+    static const char *const from[] = {"USE THE COPIED PATH OR LINK"};
+    int f = menu_pick_hint("SET BOX ART",
+                           "Copy an image file's path (PNG or JPG) or an https link to one, then pick this. Or drop an "
+                           "image on the window.",
+                           from, 1, 0);
+    if (f == 0) {
+      char *clip = SDL_HasClipboardText() ? SDL_GetClipboardText() : NULL;
+      grid_set_art(stem, clip ? clip : "");
+      if (clip)
+        SDL_free(clip);
+    }
+    break;
+  }
+  case OPT_CLEAR:
+    notice(boxart_clear_custom(stem) ? "Your box art is removed" : "Couldn't remove it");
+    break;
+  case OPT_RENAME: {
+    char name[256];
+    snprintf(name, sizeof name, "%s", l->games.names[g]);
+    if (text_entry("RENAME", name, sizeof name)) {
+      if (!*name)
+        notice("A name needs a letter or two");
+      else if (game_custom_name_set(root, label, name))
+        *reload = true;
+      else
+        notice("Couldn't save the name");
+    }
+    break;
+  }
+  case OPT_RESET:
+    if (game_custom_name_set(root, label, NULL))
+      *reload = true;
+    break;
+  default:
+    break;
+  }
+  return -1;
+}
+static bool library_frame(struct library *l) {
+  gridStems = l->stems;
+  gridOverlay = &l->grid;
+  bool quit = menu_frame();
+  gridOverlay = NULL;
+  return quit;
+}
+static void library_screen(void) {
+  static struct library lib; // static: its grid is big (the art's places)
+  memset(&lib, 0, sizeof lib);
+  boxart_init(root);
+  library_load(&lib);
+  // POCKET_SETUP=1 shows GET STARTED whatever DATA holds (a headless look at it).
+  if ((!lib.count && !setup_done()) || (getenv("POCKET_SETUP") && !strcmp(getenv("POCKET_SETUP"), "1"))) {
+    if (get_started())
+      library_load(&lib);
+  }
+  struct game_grid *grid = &lib.grid;
+  uint32_t touchAt = 0;
+  bool wasTouching = false, finding = false;
+  while (running) {
+    events();
+    repeat_directions();
+    menu_script();
+    companion_canvas();
+    game_grid_draw(grid, &canvas);
+    if (update_prompt()) {
+      if (library_frame(&lib))
+        break;
+      continue;
+    }
+    if (down(B) || down(MENU))
+      break;
+    int play = -1, bar = -1, options = -1;
+    if (down(LEFT))
+      game_grid_move(grid, -1, 0);
+    if (down(RIGHT))
+      game_grid_move(grid, 1, 0);
+    if (down(UP))
+      game_grid_move(grid, 0, -1);
+    if (down(DOWN))
+      game_grid_move(grid, 0, 1);
+    if (down(A)) {
+      if (grid->focus == GAME_GRID_BAR)
+        bar = grid->barSelected;
+      else if (lib.count)
+        play = grid->selected;
+    }
+    if (down(X) && lib.count && grid->focus == GAME_GRID_TILES)
+      options = grid->selected;
+    if (down(Y))
+      bar = GRID_BAR_SETTINGS;
+    if (wheelSteps) {
+      game_grid_scroll(grid, -wheelSteps * (grid->tileH + grid->gap) / 2);
+      wheelSteps = 0;
+    }
+    for (int i = 0; i < tapCount; i++) {
+      int b;
+      int t = game_grid_touch(grid, taps[i].x, taps[i].y, taps[i].down, &b);
+      if (t >= 0)
+        play = t;
+      if (b >= 0)
+        bar = b;
+    }
+    tapCount = 0;
+    // A long press: the game's options.
+    if (grid->touching && !wasTouching)
+      touchAt = SDL_GetTicks();
+    wasTouching = grid->touching;
+    if (grid->touching && !grid->dragged && grid->pressedTile >= 0 && SDL_GetTicks() - touchAt > 550) {
+      options = grid->pressedTile;
+      grid->selected = options;
+      grid->touching = wasTouching = false;
+      tapHeld = false;
+    }
+    if (rightClicked) {
+      rightClicked = false;
+      int t = game_grid_tile_at(grid, rightClickX, rightClickY);
+      if (t >= 0) {
+        grid->selected = t;
+        grid->focus = GAME_GRID_TILES;
+        options = t;
+      }
+    }
+    if (droppedFile) {
+      // An image dropped on the window: the selected game's box art.
+      if (lib.count && grid->selected >= 0 && grid->selected < lib.count)
+        grid_set_art(lib.stems[grid->selected], droppedFile);
+      free(droppedFile);
+      droppedFile = NULL;
+    }
+    if (finding) {
+      int r = boxart_find_result();
+      if (r >= 0) {
+        finding = false;
+        char key[80];
+        boxart_key(key, sizeof key);
+        notice(r == 1 ? "Box art found"
+               : *key ? "No box art found: SET BOX ART picks your own"
+                      : "No box art found: a SteamGridDB key in SETTINGS finds more");
+      }
+    }
+    if (bar == GRID_BAR_FOLDERS) {
+      if (folders_screen())
+        library_load(&lib);
+    } else if (bar == GRID_BAR_SETTINGS) {
+      bool changed = false;
+      int next = settings_page(&changed);
+      if (changed)
+        library_load(&lib);
+      if (next < 0)
+        break;
+    } else if (options >= 0 && options < lib.count) {
+      bool reload = false;
+      int p = library_options(&lib, options, &reload, &finding);
+      if (reload)
+        library_load(&lib);
+      if (p >= 0 && p < lib.count)
+        play = p;
+    }
+    if (play >= 0 && play < lib.count) {
+      grid->selected = play;
+      char rom[1400];
+      snprintf(rom, sizeof rom, "%s", lib.games.paths[play]);
+      run_game(rom, 0, NULL);
+    }
+    if (!running)
+      break;
+    companion_canvas();
+    game_grid_draw(grid, &canvas);
+    if (library_frame(&lib))
+      break;
+  }
+  gridStems = NULL;
+  boxart_quit();
+  boxart_textures_free();
+  library_free(&lib);
+}
+
 int main(int argc, char **argv) {
   const char *rom = NULL, *shot = NULL;
   int frames = 0;
@@ -4139,99 +4784,11 @@ int main(int argc, char **argv) {
   if (rom)
     run_game(rom, frames, shot);
   else {
-    // DATA/roms and the GAME FOLDERS (DATA/roms-folders.txt), each with its subfolders (rom_list.c); the list's last
-    // rows open GAME FOLDERS, CONTROLS and SCREEN.
-    struct rom_list games = {0};
-    const char **items = NULL;
-    int count = 0;
-    struct pd_menu menu;
+    // The landing page: the games in DATA/roms and the GAME FOLDERS (rom_list.c) as a grid of box art.
     menuFrames = frames;
     menuShot = shot;
     menuKeys = getenv("POCKET_MENU_KEYS");
-#define LOAD_GAMES()                                                                                                   \
-  do {                                                                                                                 \
-    rom_list_free(&games);                                                                                             \
-    rom_list_load(&games, root, LIST_NDS);                                                                             \
-    free(items);                                                                                                       \
-    items = malloc(sizeof *items * (size_t)(games.count + 1));                                                         \
-    count = items ? games.count : 0;                                                                                   \
-    for (int i = 0; i < count; i++)                                                                                    \
-      items[i] = games.names[i];                                                                                       \
-    pd_menu_init(&menu, POCKET_HOST_NAME, items, count);                                                               \
-    rail_setup(&menu, RAIL_GAMES);                                                                                     \
-    menu.actions = GAMES_ACTIONS;                                                                                      \
-    menu.actionCount = 1;                                                                                              \
-    menu.emptyPath = ROMS_PATH;                                                                                        \
-  } while (0)
-#ifdef POCKET_DS
-#define LIST_NDS true
-#else
-#define LIST_NDS false
-#endif
-    LOAD_GAMES();
-    // POCKET_SETUP=1 shows GET STARTED whatever DATA holds (a headless look at it).
-    if ((!count && !setup_done()) || (getenv("POCKET_SETUP") && !strcmp(getenv("POCKET_SETUP"), "1"))) {
-      if (get_started())
-        LOAD_GAMES();
-    }
-    while (running) {
-      events();
-      repeat_directions();
-      menu_script();
-      companion_canvas();
-      pd_menu_draw(&menu, &canvas);
-      if (update_prompt()) {
-        if (menu_frame())
-          break;
-        continue;
-      }
-      if (down(B) || down(MENU))
-        break;
-      int act, open;
-      bool listKeys;
-      open = rail_keys(&menu, &act, &listKeys);
-      int tapped = menu_taps(&menu);
-      int tapOpen = rail_taps(&menu, &act);
-      if (tapOpen >= 0)
-        open = tapOpen;
-      if (listKeys) {
-        if (down(UP))
-          pd_menu_move(&menu, -1);
-        if (down(DOWN))
-          pd_menu_move(&menu, 1);
-      }
-      int play = tapped >= 0 && tapped < count ? tapped : listKeys && down(A) && count ? menu.selected : -1;
-      if (act == 0) {
-        // + ADD GAMES: GAME FOLDERS.
-        int focus = menu.focus;
-        if (folders_screen())
-          LOAD_GAMES();
-        menu.focus = focus;
-      } else if (open == RAIL_SETTINGS) {
-        bool changed = false;
-        int selected = menu.selected;
-        int next = settings_page(&changed);
-        if (changed)
-          LOAD_GAMES();
-        else
-          menu.selected = selected;
-        if (next < 0)
-          break;
-        menu.focus = PD_MENU_FOCUS_NAV;
-      } else if (play >= 0) {
-        menu.selected = play;
-        snprintf(path, sizeof path, "%s", games.paths[play]);
-        run_game(path, 0, NULL);
-      }
-      companion_canvas();
-      pd_menu_draw(&menu, &canvas);
-      if (menu_frame())
-        break;
-    }
-#undef LOAD_GAMES
-#undef LIST_NDS
-    rom_list_free(&games);
-    free(items);
+    library_screen();
   }
   if (js)
     SDL_JoystickClose(js);
