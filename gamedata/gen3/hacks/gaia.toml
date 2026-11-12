@@ -66,3 +66,10 @@ guideTables = 'GUIDE_TABLES_GAIA'
 # FireRed's battle menu cursors, checked headless like Unbound's (gaia_battle's README).
 actionCursor = 0x02023FF8
 moveCursor = 0x02023FFC
+# FOE TEAM: FireRed's battle EWRAM, which this hack keeps. The gaia_battle fixture's wild battle has the foe at gEnemyParty
+# 0x0202402C (right before gPlayerParty), gBattlerPositions 8 bytes past gBattlerPartyIndexes and the gBattleStruct
+# pointer's monToSwitchIntoId at +0x5C (06 06 06 06, then battlerPartyOrders).
+enemyParty = { from = 'firered_rev1' }
+battlerPartyIndexes = { from = 'firered_rev1' }
+battleStructPtr = { from = 'firered_rev1' }
+monToSwitchIntoOff = { from = 'firered_rev1' }

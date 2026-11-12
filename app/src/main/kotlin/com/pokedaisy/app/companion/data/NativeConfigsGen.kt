@@ -3308,6 +3308,13 @@ val NATIVE_GAIA_V3_2 = NATIVE_FIRERED_REV0.copy(
     // FireRed's battle menu cursors, checked headless like Unbound's (gaia_battle's README).
     actionCursor = 0x02023FF8L,
     moveCursor = 0x02023FFCL,
+    // FOE TEAM: FireRed's battle EWRAM, which this hack keeps. The gaia_battle fixture's wild battle has the foe at gEnemyParty
+    // 0x0202402C (right before gPlayerParty), gBattlerPositions 8 bytes past gBattlerPartyIndexes and the gBattleStruct
+    // pointer's monToSwitchIntoId at +0x5C (06 06 06 06, then battlerPartyOrders).
+    enemyParty = NATIVE_FIRERED_REV1.enemyParty,
+    battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
+    monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
 )
 
 // ---- gamedata/gen3/hacks/glazed.toml ----
@@ -3453,6 +3460,12 @@ val NATIVE_HEART_AND_SOUL = NATIVE_EMERALD.copy(
     // gActionSelectionCursor / gMoveSelectionCursor (EWRAM bytes walking 0 -> 1 -> 3 / 0 -> 1 in those dumps).
     actionCursor = 0x020003A4L,
     moveCursor = 0x020003A8L,
+    // FOE TEAM: the heart_and_soul_battle fixture's wild HOOTHOOT Lv2 is at gEnemyParty 0x020342B4, after the two
+    // party counts (0x020342A4 / 0x020342A5) and 1200 bytes before gPlayerParty; the block at 0x020371F4 holds a copy
+    // of both parties during battle only. gBattlerPartyIndexes is 8 bytes before gBattlerPositions, as in Lazarus and
+    // Emerald Rogue. The gBattleStruct pointer was empty in that dump, so the foe's next Pokemon isn't read.
+    enemyParty = 0x020342B4L,
+    battlerPartyIndexes = 0x02000230L,
     pokedex = POKEDEX_HEART_AND_SOUL,
     guideTables = GUIDE_TABLES_HEART_AND_SOUL,
 )
@@ -4009,6 +4022,13 @@ val NATIVE_ODYSSEY = NATIVE_FIRERED_REV0.copy(
     // FireRed's battle menu cursors (CFRU), checked headless like Unbound's (odyssey_battle's README).
     actionCursor = 0x02023FF8L,
     moveCursor = 0x02023FFCL,
+    // FOE TEAM: FireRed's battle EWRAM, which this hack keeps. The odyssey_battle fixture's wild battle has the foe at gEnemyParty
+    // 0x0202402C (right before gPlayerParty), gBattlerPositions 8 bytes past gBattlerPartyIndexes and the gBattleStruct
+    // pointer's monToSwitchIntoId at +0x5C (06 06 06 06, then battlerPartyOrders).
+    enemyParty = NATIVE_FIRERED_REV1.enemyParty,
+    battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
+    monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
 )
 
 // ---- gamedata/gen3/hacks/orange_islands.toml ----
@@ -5370,6 +5390,14 @@ val NATIVE_UNBOUND = NATIVE_FIRERED_REV0.copy(
 // Unbound's own POKéDEX tables (SHA1-pinned, see POKEDEX_UNBOUND) - kept off
 // NATIVE_UNBOUND itself, which the other CFRU configs reuse as NATIVE_FIRERED_REV0.
 val NATIVE_UNBOUND_WITH_DEX = NATIVE_UNBOUND.copy(
+    // FOE TEAM: CFRU keeps FireRed's battle EWRAM. gEnemyParty is the 600 bytes before gPlayerParty (0x02024284, as
+    // vanilla's); the unbound_battle fixture's gBattlerPositions sit 8 bytes past gBattlerPartyIndexes and the
+    // gBattleStruct pointer's monToSwitchIntoId reads 06 06 06 06 at +0x5C, as in FireRed. Its scripted wild foe left
+    // gEnemyParty empty, so the address comes from the layout, not from a foe seen there.
+    enemyParty = NATIVE_FIRERED_REV1.enemyParty,
+    battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
+    monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
     // CFRU repointed gItems (FireRed 1.0's literal pools load it from here).
     itemDescs = vanillaItems(0x08876200L),
     pokedex = POKEDEX_UNBOUND,
