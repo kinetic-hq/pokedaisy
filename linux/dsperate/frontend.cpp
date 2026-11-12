@@ -194,7 +194,11 @@ extern "C" { bool (*pd_ds_host_event)(const SDL_Event*)=nullptr; }
 extern "C" { int pd_ds_xbox_layout=0; }
 // The host's HOTKEYS (main.c's HA_* bits: 1 GAME MENU, 2 COMPANION, 4 SAVE STATE, 5 LOAD STATE, 8 / 9 DS LAYOUT
 // NEXT / BACK, 10 SWAP SCREENS), read and cleared once a frame; and its screenshot, taken before a present.
-extern "C" { unsigned (*pd_ds_host_actions)(void)=nullptr; void (*pd_ds_before_present)(void)=nullptr; }
+extern "C" { unsigned (*pd_ds_host_actions)(void)=nullptr; }
+// The host's present (its screenshot, then the picture turned for DISPLAY ORIENTATION), and a window point (0..1)
+// in drawing pixels, turned back the same way; GAME TOUCH OFF leaves the DS touch screen to the D-pad.
+extern "C" { void (*pd_ds_present)(void)=nullptr; void (*pd_ds_point)(float,float,float*,float*)=nullptr;
+             int pd_ds_game_touch_off=0; }
 extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* shot,SDL_Renderer* renderer,bool (*keepRunning)()) {
   auto bytes=read_file(rom);if(bytes.size()<512 || bytes.size()>512u*1024*1024){std::fprintf(stderr,"DS: invalid ROM size\n");return 1;}
   char hex[41];{pd_sha1 h;pd_sha1_init(&h);pd_sha1_update(&h,bytes.data(),bytes.size());pd_sha1_hex(&h,hex);}
@@ -273,13 +277,15 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // so a flicker doesn't flash it). A game without touch rules can't say so, so its ONE SCREEN is PICTURE IN PICTURE.
   int touchOn=0,touchOff=0;bool touchWanted=false;
   auto pointerAt=[&](float px,float py,bool start){
-    if(!touchBox.shown() || showCompanion || showQuick || paused){pointerDown=false;return;}
+    if(pd_ds_game_touch_off || !touchBox.shown() || showCompanion || showQuick || paused){pointerDown=false;return;}
     int x,y;if(!ds_touch_at(touchBox,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return;}
     pointerX=x;pointerY=y;if(start)pointerDown=true;
   };
   // Mouse events are in window coordinates; the picture is laid out in the renderer's output pixels.
   auto toOutput=[&](int wx,int wy,float& px,float& py){
-    int ww=1,wh=1,ow=1,oh=1;SDL_GetWindowSize(SDL_RenderGetWindow(renderer),&ww,&wh);SDL_GetRendererOutputSize(renderer,&ow,&oh);
+    int ww=1,wh=1,ow=1,oh=1;SDL_GetWindowSize(SDL_RenderGetWindow(renderer),&ww,&wh);
+    if(pd_ds_point){pd_ds_point(float(wx)/std::max(1,ww),float(wy)/std::max(1,wh),&px,&py);return;}
+    SDL_GetRendererOutputSize(renderer,&ow,&oh);
     px=float(wx)*ow/std::max(1,ww);py=float(wy)*oh/std::max(1,wh);
   };
   uint64_t started=SDL_GetPerformanceCounter();uint32_t lastWrites=nds->batteryWrites();int quiet=autoResumed?60:0;
@@ -316,8 +322,12 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID){float px,py;toOutput(e.button.x,e.button.y,px,py);pointerAt(px,py,true);}
       if(e.type==SDL_MOUSEMOTION && pointerDown && pointerFinger<0 && (e.motion.state&SDL_BUTTON_LMASK) && e.motion.which!=SDL_TOUCH_MOUSEID){float px,py;toOutput(e.motion.x,e.motion.y,px,py);pointerAt(px,py,false);}
       if(e.type==SDL_MOUSEBUTTONUP && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID && pointerFinger<0)pointerDown=false;
-      if(e.type==SDL_FINGERDOWN && !pointerDown){int ow=1,oh=1;SDL_GetRendererOutputSize(renderer,&ow,&oh);pointerAt(e.tfinger.x*ow,e.tfinger.y*oh,true);if(pointerDown)pointerFinger=e.tfinger.fingerId;}
-      if(e.type==SDL_FINGERMOTION && pointerDown && e.tfinger.fingerId==pointerFinger){int ow=1,oh=1;SDL_GetRendererOutputSize(renderer,&ow,&oh);pointerAt(e.tfinger.x*ow,e.tfinger.y*oh,false);}
+      auto fingerAt=[&](float nx,float ny,float& px,float& py){
+        if(pd_ds_point){pd_ds_point(nx,ny,&px,&py);return;}
+        int ow=1,oh=1;SDL_GetRendererOutputSize(renderer,&ow,&oh);px=nx*ow;py=ny*oh;
+      };
+      if(e.type==SDL_FINGERDOWN && !pointerDown){float px,py;fingerAt(e.tfinger.x,e.tfinger.y,px,py);pointerAt(px,py,true);if(pointerDown)pointerFinger=e.tfinger.fingerId;}
+      if(e.type==SDL_FINGERMOTION && pointerDown && e.tfinger.fingerId==pointerFinger){float px,py;fingerAt(e.tfinger.x,e.tfinger.y,px,py);pointerAt(px,py,false);}
       if(e.type==SDL_FINGERUP && e.tfinger.fingerId==pointerFinger){pointerDown=false;pointerFinger=-1;}
       if(!pointerDown)pointerFinger=-1;
       // A headless (dummy driver) window has no focus to lose: it pausing there kept test runs from playing.
@@ -495,8 +505,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     }
     if(paused){pd_fill(&canvas,0,0,341,256,0x303838);pd_title_box(&canvas,15,40,311,170,0xffffff);pd_text(&canvas,28,55,"PokeDaisy DS / PAUSED",0x303030,PD_NO_SHADOW);pd_text(&canvas,28,90,"B resume   A save state",0x303030,PD_NO_SHADOW);pd_text(&canvas,28,120,"X load state   START quit",0x303030,PD_NO_SHADOW);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);}
     if(shot && limit && frame==limit-1){std::vector<uint32_t> pixels(size_t(ow)*oh);if(!SDL_RenderReadPixels(renderer,nullptr,SDL_PIXELFORMAT_ARGB8888,pixels.data(),ow*4))pd_png_write(shot,ow,oh,pixels.data());}
-    if(pd_ds_before_present)pd_ds_before_present();
-    SDL_RenderPresent(renderer);frame++;
+    if(pd_ds_present)pd_ds_present();else SDL_RenderPresent(renderer);
+    frame++;
     if(!limit){double ms=1000.0*(SDL_GetPerformanceCounter()-tick)/SDL_GetPerformanceFrequency();if(ms<1000.0/nds->fps())SDL_Delay(unsigned(1000.0/nds->fps()-ms));}
   }
   nds->setButtons(0);nds->setTouch(0,0,false);

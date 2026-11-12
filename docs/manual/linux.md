@@ -19,7 +19,9 @@ TrimUI builds, controls, save paths and test commands. Use a separate data
 folder while testing. Existing emulator saves are never imported automatically.
 F11, Alt+Enter or L3 + R3 switch full screen, as on Windows, and `CONTROLS` at
 the bottom of the game list sets the `BUTTON LAYOUT` and the extra buttons' jobs
-the same way.
+the same way. `SCREEN` there turns the picture (`ORIENTATION`, for a screen
+mounted upright or upside down) and sets `GAME TOUCH`, and touch works on the
+game list, the menus and the companion.
 Games can also be listed from other folders (`GAME FOLDERS` at the bottom of the
 game list) and saves kept beside them (`SAVES BESIDE GAMES`): the Windows page
 says how.

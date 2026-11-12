@@ -284,6 +284,8 @@ static const char *const HOTKEY_ACTIONS[PD_HOTKEY_ACTIONS] = {
     "SCREENSHOT", "FULLSCREEN", "DS LAYOUT NEXT", "DS LAYOUT BACK", "SWAP SCREENS"};
 static unsigned hostActions;  // HA_* bits pressed since the game loop last looked
 static bool screenshotWanted; // the next present writes DATA/screenshots/...
+static int gameTouch; // GAME TOUCH, enum pd_game_touch
+static void orientation_set(int o);
 static void controls_load(void) {
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
@@ -291,6 +293,8 @@ static void controls_load(void) {
   pd_settings_load(&st, path);
   buttonLayout = st.buttonLayout;
   memcpy(hotkeyMap, st.hotkeys, sizeof hotkeyMap);
+  gameTouch = st.gameTouch;
+  orientation_set(st.orientation);
 }
 static bool host_action(int action) {
   bool on = hostActions & (1u << action);
@@ -492,13 +496,112 @@ static bool hotkey_event(const SDL_Event *e) {
   }
   return false;
 }
+/* Touch and the mouse on the host's own screens (the game list, its menus, the game menu, the companion): presses in
+ * the pixels of the canvas last drawn, where it was drawn (canvasAt; none while only the game shows). A finger or
+ * the left button; tap_take hands them to whichever screen is up, and the rest are dropped at the next events(). */
+void pd_host_point(float nx, float ny, float *px, float *py);
+static SDL_Rect canvasAt;
+static int canvasAtW, canvasAtH;
+struct tap {
+  int x, y;
+  bool down; // down / still held (moved), else let go
+};
+static struct tap taps[32];
+static int tapCount;
+static bool tapHeld;
+static SDL_FingerID tapFinger = -1;
+static void canvas_at(SDL_Rect at, int w, int h) {
+  canvasAt = at;
+  canvasAtW = w;
+  canvasAtH = h;
+}
+static void tap_push(float nx, float ny, int phase) { // phase: 0 down, 1 moved, 2 up
+  if (tapCount >= (int)(sizeof taps / sizeof *taps))
+    return;
+  float px, py;
+  pd_host_point(nx, ny, &px, &py);
+  bool inside = canvasAt.w > 0 && canvasAt.h > 0 && px >= canvasAt.x && py >= canvasAt.y &&
+                px < canvasAt.x + canvasAt.w && py < canvasAt.y + canvasAt.h;
+  if (phase == 0 && !inside)
+    return;
+  if (phase != 0 && !tapHeld)
+    return;
+  int x = canvasAt.w > 0 ? (int)((px - canvasAt.x) * canvasAtW / canvasAt.w) : 0;
+  int y = canvasAt.h > 0 ? (int)((py - canvasAt.y) * canvasAtH / canvasAt.h) : 0;
+  taps[tapCount++] = (struct tap){x, y, phase != 2};
+  tapHeld = phase != 2;
+}
+static void tap_event(const SDL_Event *e) {
+  if ((e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP) && e->button.button == SDL_BUTTON_LEFT &&
+      e->button.which != SDL_TOUCH_MOUSEID) {
+    int mx, my, ww = 1, wh = 1;
+    SDL_GetMouseState(&mx, &my); // window points (an event's own can be in the renderer's logical size)
+    SDL_GetWindowSize(window, &ww, &wh);
+    tap_push((float)mx / (ww > 0 ? ww : 1), (float)my / (wh > 0 ? wh : 1), e->type == SDL_MOUSEBUTTONDOWN ? 0 : 2);
+  } else if (e->type == SDL_MOUSEMOTION && (e->motion.state & SDL_BUTTON_LMASK) && e->motion.which != SDL_TOUCH_MOUSEID &&
+             tapHeld && tapFinger < 0) {
+    int mx, my, ww = 1, wh = 1;
+    SDL_GetMouseState(&mx, &my);
+    SDL_GetWindowSize(window, &ww, &wh);
+    tap_push((float)mx / (ww > 0 ? ww : 1), (float)my / (wh > 0 ? wh : 1), 1);
+  } else if (e->type == SDL_FINGERDOWN && !tapHeld) {
+    tap_push(e->tfinger.x, e->tfinger.y, 0);
+    if (tapHeld)
+      tapFinger = e->tfinger.fingerId;
+  } else if ((e->type == SDL_FINGERMOTION || e->type == SDL_FINGERUP) && tapHeld && e->tfinger.fingerId == tapFinger) {
+    tap_push(e->tfinger.x, e->tfinger.y, e->type == SDL_FINGERUP ? 2 : 1);
+    if (e->type == SDL_FINGERUP)
+      tapFinger = -1;
+  }
+}
+/* POCKET_TAPS="N:X:Y,..." (headless checks): a finger down at (X, Y) in hundredths of the window on events() call
+ * N, up on the next. */
+static int tapScriptTick;
+static void tap_script(void) {
+  const char *s = getenv("POCKET_TAPS");
+  if (!s)
+    return;
+  int tick = ++tapScriptTick;
+  while (*s) {
+    int n, x, y, used = 0;
+    if (sscanf(s, "%d:%d:%d%n", &n, &x, &y, &used) != 3 || !used)
+      break;
+    if (tick == n || tick == n + 1) {
+      SDL_Event f = {0};
+      f.type = tick == n ? SDL_FINGERDOWN : SDL_FINGERUP;
+      f.tfinger.fingerId = 7;
+      f.tfinger.x = x / 100.0f;
+      f.tfinger.y = y / 100.0f;
+      SDL_PushEvent(&f);
+    }
+    s += used;
+    if (*s == ',')
+      s++;
+  }
+}
+/* The row a tap picked on a pick-list drawn as the canvas (or -1). */
+static int menu_taps(struct pd_menu *m) {
+  int row = -1;
+  for (int i = 0; i < tapCount; i++) {
+    int r = pd_menu_touch(m, taps[i].x, taps[i].y, taps[i].down);
+    if (r >= 0)
+      row = r;
+  }
+  tapCount = 0;
+  return row;
+}
 static void events(void) {
   pressed = 0;
+  tapCount = 0;
+  tap_script();
   SDL_Event e;
   while (SDL_PollEvent(&e)) {
     if (e.type == SDL_QUIT)
       running = 0;
     controller_device_event(&e);
+    tap_event(&e);
+    if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+      tapHeld = false;
     if (fullscreen_event(&e))
       continue;
     if (e.type == SDL_AUDIODEVICEREMOVED && !e.adevice.iscapture && audio &&
@@ -757,16 +860,109 @@ static void screenshot_now(void) {
   snprintf(path, sizeof path, "%s/%s-%s.png", dir, shotName, when);
   notice(capture_frame(path, NULL) ? "Screenshot saved" : "Screenshot failed");
 }
+/* DISPLAY ORIENTATION (SETTINGS > ORIENTATION, the game list's SCREEN): while turned, everything is drawn into
+ * rotTarget, a texture the size of the turned screen (SDL_GetRendererOutputSize then answers its size, so every
+ * layout follows by itself), and each present copies it to the window turned a quarter at a time, clockwise. */
+static int orientation;
+static SDL_Texture *rotTarget;
+static int rotW, rotH, winOutW = 1, winOutH = 1;
+/* With no target set: (re)make the target for the window's size and draw into it, or drop it when not turned. */
+static void rotation_ready(void) {
+  if (!renderer)
+    return;
+  if (SDL_GetRendererOutputSize(renderer, &winOutW, &winOutH) < 0 || winOutW <= 0 || winOutH <= 0)
+    winOutW = winOutH = 1;
+  if (orientation == PD_ORIENT_LANDSCAPE) {
+    SDL_DestroyTexture(rotTarget);
+    rotTarget = NULL;
+    return;
+  }
+  int tw = orientation & 1 ? winOutH : winOutW, th = orientation & 1 ? winOutW : winOutH;
+  if (!rotTarget || tw != rotW || th != rotH) {
+    SDL_DestroyTexture(rotTarget);
+    rotTarget = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, tw, th);
+    rotW = tw;
+    rotH = th;
+  }
+  if (rotTarget && SDL_SetRenderTarget(renderer, rotTarget) < 0) {
+    SDL_DestroyTexture(rotTarget);
+    rotTarget = NULL;
+  }
+}
+static void orientation_set(int o) {
+  if (o < 0 || o >= PD_ORIENTATIONS || o == orientation)
+    return;
+  orientation = o;
+  if (!rotTarget) {
+    rotation_ready();
+    return;
+  }
+  // Turned already: the next present lets go of the old target and makes the new one.
+}
+static void host_present(void) {
+  if (!rotTarget) {
+    SDL_RenderPresent(renderer);
+    if (orientation != PD_ORIENT_LANDSCAPE)
+      rotation_ready();
+    return;
+  }
+  int lw, lh;
+  SDL_RenderGetLogicalSize(renderer, &lw, &lh);
+  SDL_bool integer = SDL_RenderGetIntegerScale(renderer);
+  SDL_SetRenderTarget(renderer, NULL);
+  SDL_RenderSetLogicalSize(renderer, 0, 0);
+  SDL_RenderSetIntegerScale(renderer, SDL_FALSE);
+  int ow, oh;
+  SDL_GetRendererOutputSize(renderer, &ow, &oh);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_RenderClear(renderer);
+  SDL_Rect dst = {(ow - rotW) / 2, (oh - rotH) / 2, rotW, rotH};
+  SDL_RenderCopyEx(renderer, rotTarget, NULL, &dst, 90.0 * orientation, NULL, SDL_FLIP_NONE);
+  SDL_RenderPresent(renderer);
+  rotation_ready();
+  SDL_RenderSetLogicalSize(renderer, lw, lh);
+  SDL_RenderSetIntegerScale(renderer, integer);
+}
+/* A point on the window (0..1 across and down) in drawing pixels: the window's output pixels, turned back. */
+void pd_host_point(float nx, float ny, float *px, float *py) {
+  int ow = winOutW, oh = winOutH;
+  if (!rotTarget && SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0)
+    ow = oh = 1;
+  float x = nx * ow, y = ny * oh;
+  if (!rotTarget) {
+    *px = x;
+    *py = y;
+    return;
+  }
+  float dx = x - ow / 2.0f, dy = y - oh / 2.0f, tx, ty;
+  if (orientation == PD_ORIENT_PORTRAIT)
+    tx = dy, ty = -dx;
+  else if (orientation == PD_ORIENT_LANDSCAPE_FLIPPED)
+    tx = -dx, ty = -dy;
+  else
+    tx = -dy, ty = dx;
+  *px = tx + rotW / 2.0f;
+  *py = ty + rotH / 2.0f;
+}
 static void timed_present(void) {
   uint64_t t = SDL_GetPerformanceCounter();
   render_lcd();
   screenshot_now();
-  SDL_RenderPresent(renderer);
+  host_present();
   presentMs += (double)(SDL_GetPerformanceCounter() - t) * 1000.0 / SDL_GetPerformanceFrequency();
 }
 static void present(void) {
   SDL_RenderSetLogicalSize(renderer, canvasW, canvasH);
   SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
+  {
+    int ow, oh;
+    SDL_GetRendererOutputSize(renderer, &ow, &oh);
+    int scale = ow / canvasW < oh / canvasH ? ow / canvasW : oh / canvasH;
+    if (scale < 1)
+      scale = 1;
+    canvas_at((SDL_Rect){(ow - canvasW * scale) / 2, (oh - canvasH * scale) / 2, canvasW * scale, canvasH * scale},
+              canvasW, canvasH);
+  }
   if (SDL_GetTicks() < messageUntil) {
     pd_fill(&canvas, 4, canvasH - 50, canvasW - 8, 24, 0x181818);
     pd_text_fit(&canvas, 10, canvasH - 46, canvasW - 20, message, 0xffffff, PD_NO_SHADOW);
@@ -857,6 +1053,7 @@ static void dim_texture(SDL_Texture *t) {
 static const struct view_layout *gameView; // COMPANION VIEW: where the game goes (NULL = the whole screen)
 static int hudRepelSteps; // the bottom strip's REPEL
 static bool render_game(unsigned gw, unsigned gh) {
+  canvasAt.w = 0; // only the game: nothing to tap until a canvas goes over it
   int ow, oh;
   if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
     return false;
@@ -1074,6 +1271,7 @@ static void present_menu(struct pd_menu *m, unsigned gw, unsigned gh) {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_Rect at = {(ow - w * scale) / 2, (oh - h * scale) / 2, w * scale, h * scale};
   SDL_RenderCopy(renderer, menuTexture, &(SDL_Rect){0, 0, w, h}, &at);
+  canvas_at(at, w, h);
   timed_present();
 }
 /* COMPANION VIEW (SETTINGS, settings.ini's view=): where the game, the companion and the side panels sit, from
@@ -1267,6 +1465,7 @@ static void present_view_companion(const struct pd_game *g, const struct pd_snap
   }
   dim_texture(texture);
   SDL_RenderCopy(renderer, texture, NULL, &at);
+  canvas_at(at, canvasW, canvasH);
   SDL_SetTextureColorMod(texture, 255, 255, 255);
   SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
   SDL_SetTextureAlphaMod(texture, 255);
@@ -1688,7 +1887,9 @@ extern void (*pd_ds_device_event)(const SDL_Event*);
 extern bool (*pd_ds_host_event)(const SDL_Event*);
 extern int pd_ds_xbox_layout;
 extern unsigned (*pd_ds_host_actions)(void);
-extern void (*pd_ds_before_present)(void);
+extern void (*pd_ds_present)(void);
+extern void (*pd_ds_point)(float, float, float *, float *);
+extern int pd_ds_game_touch_off;
 static bool ds_running(void) { return running != 0; }
 #endif
 #ifdef POCKET_DS
@@ -1718,7 +1919,9 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     pd_ds_host_event = fullscreen_event;
     pd_ds_xbox_layout = buttonLayout == PD_LAYOUT_XBOX;
     pd_ds_host_actions = ds_host_actions;
-    pd_ds_before_present = screenshot_now;
+    pd_ds_present = timed_present;
+    pd_ds_point = pd_host_point;
+    pd_ds_game_touch_off = gameTouch == PD_GAME_TOUCH_OFF;
     appError = pd_ds_run(path, root, maxFrames, shot, renderer, ds_running);
     // The DS backend owns its device while running. Restore the normal host's
     // device for the next GB/GBA game selected without restarting the app.
@@ -1896,7 +2099,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
-                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .hasFullscreen = true, .hasButtonLayout = true, .count = 1, .labels = {"HOST"}};
+                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .hasFullscreen = true, .hasButtonLayout = true, .hasOrientation = true, .hasGameTouch = true, .count = 1, .labels = {"HOST"}};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
@@ -2191,6 +2394,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
             menuOpen = 1;
         } else {
           struct pd_menu *pm = menuOpen == 1 ? &gameMenu : &confirmMenu;
+          int tapped = menu_taps(pm);
+          if (tapped >= 0 && tapped < pm->count) {
+            pm->selected = tapped;
+            pressed |= 1u << A;
+          }
           if (down(UP))
             pd_menu_move(pm, -1);
           if (down(DOWN))
@@ -2269,6 +2477,9 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
             focus_move(&ui, k);
         if (down(A))
           focus_activate(&ui);
+        for (int i = 0; i < tapCount; i++)
+          pd_ui_touch(&ui, taps[i].x, taps[i].y, taps[i].down);
+        tapCount = 0;
         switch (pd_ui_take_action(&ui)) {
         case PD_ACTION_LEAVE_GAME:
           leave = true;
@@ -2287,6 +2498,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
             fullscreen_set(settings.fullscreen == 1);
           settings.fullscreen = fullscreenOn ? 1 : 0;
           buttonLayout = settings.buttonLayout;
+          orientation_set(settings.orientation);
+          gameTouch = settings.gameTouch;
           pd_settings_save(&settings, config);
           break;
         default:
@@ -2607,6 +2820,9 @@ static int menu_pick(const char *title, const char *const *items, int count, int
       pd_menu_move(&m, 1);
     if (down(A) && count)
       return m.selected;
+    int tapped = menu_taps(&m);
+    if (tapped >= 0 && tapped < count)
+      return tapped;
     companion_canvas();
     pd_menu_draw(&m, &canvas);
     if (menu_frame())
@@ -2727,6 +2943,40 @@ static void controls_screen(void) {
         continue;
       st.hotkeys[pick - 1] = (unsigned char)action;
     }
+    pd_settings_save(&st, path);
+    controls_load();
+  }
+}
+/* SCREEN: FULLSCREEN, ORIENTATION and GAME TOUCH from the game list, saved to DATA/settings.ini at once. */
+static void screen_screen(void) {
+  static const char *const ORIENTATIONS[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED",
+                                                            "PORTRAIT FLIPPED"};
+  char path[1100];
+  snprintf(path, sizeof path, "%s/settings.ini", root);
+  int selected = 0;
+  while (running) {
+    struct pd_settings st;
+    pd_settings_load(&st, path);
+    char rows[3][64];
+    snprintf(rows[0], sizeof rows[0], "FULLSCREEN: %s", fullscreenOn ? "ON" : "OFF");
+    snprintf(rows[1], sizeof rows[1], "ORIENTATION: %s", ORIENTATIONS[st.orientation]);
+    snprintf(rows[2], sizeof rows[2], "GAME TOUCH: %s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
+    const char *items[3] = {rows[0], rows[1], rows[2]};
+    int pick = menu_pick("SCREEN", items, 3, selected);
+    if (pick < 0)
+      return;
+    selected = pick;
+    if (pick == 0) {
+      fullscreen_toggle(); // saves FULLSCREEN itself
+      continue;
+    }
+    if (pick == 1) {
+      int o = menu_pick("ORIENTATION", ORIENTATIONS, PD_ORIENTATIONS, st.orientation);
+      if (o < 0)
+        continue;
+      st.orientation = o;
+    } else
+      st.gameTouch = st.gameTouch == PD_GAME_TOUCH_OFF ? PD_GAME_TOUCH_DS_SCREEN : PD_GAME_TOUCH_OFF;
     pd_settings_save(&st, path);
     controls_load();
   }
@@ -2892,6 +3142,8 @@ int main(int argc, char **argv) {
     SDL_Quit();
     return 1;
   }
+  if (orientation != PD_ORIENT_LANDSCAPE)
+    rotation_ready(); // ORIENTATION read before there was a renderer
   SDL_RendererInfo rendererInfo;
   if (!SDL_GetRendererInfo(renderer, &rendererInfo))
     fprintf(stderr, "Video backend: %s; opaque RGB888 canvas %dx%d\n",
@@ -2936,7 +3188,7 @@ int main(int argc, char **argv) {
     run_game(rom, frames, shot);
   else {
     // DATA/roms and the GAME FOLDERS (DATA/roms-folders.txt), each with its subfolders (rom_list.c); the list's last
-    // rows open GAME FOLDERS and CONTROLS.
+    // rows open GAME FOLDERS, CONTROLS and SCREEN.
     struct rom_list games = {0};
     const char **items = NULL;
     int count = 0;
@@ -2949,15 +3201,16 @@ int main(int argc, char **argv) {
     rom_list_free(&games);                                                                                             \
     rom_list_load(&games, root, LIST_NDS);                                                                             \
     free(items);                                                                                                       \
-    items = malloc(sizeof *items * (size_t)(games.count + 2));                                                         \
+    items = malloc(sizeof *items * (size_t)(games.count + 3));                                                         \
     count = items ? games.count : 0;                                                                                   \
     for (int i = 0; i < count; i++)                                                                                    \
       items[i] = games.labels[i];                                                                                      \
     if (items) {                                                                                                       \
       items[count] = "GAME FOLDERS";                                                                                   \
       items[count + 1] = "CONTROLS";                                                                                   \
+      items[count + 2] = "SCREEN";                                                                                     \
     }                                                                                                                  \
-    pd_menu_init(&menu, POCKET_HOST_NAME, items, items ? count + 2 : 0);                                               \
+    pd_menu_init(&menu, POCKET_HOST_NAME, items, items ? count + 3 : 0);                                               \
   } while (0)
 #ifdef POCKET_DS
 #define LIST_NDS true
@@ -2982,6 +3235,13 @@ int main(int argc, char **argv) {
         pd_menu_move(&menu, -1);
       if (down(DOWN))
         pd_menu_move(&menu, 1);
+      {
+        int tapped = menu_taps(&menu);
+        if (tapped >= 0 && tapped < menu.count) {
+          menu.selected = tapped;
+          pressed |= 1u << A;
+        }
+      }
       if (down(A) && menu.count) {
         if (menu.selected == count) {
           if (folders_screen()) {
@@ -2990,6 +3250,8 @@ int main(int argc, char **argv) {
           }
         } else if (menu.selected == count + 1) {
           controls_screen();
+        } else if (menu.selected == count + 2) {
+          screen_screen();
         } else {
           snprintf(path, sizeof path, "%s", games.paths[menu.selected]);
           run_game(path, 0, NULL);

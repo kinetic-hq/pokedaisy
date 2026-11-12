@@ -248,6 +248,15 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
     }
     if (host && host->hasFullscreen)
         setting(ui, c, ix, &y, iw, SETTING_FULLSCREEN, "FULLSCREEN", st->fullscreen == 1 ? "ON" : "OFF");
+    if (host && host->hasOrientation) {
+        static const char* const names[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED",
+                                                           "PORTRAIT FLIPPED"};
+        setting(ui, c, ix, &y, iw, SETTING_ORIENTATION, "ORIENTATION",
+                names[st->orientation >= 0 && st->orientation < PD_ORIENTATIONS ? st->orientation : 0]);
+    }
+    if (host && host->hasGameTouch)
+        setting(ui, c, ix, &y, iw, SETTING_GAME_TOUCH, "GAME TOUCH",
+                st->gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
     if (host && host->hasButtonLayout)
         setting(ui, c, ix, &y, iw, SETTING_BUTTON_LAYOUT, "BUTTON LAYOUT",
                 st->buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
