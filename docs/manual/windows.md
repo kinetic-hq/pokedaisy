@@ -306,7 +306,13 @@ stays in the middle of the screen in every view but a locked side panel.
   (K on a keyboard) while it's open to lock it: the game moves into the left
   half and the panel keeps the right half.
 - **`WINGS`**: the battle layout all the time, with the map on the right when
-  you're not in a battle.
+  you're not in a battle. LT and RT zoom the game's own area beside the wings.
+
+Tap or click the HUD's buttons to use them: a party slot opens its summary, the
+minimap opens `MAP`, the balls and `BAG` open the bag, `PC` turns on the game's
+PC, `WILD` opens `GUIDE`, and `COMPANION` opens the companion. A tap on a wing
+opens the companion on that wing's page (the party wing on `PARTY`, even in a
+battle).
 - **`GLASS DRAWER`**: a see-through sheet over the bottom of the screen.
 - **`STEP BACK`**: the game steps back two sizes and the companion sits around
   it.
