@@ -90,6 +90,34 @@ static struct {
 } shown[PD_PARTY_SIZE];
 static uint32_t partyKey, slideSince;
 
+// A level up: the card's rim glows gold and fades over FLASH_MS.
+#define FLASH_MS 1400u
+static struct {
+    uint32_t key;
+    int level;
+    uint32_t since;
+} levelSeen[PD_PARTY_SIZE];
+
+// How strong slot i's level-up glow is now, 0 (none) to 255.
+static int level_flash(int i, uint32_t key, int level) {
+    if (levelSeen[i].key != key || pd_ui_reduce_motion || !pd_ui_now_ms) {
+        levelSeen[i].key = key;
+        levelSeen[i].level = level;
+        levelSeen[i].since = 0;
+        return 0;
+    }
+    if (level > levelSeen[i].level && levelSeen[i].level > 0) levelSeen[i].since = pd_ui_now_ms ? pd_ui_now_ms : 1;
+    levelSeen[i].level = level;
+    if (!levelSeen[i].since) return 0;
+    uint32_t t = pd_ui_now_ms - levelSeen[i].since;
+    if (t >= FLASH_MS) {
+        levelSeen[i].since = 0;
+        return 0;
+    }
+    pd_ui_panel_moving = true;
+    return (int)(255u * (FLASH_MS - t) / FLASH_MS);
+}
+
 // The HP the bar shows now for slot i (eased toward hp over EASE_MS; REDUCE MOTION jumps).
 static int eased_hp(int i, uint32_t key, int hp) {
     if (shown[i].key != key || pd_ui_reduce_motion || !pd_ui_now_ms) { // no clock (3DS, previews): no easing
@@ -169,6 +197,9 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         int t1 = 0, t2 = 0;
         if (!egg && g) pd_species_type_pair(g, m->species, &t1, &t2);
         uint32_t accent = egg || t1 == PD_TYPE_NONE ? 0 : ui_type_color(t1);
+        int flash = egg ? 0 : level_flash(i, m->personality ^ (uint32_t)m->species, m->level);
+        if (flash) // a gold rim round the card, fading
+            pd_round_rect(c, cx - 2, y - 2, w + 4, cardH + 4, CARD_R + 2, mix(0xF8C830, PD_TITLE_FILL, 255 - flash));
         ui_card(c, cx, y, w, cardH, PD_LIST_FILL, fainted ? mix(accent, PD_LIST_FILL, 160) : accent);
         int iconX = cx + 8, iconY = y + (cardH - PD_ICON) / 2;
         if (icon ? !icon(c, ctx, i, iconX, iconY, fainted)
@@ -200,7 +231,7 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         int lx = lvRight ? right - lvW : tx;
         int ly = lvRight ? ty : by;
         lx += pd_text(c, lx, ly, "Lv", PD_MUTED, PD_MUTED_SHADOW);
-        lx += pd_number(c, lx, ly, lv, PD_LABEL, PD_LABEL_SHADOW);
+        lx += pd_number(c, lx, ly, lv, flash ? mix(0xD89818, PD_LABEL, 255 - flash) : PD_LABEL, PD_LABEL_SHADOW);
         if (!lvRight) bx = lx + 4;
         const char* status = pd_status_label(m->status);
         if (*status) {

@@ -369,8 +369,10 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   on `BLACK`: most of the window is room round the screens there. Panels that stay still for a minute dim
   a little more, and move by a pixel every few minutes, so nothing burns in.
 - **`REDUCE MOTION`**: the party cards beside the game slide in when your team
-  changes, and their HP bars glide to the new value. Turn this on and they
-  change at once instead.
+  changes, and their HP bars glide to the new value. A Pokemon that levels up
+  gets a gold glow round its card, a new badge's dot pops, your money counts
+  up or down to the new sum, and the bars fade from old words to new ones.
+  Turn this on and all of it changes at once instead.
 - **`BEZEL STYLE`** and **`BEZEL BARS`**: where the screen has room above and
   below the game (a 16:9 screen with the wings has just enough), a bar sits in
   each. Its text is sized to the bar, a step smaller when all three places wouldn't fit side by side. `BLACK` is near black with light text (the default with a `BLACK` or
@@ -397,7 +399,9 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   time, the next boss, how many of this area's wild Pokemon you have, how many
   kinds you have caught and seen, and your money. Whatever the bars above and
   below the game already show is left out of the wing, so nothing is said
-  twice.
+  twice. When something happens (a level up, a new area, a save, the spray
+  wearing off), a short note shows at the top of the right wing for a couple
+  of seconds and fades away.
 
 DS games have the same rows in the companion's `SET` tab.
 
