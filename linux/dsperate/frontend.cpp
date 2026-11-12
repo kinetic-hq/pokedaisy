@@ -480,7 +480,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   bool done=false,showCompanion=false,showQuick=false,paused=false,summary=false,failed=false;
   int quickSelected=0;uint32_t blocked=0;
   bool layoutPick=false;int layoutSel=0,layoutScroll=0,layoutTiles[DSL_COUNT][4]={};
-  // R3: a tap switches WINGS / ONE SCREEN (ds_layout_toggle), a hold opens the picker; the
+  // R3: a tap steps DS LAYOUT (skipping layouts drawn the same on this window), a hold opens the picker; the
   // layout's name shows a moment either way (toast). r3Chord: L3 + R3 went to FULLSCREEN, no step.
   uint32_t r3Since=0;bool r3Held=false,r3Chord=false;std::string toast;uint32_t toastUntil=0;
   auto showToast=[&](const char* text){toast=text;toastUntil=SDL_GetTicks()+1500;std::fprintf(stderr,"DS LAYOUT %s\n",text);};
@@ -598,7 +598,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       }else if(!r3){
         if(!r3Held && !r3Chord){
           int ow=1024,oh=768;SDL_GetRendererOutputSize(renderer,&ow,&oh);
-          prefs.layout=ds_layout_toggle(prefs.layout,ow,oh,prefs.wingLeft,field!=nullptr);
+          prefs.layout=ds_layout_cycle(prefs.layout,ow,oh,prefs.wingLeft,field!=nullptr);
           showToast(ds_layout_name(prefs.layout));
         }
         r3Since=0;

@@ -244,9 +244,9 @@ Advance or Game Boy game it steps back frame by frame; in a DS game it goes back
 a second at a time. Rewinding never takes back a save the game wrote.
 
 R3's usual use is the view. In a Game Boy Advance or Game Boy game a tap
-switches between `WINGS` and `BATTLE WINGS`; in a DS game it switches between
-`WINGS` and `ONE SCREEN`, and from any other `DS LAYOUT` one tap brings `WINGS`
-back. SELECT with R2 or L2 still steps through every layout. Holding R3 opens every view as a small picture to
+switches between `WINGS` and `BATTLE WINGS`; in a DS game it steps through the
+`DS LAYOUT`s in the picker's order, leaving out any that would look the same as
+one before it on your screen. Holding R3 opens every view as a small picture to
 pick from (A takes one, B leaves it as it was). The view's name shows for a
 moment when it changes. A button with
 a job no longer reaches the game. Screenshots go to `DATA\screenshots`, named
