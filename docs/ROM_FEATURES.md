@@ -441,6 +441,10 @@ change to any of the places listed under "Where it's decided" updates its rows h
     and WILD ENCOUNTERS (not walked) are retail Platinum's code, untried here. Its Classic patch and v1.2.0 (2026-11-09) pass
     the same check: v1.2.0's ARM9 and every place read are v1.3.0's byte for byte (overlay 16 one data byte apart), its own
     species, moves, trainers and encounters in 12 data files the reader takes through the file system (`RenegadePlatinumTest`).
+    The desktop host's GUIDE (not on Android) reads `HERE` from the cart: the map headers at ARM9 0xE601C (the set a u16
+    at +14) and `pl_enc_data.narc` in retail's 424-byte format (the decoder gives all 154 of Android's retail sets back
+    on the retail cart), and `NEXT BOSS` from `trdata` / `trpoke` at retail's trainer ids, which the hack keeps (Roark 246
+    is six at Lv15, his ace Lv16).
 33. TMs from the bag and FLASH on the hacks edited into retail's code: FireRed rev 0's tables (`tmFnsFor` /
     `flashFnsFor` by kind, `FIRERED_REV0_HACKS`) and Emerald's (Glazed, Kaizo), each checked by
     `scripts/verify_tm_flash.py` on the hack's own save (the TM screen opened and backed out of, the field back after;

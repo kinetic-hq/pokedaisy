@@ -433,6 +433,26 @@ DsOrigin ds_read_renegade(const std::vector<uint8_t>& rom){
     // sTMHMMoves (TM01..TM92, HM01..HM08) and sPokemonIconPaletteIndex from the uncompressed ARM9.
     for(int i=0;i<100;++i)o.machines[i]=u16(rom,0x4000+0xF0BFC+i*2);
     o.iconPalettes.assign(rom.begin()+0x4000+0xF0780,rom.begin()+0x4000+0xF0780+0x21C);
+    // GUIDE: the map headers (593 of 24 bytes in the ARM9 at retail's 0xE601C, the encounter set a u16 at +14, 0xFFFF
+    // none), pl_enc_data.narc's sets (Platinum's 424-byte record; the hack trims some to 380, no super rod) and the
+    // trainers (trdata / trpoke, retail's ids kept for the gym leaders, the Elite Four and the champion). A failure
+    // only costs the guide.
+    try{
+      constexpr size_t headers=0x4000+0xE601C;
+      o.mapWild.resize(593);
+      for(size_t i=0;i<o.mapWild.size();++i)o.mapWild[i]=u16(rom,headers+i*24+14);
+      const auto sets=file(rom,"/fielddata/encountdata/pl_enc_data.narc");
+      for(unsigned i=0;i<u16(sets,24);++i){
+        auto set=member(sets,i);
+        if(set.size()<424)set.resize(424,0);
+        o.wildSets.push_back(std::move(set));
+      }
+      const auto trdata=file(rom,"/poketool/trainer/trdata.narc"),trpoke=file(rom,"/poketool/trainer/trpoke.narc");
+      for(unsigned i=0;i<std::min(u16(trdata,24),u16(trpoke,24));++i){
+        o.trainers.push_back(member(trdata,i));
+        o.trainerParties.push_back(member(trpoke,i));
+      }
+    }catch(const std::exception&){o.mapWild.clear();o.wildSets.clear();o.trainers.clear();o.trainerParties.clear();}
   }catch(const std::exception& e){std::fprintf(stderr,"Renegade Platinum tables: %s\n",e.what());o.species.clear();}
   return o;
 }

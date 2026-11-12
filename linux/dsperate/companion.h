@@ -34,8 +34,9 @@ struct DsOrigin {
   std::array<int,138> machines{};                    // TM01..TM92, HM01..HM08, TM93..TM130
   std::vector<uint8_t> iconPalettes;                 // Renegade Platinum, HeartFelt Gold: each species' icon palette (empty: the game's own)
   int lastSpecies=dsOriginLastSpecies;               // the highest species id a party record may hold
-  std::vector<uint8_t> mapWild;                      // Origin HeartGold: each map header's encounter set (0xFF none)
-  std::vector<std::vector<uint8_t>> wildSets;        // its encounter sets, HeartGold's 196-byte records
+  std::vector<uint16_t> mapWild;                     // Origin HeartGold, Renegade Platinum: each map header's encounter set
+  std::vector<std::vector<uint8_t>> wildSets;        // its encounter sets: HeartGold's 196-byte or Platinum's 424-byte records
+  std::vector<std::vector<uint8_t>> trainers,trainerParties;  // Renegade Platinum: trdata / trpoke, by trainer id
   int formSpecies(int species,int form) const;       // a form's own id (species when form 0 or unknown)
   int baseSpecies(int id) const;                     // the National Dex species of a form id
 };

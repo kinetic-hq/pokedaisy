@@ -18,7 +18,7 @@ struct GuideTip {const char* section;const char* title;const char* hint;const ch
 struct BossMon {int level,species,item;std::array<int,4> moves;};
 struct BossTeam {
   const char *title,*where,*variant;
-  int done,doneAfter,rematchFlag,offset,count,rematchOffset,rematchCount;
+  int done,doneAfter,rematchFlag,offset,count,rematchOffset,rematchCount,trainer;
 };
 }
 #include "guide_gen.h"
@@ -69,8 +69,40 @@ std::vector<DsGuideEncounter> origin_encounters(const std::vector<uint8_t>& d,in
   }
   return out;
 }
+// Renegade Platinum's, from pl_enc_data.narc's 424-byte record as gen_guide.py reads Android's Platinum lines: the land
+// rate at 0 and 12 { u32 level, u32 species } at 4, the day's and the night's two species (u32) at 108 / 116 standing in
+// for land slots 2 and 3, then surf, the old, good and super rods at 204 / 292 / 336 / 380 (a u32 rate, 5 slots of
+// { u8 max, u8 min, u16, u32 species }). Proven on retail Platinum's cart: all 154 of Android's sets come out the same.
+std::vector<DsGuideEncounter> platinum_encounters(const std::vector<uint8_t>& d,int time){
+  static constexpr uint8_t land[12]={20,20,10,10,10,10,5,5,4,4,1,1},water[5]={60,30,5,4,1},
+                           oldRod[5]={60,30,5,4,1},rod[5]={40,40,15,4,1};
+  const auto u32=[&](size_t at){return unsigned(d[at]|d[at+1]<<8|d[at+2]<<16|unsigned(d[at+3])<<24);};
+  struct Method{uint8_t method;size_t at;int count;const uint8_t* odds;};
+  const Method list[]={{0,0,12,land},{3,204,5,water},{7,292,5,oldRod},{8,336,5,rod},{5,380,5,rod}};
+  std::vector<DsGuideEncounter> out;
+  for(const auto& m:list){
+    if(!u32(m.at))continue;
+    std::vector<DsGuideEncounter> merged;
+    for(int i=0;i<m.count;++i){
+      unsigned species,low,high;
+      if(m.method==0){
+        low=high=u32(4+8*i)&0xFF;species=u32(8+8*i);
+        if(time && (i==2 || i==3))species=u32((time==1?108:116)+4*(i-2));
+      }else{high=d[m.at+4+8*i];low=d[m.at+5+8*i];species=u32(m.at+8+8*i);}
+      species&=0x3FF;
+      if(!species)continue;
+      auto it=std::find_if(merged.begin(),merged.end(),[&](const DsGuideEncounter& e){return e.species==species;});
+      if(it==merged.end())merged.push_back({m.method,uint16_t(species),uint8_t(low),uint8_t(high),m.odds[i]});
+      else{it->low=std::min<uint8_t>(it->low,low);it->high=std::max<uint8_t>(it->high,high);it->chance+=m.odds[i];}
+    }
+    std::stable_sort(merged.begin(),merged.end(),[](const auto& a,const auto& b){return a.chance>b.chance;});
+    out.insert(out.end(),merged.begin(),merged.end());
+  }
+  return out;
+}
+// A hack whose wild encounters come from its own cart: Origin HeartGold (Johto) or Renegade Platinum.
 const DsOrigin* origin_wild(DsGame game){
-  const auto* o=game==DsGame::Johto?ds_origin():nullptr;
+  const auto* o=game==DsGame::Johto?ds_origin():game==DsGame::Platinum?ds_renegade():nullptr;
   return o && !o->mapWild.empty()?o:nullptr;
 }
 const std::vector<DsGuideEncounter>* origin_set(const DsOrigin& o,int map,int time){
@@ -81,7 +113,11 @@ const std::vector<DsGuideEncounter>* origin_set(const DsOrigin& o,int map,int ti
   static std::vector<std::array<bool,3>> built;
   if(owner!=&o || cache.size()!=o.wildSets.size()){owner=&o;cache.assign(o.wildSets.size(),{});built.assign(o.wildSets.size(),{});}
   const unsigned set=o.mapWild[map];
-  if(!built[set][time]){cache[set][time]=origin_encounters(o.wildSets[set],time);built[set][time]=true;}
+  if(!built[set][time]){
+    const auto& d=o.wildSets[set];
+    cache[set][time]=d.size()>=424?platinum_encounters(d,time):origin_encounters(d,time);
+    built[set][time]=true;
+  }
   return &cache[set][time];
 }
 
@@ -308,8 +344,28 @@ bool boss_flag(const DsCompanion& s,int flag){
   return ds_event_flag(s,flag);
 }
 
+// Renegade Platinum's team for a trainer id, from its trpoke (Platinum's format: the trdata type's bit 0 adds 4 moves,
+// bit 1 an item, to { u8, u8, u16 level, u16 species (10 bits) and form, ..., u16 seal }).
+std::vector<BossMon> cart_team(const DsOrigin& o,int trainer){
+  std::vector<BossMon> team;
+  if(trainer<0 || size_t(trainer)>=o.trainers.size() || o.trainers[trainer].size()<4)return team;
+  const auto& t=o.trainers[trainer];
+  const auto& p=o.trainerParties[trainer];
+  const int type=t[0],size=8+(type&2?2:0)+(type&1?8:0);
+  const auto u16=[&](size_t at){return int(p[at]|p[at+1]<<8);};
+  for(int i=0;i<std::min<int>(t[3],6) && size_t((i+1)*size)<=p.size();++i){
+    size_t at=size_t(i*size)+6;
+    BossMon mon{u16(i*size+2),u16(i*size+4)&0x3FF,0,{}};
+    if(type&2){mon.item=u16(at);at+=2;}
+    if(type&1)for(int k=0;k<4;++k)mon.moves[k]=u16(at+2*k);
+    team.push_back(mon);
+  }
+  return team;
+}
+
 template<size_t N>
-std::vector<GuideRow> boss_rows(const DsCompanion& s,const BossTeam (&teams)[N],const BossMon* mons){
+std::vector<GuideRow> boss_rows(const DsCompanion& s,const BossTeam (&teams)[N],const BossMon* mons,
+                                const DsOrigin* cart=nullptr){
   std::vector<GuideRow> rows;
   const char* first=nullptr;
   int best=0;
@@ -320,16 +376,19 @@ std::vector<GuideRow> boss_rows(const DsCompanion& s,const BossTeam (&teams)[N],
     const bool next=std::strcmp(first,boss.title)==0;
     const bool rematch=boss_flag(s,boss.rematchFlag);
     const int offset=rematch?boss.rematchOffset:boss.offset;
-    const int count=rematch?boss.rematchCount:boss.count;
+    // Renegade Platinum: the same leaders at the same ids, with the hack's own teams.
+    const auto own=cart?cart_team(*cart,boss.trainer):std::vector<BossMon>{};
+    const BossMon* team=cart?own.data():mons+offset;
+    const int count=cart?int(own.size()):rematch?boss.rematchCount:boss.count;
     int ace=0;
-    for(int i=0;i<count;++i)ace=std::max(ace,mons[offset+i].level);
+    for(int i=0;i<count;++i)ace=std::max(ace,team[i].level);
     char note[120];
     pd_ui_guide_boss_note(note,sizeof note,boss.where,count,ace,best);
     std::string title=(next?"NEXT: ":"")+std::string(boss.title);
     if(*boss.variant)title+=" ("+std::string(boss.variant)+")";
     rows.push_back({title,note,{},{},false,true});
     for(int i=0;i<count;++i){
-      const auto& mon=mons[offset+i];
+      const auto& mon=team[i];
       const int primary=ds_species_type(mon.species,0,s.game),secondary=ds_species_type(mon.species,1,s.game);
       std::string hint=pd_type_name(nullptr,primary);
       if(primary!=secondary)hint+=" / "+std::string(pd_type_name(nullptr,secondary));
@@ -354,7 +413,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
   if(page==GuidePage::NextBoss){
     if(s.eventFlags.empty())return {};
     switch(s.game){
-      case DsGame::Platinum:return boss_rows(s,ptBossTeams,ptBossMons);
+      case DsGame::Platinum:return boss_rows(s,ptBossTeams,ptBossMons,origin_wild(s.game));
       case DsGame::Johto:return boss_rows(s,hgBossTeams,hgBossMons);
       case DsGame::Black:return boss_rows(s,blackBossTeams,blackBossMons);
       case DsGame::White:return boss_rows(s,whiteBossTeams,whiteBossMons);
@@ -364,7 +423,8 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
     }
   }
   std::vector<GuideRow> rows;
-  // Origin HeartGold: HERE's wild encounters from its cart only (its items, tips and bosses are its own, unmapped).
+  // Origin HeartGold and Renegade Platinum: HERE's wild encounters from the cart only (their items and tips are their
+  // own, unmapped; Renegade's bosses come from its cart above, Origin's are unmapped).
   const bool origin=origin_wild(s.game)!=nullptr;
   if(page!=GuidePage::Here){
     if(!origin)authored_rows(rows,s,page,soulSilver);
@@ -407,7 +467,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
 }
 
 int ds_guide_page_count(DsGame game){
-  if(origin_wild(game))return 1;  // HERE alone
+  if(origin_wild(game))return game==DsGame::Platinum?2:1;  // HERE (and Renegade's NEXT BOSS)
   return game==DsGame::Platinum || game==DsGame::Johto?int(GuidePage::Count):int(GuidePage::Stuck);
 }
 
