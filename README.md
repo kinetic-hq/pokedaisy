@@ -131,8 +131,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   a picker for `COMPANION VIEW` and `DS LAYOUT` that draws every choice, from the companion or the game list.
 - **Game grid with box art** on the desktop host: the game list is a grid of box art (libretro thumbnails, then
   SteamGridDB with your own key; your own picture wins), each game with its system, `ORIGINAL` / `ROM HACK` and its
-  version; `GAME FOLDERS` and `SETTINGS` in a slim top bar; `FIND BOX ART`, `SET BOX ART` (a copied path or link, or
-  an image dropped on the window) and `RENAME` from `X`, a right click or a long press; D-pad, mouse, wheel and touch.
+  version; `GAME FOLDERS` and `SETTINGS` in a slim top bar; `BOX ART` (a picker over every cover found, see below) and
+  `RENAME` from `X`, a right click or a long press; D-pad, mouse, wheel and touch.
   Tiles are box shaped (3:4) with the art filling them, long names wrap to up to three lines, `SYNC BOX ART` fetches
   every game's art with progress (`MISSING ONLY` or `ALL AGAIN`), an original under any file name gets its box from
   its header's game code, and a hack with no art of its own gets its base game's box with a name banner.
@@ -182,6 +182,11 @@ Every change, one line each (a pull request that changes what the fork adds upda
   the companion's own detection (`COMPANION` in a game's options says what's missing), `ROMHACK` on every hack's tile,
   SteamGridDB art only for the same name and in English (its escaped "Pok\u00e9mon" read as the word it is, spaces and
   "and" not counting, and a hack left on its base game's box looked for again once), and dialogs drawn over the dimmed art.
+- **BOX ART picker** on the desktop host: a game's `BOX ART` option shows every cover found as a grid, like
+  SteamGridDB's own picker in Steam's Big Picture: libretro's cover and the base game's box, then every SteamGridDB grid for
+  the game, a page at a time as you scroll, each tagged with its source and size. `SHAPE` shows box shaped covers or
+  all of them, `SEARCH AGAIN` types another name and picks SteamGridDB's game from a list, `CHOOSE FILE` takes a path
+  or link, `AUTOMATIC` drops the pick. A pick is the game's own art: `SYNC BOX ART` never replaces it.
 - **DS EXPAND** on the desktop host: Platinum, HeartGold and SoulSilver (and the games built on them) draw their world past
   the top screen's edges, Android's EXPAND (`pk_nds_wide.cpp`) on the desktop's melonDS, with the GBA's zoom steps and
   AUTO ZOOM IN.

@@ -541,6 +541,7 @@ void boxart_init(const char *data) {
 }
 
 void boxart_quit(void) {
+  boxart_pick_close();
   if (worker) {
     SDL_AtomicSet(&quit, 1);
     SDL_WaitThread(worker, NULL); // a fetch in flight ends by its timeouts
@@ -704,6 +705,461 @@ bool boxart_has_custom(const char *stem) {
   char path[1400];
   path_of(path, sizeof path, stem, "custom");
   return pocket_exists(path);
+}
+
+/* --- BOX ART's picker (boxart.h): every cover SteamGridDB has for a game, plus libretro's, lazily ---------------- */
+
+#define PICK_MAX 400   // candidates kept (SteamGridDB pages of 50)
+#define PICK_ENTRIES 20
+
+struct pick_cand {
+  char url[512], thumb[512];
+  int source, w, h;
+  bool ready, failed;
+};
+static SDL_Thread *pickThread;
+static SDL_atomic_t pickQuit;
+// Under lock:
+static struct pick_cand *pick;
+static int pickCount, pickFocus, pickPage, pickGameIndex = -1, pickJob, pickSerial;
+static bool pickPagesDone, pickNoKey, pickBusy;
+static char pickTerm[128], pickEntryNames[PICK_ENTRIES][128], pickEntryIds[PICK_ENTRIES][32];
+static int pickEntryCount = -1;
+static struct boxart_game pickGame;
+enum { JOB_NONE, JOB_OPEN, JOB_SEARCH, JOB_ENTRY };
+
+void boxart_pick_stem(int i, char *out, size_t size) { snprintf(out, size, "~pick-%d", i); }
+
+static void pick_file(int i, char *path, size_t size) {
+  char stem[32];
+  boxart_pick_stem(i, stem, sizeof stem);
+  path_of(path, size, stem, "img");
+}
+
+/* Adds a candidate (under lock); data, when given, is its picture already (libretro's), written as its thumbnail. */
+static void pick_add(int source, const char *url, const char *thumb, int w, int h, const char *data, size_t len) {
+  if (pickCount >= PICK_MAX)
+    return;
+  struct pick_cand *c = &pick[pickCount];
+  memset(c, 0, sizeof *c);
+  c->source = source;
+  c->w = w;
+  c->h = h;
+  snprintf(c->url, sizeof c->url, "%s", url ? url : "");
+  snprintf(c->thumb, sizeof c->thumb, "%s", thumb && *thumb ? thumb : url ? url : "");
+  if (data) {
+    char path[1400];
+    pick_file(pickCount, path, sizeof path);
+    c->ready = write_file(path, data, len);
+    c->failed = !c->ready;
+  }
+  pickCount++;
+  SDL_AtomicAdd(&generation, 1);
+}
+
+/* The image's size from its header (PNG / JPEG), for libretro's covers. */
+static void image_size(const unsigned char *d, size_t len, int *w, int *h) {
+  int n;
+  if (!stbi_info_from_memory(d, (int)len, w, h, &n))
+    *w = *h = 0;
+}
+
+/* SteamGridDB's games for a term: names and ids (entries), -1 without a key. */
+static int sgdb_search(const char *term, char names[][128], char ids[][32], int max) {
+  char key[80];
+  boxart_key(key, sizeof key);
+  if (!*key)
+    return -1;
+  char auth[160], enc[512], url[1024], ascii[128];
+  snprintf(auth, sizeof auth, "Authorization: Bearer %s", key);
+  size_t an = 0;
+  for (const unsigned char *p = (const unsigned char *)term; *p && an + 1 < sizeof ascii; p++) {
+    if (*p == 0xC3 && (p[1] == 0xA9 || p[1] == 0x89)) { // "Pokémon" -> "Pokemon"
+      ascii[an++] = p[1] == 0xA9 ? 'e' : 'E';
+      p++;
+    } else if (*p < 0x80)
+      ascii[an++] = (char)*p;
+  }
+  ascii[an] = 0;
+  http_encode(ascii, enc, sizeof enc);
+  snprintf(url, sizeof url, "https://www.steamgriddb.com/api/v2/search/autocomplete/%s", enc);
+  size_t jlen;
+  char *json = http_get(url, auth, MAX_JSON, &jlen);
+  const char *data = json ? strstr(json, "\"data\"") : NULL;
+  int n = 0;
+  for (const char *p = data; p && n < max && (p = strstr(p, "\"id\"")); p += 4) {
+    if (json_value(p, "id", ids[n], 32) && json_value(p, "name", names[n], 128))
+      n++;
+  }
+  free(json);
+  return n;
+}
+
+int boxart_parse_grids(const char *json, struct boxart_grid *out, int max) {
+  const char *data = json ? strstr(json, "\"data\"") : NULL;
+  int n = 0;
+  // Each grid is an object from its "{"id"" to the next one's: its own fields read from that slice alone.
+  for (const char *p = data; p && n < max && (p = strstr(p, "{\"id\"")); ) {
+    const char *next = strstr(p + 5, "{\"id\"");
+    size_t span = next ? (size_t)(next - p) : strlen(p);
+    char *one = malloc(span + 1);
+    if (!one)
+      break;
+    memcpy(one, p, span);
+    one[span] = 0;
+    struct boxart_grid *g = &out[n];
+    char w[16] = "", h[16] = "";
+    g->url[0] = g->thumb[0] = 0;
+    json_value(one, "url", g->url, sizeof g->url);
+    json_value(one, "thumb", g->thumb, sizeof g->thumb);
+    json_value(one, "width", w, sizeof w);
+    json_value(one, "height", h, sizeof h);
+    free(one);
+    g->w = atoi(w);
+    g->h = atoi(h);
+    if (*g->url && http_url_ok(g->url)) {
+      if (!http_url_ok(g->thumb))
+        snprintf(g->thumb, sizeof g->thumb, "%s", g->url);
+      n++;
+    }
+    p = next;
+  }
+  return n;
+}
+
+/* One page of a SteamGridDB game's grids (every size, PNG / JPEG, no adult or joke art) into the candidates. False:
+ * the page brought nothing new (the last one, or a page number the API ignored) or couldn't be read. */
+static bool sgdb_page(const char *id, int page) {
+  char key[80];
+  boxart_key(key, sizeof key);
+  if (!*key)
+    return false;
+  char auth[160], url[1024];
+  snprintf(auth, sizeof auth, "Authorization: Bearer %s", key);
+  snprintf(url, sizeof url,
+           "https://www.steamgriddb.com/api/v2/grids/game/%s?mimes=image/png,image/jpeg&nsfw=false&humor=false&page=%d",
+           id, page);
+  size_t jlen;
+  char *json = http_get(url, auth, MAX_JSON, &jlen);
+  static struct boxart_grid grids[100];
+  int n = boxart_parse_grids(json, grids, 100);
+  free(json);
+  int added = 0;
+  SDL_LockMutex(lock);
+  for (int i = 0; i < n; i++) {
+    bool seen = false;
+    for (int k = 0; k < pickCount && !seen; k++)
+      seen = !strcmp(pick[k].url, grids[i].url);
+    if (!seen) {
+      pick_add(BOXART_PICK_STEAMGRIDDB, grids[i].url, grids[i].thumb, grids[i].w, grids[i].h, NULL, 0);
+      added++;
+    }
+  }
+  SDL_UnlockMutex(lock);
+  return added > 0;
+}
+
+/* The thumbnail nearest the one in view that isn't fetched yet (within a screenful or two), or -1. */
+static int pick_next_thumb(void) {
+  int best = -1, bestD = 1 << 30;
+  for (int i = 0; i < pickCount; i++) {
+    if (pick[i].ready || pick[i].failed)
+      continue;
+    int d = i >= pickFocus ? i - pickFocus : (pickFocus - i) * 2; // ahead first
+    if (d < bestD && d <= 48) {
+      best = i;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+static void pick_clear_files(void) {
+  char path[1400];
+  for (int i = 0; i < PICK_MAX; i++) {
+    pick_file(i, path, sizeof path);
+    pocket_remove(path);
+  }
+}
+
+static int pick_work(void *unused) {
+  (void)unused;
+  while (!SDL_AtomicGet(&pickQuit)) {
+    SDL_LockMutex(lock);
+    int job = pickJob, serial = pickSerial;
+    pickJob = JOB_NONE;
+    struct boxart_game g = pickGame;
+    char term[128];
+    snprintf(term, sizeof term, "%s", pickTerm);
+    int entry = pickGameIndex;
+    char id[32] = "";
+    if (job == JOB_ENTRY && entry >= 0 && entry < pickEntryCount)
+      snprintf(id, sizeof id, "%s", pickEntryIds[entry]);
+    if (job != JOB_NONE)
+      pickBusy = true;
+    SDL_UnlockMutex(lock);
+    if (job == JOB_OPEN) {
+      // libretro's own cover and the base game's first, then SteamGridDB's entry of the same name and its grids.
+      size_t len = 0;
+      char *img = from_libretro(&g, &len);
+      int w = 0, h = 0;
+      SDL_LockMutex(lock);
+      if (img && serial == pickSerial) {
+        image_size((unsigned char *)img, len, &w, &h);
+        pick_add(BOXART_PICK_LIBRETRO, "", "", w, h, img, len);
+      }
+      SDL_UnlockMutex(lock);
+      free(img);
+      img = g.base[0] ? libretro_named(g.base, g.baseSystem, &len) : NULL;
+      SDL_LockMutex(lock);
+      if (img && serial == pickSerial) {
+        image_size((unsigned char *)img, len, &w, &h);
+        pick_add(BOXART_PICK_BASE, "", "", w, h, img, len);
+      }
+      SDL_UnlockMutex(lock);
+      free(img);
+      char names[PICK_ENTRIES][128], ids[PICK_ENTRIES][32];
+      int n = sgdb_search(term, names, ids, PICK_ENTRIES);
+      int match = -1;
+      for (int i = 0; i < n && match < 0; i++)
+        if (boxart_title_matches(term, names[i]))
+          match = i;
+      SDL_LockMutex(lock);
+      if (serial == pickSerial) {
+        pickNoKey = n < 0;
+        pickEntryCount = n < 0 ? 0 : n;
+        memcpy(pickEntryNames, names, sizeof names);
+        memcpy(pickEntryIds, ids, sizeof ids);
+        if (match >= 0) {
+          pickGameIndex = match;
+          pickPage = 0;
+          pickPagesDone = false;
+        } else
+          pickPagesDone = true;
+      }
+      SDL_UnlockMutex(lock);
+    } else if (job == JOB_SEARCH) {
+      char names[PICK_ENTRIES][128], ids[PICK_ENTRIES][32];
+      int n = sgdb_search(term, names, ids, PICK_ENTRIES);
+      SDL_LockMutex(lock);
+      if (serial == pickSerial) {
+        pickNoKey = n < 0;
+        pickEntryCount = n < 0 ? 0 : n;
+        memcpy(pickEntryNames, names, sizeof names);
+        memcpy(pickEntryIds, ids, sizeof ids);
+      }
+      SDL_UnlockMutex(lock);
+    }
+    // More of the game's grids when the picker is near the end of what it has; thumbnails near the one in view.
+    SDL_LockMutex(lock);
+    bool wantPage = !pickPagesDone && pickGameIndex >= 0 && pickGameIndex < pickEntryCount &&
+                    pickFocus + 24 >= pickCount && pick;
+    int page = pickPage;
+    snprintf(id, sizeof id, "%s", wantPage ? pickEntryIds[pickGameIndex] : "");
+    int thumb = wantPage ? -1 : pick ? pick_next_thumb() : -1;
+    char turl[512] = "";
+    if (thumb >= 0)
+      snprintf(turl, sizeof turl, "%s", pick[thumb].thumb);
+    serial = pickSerial;
+    SDL_UnlockMutex(lock);
+    if (wantPage) {
+      bool more = sgdb_page(id, page);
+      SDL_LockMutex(lock);
+      if (serial == pickSerial) {
+        pickPage = page + 1;
+        pickPagesDone = !more;
+      }
+      SDL_UnlockMutex(lock);
+    } else if (thumb >= 0) {
+      size_t len = 0;
+      char *img = fetch_image(turl, NULL, &len);
+      SDL_LockMutex(lock);
+      if (serial == pickSerial && thumb < pickCount) {
+        char path[1400];
+        pick_file(thumb, path, sizeof path);
+        pick[thumb].ready = img && write_file(path, img, len);
+        pick[thumb].failed = !pick[thumb].ready;
+        SDL_AtomicAdd(&generation, 1);
+      }
+      SDL_UnlockMutex(lock);
+      free(img);
+    } else {
+      SDL_LockMutex(lock);
+      pickBusy = false;
+      SDL_UnlockMutex(lock);
+      SDL_Delay(60);
+    }
+  }
+  return 0;
+}
+
+static void pick_reset(void) { // under lock
+  pickSerial++;
+  pickCount = pickFocus = pickPage = 0;
+  pickPagesDone = true;
+  pickGameIndex = -1;
+  pick_clear_files();
+  SDL_AtomicAdd(&generation, 1);
+}
+
+void boxart_pick_open(const struct boxart_game *g) {
+  if (!lock)
+    return;
+  SDL_LockMutex(lock);
+  if (!pick)
+    pick = calloc(PICK_MAX, sizeof *pick);
+  pickGame = *g;
+  snprintf(pickTerm, sizeof pickTerm, "%.127s", g->title);
+  pick_reset();
+  pickEntryCount = -1;
+  pickNoKey = false;
+  pickJob = pick ? JOB_OPEN : JOB_NONE;
+  pickBusy = pick != NULL;
+  SDL_UnlockMutex(lock);
+  if (!pickThread && pick) {
+    SDL_AtomicSet(&pickQuit, 0);
+    pickThread = SDL_CreateThread(pick_work, "boxart-pick", NULL);
+  }
+}
+
+void boxart_pick_search(const char *term) {
+  SDL_LockMutex(lock);
+  snprintf(pickTerm, sizeof pickTerm, "%.127s", term);
+  pickSerial++;
+  pickEntryCount = -1;
+  pickJob = JOB_SEARCH;
+  pickBusy = true;
+  SDL_UnlockMutex(lock);
+}
+
+int boxart_pick_names(char names[][128], int max) {
+  SDL_LockMutex(lock);
+  int n = pickJob == JOB_SEARCH ? -1 : pickEntryCount;
+  if (n > max)
+    n = max;
+  for (int i = 0; i < n; i++)
+    snprintf(names[i], 128, "%.127s", pickEntryNames[i]);
+  SDL_UnlockMutex(lock);
+  return n;
+}
+
+void boxart_pick_use_entry(int i) {
+  SDL_LockMutex(lock);
+  if (i >= 0 && i < pickEntryCount) {
+    // libretro's covers stay; SteamGridDB's are this entry's from now on.
+    int keep = 0;
+    for (int k = 0; k < pickCount; k++)
+      if (pick[k].source != BOXART_PICK_STEAMGRIDDB)
+        keep = k + 1;
+    pickSerial++;
+    char path[1400];
+    for (int k = keep; k < pickCount; k++) {
+      pick_file(k, path, sizeof path);
+      pocket_remove(path);
+    }
+    pickCount = keep;
+    pickFocus = 0;
+    pickGameIndex = i;
+    pickPage = 0;
+    pickPagesDone = false;
+    pickBusy = true;
+    SDL_AtomicAdd(&generation, 1);
+  }
+  SDL_UnlockMutex(lock);
+}
+
+int boxart_pick_count(void) {
+  SDL_LockMutex(lock);
+  int n = pick ? pickCount : 0;
+  SDL_UnlockMutex(lock);
+  return n;
+}
+
+bool boxart_pick_item(int i, struct boxart_pick_item *out) {
+  SDL_LockMutex(lock);
+  bool ok = pick && i >= 0 && i < pickCount;
+  if (ok) {
+    out->source = pick[i].source;
+    out->w = pick[i].w;
+    out->h = pick[i].h;
+    out->ready = pick[i].ready;
+    out->failed = pick[i].failed;
+  }
+  SDL_UnlockMutex(lock);
+  return ok;
+}
+
+void boxart_pick_focus(int i) {
+  SDL_LockMutex(lock);
+  pickFocus = i < 0 ? 0 : i;
+  SDL_UnlockMutex(lock);
+}
+
+int boxart_pick_state(char *entry, size_t size) {
+  SDL_LockMutex(lock);
+  int s = pickNoKey ? BOXART_PICK_NO_KEY : pickBusy || pickJob != JOB_NONE ? BOXART_PICK_LOADING : BOXART_PICK_DONE;
+  if (entry)
+    snprintf(entry, size, "%s", pickGameIndex >= 0 && pickGameIndex < pickEntryCount ? pickEntryNames[pickGameIndex] : "");
+  SDL_UnlockMutex(lock);
+  return s;
+}
+
+bool boxart_pick_choose(const char *stem, int i, char *err, size_t errSize) {
+  SDL_LockMutex(lock);
+  bool ok = pick && i >= 0 && i < pickCount;
+  struct pick_cand c;
+  if (ok)
+    c = pick[i];
+  SDL_UnlockMutex(lock);
+  if (!ok) {
+    snprintf(err, errSize, "That cover is gone");
+    return false;
+  }
+  char path[1400];
+  if (c.source == BOXART_PICK_STEAMGRIDDB) {
+    // The full picture, not its thumbnail.
+    size_t len = 0;
+    char *img = fetch_image(c.url, NULL, &len);
+    if (!img) {
+      snprintf(err, errSize, "Couldn't download that cover");
+      return false;
+    }
+    path_of(path, sizeof path, stem, "custom");
+    ok = write_file(path, img, len);
+    free(img);
+  } else {
+    // libretro's: the picture is the thumbnail already.
+    pick_file(i, path, sizeof path);
+    FILE *f = fopen(path, "rb");
+    char *data = f ? malloc(MAX_IMAGE) : NULL;
+    size_t len = data ? fread(data, 1, MAX_IMAGE, f) : 0;
+    if (f)
+      fclose(f);
+    path_of(path, sizeof path, stem, "custom");
+    ok = data && len && write_file(path, data, len);
+    free(data);
+  }
+  if (!ok)
+    snprintf(err, errSize, "Couldn't save the box art");
+  else
+    SDL_AtomicAdd(&generation, 1);
+  return ok;
+}
+
+void boxart_pick_close(void) {
+  if (pickThread) {
+    SDL_AtomicSet(&pickQuit, 1);
+    SDL_WaitThread(pickThread, NULL);
+    pickThread = NULL;
+  }
+  if (!lock)
+    return;
+  SDL_LockMutex(lock);
+  pick_reset();
+  free(pick);
+  pick = NULL;
+  pickCount = 0;
+  SDL_UnlockMutex(lock);
 }
 
 /* --- textures --- */

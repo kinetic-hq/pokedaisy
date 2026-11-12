@@ -19,6 +19,8 @@ struct game_grid_item {
   bool hack;           // a ROM hack (else ORIGINAL)
   bool banner;         // the art is the base game's box: the name goes on a banner across its foot
   int support;         // game_support.h's GAME_SUPPORT_*: FULL / PARTLY / PLAY ONLY, beside the version (0: not known yet)
+  const char *tag;     // BOX ART's picker: one tag of its own (the cover's source) in place of the system and kind
+  uint32_t tagColor;
 };
 
 struct game_grid_art {

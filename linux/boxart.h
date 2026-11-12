@@ -53,6 +53,38 @@ SDL_Texture *boxart_texture(SDL_Renderer *r, const char *stem, int *w, int *h);
 void boxart_textures_free(void);
 /* SteamGridDB's name for an entry is this title (the same words, "Pokemon" and "Version" aside). */
 bool boxart_title_matches(const char *want, const char *got);
+/* BOX ART's picker: every cover found for one game, to choose from. libretro's own cover and the base game's come
+ * first, then every grid SteamGridDB has for its entry of the game's name (fetched a page at a time as the picker
+ * nears the end, the thumbnails near the one in view first). Each candidate's thumbnail is box art named by
+ * boxart_pick_stem (boxart_texture draws it). */
+enum { BOXART_PICK_STEAMGRIDDB, BOXART_PICK_LIBRETRO, BOXART_PICK_BASE };
+enum { BOXART_PICK_LOADING, BOXART_PICK_DONE, BOXART_PICK_NO_KEY };
+struct boxart_pick_item {
+  int source, w, h;
+  bool ready, failed; // its thumbnail is there / couldn't be fetched
+};
+void boxart_pick_open(const struct boxart_game *g);
+/* SEARCH AGAIN: SteamGridDB's games for a term; boxart_pick_names lists them (-1 while looking), use_entry loads
+ * one's grids in place of the current entry's. */
+void boxart_pick_search(const char *term);
+int boxart_pick_names(char names[][128], int max);
+void boxart_pick_use_entry(int i);
+int boxart_pick_count(void);
+bool boxart_pick_item(int i, struct boxart_pick_item *out);
+void boxart_pick_stem(int i, char *out, size_t size);
+/* The candidate in view: thumbnails near it come first, and the next page when it nears the end. */
+void boxart_pick_focus(int i);
+/* BOXART_PICK_*; entry: SteamGridDB's name for the game shown ("" none). */
+int boxart_pick_state(char *entry, size_t size);
+/* The candidate's full picture as the game's own box art (pinned: SYNC never replaces it). Blocks while it downloads. */
+bool boxart_pick_choose(const char *stem, int i, char *err, size_t errSize);
+void boxart_pick_close(void);
+/* A SteamGridDB grids page's pictures (url, thumbnail, size), in order: exposed for the tests. */
+struct boxart_grid {
+  char url[512], thumb[512];
+  int w, h;
+};
+int boxart_parse_grids(const char *json, struct boxart_grid *out, int max);
 /* The string value of "key" in JSON, unescaped (\uXXXX to UTF-8): exposed for the tests. */
 bool boxart_json_string(const char *json, const char *key, char *out, size_t size);
 /* The libretro thumbnail name for a file stem: &*\/:`<>?\| become _ (their rule). */

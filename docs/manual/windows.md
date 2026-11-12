@@ -88,11 +88,22 @@ Press `X`, right click or hold a finger on a game for its options:
 
 - **`COMPANION`** says how much of the companion the game gets and, for
   `PARTLY` and `PLAY ONLY`, what's missing.
-- **`FIND BOX ART`** looks again now, even for a game it found nothing for before.
-- **`SET BOX ART`** uses your own picture: copy a PNG or JPG file's path, or an
-  https link to one, then pick `USE THE COPIED PATH OR LINK`. You can also drop
-  an image on the window to set the selected game's art. Your own art always
-  wins, and `REMOVE MY BOX ART` goes back to the downloaded one.
+- **`BOX ART`** shows every cover found for the game as a grid, so you can pick
+  the one you like. The cover from libretro and the base game's box come first,
+  then every cover SteamGridDB has for the game (with your key), loaded as you
+  scroll. Each tile says where the cover comes from and its size. Press `A` on
+  one to use it. Your pick stays, and `SYNC BOX ART` never replaces it. Along the
+  top bar:
+  - `SEARCH AGAIN` (or `Y`): type another name, then pick the right game from
+    SteamGridDB's list to see its covers.
+  - `SHAPE` (or `X`): box shaped covers only, or every shape.
+  - `CHOOSE FILE`: copy a PNG or JPG file's path, or an https link to one, then
+    pick `USE THE COPIED PATH OR LINK`. You can also drop an image on the window
+    to set the selected game's art.
+  - `AUTOMATIC`: drops your pick and lets the program look for a cover again.
+
+  Without a SteamGridDB key the grid shows the libretro covers only, and says
+  where to add a key.
 - **`RENAME`** gives the game a name of your own, typed on a real keyboard or
   picked key by key with a controller (`B` deletes, `Y` is a space, `START` is
   done). `USE THE FILE'S NAME` takes it back. Names are kept in `DATA\names.txt`;
