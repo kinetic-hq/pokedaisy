@@ -27,6 +27,11 @@ int main(){
       if(!p.touchFloats)assert(!overlap(panel,p.touch));
     }
     assert(!overlap(p.panel[0],p.panel[1]));
+    // SPLIT TOUCH's halves: inside, clear of the top screen and of each other, the same size, only there.
+    for(auto& half:p.half){within(half,s[0],s[1]);assert(!overlap(half,p.top));}
+    assert(!overlap(p.half[0],p.half[1]));
+    if(p.split())assert(p.used==DSL_SPLIT && !p.touch.shown() && p.half[0].w==p.half[1].w && p.half[0].h==p.half[1].h);
+    if(p.used!=DSL_SPLIT)assert(!p.split());
     if(p.used==DSL_WING || p.used==DSL_WINGS)assert(p.panel[0].shown());
     if(p.used!=DSL_WING && p.used!=DSL_WINGS)assert(!p.panel[0].shown() && !p.panel[1].shown());
     assert(p.top.shown() || p.touch.shown());
@@ -59,6 +64,40 @@ int main(){
   assert(wings.used==DSL_WINGS && wings.top.w==1280 && !wings.touch.shown() && wings.panel[0].shown() && wings.panel[1].shown());
   assert(ds_place(DSL_WINGS,1920,1080,false,true).touchFloats && ds_place(DSL_WINGS,1920,1080,true,false).touchFloats);
   assert(ds_place(DSL_WINGS,1024,768,false,false).used==DSL_WINGS);
+  // SPLIT TOUCH: the top screen as WINGS places it, a half of the touch screen filling each wing, level with the top
+  // screen's bottom, the left half (DS x 0-127) on the left; DS WING SIDE swaps them.
+  struct Split{int w,h,top,half,halfH;} splits[]={
+    {1920,1080,1280,320,480},  // 5x, halves at 2.5x
+    {1920,1200,1536,192,288},  // 6x, halves at 1.5x
+    {1280,800,1024,128,192},   // 4x, halves at 1x
+    {1280,720,768,256,384},    // 3x, halves at 2x
+  };
+  for(auto& c:splits){
+    auto sp=ds_place(DSL_SPLIT,c.w,c.h,false,false);
+    assert(sp.used==DSL_SPLIT && sp.split() && sp.top.w==c.top && sp.top.x==(c.w-c.top)/2);
+    assert(sp.half[0].w==c.half && sp.half[0].h==c.halfH && sp.half[0].x+sp.half[0].w==sp.top.x);
+    assert(sp.half[1].x==sp.top.x+sp.top.w && sp.half[0].y+sp.half[0].h==sp.top.y+sp.top.h);
+    assert(sp.panel[0].shown()==false && sp.panel[1].shown()==false);
+    auto swapped=ds_place(DSL_SPLIT,c.w,c.h,false,false,true);
+    assert(swapped.half[0].x==sp.half[1].x && swapped.half[1].x==sp.half[0].x);
+    // Taps map back to their half; a stroke crossing the top screen stays on the nearer half's edge.
+    int tx=0,ty=0;
+    assert(ds_touch_at(sp,sp.half[0].x,sp.half[0].y,false,tx,ty) && tx==0 && ty==0);
+    assert(ds_touch_at(sp,sp.half[1].x+sp.half[1].w-1,sp.half[1].y+sp.half[1].h-1,false,tx,ty) && tx==255 && ty==191);
+    assert(ds_touch_at(sp,sp.half[1].x,sp.half[1].y,false,tx,ty) && tx==128);
+    assert(ds_touch_at(swapped,swapped.half[1].x,swapped.half[1].y,false,tx,ty) && tx==128);
+    assert(!ds_touch_at(sp,c.w/2,c.h/2,false,tx,ty));
+    assert(ds_touch_at(sp,sp.top.x+10,sp.half[0].y,true,tx,ty) && tx==127);
+    assert(ds_touch_at(sp,sp.top.x+sp.top.w-10,sp.half[0].y,true,tx,ty) && tx==128);
+    int wx=0,wy=0;ds_touch_to_window(sp,128,0,wx,wy);assert(wx==sp.half[1].x && wy==sp.half[1].y);
+    // R2: the touch screen whole in the middle.
+    auto r2=ds_place(DSL_SPLIT,c.w,c.h,true,false);
+    assert(!r2.split() && r2.touch.w==c.top && r2.top.shown());
+  }
+  // Too narrow for halves at 1x: TOUCH IN WING, then PICTURE IN PICTURE.
+  assert(ds_place(DSL_SPLIT,1024,768,false,false).half[0].w==128);   // 3x, halves at 1x
+  assert(ds_place(DSL_SPLIT,620,300,false,false).used==DSL_WING);
+  assert(ds_place(DSL_SPLIT,640,480,false,false).used==DSL_PIP);
   // Touch points map back to DS pixels, a drag off the edge stays on it.
   int x=0,y=0;DsBox t{100,50,512,384};
   assert(ds_touch_at(t,100,50,false,x,y) && x==0 && y==0);
