@@ -387,7 +387,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   ds_set_renegade(renegade?&renegadeTables:nullptr);
   static struct pd_ds_types renegadeTypes;renegadeTypes={"Fairy",renegadeTables.chart.data()};
   if(renegade)pd_ds_types=&renegadeTypes;
-  struct OriginReset{~OriginReset(){ds_set_origin(nullptr);ds_set_renegade(nullptr);pd_ds_types=nullptr;}} originReset;
+  // HeartFelt Gold: HeartGold's companion on its own save offsets and the tables its cart holds.
+  static DsOrigin heartfeltTables;
+  bool heartfelt=!supported && !origin && ds_heartfelt_cart(bytes.data(),bytes.size());
+  if(heartfelt){heartfeltTables=ds_read_heartfelt(bytes);heartfelt=!heartfeltTables.species.empty();}
+  ds_set_heartfelt(heartfelt?&heartfeltTables:nullptr);
+  static struct pd_ds_types heartfeltTypes;heartfeltTypes={"Fairy",heartfeltTables.chart.data()};
+  if(heartfelt)pd_ds_types=&heartfeltTypes;
+  struct OriginReset{~OriginReset(){ds_set_origin(nullptr);ds_set_renegade(nullptr);ds_set_heartfelt(nullptr);pd_ds_types=nullptr;}} originReset;
   // HeartGold / SoulSilver: the TRAINER wing's facts only (time of day, Berry Pots, money, place) for now.
   // It only reads RAM, so a US cart's other dumps (by its header) count too.
   const bool johto=!supported&&(origin||ds_companion_game(ds_canonical_sha1(hex))==DsGame::Johto||
@@ -420,7 +427,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   if(shellGame!=DsGame::Unsupported)shell->dexArt=ds_dex_art(bytes,shellGame);
   DsCompanion shellSnap,lastGood;bool shellOpen=false;
   auto nds=ds_core_create();active=nds.get();
-  std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,renegade?"Renegade Platinum":supported?"Platinum":origin?"Origin HeartGold":johto?"HeartGold / SoulSilver":other?"Black / White":"unsupported");
+  std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,renegade?"Renegade Platinum":supported?"Platinum":origin?"Origin HeartGold":heartfelt?"HeartFelt Gold":johto?"HeartGold / SoulSilver":other?"Black / White":"unsupported");
   std::deque<std::vector<uint8_t>> rewindRing;int rewindTick=0,rewindStep=0;
   std::string err;if(!nds->boot(rom,bytes,err)){std::fprintf(stderr,"DS boot failed: %s\n",err.c_str());return 1;}
   std::filesystem::path dir=std::filesystem::u8path(root);auto romPath=std::filesystem::u8path(rom);auto filename=romPath.filename().u8string();
@@ -481,9 +488,10 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   DsPieceLayout pieceLay;int pointerPiece=-1;  // TOUCH PIECES as last drawn; the piece a press began on
   // Platinum rev 0 runs on rev 1's field addresses (its party, field and battle structs sit at the same places).
   // HeartGold and SoulSilver (USA) run on the app's HeartGold field read too: BATTLE, auto battles, touch moments;
-  // Black, White and their sequels on the app's Gen 5 field reads.
+  // Black, White and their sequels on the app's Gen 5 field reads. HeartFelt Gold's battle structs (hg-engine's) are
+  // unmapped: no field read, so no BATTLE, auto battles or EXPAND there.
   const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):
-    origin?originField:other?pk_nds_field_game(code,0):nullptr;
+    origin?originField:heartfelt?nullptr:other?pk_nds_field_game(code,0):nullptr;
   // EXPAND (ASPECT on EXPAND, melonDS, a game with field rules): the world drawn past the top screen's edges, with the
   // GBA's camera (wide_camera.h): ZOOM IN / OUT step it on the overworld; battles, menus and (AUTO ZOOM IN) text boxes
   // pull in to the closest view.

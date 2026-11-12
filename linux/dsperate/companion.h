@@ -32,7 +32,8 @@ struct DsOrigin {
   std::array<uint8_t,18*18> chart{};                 // attacker by defender, in quarters (4 = 1x)
   std::vector<std::array<uint16_t,3>> forms;         // species, its form's own species id, form
   std::array<int,138> machines{};                    // TM01..TM92, HM01..HM08, TM93..TM130
-  std::vector<uint8_t> iconPalettes;                 // Renegade Platinum: each species' icon palette (empty: the game's own)
+  std::vector<uint8_t> iconPalettes;                 // Renegade Platinum, HeartFelt Gold: each species' icon palette (empty: the game's own)
+  int lastSpecies=dsOriginLastSpecies;               // the highest species id a party record may hold
   int formSpecies(int species,int form) const;       // a form's own id (species when form 0 or unknown)
   int baseSpecies(int id) const;                     // the National Dex species of a form id
 };
@@ -43,6 +44,14 @@ const DsOrigin* ds_origin();
 // from its cart), or nullptr. Platinum's reader and RAM layout stay as they are.
 void ds_set_renegade(const DsOrigin* data);
 const DsOrigin* ds_renegade();
+// HeartFelt Gold (an hg-engine build of HeartGold USA: IPKE rev 0, its ARM9 grown to 0x111EF8 bytes). It runs as
+// DsGame::Johto on its own save offsets (a bigger bag shifts everything after it by 496 bytes) and, once
+// ds_set_heartfelt hands them over, its own tables (ds_read_heartfelt, map_art.h). Species ids run to 1534: the
+// National Dex to 493, 494 the Egg, then Gen 5 on at national + 50.
+bool ds_heartfelt_cart(const uint8_t* rom,size_t size);
+constexpr int dsHeartfeltLastSpecies=1534;
+void ds_set_heartfelt(const DsOrigin* data);
+const DsOrigin* ds_heartfelt();
 // What the cart is, by its header, for messages: "Platinum (USA) rev 0", "Black 2 (USA / Europe)"...
 std::string ds_cart_label(const uint8_t* rom,size_t size);
 struct DsMon {

@@ -544,7 +544,7 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   window too narrow for that gets `TOUCH IN WING`.
 
 The companion's panels in the wings read Platinum (USA), Renegade Platinum,
-HeartGold, SoulSilver, Origin HeartGold, Black, White, Black 2 and White 2; in other DS games
+HeartGold, SoulSilver, Origin HeartGold, HeartFelt Gold, Black, White, Black 2 and White 2; in other DS games
 they say so. While they show, the HUD leaves out its party row.
 
 SELECT and R3 together (Space on a keyboard) swap the two screens: in `ONE SCREEN` you see the
@@ -588,6 +588,9 @@ guide; they go by the game code too, so another dump of the same cart works.
 Origin HeartGold gets `PARTY`, `BAG`, `MAP` and `DEX` with its own creatures,
 moves, items, types and pictures, read from its cart; its battles aren't read
 yet, so `BATTLE` stays empty.
+HeartFelt Gold gets `PARTY`, `BAG` and `MAP`, with its own creatures, moves,
+items, types and icons read from its cart. Its Pokédex, trainers and battles
+aren't read yet, so it has no `DEX`, `GUIDE` or `BATTLE`, and no EXPAND.
 For other DS games you get the game alone, and `SETTINGS` tells you
 which game and revision it found, and which ones the companion reads.
 

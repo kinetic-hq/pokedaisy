@@ -36,20 +36,30 @@ std::string utf16_text(const uint8_t* p,int count){
 }
 namespace {
 const DsOrigin* originData=nullptr;
-const DsOrigin* origin_for(DsGame game){return game==DsGame::Johto?originData:nullptr;}
+const DsOrigin* heartfeltData=nullptr;
+// The tables a Johto cart brings of its own: Origin HeartGold's or HeartFelt Gold's.
+const DsOrigin* origin_for(DsGame game){return game!=DsGame::Johto?nullptr:originData?originData:heartfeltData;}
 // HeartGold / SoulSilver's SaveData and FieldSystem layout, or Origin HeartGold's grown one (Gen4Reader.kt's
 // GEN4_ORIGIN_HEARTGOLD: the bag's TM pocket holds 151, and everything after the trainer's block moved).
+// HeartFelt Gold keeps retail's pointers and the blocks before the bag; its bigger bag (245 items, 92 key items)
+// moves the rest by 496 bytes (checked on a new game: the player's room, the event flags, the Pokédex's magic). The
+// Pokédex, the repel counter and the Pokégear word sit past blocks whose growth nobody has checked: 0, not read.
 struct JohtoLayout {
   uint32_t saveDataPtr,fieldSystemPtr,locationOff,pokedexOff,nationalOff,dexStride,dexCount,repelOff,flagsOff,wordOff;
   const int* pockets;
+  size_t pocketCount;
 };
 constexpr int originPockets[]={165,50,151,12,40,64,24,30};
+constexpr int heartfeltPockets[]={245,92,101,12,40,64,24,30};
+constexpr uint32_t heartfeltShift=496;
 JohtoLayout johto_layout(){
   using namespace pd_ds_data;
   if(originData)return {0x021D11B4,0x021D31F4,0x1324,0x13A8,0x367,0xC8,dsOriginLastNational,0x6A48+0x65,0xEAC+0x170*2,
-                        0xBC84+4,originPockets};
+                        0xBC84+4,originPockets,8};
+  if(heartfeltData)return {johto_saveDataPtr,uint32_t(pg_fieldSystemPtr),johto_locationOff+heartfeltShift,0,0,0,0,0,
+                           uint32_t(pg_flagsOff)+heartfeltShift,0,heartfeltPockets,8};
   return {johto_saveDataPtr,uint32_t(pg_fieldSystemPtr),johto_locationOff,johto_pokedexOff,johto_nationalDexOff,64,493,
-          johto_repelStepsOff,uint32_t(pg_flagsOff),uint32_t(pg_wordOff),johtoPockets};
+          johto_repelStepsOff,uint32_t(pg_flagsOff),uint32_t(pg_wordOff),johtoPockets,8};
 }
 }
 void ds_set_origin(const DsOrigin* data){originData=data;}
@@ -57,6 +67,11 @@ const DsOrigin* ds_origin(){return originData;}
 namespace { const DsOrigin* renegadeData=nullptr; }
 void ds_set_renegade(const DsOrigin* data){renegadeData=data;}
 const DsOrigin* ds_renegade(){return renegadeData;}
+void ds_set_heartfelt(const DsOrigin* data){heartfeltData=data;}
+const DsOrigin* ds_heartfelt(){return heartfeltData;}
+bool ds_heartfelt_cart(const uint8_t* rom,size_t size){
+  return size>=0x200 && !std::memcmp(rom+0x0C,"IPKE",4) && rom[0x1E]==0 && u32(rom+0x2C)==0x111EF8u;
+}
 namespace {
 // The tables a cart brings of its own: Origin HeartGold's on Johto's reader, Renegade Platinum's on Platinum's.
 const DsOrigin* tables_for(DsGame game){return game==DsGame::Platinum?renegadeData:origin_for(game);}
@@ -77,7 +92,7 @@ bool ds_origin_cart(const uint8_t* rom,size_t size){
 }
 bool ds_unova(DsGame game){return game==DsGame::Black||game==DsGame::White||ds_unova_sequel(game);}
 bool ds_unova_sequel(DsGame game){return game==DsGame::Black2||game==DsGame::White2;}
-int ds_egg_icon(DsGame game){return ds_unova(game)?650:origin_for(game)?dsOriginEgg:pd_ds_data::iconEgg;}
+int ds_egg_icon(DsGame game){return ds_unova(game)?650:game==DsGame::Johto&&originData?dsOriginEgg:pd_ds_data::iconEgg;}
 const char* ds_canonical_sha1(const char* digest){
   using namespace pd_ds_data;
   // Decrypted dumps: the secure area differs, the rest of the file (every offset the
@@ -133,7 +148,7 @@ bool decode_mon(const uint8_t* raw,size_t size,DsMon& mon,DsGame game) {
   auto block=[&](char c){return blocks+32*(std::strchr(order,c)-order);};
   const uint8_t *a=block('A'),*b=block('B'),*c=block('C');
   const DsOrigin* origin=origin_for(game);
-  int species=u16(a);if(species<1 || species>(unova?649:origin?dsOriginLastSpecies:493))return false;
+  int species=u16(a);if(species<1 || species>(unova?649:origin?origin->lastSpecies:493))return false;
   if(origin)species=origin->formSpecies(species,b[24]>>3);
   uint8_t party[100];static_assert(pd_ds_data::monSize-pd_ds_data::boxSize==sizeof party);
   const size_t partySize=record-pd_ds_data::boxSize;
@@ -181,7 +196,7 @@ bool read_party(const Ram& ram,uint32_t addr,DsCompanion& out){
   return true;
 }
 
-template<size_t N> bool read_bag(const Ram& ram,uint32_t addr,const int (&capacities)[N],DsCompanion& out){
+bool read_bag(const Ram& ram,uint32_t addr,const int* capacities,size_t N,DsCompanion& out){
   size_t slot=0;
   for(size_t pocket=0;pocket<N;++pocket)
     for(int i=0;i<capacities[pocket];++i,++slot){
@@ -190,6 +205,9 @@ template<size_t N> bool read_bag(const Ram& ram,uint32_t addr,const int (&capaci
       if(u16(p)&&u16(p+2))out.bag.push_back({u16(p),u16(p+2),int(pocket)});
     }
   return true;
+}
+template<size_t N> bool read_bag(const Ram& ram,uint32_t addr,const int (&capacities)[N],DsCompanion& out){
+  return read_bag(ram,addr,capacities,N,out);
 }
 
 void read_dex(const Ram& ram,uint32_t address,DsCompanion& out,unsigned nationalOff,unsigned dexCount=0,unsigned dexStride=0){
@@ -233,24 +251,24 @@ DsCompanion read_other_companion(const Ram& ram,DsGame game){
     const uint32_t body=save+johto_bodyOff;
     const auto* trainer=ram.at(body+johto_trainerOff,johto_kantoBadgesOff+1);
     if(!trainer||!read_party(ram,body+johto_partyOff,out)||
-       !(originData?read_bag(ram,body+johto_bagOff,originPockets,out):read_bag(ram,body+johto_bagOff,johtoPockets,out)))return {};
+       !read_bag(ram,body+johto_bagOff,lay.pockets,lay.pocketCount,out))return {};
     out.trainer=text(trainer,8);out.money=u32(trainer+20);
     out.badges=trainer[26]|(trainer[johto_kantoBadgesOff]<<8);out.playerGender=trainer[24];
     out.map=ram.word(body+lay.locationOff);
     if(const auto* flags=ram.at(body+lay.flagsOff,gen4FlagBytes))
       out.eventFlags.assign(flags,flags+gen4FlagBytes);
-    if(const auto* steps=ram.at(body+lay.repelOff,1))out.repelSteps=*steps;
-    read_dex(ram,body+lay.pokedexOff,out,lay.nationalOff,lay.dexCount,lay.dexStride);
+    if(const auto* steps=lay.repelOff?ram.at(body+lay.repelOff,1):nullptr)out.repelSteps=*steps;
+    if(lay.pokedexOff)read_dex(ram,body+lay.pokedexOff,out,lay.nationalOff,lay.dexCount,lay.dexStride);
     // SAVE_MISC_DATA follows the Pal Pad: 128 apricorn trees (4 bytes each), then the four 12-byte Berry Pots. Its
     // offset was checked on a SoulSilver save (the rival's name sits at +0x270, the 31 trees' first state at +0).
     // Origin HeartGold's grown save moved it, and no save of it has been checked: no pots there.
     constexpr uint32_t miscOff=8292,potsOff=0x200;
-    out.hasPots=!originData&&std::any_of(out.bag.begin(),out.bag.end(),[](const DsItem& i){return i.id==470;});
+    out.hasPots=!origin_for(game)&&std::any_of(out.bag.begin(),out.bag.end(),[](const DsItem& i){return i.id==470;});
     if(const auto* pot=out.hasPots?ram.at(body+miscOff+potsOff,4*12):nullptr)
       for(int i=0;i<4;++i,pot+=12)
         if(pot[0]&&pot[1]>=1&&pot[1]<=5)
           out.pots[i]={pot[0]+148,pot[1],int(pot[2]|pot[3]<<8),std::min(100,int(pot[9]))};
-    const uint32_t gear=ram.word(body+lay.wordOff);
+    const uint32_t gear=lay.wordOff?ram.word(body+lay.wordOff):0;
     out.mapSkin=std::min(5u,(gear>>18)&127);out.mapUnlock=(gear>>27)&3;
     for(unsigned i=0;i<38;++i){
       const unsigned bit=pg_firstFlag+i;
@@ -461,6 +479,7 @@ DsRepelResult ds_use_repel(const uint8_t* bytes,size_t size,DsGame game,int item
     const uint32_t save=ram.word(johto?lay.saveDataPtr:saveDataPtr);
     if(save<0x02000000||save>=0x023e0000)return R::NotAvailable;
     const uint32_t body=save+(johto?johto_bodyOff:bodyOff);
+    if(johto && !lay.repelOff)return R::NotAvailable;  // HeartFelt Gold: its repel counter isn't mapped
     bag=body+(johto?johto_bagOff:bagOff);counter=body+(johto?lay.repelOff:repelStepsOff);
     slots=johto?lay.pockets[0]:pockets[0];
   }

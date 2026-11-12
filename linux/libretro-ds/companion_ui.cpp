@@ -122,7 +122,7 @@ void DsCompanionUi::set_game(DsGame value,bool soulSilverVersion){
   soulSilver=soulSilverVersion;
   switch(game){
     case DsGame::Platinum:presentation.title=ds_renegade()?"Pokémon Renegade Platinum":"Pokémon Platinum";break;
-    case DsGame::Johto:presentation.title=soulSilver?"Pokémon SoulSilver":"Pokémon HeartGold";break;
+    case DsGame::Johto:presentation.title=ds_heartfelt()?"Pokémon HeartFelt Gold":soulSilver?"Pokémon SoulSilver":"Pokémon HeartGold";break;
     case DsGame::Black:presentation.title="Pokémon Black";break;
     case DsGame::White:presentation.title="Pokémon White";break;
     case DsGame::Black2:presentation.title="Pokémon Black 2";break;
@@ -135,6 +135,11 @@ void DsCompanionUi::set_game(DsGame value,bool soulSilverVersion){
   if((game==DsGame::Platinum && ds_renegade()) || (game==DsGame::Johto && ds_origin())){
     frame.availableTabs&=~(1<<PD_TAB_GUIDE);
     if(frame.tab==PD_TAB_GUIDE)frame.tab=PD_TAB_PARTY;
+  }
+  // HeartFelt Gold: its Pokédex block and its own trainers are unmapped, so no DEX or GUIDE.
+  if(game==DsGame::Johto && ds_heartfelt()){
+    frame.availableTabs&=~((1<<PD_TAB_GUIDE)|(1<<PD_TAB_DEX));
+    if(frame.tab==PD_TAB_GUIDE||frame.tab==PD_TAB_DEX)frame.tab=PD_TAB_PARTY;
   }
   if(game==DsGame::Unsupported){
     frame.availableTabs=1<<PD_TAB_PARTY;

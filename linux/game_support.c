@@ -31,11 +31,14 @@ static bool ends_with(const char *s, const char *tail) {
  * Platinum too) and HeartGold / SoulSilver (USA rev 0). Everything else plays without one. */
 static int ds_support(const char *path, char *detail, size_t size) {
   FILE *f = fopen(path, "rb");
-  unsigned char head[0x20] = {0}, mark[4] = {0};
+  unsigned char head[0x30] = {0}, mark[4] = {0}, originMark[4] = {0};
   size_t n = f ? fread(head, 1, sizeof head, f) : 0;
-  // Renegade Platinum's mark (linux/dsperate/companion.cpp's ds_renegade_platinum): overlay 16's pointer to its type chart.
+  // Renegade Platinum's mark (linux/dsperate/companion.cpp's ds_renegade_platinum): overlay 16's pointer to its type
+  // chart. Origin HeartGold's (ds_origin_cart): SaveData_Get's pool word in its ARM9.
   bool renegade = f && !fseek(f, 0x221060, SEEK_SET) && fread(mark, 1, 4, f) == 4 &&
                   (mark[0] | mark[1] << 8 | mark[2] << 16 | (uint32_t)mark[3] << 24) == 0x021E9F81u;
+  bool origin = f && !fseek(f, 0x4000 + 0x2773C, SEEK_SET) && fread(originMark, 1, 4, f) == 4 &&
+                (originMark[0] | originMark[1] << 8 | originMark[2] << 16 | (uint32_t)originMark[3] << 24) == 0x021D11B0u;
   if (f)
     fclose(f);
   if (n < sizeof head) {
@@ -43,14 +46,23 @@ static int ds_support(const char *path, char *detail, size_t size) {
     return GAME_SUPPORT_UNKNOWN;
   }
   if (!memcmp(head + 12, "CPUE", 4) && head[30] <= 1) {
-    // Renegade Platinum runs on Platinum's reader (docs/manual/desktop-game-support.md): its own types, stats, DEX
-    // pages and GUIDE aren't followed yet.
+    // Renegade Platinum reads its own tables (docs/manual/desktop-game-support.md); its trainers are its own: no GUIDE.
     if (head[30] == 1 && renegade) {
-      snprintf(detail, size, "Read as Platinum: its own types, stats, DEX and GUIDE aren't followed yet");
+      snprintf(detail, size, "Every companion tab but GUIDE");
       return GAME_SUPPORT_PARTLY;
     }
     snprintf(detail, size, "Every companion tab");
     return GAME_SUPPORT_FULL;
+  }
+  if (!memcmp(head + 12, "IPKJ", 4) && !head[30] && origin) {
+    snprintf(detail, size, "PARTY, BAG, MAP and DEX: no BATTLE or GUIDE yet");
+    return GAME_SUPPORT_PARTLY;
+  }
+  // HeartFelt Gold (ds_heartfelt_cart): HeartGold's header with its ARM9 grown to 0x111EF8 bytes.
+  if (!memcmp(head + 12, "IPKE", 4) && !head[30] &&
+      (head[0x2C] | head[0x2D] << 8 | head[0x2E] << 16 | (uint32_t)head[0x2F] << 24) == 0x111EF8u) {
+    snprintf(detail, size, "PARTY, BAG and MAP: no BATTLE, DEX or GUIDE yet");
+    return GAME_SUPPORT_PARTLY;
   }
   if ((!memcmp(head + 12, "IPKE", 4) || !memcmp(head + 12, "IPGE", 4)) && !head[30]) {
     // A retail HeartGold / SoulSilver is 128 MB; a bigger one is a hack read as the game its header names.
