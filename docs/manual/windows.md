@@ -528,6 +528,11 @@ wherever it shows; a drag works too. With a controller, hold SELECT, move the
 pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
 and A. Escape pauses the game.
 
+`ASPECT` `EXPAND` isn't there for DS games. A DS screen is always 256 by 192
+pixels, and showing more of the world around you would mean changing the game
+itself, a different patch for each game. LT and RT make the DS game larger or
+smaller against the wings instead.
+
 The DS companion fills the window and wears the same theme and `DARK MODE` as
 the Game Boy Advance companion; `UI SIZE` sets how large its text is.
 
