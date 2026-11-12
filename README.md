@@ -199,6 +199,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
   creatures where you stand by time of day, read from the cart's own map headers and encounter tables, and the `DEX`
   page's where-to-find uses them too. `NEXT BOSS` shows the next gym leader or League member with the hack's own team,
   read from the cart's trainer data, in the order of their levels (Kanto's leaders first).
+  `HERE` also lists the item balls and hidden items where you stand, from the cart's map events and scripts.
 - **Renegade Platinum's `GUIDE` on the desktop host** (beyond Android, which has none for it): `HERE` lists the wild
   creatures where you stand by time of day, from the cart's own map headers and encounter tables, and `NEXT BOSS` shows
   the next gym leader or League member with the hack's own team, read from the cart's trainer data.
