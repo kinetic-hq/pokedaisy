@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
+keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -399,6 +399,12 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   facts the other (`DS WING SIDE` says which side the party is on). The touch
   screen floats in over the game when the game wants it, as in `ONE SCREEN`,
   or when you press R2. A window with no room for wings gets `ONE SCREEN`.
+  The facts wing also shows `TIME`, the time of day the game goes by
+  (`MORNING`, `DAY`, `NIGHT`, and `EVENING` in Platinum; the game's clock is
+  your computer's). In HeartGold and SoulSilver the wings show your party and
+  facts too, and once you carry the plant pots, `POT 1` to `POT 4` say what
+  grows in each, how far along it is, the time left until its next step (or
+  until ripe berries fall) and `DRY` when it needs water.
 - **`TOUCH PIECES`**: the top screen in the middle and the touch screen taken
   apart, button by button, into the two wings. In HeartGold and SoulSilver the
   battle's buttons each get a card of their own: FIGHT in one wing and the

@@ -121,6 +121,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
   `DATA/game-settings/`, while buttons, hotkeys, the window and the like stay program-wide.
 - **Battery saver** on the desktop host (SETTINGS > APP > BATTERY SAVER, AUTO = on battery): fast forward capped at
   3x, xBRZ drawn as SHARP, the companion and game list redrawn half as often.
+- **DS time of day and Berry Pots** on the desktop host: the DS facts wing shows MORNING / DAY / (EVENING) / NIGHT,
+  and HeartGold / SoulSilver get their party and facts wings with each Berry Pot's berry, stage, time left and DRY.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change. Desktop builds are a beta: every one goes up as a GitHub pre-release until one is called stable, and the

@@ -25,6 +25,13 @@ struct DsMon {
   std::string nickname;
 };
 struct DsItem { int id, count, pocket; };
+// A HeartGold / SoulSilver Berry Pot (SAVE_MISC_DATA's berry_pots, pret/pokeheartgold include/save_misc_data.h).
+struct DsBerryPot {
+  int item=0;     // the berry's item id, 0 = empty
+  int stage=0;    // 1 planted, 2 sprouted, 3 growing, 4 blooming, 5 berries
+  int minutes=0;  // left in this stage (at the berries: until they fall)
+  int moisture=0; // 0 dry .. 100
+};
 struct DsCompanion {
   DsGame game=DsGame::Platinum;
   bool valid=false, dexValid=false, nationalDex=false;
@@ -37,8 +44,15 @@ struct DsCompanion {
   std::string trainer;
   std::vector<DsMon> party;
   std::vector<DsItem> bag;
+  bool hasPots=false; // HG / SS: the Berry Pots key item is in the bag
+  DsBerryPot pots[4];
 };
 bool ds_event_flag(const DsCompanion&,unsigned flag);
+// The game's time of day for an hour of the DS clock: HG / SS MORNING 4-9, DAY 10-19, NIGHT 20-3; Platinum adds
+// EVENING 17-19. Black / White and their sequels go by season, so nothing there.
+const char* ds_day_period(DsGame game,int hour);
+// "GROWING, 3H 20M" and the like for a pot, "" when it's empty.
+std::string ds_berry_pot_text(const DsBerryPot& pot);
 int ds_unova_month(const uint8_t* ram,size_t size,DsGame game);
 bool ds_decode_mon(const uint8_t* raw, size_t size, DsMon& mon, DsGame game=DsGame::Platinum);
 DsCompanion ds_read_companion(const uint8_t* ram, size_t size,DsGame game=DsGame::Platinum);

@@ -173,6 +173,14 @@ DsCompanion read_other_companion(const Ram& ram,DsGame game){
       out.eventFlags.assign(flags,flags+gen4FlagBytes);
     if(const auto* steps=ram.at(body+johto_repelStepsOff,1))out.repelSteps=*steps;
     read_dex(ram,body+johto_pokedexOff,out,johto_nationalDexOff);
+    // SAVE_MISC_DATA follows the Pal Pad: 128 apricorn trees (4 bytes each), then the four 12-byte Berry Pots. Its
+    // offset was checked on a SoulSilver save (the rival's name sits at +0x270, the 31 trees' first state at +0).
+    constexpr uint32_t miscOff=8292,potsOff=0x200;
+    out.hasPots=std::any_of(out.bag.begin(),out.bag.end(),[](const DsItem& i){return i.id==470;});
+    if(const auto* pot=ram.at(body+miscOff+potsOff,4*12))
+      for(int i=0;i<4;++i,pot+=12)
+        if(pot[0]&&pot[1]>=1&&pot[1]<=5)
+          out.pots[i]={pot[0]+148,pot[1],int(pot[2]|pot[3]<<8),std::min(100,int(pot[9]))};
     const uint32_t gear=ram.word(body+pg_wordOff);
     out.mapSkin=std::min(5u,(gear>>18)&127);out.mapUnlock=(gear>>27)&3;
     for(unsigned i=0;i<38;++i){
@@ -275,6 +283,24 @@ DsCompanion ds_read_companion(const uint8_t* ram,size_t size,DsGame game) {
     out.eventFlags.assign(bits,bits+pd_ds_data::gen4FlagBytes);
   for(unsigned i=0;i<56;i++){unsigned bit=pd_ds_data::map_firstArrivalFlag+i;auto p=at(flags+bit/8,1);if(p && ((*p>>(bit%8))&1))out.arrivals|=uint64_t(1)<<i;}
   out.valid=true;return out;
+}
+const char* ds_day_period(DsGame game,int hour){
+  if(ds_unova(game)||hour<0)return nullptr;
+  hour%=24;
+  if(hour>=4&&hour<10)return "MORNING";
+  if(game==DsGame::Platinum&&hour>=17&&hour<20)return "EVENING";
+  if(hour>=10&&hour<20)return "DAY";
+  return "NIGHT";
+}
+std::string ds_berry_pot_text(const DsBerryPot& pot){
+  static const char* const STAGE[]={"","PLANTED","SPROUTED","GROWING","BLOOMING","READY"};
+  if(!pot.item||pot.stage<1||pot.stage>5)return "";
+  std::string t=STAGE[pot.stage];
+  const int m=std::max(0,pot.minutes);
+  t+=pot.stage==5?", FALL IN ":", ";
+  t+=m>=60?std::to_string(m/60)+"H "+std::to_string(m%60)+"M":std::to_string(m)+"M";
+  if(pot.moisture==0&&pot.stage<5)t+=", DRY";
+  return t;
 }
 bool ds_event_flag(const DsCompanion& s,unsigned flag){
   return flag>0 && flag/8<s.eventFlags.size() && (s.eventFlags[flag/8]&(1u<<(flag%8)));

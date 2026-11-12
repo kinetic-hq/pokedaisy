@@ -94,6 +94,13 @@ int main(int argc,char** argv){
   assert(!ds_read_companion(ram.data(),16).valid);
   auto invalid=ram;std::memset(invalid.data(),0,invalid.size());
   assert(!ds_read_companion(invalid.data(),invalid.size()).valid);
+  // Time of day and Berry Pots (HG / SS).
+  assert(std::strcmp(ds_day_period(DsGame::Johto,4),"MORNING")==0&&std::strcmp(ds_day_period(DsGame::Johto,18),"DAY")==0);
+  assert(std::strcmp(ds_day_period(DsGame::Johto,3),"NIGHT")==0&&std::strcmp(ds_day_period(DsGame::Platinum,18),"EVENING")==0);
+  assert(ds_berry_pot_text(DsBerryPot{})=="");
+  assert(ds_berry_pot_text(DsBerryPot{149,3,200,0})=="GROWING, 3H 20M, DRY");
+  assert(ds_berry_pot_text(DsBerryPot{149,5,45,0})=="READY, FALL IN 45M");
+  std::puts("PASS time of day and Berry Pot lines");
 #if PD_TEST_DSPERATE
   auto nds=std::make_unique<ds::NDS>();
   nds->bus.dma_write32(ds::Cpu::ARM9,0x02000000,0x12345678);
