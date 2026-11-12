@@ -21,7 +21,7 @@ else()
 endif()
 # The Android app's DS field read (pk_nds_field.cpp) reads RAM through callbacks only, so it builds here unchanged; its
 # one read of melonDS's GPU lives in pk_nds_field_gpu.cpp, which isn't built here.
-add_library(pd_ds_backend STATIC dsperate/frontend.cpp dsperate/companion.cpp dsperate/map_art.cpp ${pd_ds_core_sources}
+add_library(pd_ds_backend STATIC dsperate/frontend.cpp dsperate/companion.cpp dsperate/map_art.cpp dsperate/save_edit_ds.cpp ${pd_ds_core_sources}
   ../app/src/main/cpp/nds/pk_nds_field.cpp)
 target_include_directories(pd_ds_backend PUBLIC dsperate PRIVATE ../app/src/main/cpp/nds ../3ds/desktop)
 target_link_libraries(pd_ds_backend PUBLIC ${pd_ds_core_target} pd_linux_common)
@@ -55,6 +55,15 @@ if(BUILD_TESTING)
   target_include_directories(linux-ds-test PRIVATE dsperate ../app/src/main/cpp/nds)
   target_compile_options(linux-ds-test PRIVATE -UNDEBUG)
   target_link_libraries(linux-ds-test PRIVATE pd_ds_backend)
+  # SAVE EDITOR with its HeartGold / SoulSilver part (POCKET_SAVE_EDIT_NDS names a game and a save to try).
+  add_executable(linux-ds-save-edit-test test_save_edit.c)
+  target_compile_definitions(linux-ds-save-edit-test PRIVATE POCKET_SAVE_EDIT_DS)
+  target_compile_options(linux-ds-save-edit-test PRIVATE -UNDEBUG)
+  target_link_libraries(linux-ds-save-edit-test PRIVATE pd_ds_backend)
+  if(WIN32)
+    target_link_options(linux-ds-save-edit-test PRIVATE -static)
+  endif()
+  add_test(NAME ds-save-edit COMMAND linux-ds-save-edit-test)
   if(WIN32)
     # SDL's main is replaced by the test's own (no SDL2main), as the host's is.
     target_compile_definitions(linux-ds-display-test PRIVATE SDL_MAIN_HANDLED)

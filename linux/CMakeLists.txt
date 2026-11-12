@@ -25,7 +25,7 @@ find_path(SDL2_INCLUDE_DIR SDL.h PATH_SUFFIXES SDL2 REQUIRED)
 find_library(SDL2_LIBRARY NAMES SDL2 REQUIRED)
 find_package(Threads REQUIRED)
 file(GLOB PD_CORE CONFIGURE_DEPENDS ../3ds/core/*.c)
-add_library(pd_linux_common STATIC host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c game_grid.c rom_list.c game_name.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
+add_library(pd_linux_common STATIC host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c rom_list.c game_name.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
   ../app/src/main/cpp/pk_call.c ../app/src/main/cpp/pk_host.c ../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c
   ../app/src/main/cpp/pk_rewind.c)
 target_include_directories(pd_linux_common PUBLIC ../third_party/xbrz ../3ds/core ../third_party/mgba/include ${CMAKE_CURRENT_BINARY_DIR}/mgba/include ${SDL2_INCLUDE_DIR})
@@ -97,7 +97,8 @@ if(BUILD_TESTING)
   add_executable(linux-wide-camera-test test_wide_camera.c)
   add_executable(linux-bezel-test test_bezel.c)
   add_executable(linux-moves-test test_moves.c)
-  foreach(test linux-io-test linux-runtime-test linux-wild-test linux-view-test linux-updater-test linux-shader-test linux-rom-list-test linux-game-name-test linux-backdrop-test linux-wide-camera-test linux-bezel-test linux-moves-test)
+  add_executable(linux-save-edit-test test_save_edit.c)
+  foreach(test linux-io-test linux-runtime-test linux-wild-test linux-view-test linux-updater-test linux-shader-test linux-rom-list-test linux-game-name-test linux-backdrop-test linux-wide-camera-test linux-bezel-test linux-moves-test linux-save-edit-test)
     target_compile_options(${test} PRIVATE -UNDEBUG -Wall -Wextra -Werror)
     target_link_libraries(${test} PRIVATE pd_linux_common)
     if(WIN32)

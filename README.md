@@ -123,6 +123,9 @@ Keep this list current: a pull request that changes what the fork adds updates i
   3x, xBRZ drawn as SHARP, the companion and game list redrawn half as often.
 - **DS time of day and Berry Pots** on the desktop host: the DS facts wing shows MORNING / DAY / (EVENING) / NIGHT,
   and HeartGold / SoulSilver get their party and facts wings with each Berry Pot's berry, stage, time left and DRY.
+- **EDIT SAVE** on the desktop host: a game's menu changes its save file (money, coins, the bag, party and PC
+  Pokemon: species, nickname, level, nature, ability, item, moves, IVs, EVs, shiny; heal) for the GBA games with
+  the retail save layout and English HeartGold / SoulSilver, only to values the game allows, with a backup first.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change. Desktop builds are a beta: every one goes up as a GitHub pre-release until one is called stable, and the

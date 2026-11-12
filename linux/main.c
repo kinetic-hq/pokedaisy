@@ -32,6 +32,7 @@
 #include "../app/src/main/cpp/pk_wide.h"
 #include "../app/src/main/cpp/pk_rewind.h"
 #include "pocket_os.h"
+#include "save_edit.h"
 #include <SDL.h>
 #include <errno.h>
 #include <time.h>
@@ -4717,14 +4718,408 @@ static void library_load(struct library *l) {
   if (st.boxartAuto && (!menuFrames || getenv("POCKET_BOXART")))
     boxart_queue(l->art, count);
 }
+/* ---- SAVE EDITOR (save_edit.h): the library's EDIT SAVE, every page a pick-list, nothing written until SAVE ---- */
+static void editor_say(const char *title, const char *text) {
+  static const char *const ok[] = {"OK"};
+  menu_pick_hint(title, text, ok, 1, 0);
+}
+/* A number typed on RENAME's keyboard: false for B or anything that isn't MIN..MAX. */
+static bool editor_number(const char *title, long now, long min, long max, long *out) {
+  char buf[16];
+  snprintf(buf, sizeof buf, "%ld", now);
+  if (!text_entry(title, buf, sizeof buf))
+    return false;
+  char *end;
+  long v = strtol(buf, &end, 10);
+  if (!*buf || *end || v < min || v > max) {
+    char why[96];
+    snprintf(why, sizeof why, "Type a number from %ld to %ld.", min, max);
+    editor_say(title, why);
+    return false;
+  }
+  *out = v;
+  return true;
+}
+static bool editor_contains(const char *name, const char *query) {
+  for (const char *s = name; *s; s++) {
+    const char *a = s, *b = query;
+    while (*a && *b && SDL_toupper((unsigned char)*a) == SDL_toupper((unsigned char)*b))
+      a++, b++;
+    if (!*b)
+      return true;
+  }
+  return !*query;
+}
+/* A species / move / item picked by part of its name: its id, 0 for NONE (when allowed), -1 for B. */
+static int editor_search(struct save_edit *e, const char *title, const char *(*name)(struct save_edit *, int), int max,
+                         bool none) {
+  char query[32] = "";
+  if (!text_entry(title, query, sizeof query))
+    return -1;
+  enum { CAP = 200 };
+  static const char *rows[CAP + 1];
+  static int ids[CAP + 1];
+  int n = 0;
+  if (none)
+    rows[n] = "(NONE)", ids[n++] = 0;
+  for (int id = 1; id <= max && n < CAP; id++) {
+    const char *s = name(e, id);
+    if (s && editor_contains(s, query))
+      rows[n] = s, ids[n++] = id;
+  }
+  if (n == (none ? 1 : 0)) {
+    editor_say(title, "Nothing this game has goes by that name.");
+    return -1;
+  }
+  int pick = menu_pick(title, rows, n, 0);
+  return pick >= 0 ? ids[pick] : -1;
+}
+
+static void editor_mon(struct save_edit *e, int box, int slot) {
+  struct se_mon m;
+  if (!e->ops->mon(e, box, slot, &m))
+    return;
+  static const char *const statName[6] = {"HP", "ATTACK", "DEFENSE", "SPEED", "SP. ATK", "SP. DEF"};
+  int selected = 0;
+  while (running) {
+    enum { R_SPECIES, R_NICK, R_LEVEL, R_NATURE, R_ABILITY, R_HELD, R_MOVE, R_IVS = R_MOVE + 4, R_EVS, R_SHINY,
+           R_MAX_IVS, R_APPLY, R_COUNT };
+    static char text[R_COUNT][96];
+    const char *rows[R_COUNT];
+    const char *a1 = NULL, *a2 = NULL;
+    e->ops->abilities(e, m.species, &a1, &a2);
+    const char *species = e->ops->species_name(e, m.species), *held = m.held ? e->ops->item_name(e, m.held) : "NONE";
+    snprintf(text[R_SPECIES], 96, "POKEMON: %s", species ? species : "?");
+    snprintf(text[R_NICK], 96, "NAME: %s", m.nick);
+    snprintf(text[R_LEVEL], 96, "LEVEL: %d", m.level);
+    snprintf(text[R_NATURE], 96, "NATURE: %s", se_nature_name(m.nature));
+    snprintf(text[R_ABILITY], 96, "ABILITY: %s", m.ability ? (a2 ? a2 : "?") : (a1 ? a1 : "?"));
+    snprintf(text[R_HELD], 96, "HOLDS: %s", held ? held : "?");
+    for (int i = 0; i < 4; i++) {
+      const char *mv = m.moves[i] ? e->ops->move_name(e, m.moves[i]) : "-";
+      snprintf(text[R_MOVE + i], 96, "MOVE %d: %s", i + 1, mv ? mv : "?");
+    }
+    snprintf(text[R_IVS], 96, "IVs: %d/%d/%d/%d/%d/%d", m.ivs[0], m.ivs[1], m.ivs[2], m.ivs[3], m.ivs[4], m.ivs[5]);
+    snprintf(text[R_EVS], 96, "EVs: %d/%d/%d/%d/%d/%d", m.evs[0], m.evs[1], m.evs[2], m.evs[3], m.evs[4], m.evs[5]);
+    snprintf(text[R_SHINY], 96, "SHINY: %s", m.shiny ? "YES" : "NO");
+    snprintf(text[R_MAX_IVS], 96, "ALL IVs TO 31");
+    snprintf(text[R_APPLY], 96, "KEEP THESE CHANGES");
+    for (int i = 0; i < R_COUNT; i++)
+      rows[i] = text[i];
+    int pick = menu_pick_hint(m.nick, "B leaves this Pokemon as it was.", rows, R_COUNT, selected);
+    if (pick < 0)
+      return;
+    selected = pick;
+    long v;
+    int id;
+    switch (pick) {
+    case R_SPECIES:
+      if ((id = editor_search(e, "WHICH POKEMON?", e->ops->species_name, e->ops->species_max(e), false)) > 0)
+        m.species = id, m.ability = 0;
+      break;
+    case R_NICK: {
+      char name[32];
+      snprintf(name, sizeof name, "%s", m.nick);
+      if (text_entry("NAME", name, sizeof name) && *name)
+        snprintf(m.nick, sizeof m.nick, "%s", name);
+      break;
+    }
+    case R_LEVEL:
+      if (editor_number("LEVEL", m.level, 1, 100, &v))
+        m.level = (int)v;
+      break;
+    case R_NATURE: {
+      const char *natures[25];
+      for (int i = 0; i < 25; i++)
+        natures[i] = se_nature_name(i);
+      int k = menu_pick("NATURE", natures, 25, m.nature);
+      if (k >= 0)
+        m.nature = k;
+      break;
+    }
+    case R_ABILITY: {
+      if (!a2) {
+        editor_say("ABILITY", "This Pokemon has only one ability.");
+        break;
+      }
+      const char *both[2] = {a1 ? a1 : "?", a2};
+      int k = menu_pick("ABILITY", both, 2, m.ability);
+      if (k >= 0)
+        m.ability = k;
+      break;
+    }
+    case R_HELD:
+      if ((id = editor_search(e, "HOLDS WHAT?", e->ops->item_name, e->ops->item_max(e), true)) >= 0)
+        m.held = id;
+      break;
+    case R_IVS:
+    case R_EVS: {
+      int *values = pick == R_IVS ? m.ivs : m.evs, stat = 0;
+      while (running) {
+        char lines[6][32];
+        const char *r6[6];
+        for (int i = 0; i < 6; i++) {
+          snprintf(lines[i], sizeof lines[i], "%s: %d", statName[i], values[i]);
+          r6[i] = lines[i];
+        }
+        stat = menu_pick(pick == R_IVS ? "IVs" : "EVs", r6, 6, stat);
+        if (stat < 0)
+          break;
+        if (editor_number(statName[stat], values[stat], 0, pick == R_IVS ? 31 : 255, &v))
+          values[stat] = (int)v;
+      }
+      break;
+    }
+    case R_SHINY:
+      m.shiny = !m.shiny;
+      break;
+    case R_MAX_IVS:
+      for (int i = 0; i < 6; i++)
+        m.ivs[i] = 31;
+      break;
+    case R_APPLY: {
+      char err[160] = "";
+      if (e->ops->set_mon(e, box, slot, &m, err, sizeof err)) {
+        notice("Changed: SAVE CHANGES writes it");
+        return;
+      }
+      editor_say("CAN'T CHANGE IT", err);
+      break;
+    }
+    default:
+      if (pick >= R_MOVE && pick < R_MOVE + 4 &&
+          (id = editor_search(e, "WHICH MOVE?", e->ops->move_name, e->ops->move_max(e), pick != R_MOVE)) >= 0)
+        m.moves[pick - R_MOVE] = id;
+      break;
+    }
+  }
+}
+/* A box's (or the party's) Pokemon to pick from. */
+static void editor_box(struct save_edit *e, int box, const char *title) {
+  int slots = box == SE_PARTY ? 6 : e->ops->box_slots(e), selected = 0;
+  while (running) {
+    static char text[32][80];
+    const char *rows[32];
+    int ids[32], n = 0;
+    for (int s = 0; s < slots && n < 32; s++) {
+      struct se_mon m;
+      if (!e->ops->mon(e, box, s, &m))
+        continue;
+      const char *sp = e->ops->species_name(e, m.species);
+      if (m.egg)
+        snprintf(text[n], 80, "%d  EGG", s + 1);
+      else
+        snprintf(text[n], 80, "%d  %s  Lv%d%s%s", s + 1, m.nick, m.level, sp && strcmp(sp, m.nick) ? "  " : "",
+                 sp && strcmp(sp, m.nick) ? sp : "");
+      rows[n] = text[n];
+      ids[n++] = s;
+    }
+    if (!n) {
+      editor_say(title, "No Pokemon here.");
+      return;
+    }
+    int pick = menu_pick(title, rows, n, selected);
+    if (pick < 0)
+      return;
+    selected = pick;
+    struct se_mon m;
+    if (e->ops->mon(e, box, ids[pick], &m) && m.egg)
+      editor_say(title, "Eggs aren't changed: hatch it first.");
+    else
+      editor_mon(e, box, ids[pick]);
+  }
+}
+static void editor_pocket(struct save_edit *e, int p) {
+  const char *title = e->ops->pocket_name(e, p), *locked = e->ops->pocket_locked(e, p);
+  int selected = 0;
+  while (running) {
+    int slots = e->ops->pocket_slots(e, p), n = 0;
+    static char text[200][80];
+    static const char *rows[201];
+    static int ids[201];
+    for (int i = 0; i < slots && n < 200; i++) {
+      struct se_item it;
+      if (!e->ops->pocket_item(e, p, i, &it) || !it.id)
+        continue;
+      const char *name = e->ops->item_name(e, it.id);
+      snprintf(text[n], 80, "%s  x%d", name ? name : "?", it.count);
+      rows[n] = text[n];
+      ids[n++] = i;
+    }
+    if (!locked) {
+      rows[n] = "ADD AN ITEM";
+      ids[n++] = -1;
+    }
+    if (!n) {
+      editor_say(title, locked);
+      return;
+    }
+    int pick = menu_pick_hint(title, locked, rows, n, selected);
+    if (pick < 0)
+      return;
+    selected = pick;
+    if (locked)
+      continue;
+    char err[160] = "";
+    long v;
+    if (ids[pick] < 0) {
+      int id = editor_search(e, "ADD WHICH ITEM?", e->ops->item_name, e->ops->item_max(e), false);
+      if (id <= 0 || !editor_number("HOW MANY?", 1, 1, e->ops->item_max_count(e, p, id), &v))
+        continue;
+      int empty = -1;
+      for (int i = 0; i < slots && empty < 0; i++) {
+        struct se_item it;
+        if (e->ops->pocket_item(e, p, i, &it) && !it.id)
+          empty = i;
+      }
+      if (empty < 0)
+        editor_say("CAN'T ADD IT", "That pocket is full.");
+      else if (!e->ops->set_item(e, p, empty, id, (int)v, err, sizeof err))
+        editor_say("CAN'T ADD IT", err);
+      continue;
+    }
+    struct se_item it;
+    e->ops->pocket_item(e, p, ids[pick], &it);
+    static const char *const what[] = {"CHANGE HOW MANY", "TAKE IT OUT"};
+    int k = menu_pick(rows[pick], what, 2, 0);
+    if (k == 0 && editor_number("HOW MANY?", it.count, 1, e->ops->item_max_count(e, p, it.id), &v) &&
+        !e->ops->set_item(e, p, ids[pick], it.id, (int)v, err, sizeof err))
+      editor_say("CAN'T CHANGE IT", err);
+    if (k == 1 && !e->ops->set_item(e, p, ids[pick], 0, 0, err, sizeof err))
+      editor_say("CAN'T TAKE IT OUT", err);
+  }
+}
+/* The save the game reads: a DS game's beside it (melonDS) or in DATA/saves, a GBA game's as play_game finds it. */
+static void editor_save_path(const char *rom, char *out, size_t size) {
+  const char *name = rom;
+  for (const char *s = rom; *s; s++)
+    if (*s == '/' || *s == '\\')
+      name = s + 1;
+  const char *ext = strrchr(name, '.');
+  if (ext && !strcasecmp(ext, ".nds")) {
+    snprintf(out, size, "%.*s.sav", (int)(ext - rom), rom);
+    if (pocket_exists(out))
+      return;
+  }
+  snprintf(out, size, "%s/saves/%s.sav", root, name);
+  char ini[1024], beside[1024];
+  snprintf(ini, sizeof ini, "%s/settings.ini", root);
+  struct pd_settings st;
+  pd_settings_load(&st, ini);
+  if (!(ext && !strcasecmp(ext, ".nds")) && st.savesBeside && rom_in_added_folder(root, rom)) {
+    rom_save_beside(beside, sizeof beside, rom);
+    if (pocket_exists(beside) || !pocket_exists(out))
+      snprintf(out, size, "%s", beside);
+  }
+}
+static void save_editor(const char *rom, const char *gameName) {
+  char save[1024], err[200] = "";
+  editor_save_path(rom, save, sizeof save);
+  struct save_edit *e = se_open(save, rom, err, sizeof err);
+  if (!e) {
+    editor_say("EDIT SAVE", err);
+    return;
+  }
+  int selected = 0;
+  while (running) {
+    enum { E_MONEY, E_COINS, E_BAG, E_PARTY, E_BOXES, E_HEAL, E_SAVE };
+    char money[48], coins[48];
+    const char *rows[8];
+    int ids[8], n = 0;
+    snprintf(money, sizeof money, "MONEY: %ld", e->ops->money(e));
+    rows[n] = money, ids[n++] = E_MONEY;
+    if (e->ops->coins(e) >= 0) {
+      snprintf(coins, sizeof coins, "COINS: %ld", e->ops->coins(e));
+      rows[n] = coins, ids[n++] = E_COINS;
+    }
+    rows[n] = "BAG", ids[n++] = E_BAG;
+    rows[n] = "PARTY", ids[n++] = E_PARTY;
+    rows[n] = "PC BOXES", ids[n++] = E_BOXES;
+    rows[n] = "HEAL THE PARTY", ids[n++] = E_HEAL;
+    rows[n] = "SAVE CHANGES", ids[n++] = E_SAVE;
+    char title[160];
+    snprintf(title, sizeof title, "EDIT SAVE: %s", gameName);
+    int pick = menu_pick_hint(title, e->dirty ? "Changed: SAVE CHANGES writes it (the old save is kept as a backup)." : NULL,
+                              rows, n, selected);
+    if (pick < 0) {
+      if (!e->dirty)
+        break;
+      static const char *const leave[] = {"KEEP EDITING", "LEAVE WITHOUT SAVING"};
+      if (menu_pick("THE CHANGES AREN'T SAVED", leave, 2, 0) == 1)
+        break;
+      continue;
+    }
+    selected = pick;
+    long v;
+    err[0] = 0;
+    switch (ids[pick]) {
+    case E_MONEY:
+      if (editor_number("MONEY", e->ops->money(e), 0, e->ops->money_max(e), &v) &&
+          !e->ops->set_money(e, v, err, sizeof err))
+        editor_say("MONEY", err);
+      break;
+    case E_COINS:
+      if (editor_number("COINS", e->ops->coins(e), 0, 9999, &v) && !e->ops->set_coins(e, v, err, sizeof err))
+        editor_say("COINS", err);
+      break;
+    case E_BAG: {
+      const char *pockets[SE_POCKETS_MAX];
+      int count = e->ops->pockets(e), p = 0;
+      for (int i = 0; i < count; i++)
+        pockets[i] = e->ops->pocket_name(e, i);
+      while (running && (p = menu_pick("BAG", pockets, count, p)) >= 0)
+        editor_pocket(e, p);
+      break;
+    }
+    case E_PARTY:
+      editor_box(e, SE_PARTY, "PARTY");
+      break;
+    case E_BOXES: {
+      static char names[32][16];
+      const char *boxes[32];
+      int count = e->ops->boxes(e), b = 0;
+      for (int i = 0; i < count && i < 32; i++) {
+        snprintf(names[i], sizeof names[i], "BOX %d", i + 1);
+        boxes[i] = names[i];
+      }
+      while (running && (b = menu_pick("PC BOXES", boxes, count, b)) >= 0)
+        editor_box(e, b, boxes[b]);
+      break;
+    }
+    case E_HEAL: {
+      int healed = e->ops->heal(e);
+      notice(healed ? "Healed: SAVE CHANGES writes it" : "The party is already healthy");
+      break;
+    }
+    case E_SAVE: {
+      if (!e->dirty) {
+        notice("Nothing to save");
+        break;
+      }
+      char backup[1100];
+      if (se_save(e, backup, sizeof backup, err, sizeof err)) {
+        char done[1400];
+        snprintf(done, sizeof done,
+                 "Saved. The old save is kept as %s. Start the game from its save (not CONTINUE from a state) to see the "
+                 "changes.",
+                 backup);
+        editor_say("SAVED", done);
+      } else
+        editor_say("NOT SAVED", err);
+      break;
+    }
+    }
+  }
+  se_close(e);
+}
 /* A game's options. Returns the game to play, else -1; *reload when the list changed; *finding when FIND started. */
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
-  enum { OPT_PLAY, OPT_FIND, OPT_SET, OPT_CLEAR, OPT_RENAME, OPT_RESET };
+  enum { OPT_PLAY, OPT_FIND, OPT_SET, OPT_CLEAR, OPT_RENAME, OPT_RESET, OPT_EDIT };
   const char *stem = l->stems[g], *label = l->games.labels[g];
   char custom[256];
   bool hasArt = boxart_has_custom(stem), hasName = game_custom_name(root, label, custom, sizeof custom);
-  const char *rows[8];
-  int ids[8], n = 0;
+  const char *rows[9];
+  int ids[9], n = 0;
 #define OPT(id, text)                                                                                                  \
   do {                                                                                                                 \
     rows[n] = text;                                                                                                    \
@@ -4738,6 +5133,7 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   OPT(OPT_RENAME, "RENAME");
   if (hasName)
     OPT(OPT_RESET, "USE THE FILE'S NAME");
+  OPT(OPT_EDIT, "EDIT SAVE");
 #undef OPT
   int pick = menu_pick(l->games.names[g], rows, n, 0);
   int id = pick >= 0 ? ids[pick] : -1;
@@ -4782,6 +5178,9 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   case OPT_RESET:
     if (game_custom_name_set(root, label, NULL))
       *reload = true;
+    break;
+  case OPT_EDIT:
+    save_editor(l->games.paths[g], l->games.names[g]);
     break;
   default:
     break;
@@ -4930,6 +5329,9 @@ static void library_screen(void) {
 int main(int argc, char **argv) {
   const char *rom = NULL, *shot = NULL;
   int frames = 0;
+#ifdef POCKET_DS
+  se_gen4_opener = se_open_gen4; // SAVE EDITOR's HeartGold / SoulSilver part lives with the DS backend
+#endif
 #ifdef _WIN32
   // SDL_MAIN_HANDLED: this main is the program's own (no SDL2main).
   SDL_SetMainReady();
