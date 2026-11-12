@@ -1,66 +1,65 @@
+# PokeDaisy for Windows and Linux
+
 > [!IMPORTANT]
 > **This is a fork of [PokeDaisy](https://github.com/lidor30/pokedaisy), made by Lidor Itzhari ([lidor30](https://github.com/lidor30)).**
-> All credit for PokeDaisy, its companion and its design goes to Lidor. This fork only adds work on the
-> Windows and Linux desktop / handheld version. For the Android app, its releases and its updates, use
-> [the original project](https://github.com/lidor30/pokedaisy). If you enjoy PokeDaisy, please support Lidor through
-> the [Patreon](https://www.patreon.com/cw/pokedaisy), [Buy me a coffee](https://buymeacoffee.com/lidor30g) or
-> [Ko-fi](https://ko-fi.com/pokedaisy) links below. PokeDaisy stays under the GNU GPL v3, and Lidor's copyright and
-> credit notices are kept as they are ([LICENSE](LICENSE), [NOTICE](NOTICE)).
+> PokeDaisy, its companion and its design are Lidor's work. This fork only adds the Windows and Linux desktop /
+> handheld version. For the Android app use [the original project](https://github.com/lidor30/pokedaisy), and if you
+> enjoy PokeDaisy, support Lidor on [Patreon](https://www.patreon.com/cw/pokedaisy),
+> [Buy me a coffee](https://buymeacoffee.com/lidor30g) or [Ko-fi](https://ko-fi.com/pokedaisy). PokeDaisy stays under
+> the GNU GPL v3 with Lidor's copyright and credit notices kept as they are ([LICENSE](LICENSE), [NOTICE](NOTICE)).
 
-## PokeDaisy for Windows and Linux (this fork)
+One portable program for Windows handhelds (ROG Ally, Legion Go, OneXPlayer, ...), PCs and Linux that plays the Game
+Boy, Game Boy Color, GBA and Nintendo DS Pokemon games you own, with PokeDaisy's live companion beside the game on one
+screen: your party, bag, map, battle matchups, Pokedex and a spoiler-free guide.
 
-This fork builds the same PokeDaisy companion into one portable program for Windows handhelds (ROG Ally, Legion Go,
-OneXPlayer, ...), Windows PCs and Linux. It plays Game Boy, Game Boy Color, GBA and Nintendo DS games you own, with
-the companion beside the game on one screen.
+<p>
+  <img src="docs/images/desktop/game-list.png" alt="The game list: a grid of games with their system and whether each is an original or a ROM hack" width="49%">
+  <img src="docs/images/desktop/companion-view.png" alt="COMPANION VIEW: six ways to place the companion around the game, each drawn as a small picture" width="49%">
+  <img src="docs/images/desktop/ds-layout.png" alt="DS LAYOUT: six ways to place a DS game's two screens" width="49%">
+  <img src="docs/images/desktop/settings.png" alt="SETTINGS, grouped like the Android app's" width="49%">
+</p>
 
-### Download, install and update
+## Install and update
 
-1. Open this fork's [Releases](https://github.com/kinetic-hq/pokedaisy/releases) page and download
-   `pokedaisy-windows-x86_64.zip` (Windows) or `pokedaisy-linux-x86_64.zip` (Linux). `SHA256SUMS.txt` lists their
-   checksums.
-2. Unzip it anywhere you can write to (your Documents folder, not `Program Files`). Keep `pokedaisy.exe` and
-   `SDL2.dll` side by side.
-3. Put your `.gb`, `.gbc`, `.gba` and `.nds` files in `DATA\roms` and open `pokedaisy.exe`.
+1. Download `pokedaisy-windows-x86_64.zip` (or `pokedaisy-linux-x86_64.zip`) from the top `desktop-v` release on the
+   [Releases](https://github.com/kinetic-hq/pokedaisy/releases) page. `SHA256SUMS.txt` has the checksums.
+2. Unzip it somewhere you can write to (Documents, not `Program Files`). Keep `pokedaisy.exe` and `SDL2.dll` together.
+3. Put your `.gb`, `.gbc`, `.gba` and `.nds` files in `DATA\roms` (or add your own folders with `GAME FOLDERS`) and
+   open `pokedaisy.exe`. The first start walks you through a few choices.
 
-Everything the program writes (settings, saves, states, games) stays in the `DATA` folder, so you can move it to
-another PC. Each start looks for a newer release in the background and offers `UPDATE NOW`, `LATER` or `SKIP THIS
-VERSION`; an update replaces only the program's files, never `DATA`. Turn it off with `SETTINGS` > `CHECK FOR
-UPDATES`.
+Updates come by themselves: each start looks for a newer release and offers `UPDATE NOW`, `LATER` or `SKIP THIS
+VERSION`, and an update only replaces the program, never your `DATA` folder (settings, saves, states). Desktop builds
+are a beta, so every release is marked pre-release. Turn the check off with `SETTINGS` > `CHECK FOR UPDATES`.
 
-### Using it
+The full guide is in [docs/manual/windows.md](docs/manual/windows.md) (and [linux.md](docs/manual/linux.md)). When
+something goes wrong, `DATA\pokedaisy.log` is what to attach to a report.
 
-| Thing | How |
+## OLED handhelds (OneXPlayer 3, Legion Go 2)
+
+An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everything around the game dark:
+
+- `SETTINGS` > `SCREEN` > `DISPLAY OPTIONS` > `COLORS` > `OLED`: a little less glare, and the panels round the game go
+  true black. With `OLED` (and in every DS game) `BACKGROUND` starts on `BLACK`.
+- The companion's wings become near black cards with a faint edge; `DIM COMPANION` darkens them further.
+- Against burn in, wings that haven't changed for a minute dim, and they move by a pixel every few minutes.
+- `BRIGHTNESS` (80% to 150%) brightens the game itself if the darker look is too dim in daylight.
+
+## How this fork differs from PokeDaisy
+
+| Area | What the fork adds |
 | --- | --- |
-| Controls | Built in handheld controls and any SDL controller work as they come, and can be plugged in mid game. Keyboard: arrows, Z = A, X = B, Enter = START, Backspace = SELECT, Q / E = L / R, Tab = companion, F = quick menu, V = next companion view, K = lock the side panel, Escape = game menu. Other controllers: a line in `DATA\gamecontrollerdb.txt`. |
-| Button layout and hotkeys | `SETTINGS` > `CONTROLS` on the game list's rail (and the companion's `SETTINGS` > `BUTTON LAYOUT`): `NINTENDO` (right button = A, the default) or `XBOX` (the button printed A = A); pick the one printed on your pad. GUIDE, SHARE, the four back paddles, L3 and R3 can each open the game menu or companion, fast forward, save / load a state, take a screenshot (`DATA\screenshots`), switch full screen, step the DS layout or swap the DS screens. |
-| Touch and orientation | `SETTINGS` > `SCREEN` > `DISPLAY OPTIONS` on the game list's rail (and the companion's `SETTINGS`): `ORIENTATION` turns everything for a screen mounted another way (`LANDSCAPE`, `PORTRAIT`, `LANDSCAPE FLIPPED`, `PORTRAIT FLIPPED`), touch included. Touch and the mouse work on the game list, menus and companion; `GAME TOUCH` `DS SCREEN ONLY` (default) or `OFF` says whether they press a DS game's touch screen. |
-| Full screen | F11, Alt+Enter, L3 + R3 on a controller, the game menu or `SETTINGS` > `FULLSCREEN` switch it any time (borderless, remembered; on by default on a handheld's screen). `POCKET_FULLSCREEN=1` forces it; `POCKET_WINDOW=1920x1080` opens a window of that size. |
-| Start a game directly | `pokedaisy.exe "D:\Games\My Game.gba"`; `--data FOLDER` uses another data folder. |
-| COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
-| DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE`, `LARGE + SMALL`, `WINGS` or `TOUCH PIECES` (`TOUCH IN WING` and `WINGS` put the companion's party and trainer panels beside the top screen; `TOUCH PIECES` lays the touch screen's buttons out in the wings; `DS WING SIDE` picks the side). R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
-| Shaders | `SETTINGS` > `SHADER` (`OFF`, `SHARP`, `xBRZ`), `COLORS` (`ORIGINAL`, `HANDHELD`, `OLED`: true black panels, less glare), `DIM COMPANION` and `BACKGROUND` (`BLACK`, `DARK`, `THEME`: what's round the game and the wing cards). DS games have them in the `SET` tab. |
-| Get started | The first start with no games opens `GET STARTED`: game folders, button layout, full screen, companion view, DS layout and colours (`OLED` too), one page each, then the game list. `SETTINGS` > `APP` > `RUN SETUP` brings it back. |
-| Games in other folders | `GAME FOLDERS` in the game list's top bar (or `SETTINGS` > `GAME FOLDERS`): `ADD A FOLDER` browses your drives with a controller (e.g. `D:\Emulation\roms`); each folder and the folders right inside it are listed (kept in `DATA\roms-folders.txt`). |
-| Save folders | GBA / Game Boy saves in `DATA\saves` for games in `DATA\roms`, and beside the game as `<name>.sav` for games in your own folders (`SETTINGS` > `SAVES BESIDE GAMES` turns that off); backed up to a `pokedaisy-backups` folder next to the save at each start. A DS save sits beside its game as `<name>.sav` (backups in `DATA\backups`). States go to `DATA\states` and never hold the save. |
-| Problems | Opened with a double click, it logs to `DATA\pokedaisy.log`; include it in a report. |
+| Platforms | A Windows build of the desktop host (one zip for GBA, Game Boy and DS), Linux zips, self-updates and automatic `desktop-vX.Y.Z` pre-releases |
+| Nintendo DS | melonDS, `DS LAYOUT` (one screen, picture in picture, stacked, side by side, large + small, wings, touch pieces), touch by mouse, finger or controller, rewind, time of day and Berry Pots |
+| Companion on one screen | `COMPANION VIEW`: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`, with redesigned wing cards |
+| Screen | `SHARP` / `xBRZ`, `HANDHELD` / `OLED` colours, `BRIGHTNESS`, black backgrounds and bezel bars, full screen, `ORIENTATION` |
+| Controls | Hot plugged controllers (several at once), `NINTENDO` / `XBOX` layouts, hotkeys for paddles and extra buttons, touch and mouse, rumble |
+| Games and saves | A box art game grid, your own game folders with saves beside the games, ten state slots, resume, per-game settings, `EDIT SAVE` |
+| Play | Level cap, low PP warning, battery saver |
 
-The full guide is [docs/manual/windows.md](docs/manual/windows.md) (and [linux.md](docs/manual/linux.md)).
+Every change, one line each (a pull request that changes what the fork adds updates this list):
 
-### Building
-
-```bash
-git submodule update --init third_party/mgba third_party/melonds
-cmake -S linux -B linux/build -DCMAKE_BUILD_TYPE=Release -DPOCKET_MELONDS=ON
-cmake --build linux/build
-ctest --test-dir linux/build
-```
-
-On Windows build in MSYS2's UCRT64 shell (gcc, cmake, ninja, SDL2) and package with
-`python linux/windows/package.py --melonds linux/build/pokedaisy.exe OUT`. More in [linux/README.md](linux/README.md).
-
-### How this fork differs from PokeDaisy
-
-Keep this list current: a pull request that changes what the fork adds updates it (see the PR template).
+<details>
+<summary>The full list</summary>
 
 - **Windows build of the desktop host**: one portable zip that plays GBA, Game Boy and DS games, with an icon,
   a UTF-8 manifest and safe save / state writes on Windows.
@@ -132,302 +131,22 @@ Keep this list current: a pull request that changes what the fork adds updates i
   update check counts pre-releases.
 - **Upstream mirroring**: a daily job opens a pull request bringing PokeDaisy's own changes in.
 
-Everything else, the Android app and the companion itself, is Lidor's PokeDaisy. What follows is the original
-project's README.
-
----
-
-<div align="center">
-
-<img src="https://pokedaisy.com/og.png" alt="PokeDaisy: Game Boy, Game Boy Color, GBA and DS player with a live companion, on two screens or one, for Pokemon games and ROM hacks, free and open source" width="100%">
-
-<h3>Pokémon, played better. Game Boy to DS, with a live companion, a widescreen overworld, a HUD and quick menu, and every chore one button away.</h3>
-
-<p>
-  <a href="https://github.com/lidor30/pokedaisy/releases/latest"><img src="https://img.shields.io/github/v/release/lidor30/pokedaisy?style=for-the-badge&label=release&color=2f81f7" alt="Latest PokeDaisy release"></a>
-  <a href="https://github.com/lidor30/pokedaisy/releases"><img src="https://img.shields.io/github/downloads/lidor30/pokedaisy/total?style=for-the-badge&label=downloads&color=5c8a3c" alt="Total downloads"></a>
-  <a href="https://discord.gg/vcmyKZZV5q"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join PokeDaisy on Discord"></a>
-  <a href="https://www.reddit.com/r/PokeDaisy/"><img src="https://img.shields.io/reddit/subreddit-subscribers/PokeDaisy?style=for-the-badge&logo=reddit&logoColor=white&label=r%2FPokeDaisy&color=FF4500" alt="r/PokeDaisy on Reddit"></a>
-</p>
-
-<p>
-  <strong><a href="https://github.com/lidor30/pokedaisy/releases/latest">Download</a></strong>
-  · <strong><a href="#features">Features</a></strong>
-  · <strong><a href="#supported-games">Supported games</a></strong>
-  · <strong><a href="https://pokedaisy.com/docs/">Manual</a></strong>
-  · <strong><a href="https://pokedaisy.com/feedback/#bug">Report a problem</a></strong>
-</p>
-
-<p>
-  <sub><strong>Support PokeDaisy</strong></sub><br>
-  <a href="https://www.patreon.com/cw/pokedaisy"><img src="https://img.shields.io/badge/Patreon-F96854?logo=patreon&logoColor=white" alt="Patreon"></a>
-  <a href="https://buymeacoffee.com/lidor30g"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
-  <a href="https://ko-fi.com/pokedaisy"><img src="https://img.shields.io/badge/Ko--fi-FF5E5B?logo=kofi&logoColor=white" alt="Ko-fi"></a>
-</p>
-
-</div>
-
-PokeDaisy is a Game Boy, Game Boy Color, GBA and Nintendo DS player for Android handhelds with two screens or one,
-made for the Pokemon games of every generation from Red to Black 2 and White 2 and popular ROM hacks. Next to the
-game runs a live companion that reads it as you play: your party, bag, map, battle matchups, Pokedex and a spoiler-free
-guide, all drawn in the game's own menu style.
-
-- **Two screens** (AYN Thor, Retroid Pocket Duo, ...): the game on top, the companion on the bottom screen.
-- **One screen** (Retroid Pocket 6, phones, ...): the companion opens as a window over the game or a panel beside
-  it, and a HUD, a quick menu and battle buttons keep the essentials on the game screen.
-- **Folding phones** (Galaxy Z Fold, Pixel Fold, ...): half open, the game goes above the fold and the companion below it,
-  like a two-screen handheld (or on facing pages when held like a book).
-- **DS games** (Platinum, HeartGold, SoulSilver, Black, White, Black 2, White 2, and the Origin HeartGold and Renegade Platinum hacks): the touch screen
-  goes on the bottom screen, one tap swaps it for the companion.
-
-## Devices
-
-| Device                     | Status                                                         |
-| -------------------------- | -------------------------------------------------------------- |
-| AYN Thor                   | Tested, made for it                                            |
-| Retroid Pocket Duo Lite    | Supported, with its own 4:3 layout                             |
-| Retroid Pocket Duo         | Should work, not yet tested on real hardware                   |
-| Anbernic RG DS             | Should work, not yet tested on real hardware                   |
-| Retroid Pocket 6           | Single screen: tested                                          |
-| Other one-screen handhelds | Should work, held sideways like the Pocket 6                   |
-| Android phones (portrait)  | Should work, checked in screenshots only                       |
-| A phone cast to a TV       | Should work: the game on the TV, the companion on the phone    |
-
-Any Android 8.0+ device runs the games.
-
-## Install
-
-1. Download `PokeDaisy-<version>.apk` from the [latest release](https://github.com/lidor30/pokedaisy/releases/latest)
-   on the device and open it (allow your browser or file manager to install apps if Android asks).
-2. Open PokeDaisy. A short setup links your ROMs folders, picks where saves go (PokeDaisy's own folder or another
-   emulator's, like RetroArch's) and can add cover art. All of it can be changed later in Settings.
-
-The app updates itself: it offers each new version when you open it. The full manual is at
-[pokedaisy.com/docs](https://pokedaisy.com/docs/) and in the app under Settings > HELP.
-
-**No games are included.** Use your own legally dumped ROMs.
-
-## Features
-
-**The companion**
-
-- **PARTY**: your team in your game's own party screen. Tap one for its summary: stats, moves, IVs / EVs,
-  matchups, and which moves or TMs are worth learning.
-- **BAG**: every pocket with icons and descriptions, and items you can use or give from it in the games that allow it.
-- **BATTLE**: opens by itself. Your moves rated SUPER / RESISTED / NEUTRAL / IMMUNE, the foe's weaknesses,
-  ability, item and stats, suggestions for who to send out and which move to use, and the rest of the foe's team. Its
-  touch buttons come in two looks: big coloured buttons, or a battle screen styled after the fifth generation's.
-- **MAP**: the game's region map with you on it, every place searchable, and FLY.
-- **DEX**: seen / caught, full entries, evolutions, where to catch each one and the moves it learns.
-- **GUIDE**: hints first, answers on a second tap. What's in the area you're in, the next boss's team, evolutions,
-  tips and a STUCK? page.
-- **BOXES** (FireRed, LeafGreen, Emerald, Ruby and Sapphire in every language, Unbound, Radical Red, SoulGold and most hacks built on those games): your PC's boxes, laid out like the game's box screen. Tap a Pokemon for its summary, WITHDRAW it into your party (or swap it with one there), or DEPOSIT a party Pokemon from its summary (FireRed, LeafGreen and Emerald in English, German, French, Italian and Spanish, and a few FireRed hacks).
-- **CARD**, **STATES** (10 save-state slots), **ACHIEVEMENTS** (RetroAchievements), and the tabs you pick for the bar.
-- **NUZLOCKE** (per game, GBA games but Emerald Rogue): keeps score of a Nuzlocke run, the first encounter in each
-  area and every fainted Pokemon out for good, with a gravestone on its party slot.
-
-**On the game screen**
-
-- **HUD**: your party, a minimap, your Poke Balls and PC / BAG / WILD buttons while you walk around.
-- **Quick menu** (L3): PC, FLY, BIKE, ROD, the keep-away spray, wild encounters on / off, save states.
-- **Battle buttons**: FIGHT, POKEMON and RUN right beside the battle.
-- **EXPAND**: the overworld drawn past the GBA's edges to fill a wide screen, with zoom and look-around.
-
-**The player**
-
-- Fast-forward (smart: normal speed in menus, fast in battles) with music that keeps its normal speed, slow motion,
-  rewind, a real-time clock, save states, turbo buttons.
-- Shaders (LCD, scanlines, CRT, GBA colours, edge smoothing), overlays, and your own RetroArch overlays.
-- Makeovers: play one game as another game's hero, a Pokemon following you, day and night tints.
-- Remappable controls and hotkeys, touch controls you can lay out yourself (with several looks and colors, or a Delta `.deltaskin` controller skin), Bluetooth and USB controllers.
-- **Link play**: two to four GBA games at once on one link cable, to trade (trade evolutions too), battle and
-  mix records between your games or two saves of one.
-- **PC boxes and save trades**: rearrange a game's PC, change its bag and moves, or trade Pokemon between two of your
-  games' save files with the games closed (FireRed, LeafGreen, Emerald, Ruby, Sapphire), by the games' own rules.
-- Optional cheats, wild encounters off, reusable TMs, trade evolutions without a trade, auto-run and running indoors.
-- A library with cover art, favorites, zipped ROMs, BPS patching (it finds the base ROM by itself), a dual-screen
-  launcher, and launching from frontends like
-  ES-DE, Cocoon and iiSU ([iiSU](docs/iisu/README.md), [ES-DE](docs/es-de/README.md) setup).
-- Standard `.sav` / `.srm` saves, shared with mGBA and RetroArch. Every start keeps a backup of your save.
-- English, Japanese, Korean, French, German, Italian, Spanish and Portuguese.
-
-Everything is explained in the [manual](https://pokedaisy.com/docs/).
-
-## Supported games
-
-Any Game Boy, Game Boy Color, GBA or DS game plays. The companion needs one of the games below, **in the exact
-version listed** (ROM hacks are recognized by their file, so another version
-shows a "not supported" notice).
-
-✅ works · ◐ partly · — not yet
-
-| Game                           | Version                    | Party | Bag | Battle | Map |   Dex   | Guide |
-| ------------------------------ | -------------------------- | :---: | :-: | :----: | :-: | :-----: | :---: |
-| Red / Blue (GB)                | USA/Europe                 |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| PureRed / PureBlue (GB)        | 2.7.6                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   —   |
-| Yellow (GB)                    | USA/Europe                 |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Yellow (GB)                    | DE / FR / IT / ES          |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Yellow Legacy (GB)             | 1.0.10                     |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ✅   |
-| Gold / Silver (GBC)            | USA/Europe                 |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   —   |
-| Crystal (GBC)                  | USA, USA/Europe rev 1, AU  |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Crystal Legacy (GBC)           | 1.3.1                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ✅   |
-| Crystal Clear (GBC)            | 2.5.11, 2.6.0 (4 builds)   |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   —   |
-| Prism (GBC)                    | 0.95 build 254             |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   —   |
-| Polished Crystal (GBC)         | 3.2.0-3.2.3 (16 builds)    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| FireRed                        | USA/Europe, rev 0 and 1    |  ✅   | ✅  |   ✅   | ✅  |   ✅    |  ✅   |
-| FireRed                        | ES / DE / FR / IT / JP     |  ✅   | ✅  |   ✅   | ✅  |   ✅    |  ✅   |
-| LeafGreen                      | USA/Europe, rev 0 and 1    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| LeafGreen                      | ES / DE / FR / IT / JP     |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Emerald                        | USA/Europe                 |  ✅   | ✅  |   ✅   | ✅  |   ✅    |  ✅   |
-| Emerald                        | ES / DE / FR / IT / JP     |  ✅   | ✅  |   ✅   | ✅  |   ✅    |  ✅   |
-| FireRed / Emerald, randomized  | UPR ZX 4.6.1, USA/Europe   |  ✅   | ✅  |   ✅   | ✅  |   ✅    |   ◐   |
-| Ruby                           | USA, rev 0, 1 and 2        |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Ruby                           | ES/DE/FR/IT/JP, rev 0-1    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Sapphire                       | USA, rev 0, 1 and 2        |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Sapphire                       | ES/DE/FR/IT/JP, rev 0-1    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Platinum (DS)                  | USA rev 1, FR/ES rev 0     |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| HeartGold (DS)                 | USA, EU, every language    |  ✅   | ✅  |   —    | ✅  |   ✅    |  ✅   |
-| SoulSilver (DS)                | USA, EU, every language    |  ✅   | ✅  |   —    | ✅  |   ✅    |  ✅   |
-| Black (DS)                     | USA/Europe, every language |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| White (DS)                     | USA/Europe, every language |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Black 2 (DS)                   | USA/Europe, every language |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| White 2 (DS)                   | USA/Europe, every language |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Origin HeartGold (DS)          | 4.0.3 English 1.0.0        |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   —   |
-| Renegade Platinum (DS)         | 1.2.0, 1.3.0 (+ Classic)   |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   —   |
-| Unbound                        | 2.1.1.1                    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Unbound                        | 2.1.1.1 French             |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Radical Red                    | 4.1                        |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Gaia                           | 3.2                        |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Odyssey                        | 4.1.1                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Heart and Soul                 | 2.0.6                      |  ✅   | ✅  |   ✅   | ✅  |   ✅    |  ✅   |
-| Amethyst                       | 1.3.0, 1.4.1               |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Celia's Stupid Romhack         | 1.1.4                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Orange Islands                 | Beta 5.7, an older beta    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Ultra Violet                   | 1.22                       |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| FireRed Rocket Edition         | the one release            |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Ash Gray                       | 4.5.3, Fork Bug Fix 1.0    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Ghost Grey                     | 1.0.1, 1.0.2, 1.0.4        |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Let's Go Pikachu / Eevee       | English (4 builds)         |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Sword and Shield Ultimate Plus | 1.2.1.2 + its 3 patches    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| GS Chronicles                  | 2.7.6                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Recharged Yellow               | 1.8.0, 1.9.0, 1.9.4, 1.9.7 |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Emerald Legacy                 | 1.1.4                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |  ✅   |
-| Lazarus                        | 2.0                        |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Emerald Seaglass               | 3.0                        |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Too Many Types 2               | 1.5.2                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Glazed                         | 9.2.0                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Emerald Imperium               | 1.3.1                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Quetzal                        | English Alpha 9 v0         |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Quetzal                        | Spanish Alpha 9 v0         |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Quetzal                        | Alpha 9 v1 (EN / ES)       |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Quetzal                        | Alpha 0.8.4 (EN / ES)      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Moemon Quetzal                 | Alpha 0.8.4 Hotfix (EN/ES) |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Super Mariomon                 | 1.2.1-1.3, 1.5.1, 1.5.2    |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Recharged Emerald              | 2.2.5, 2.2.8, Rebalanced   |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Modern Emerald                 | 3.6                        |  ✅   | ✅  |   ◐    |  ◐  |    —    |   —   |
-| Elite Redux                    | 2.65.3b, 2.65.4.1b         |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Team Rocket Dragonsden         | 1.5                        |  ✅   | ✅  |   ◐    |  ◐  |    —    |   ◐   |
-| Team Rocket Dragonsden         | 2026 3.0.9 (Spanish)       |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Wishes of Tomorrow             | 1.2.6                      |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Dreamstone Mysteries           | the one release            |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Monomyth                       | 1.0, 1.1                   |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| Emerald Rogue                  | 2.2.1-EX                   |  ✅   | ✅  |   ✅   | ✅  |   ✅    |   —   |
-| SoulGold                       | 1.1.4, 1.2 (3), 1.2.1 (2)  |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| R.O.W.E.                       | 2.1.9.1 Experimental       |  ✅   | ✅  |   ◐    | ✅  |    ◐    |   —   |
-
-<details>
-<summary><strong>Notes on the table</strong></summary>
-
-For a version that isn't listed, the app tries to read it as a game it knows (BEST EFFORT) and asks you to pick
-when it isn't sure. Map ◐ means place names only,
-without the map picture. Guide ◐ means the live pages only (the wild encounters here and the next boss). Battle ◐
-means the battle panes work but haven't been checked in every kind of battle. On the DS, HeartGold's and SoulSilver's
-battles aren't read yet. Origin HeartGold's battle system is its own: the battle panes read it, but their buttons
-can't press its menus, and it has no guide yet. Renegade Platinum reads as Platinum with its own types (Fairy among them),
-moves and type chart; its trainers and wild Pokémon are its own, so it has no guide yet. Team Rocket Dragonsden is DragonsdenTV's Team Rocket Edition, not FireRed Rocket Edition.
-FireRed (rev 0 and 1) and Emerald randomized with Universal Pokemon Randomizer ZX 4.6.1 work with any settings and
-seed: the companion reads the randomized types, moves, teams, wild Pokémon and items from the ROM, and the guide leaves
-out the gift and legendary Pokémon it can't know. Monomyth's natures are its own: the summary names them, and they change no stat.
-With Wishes of Tomorrow's randomizer on, the guide and the Pokédex's AREA show the wild Pokémon your save meets.
-The guides were written from each game's own data and may contain mistakes.
-
 </details>
 
-Want another game supported? Ask in [Game requests](https://github.com/lidor30/pokedaisy/discussions/categories/game-requests), and upvote the ones you want.
+## Building
 
-## Privacy
+```bash
+git submodule update --init third_party/mgba third_party/melonds
+cmake -S linux -B linux/build -DCMAKE_BUILD_TYPE=Release -DPOCKET_MELONDS=ON
+cmake --build linux/build
+ctest --test-dir linux/build
+```
 
-The app has no accounts, ads or analytics, and your games and saves never leave your device. It only goes online to
-check for updates, fetch cover art or use RetroAchievements (only with your own key or sign-in), send a crash report
-(only if you turn CRASH REPORTS on) and share a BEST EFFORT match (only if you tap SHARE: the ROM's hash, size and
-game code, never the file). The website counts visits anonymously, with no cookies.
+On Windows build in MSYS2's UCRT64 shell (gcc, cmake, ninja, SDL2) and package with
+`python linux/windows/package.py --melonds linux/build/pokedaisy.exe OUT`. More in [linux/README.md](linux/README.md).
 
-## Community and support
+## The original PokeDaisy
 
-Come say hi, share your runs and ask questions on [r/PokeDaisy](https://www.reddit.com/r/PokeDaisy/) or
-[Discord](https://discord.gg/vcmyKZZV5q). Found a bug? [Report it](https://pokedaisy.com/feedback/#bug).
-
-PokeDaisy is free, with no ads and nothing locked. If it made a playthrough better, you can support it on
-[Ko-fi](https://ko-fi.com/pokedaisy), [Patreon](https://www.patreon.com/cw/pokedaisy) or
-[Buy Me a Coffee](https://buymeacoffee.com/lidor30g). It's optional, unlocks nothing and pays for PokeDaisy's own code
-only: no games, ROMs or game content are sold or handed out.
-
-## Building from source
-
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
-
-A Linux build for handhelds (SDL2, the same mGBA core and the 3DS port's companion) is in early
-testing: [linux/README.md](linux/README.md).
-
-<details>
-<summary><strong>AI tooling note</strong></summary>
-
-This project may use AI-assisted development tools, such as Claude Code, to help with code generation, refactoring, and documentation. All changes are still reviewed by the maintainer and validated with the project's existing checks before release.
-
-</details>
-
-## Credits
-
-<details>
-<summary>mGBA, melonDS, rcheevos, fonts, shaders, the pret decomps, cover art sources</summary>
-
-- [mGBA](https://mgba.io) by Vicki Pfau (endrift) and contributors runs the Game Boy, Game Boy Color and GBA games (MPL 2.0;
-  source in [`third_party/mgba`](https://github.com/mgba-emu/mgba)), with its bundled blip_buf (LGPL 2.1) and inih (BSD).
-- [melonDS](https://melonds.kuribo64.net) by the melonDS team runs the DS games (GPL 3.0; source in
-  [`third_party/melonds`](https://github.com/melonDS-emu/melonDS), PokeDaisy's changes in
-  [`third_party/patches`](third_party/patches)), with its bundled FatFs, Teakra (MIT), xxHash (BSD 2-Clause),
-  tiny-AES-c (Unlicense), blip_buf (LGPL 2.1) and Dolphin's ARM64 emitter (GPL 2.0+).
-- [rcheevos](https://github.com/RetroAchievements/rcheevos) by RetroAchievements.org (MIT) for achievements.
-- [Pixel Operator](https://www.dafont.com/pixel-operator.font) font by Jayvee Enaguas (CC0), and
-  [Atkinson Hyperlegible](https://www.brailleinstitute.org/freefont/) by the Braille Institute (OFL 1.1) for the manual's text.
-- [PixelMplus](https://github.com/itouhiro/PixelMplus) (M+ FONT LICENSE, M+ FONTS PROJECT) for Japanese text, converted to Pixel Operator's pixel grid by `scripts/gen_jp_font.py`.
-- [Galmuri](https://github.com/quiple/galmuri) by Lee Minseo (OFL 1.1) for Korean text, converted to Pixel Operator's pixel grid by `scripts/gen_ko_font.py`.
-- The [pret](https://github.com/pret) decompilation projects (pokered, pokeyellow, pokegold, pokecrystal, pokefirered,
-  pokeemerald, pokeruby, pokeplatinum, pokeheartgold), [pokeemerald-expansion](https://github.com/rh-hideout/pokeemerald-expansion)
-  and [Polished Crystal](https://github.com/Rangi42/polishedcrystal)'s, [PureRGB](https://github.com/Vortyne/pureRGB)'s, [Yellow Legacy](https://github.com/cRz-Shadows/Pokemon_Yellow_Legacy)'s and [Crystal Legacy](https://github.com/cRz-Shadows/Pokemon_Crystal_Legacy)'s source, which the game data and guides were checked against.
-- Screen shaders: LCD and scanlines from mGBA's (MIT), the GBA colours by Pokefan531 and hunterk, LCD PAPER after
-  RetroArch's simpletex_lcd and zfast_lcd (GPL 2.0+), and libretro's xBR, xBRZ and ScaleFX for edge smoothing
-  (MIT, xBRZ GPL 3.0).
-- [PokeAPI](https://pokeapi.co) (BSD 3-Clause) for the National Dex species list.
-- AndroidX, Jetpack Compose, Kotlin and Apache Commons Compress (Apache 2.0), XZ for Java (0BSD).
-
-Every license is in [NOTICE](NOTICE) and, in the app, under Settings > LICENSES.
-- Cover art from [SteamGridDB](https://www.steamgriddb.com) and its contributors, and box art from [RetroAchievements](https://retroachievements.org).
-
-</details>
-
-## License
-
-PokeDaisy is free software under the [GNU GPL v3](LICENSE), with one
-[additional term](NOTICE): if you share PokeDaisy or anything built from it,
-keep the credit **"Based on PokeDaisy by Lidor Itzhari -
-https://github.com/lidor30/pokedaisy"** in its documentation and credits.
-Forks must stay open source under the same license.
-
-PokeDaisy is a fan project, not affiliated with or endorsed by Nintendo,
-Game Freak, Creatures or The Pokemon Company. Pokemon and all related names are
-trademarks of their respective owners; Game Boy, Game Boy Color and Game Boy Advance
-are trademarks of Nintendo. Device names (AYN Thor, Retroid, Anbernic) belong to their
-makers, and RetroAchievements and SteamGridDB are independent services; none of them
-endorse PokeDaisy. ROM hacks belong to their creators. No games, BIOS or game art are
-included: use your own legally dumped ROMs.
+Everything else, the Android app and the companion itself, is Lidor's PokeDaisy: its own README is kept in
+[docs/pokedaisy-readme.md](docs/pokedaisy-readme.md), and its home is [pokedaisy.com](https://pokedaisy.com) and
+[lidor30/pokedaisy](https://github.com/lidor30/pokedaisy).

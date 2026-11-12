@@ -15,7 +15,7 @@ import java.io.File
  * The website's compatibility data (`website/src/data/compat.json`), built from the tables
  * [CompanionSupport.isSupported] and the Poller's detect() use, so the site's ROM checker
  * (`website/src/lib/compat.js`, the same rules in JavaScript) can't drift from the app, plus
- * README.md's feature matrix (the site's game list), so the two pages say the same.
+ * the original README's feature matrix (docs/pokedaisy-readme.md, the site's game list), so the two pages say the same.
  * Fails when the checked-in file is stale; regenerate it with
  * `UPDATE_SITE_DATA=1 ./gradlew :app:testDebugUnitTest --tests '*SiteDataExportTest'`.
  */
@@ -69,12 +69,12 @@ class SiteDataExportTest {
     /** README's "Supported games" table (the hand-checked feature matrix): its columns, then each row's
      * game, version and cells (`yes` ✅ / `part` ◐ / `no` —). */
     private fun readmeMatrix(): Pair<List<String>, List<List<String>>> {
-        val lines = File(root, "README.md").readLines()
+        val lines = File(root, "docs/pokedaisy-readme.md").readLines()
         val from = lines.indexOfFirst { it.trim() == "## Supported games" }
         val table = lines.drop(from + 1).takeWhile { !it.startsWith("## ") }
             .filter { it.trimStart().startsWith("|") }
             .map { row -> row.trim().removePrefix("|").removeSuffix("|").split("|").map { it.trim() } }
-        assertTrue("no Supported games table in README.md", table.size > 2)
+        assertTrue("no Supported games table in docs/pokedaisy-readme.md", table.size > 2)
         val cell = mapOf("✅" to "yes", "◐" to "part", "—" to "no")
         val rows = table.drop(2).map { r -> r.take(2) + r.drop(2).map { c -> cell[c] ?: error("README matrix: unknown cell '$c' in $r") } }
         return table[0].drop(2) to rows

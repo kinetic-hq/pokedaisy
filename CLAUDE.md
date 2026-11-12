@@ -2291,7 +2291,7 @@ Deployed to Firebase Hosting (`pokedaisy.com`) by `.github/workflows/website.yml
 (the user's rule: the site never lists games the downloadable APK can't run): a published, non-pre-release release
 deploys its tag's `website/`; pushes to main only build + test; a manual run takes a release tag (redeploy / roll
 back). A site-only fix therefore waits for the next release (or a manual run of the current tag after moving it); the checker's ASK FOR SUPPORT opens the feedback form, prefilled through its #hash.
-The site's game matrix is README's Supported games table; a row of all "—" means detected but no companion yet,
+The site's game matrix is the Supported games table in docs/pokedaisy-readme.md (PokeDaisy's own README, moved there by this fork); a row of all "—" means detected but no companion yet,
 so the export lists it under `inProgress` - off the matrix, and "in progress" in the ROM check (none since R.O.W.E.
 got its companion, 2026-10-09).
 The site's demos and art never use real Pokémon / move / item names or the games' art (the user's rule).

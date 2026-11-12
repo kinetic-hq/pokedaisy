@@ -12,7 +12,7 @@ library title:
   title          GameTitles gives it a name (`GameTitles.BY_SHA1`, the ports' generated titles)
   website        compat.json has it (else: UPDATE_SITE_DATA=1 ... SiteDataExportTest)
   readme / features / manual / development
-                 README.md's Supported games, docs/ROM_FEATURES.md, docs/manual/supported-games.md and
+                 docs/pokedaisy-readme.md's Supported games, docs/ROM_FEATURES.md, docs/manual/supported-games.md and
                  docs/DEVELOPMENT.md name the game (and its version, when the file name has one)
   fixtures       scripts/host_roms.conf has a line for this file; each key's fixture folder has its README.txt and
                  RAM, and a test reads it (a DS language port needs none: --ds-port)
@@ -169,7 +169,7 @@ def main() -> int:
               "--tests '*SiteDataExportTest'")
 
     # The books
-    books = [("readme", REPO / "README.md"), ("features", REPO / "docs/ROM_FEATURES.md"),
+    books = [("readme", REPO / "docs/pokedaisy-readme.md"), ("features", REPO / "docs/ROM_FEATURES.md"),
              ("manual", REPO / "docs/manual/supported-games.md"), ("development", REPO / "docs/DEVELOPMENT.md")]
     port = port_needles(rom)
     for what, file in books:

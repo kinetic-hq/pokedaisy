@@ -83,7 +83,7 @@ jobs:
               echo "Merged cleanly. It is squash-merged once its checks pass."
             fi
             echo
-            echo "Check \"How this fork differs from PokeDaisy\" in README.md still holds after this."
+            echo "Check \"How this fork differs from PokeDaisy\" in README.md still holds after this. PokeDaisy's own README lives in docs/pokedaisy-readme.md here: carry its changes there."
           } > "$RUNNER_TEMP/body.md"
           n=$(gh pr list --head "$BRANCH" --base main --state open --json number -q '.[0].number')
           if [ -n "$n" ]; then
