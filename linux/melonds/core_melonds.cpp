@@ -3,6 +3,7 @@
 // renderer on the emulation thread, the JIT without fast memory, melonDS's Platform layer from pk_nds_platform.cpp.
 #include "ds_core.h"
 #include "pk_nds_platform.h"
+#include "pk_nds_wide.h"
 
 #include <Args.h>
 #include <GPU.h>
@@ -49,7 +50,9 @@ struct MelonCore final : DsCore {
     host.user = this;
     pkNdsSetLog(onLog);
   }
+  bool wide = false, wideOverworld = false, wideBattle = false, wideDrawn = false;
   ~MelonCore() override {
+    if (wide) pk_nds_wide_set(nullptr, false);
     if (nds) nds->Stop();
   }
   const char* name() const override { return "melonDS"; }
@@ -114,6 +117,31 @@ struct MelonCore final : DsCore {
       // melonDS draws xRGB; SDL's ARGB8888 wants the alpha set.
       for (int i = 0; i < 256 * 192; i++) screens[s][i] = src[i] | 0xFF000000u;
     }
+    // EXPAND: the wide frame from this frame's top screen and the slices drawn after the last one, then the next's.
+    if (wide) wideDrawn = pk_nds_wide_frame(nds.get(), nds->GPU.Framebuffer[fb][0].get(), true, wideOverworld, true, wideBattle);
+  }
+  bool wideAvailable() const override { return true; }
+  void wideEnable(bool on) override {
+    if (wide == on) return;
+    wide = on;
+    wideDrawn = false;
+    pk_nds_wide_set(nds.get(), on);
+  }
+  void wideState(bool overworld, bool battle) override { wideOverworld = overworld; wideBattle = battle; }
+  void wideWindow(int x, int y, int w, int h) override { pk_nds_wide_need(-x, x + w - 256, -y, y + h - 192); }
+  bool wideView(uint32_t* out, int x, int y, int w, int h) override {
+    if (!wide || !wideDrawn) return false;
+    pk_nds_wide_view(out, x, y, w, h);
+    // 0xAABBGGRR (the app's upload format) to the host's ARGB.
+    for (size_t i = 0, n = size_t(w) * h; i < n; i++) {
+      uint32_t p = out[i];
+      out[i] = 0xFF000000u | ((p & 0xFF) << 16) | (p & 0xFF00) | ((p >> 16) & 0xFF);
+    }
+    return true;
+  }
+  bool topFadedOut() const override {
+    u32 mb = nds->GPU.GPU2D_A.MasterBrightness;
+    return ((mb >> 14) == 1 || (mb >> 14) == 2) && (mb & 0x1F) >= 16;
   }
   const uint32_t* framebuffer(int screen) override { return screens[screen ? 1 : 0].data(); }
   size_t takeAudio(int16_t* out, size_t maxFrames) override {

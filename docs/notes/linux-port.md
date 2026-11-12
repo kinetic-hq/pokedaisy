@@ -47,3 +47,10 @@ fingers press the touch screen while it shows (`ds_touch_point`; tests push taps
 Its DS LAYOUT (`ds_layout.h`, pure, `test_layout.cpp`; `layout=N` in ds-settings.ini, append only): ONE SCREEN / PICTURE IN PICTURE /
 TOUCH IN WING / STACKED / SIDE BY SIDE / LARGE + SMALL, SELECT + R2 / L2 step it (R2 alone still swaps, L2 the quick menu); ONE SCREEN floats
 the touch screen on `PK_NDS_FIELD_TOUCH` and is PIP for a game without field rules.
+**DS EXPAND on the desktop (2026-11-12)**: melonDS's `DsCore` runs the app's `pk_nds_wide.cpp` (built through
+`linux/melonds/pk_nds_wide_host.cpp`: on Windows melonDS's headers pull in `<windows.h>`, whose `near` / `far` macros and
+wingdi's `Polygon()` break that file, so the wrapper reads the headers first, drops the macros, and the file gets `NOGDI`).
+The frontend sets the margins (`wideState`, the same overworld / battle rules as `pk_nds.cpp`), the window (`wideWindow`)
+and draws `wideView` through `wide_camera.h`, the GBA's camera; `pd_ds_expand` / `pd_ds_auto_zoom` come from the host's
+ASPECT and AUTO ZOOM IN. A crash that only shows outside gdb on Windows is often the NT debug heap hiding it: run gdb with
+`_NO_DEBUG_HEAP=1`.

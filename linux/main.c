@@ -2744,7 +2744,7 @@ extern int pd_ds_game_touch_off;
 extern bool (*pd_ds_rewind_held)(void);
 extern int pd_ds_rewind_on;
 extern int pd_ds_ui_size, pd_ds_wing_room, pd_ds_theme;
-extern bool pd_ds_dark;
+extern bool pd_ds_dark, pd_ds_expand, pd_ds_auto_zoom;
 static bool ds_rewind_held(void) { return rewindHeld || rewindKey; }
 static bool ds_running(void) { return running != 0; }
 #endif
@@ -2924,6 +2924,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       pd_ds_theme = st.theme;        // THEME and DARK MODE: the DS companion wears the app's look
       pd_ds_dark = st.darkMode;
       pd_ds_wing_room = st.wingRoom;
+      pd_ds_expand = st.aspect == PD_ASPECT_EXPAND; // ASPECT and AUTO ZOOM IN: DS EXPAND and its camera
+      pd_ds_auto_zoom = st.autoZoom;
     }
     appError = pd_ds_run(path, root, maxFrames, shot, renderer, ds_running);
     // The DS backend owns its device while running. Restore the normal host's

@@ -528,10 +528,15 @@ wherever it shows; a drag works too. With a controller, hold SELECT, move the
 pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
 and A. Escape pauses the game.
 
-`ASPECT` `EXPAND` isn't there for DS games. A DS screen is always 256 by 192
-pixels, and showing more of the world around you would mean changing the game
-itself, a different patch for each game. LT and RT make the DS game larger or
-smaller against the wings instead.
+With `ASPECT` on `EXPAND` (the default here), a DS game with a companion
+(Platinum, HeartGold and SoulSilver, and the games built on them) shows the
+world past the top screen's edges, so the whole window is game. The middle is
+the game's own picture, untouched; the rest is the game's own 3D drawn again
+around it. A battle's background reaches the edges too. LT and RT zoom out and
+back in on the overworld, the same steps as a Game Boy Advance game, and the
+view pulls back in for a battle, a menu and (with `AUTO ZOOM IN`) a text box.
+With `ASPECT` on `ORIGINAL`, or in a DS game without a companion, LT and RT
+make the game larger or smaller against the wings instead.
 
 The DS companion fills the window and wears the same theme and `DARK MODE` as
 the Game Boy Advance companion; `UI SIZE` sets how large its text is.
