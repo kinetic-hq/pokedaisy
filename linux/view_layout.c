@@ -43,6 +43,8 @@ static void wings_around(struct view_layout *out, int sw, int sh) {
   out->right = rect(g.x + g.w, 0, sw - g.x - g.w, sh);
   int above = g.y, below = sh - g.y - g.h;
   int min = (sh * VIEW_STRIP_MIN_PERCENT + 99) / 100;
+  if (min > VIEW_STRIP_MIN_PX)
+    min = VIEW_STRIP_MIN_PX;
   if (above >= min && below >= min) {
     out->top = rect(g.x, 0, g.w, above);
     out->bottom = rect(g.x, g.y + g.h, g.w, below);

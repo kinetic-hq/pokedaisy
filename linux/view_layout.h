@@ -50,6 +50,7 @@ struct view_layout {
 #define VIEW_WING_MIN_PERCENT 12
 /* Strips go above and below the game only when that many percent of the height is free each side. */
 #define VIEW_STRIP_MIN_PERCENT 8
+#define VIEW_STRIP_MIN_PX 48 // or this much room, whichever is less: a 16:9 screen's ~5% is enough for a bar
 /* GLASS DRAWER's sheet: this share of the screen's height, from the bottom. */
 #define VIEW_DRAWER_PERCENT 46
 /* How long a size change animates, in milliseconds. */

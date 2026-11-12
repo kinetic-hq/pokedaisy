@@ -32,7 +32,8 @@ int main(void) {
   EXPECT(BEZEL_MONEY, &f, "$3300");
 
   // Unknown: left out, never made up.
-  struct bezel_facts u = {.place = NULL, .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = -1};
+  struct bezel_facts u = {.place = NULL, .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = -1,
+                          .leadToNext = -1, .savedMinutes = -1};
   for (int i = 0; i < BEZEL_ITEMS; i++)
     EXPECT(i, &u, "");
   u.hour = 23;
@@ -43,6 +44,33 @@ int main(void) {
   u.badges = 0;
   EXPECT(BEZEL_BADGES_TIME, &u, "BADGES 0"); // 0:00 is a card that wasn't read
 
+  // The new facts, and an empty place given a filler the bar doesn't show yet.
+  struct bezel_facts k = {.place = "ROUTE 1", .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = 500,
+                          .boss = "BROCK", .cap = 14, .caughtHere = 2, .kindsHere = 5, .lead = "PIKACHU", .leadHp = 12,
+                          .leadMaxHp = 20, .leadToNext = 85, .savedMinutes = 7};
+  EXPECT(BEZEL_NEXT_BOSS, &k, "NEXT BROCK  CAP Lv14");
+  EXPECT(BEZEL_CAUGHT_HERE, &k, "CAUGHT HERE 2/5");
+  EXPECT(BEZEL_LEAD, &k, "PIKACHU 12/20  85 EXP TO GO");
+  EXPECT(BEZEL_LAST_SAVED, &k, "SAVED 7 MIN AGO");
+  k.savedMinutes = 45;
+  EXPECT(BEZEL_LAST_SAVED, &k, "NOT SAVED FOR 45 MIN");
+  {
+    int items[3] = {BEZEL_HINTS, BEZEL_NEXT_BOSS, BEZEL_NONE};
+    char bar[3][64];
+    bezel_bar_text(items, NULL, &k, bar);
+    // The faded hints take the first filler not shown yet (NEXT BOSS is): CAUGHT HERE. NONE stays empty.
+    if (strcmp(bar[0], "CAUGHT HERE 2/5") || strcmp(bar[1], "NEXT BROCK  CAP Lv14") || bar[2][0]) {
+      printf("bar fill: '%s' '%s' '%s'\n", bar[0], bar[1], bar[2]);
+      failures++;
+    }
+    // What the other bar shows is never a filler here: CAUGHT HERE is the other bar's, so LEAD comes next.
+    int other[3] = {BEZEL_CAUGHT_HERE, BEZEL_NONE, BEZEL_NONE};
+    bezel_bar_text(items, other, &k, bar);
+    if (strcmp(bar[0], "PIKACHU 12/20  85 EXP TO GO")) {
+      printf("bar fill other: '%s'\n", bar[0]);
+      failures++;
+    }
+  }
   if (bezel_style_resolve(-1, true) != BEZEL_STYLE_BLACK || bezel_style_resolve(-1, false) != BEZEL_STYLE_THEME ||
       bezel_style_resolve(BEZEL_STYLE_GLOW, true) != BEZEL_STYLE_GLOW) {
     puts("style resolve");

@@ -64,9 +64,9 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->background = -1;
     s->brightness = 110;
     s->bezelStyle = -1;
-    // linux/bezel.h's BEZEL_DEFAULT_SLOTS: LOCATION, CLOCK AND BATTERY, BADGES AND PLAY TIME, BUTTON HINTS,
-    // STATUS CHIPS, REPEL OR MONEY.
-    static const int BEZEL_SLOTS[6] = {1, 2, 5, 8, 9, 10};
+    // linux/bezel.h's BEZEL_DEFAULT_SLOTS: LOCATION, CLOCK AND BATTERY, BADGES AND PLAY TIME, LEAD POKEMON,
+    // NEXT BOSS AND CAP, REPEL OR MONEY.
+    static const int BEZEL_SLOTS[6] = {1, 2, 5, 14, 12, 10};
     for (int i = 0; i < 6; i++) s->bezelSlots[i] = BEZEL_SLOTS[i];
 }
 
@@ -157,7 +157,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
             const char* p = value;
             for (int i = 0; i < 6 && *p; i++) {
                 int v = atoi(p);
-                if (v >= 0 && v <= 11) s->bezelSlots[i] = v;
+                if (v >= 0 && v <= 15) s->bezelSlots[i] = v;
                 while (*p && *p != ',') p++;
                 if (*p == ',') p++;
             }

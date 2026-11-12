@@ -116,7 +116,8 @@ static void animation(void) {
 }
 
 int main(void) {
-  battle_wings(1920, 1080, 6, false); // ROG Ally: 1440x960, 60 rows over and under: no strips
+  battle_wings(1920, 1080, 6, true);  // ROG Ally: 1440x960, 60 rows over and under (VIEW_STRIP_MIN_PX 48)
+  battle_wings(1280, 720, 4, false);  // 960x640, 40 rows: too little for a bar
   battle_wings(1920, 1200, 6, true);  // Legion Go 2, OneXPlayer: 120 rows each side
   battle_wings(2560, 1600, 8, true);  // Legion Go: 1920x1280
   battle_wings(1280, 800, 4, true);   // Steam Deck: 960x640

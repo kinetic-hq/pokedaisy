@@ -437,14 +437,17 @@ static int team_top(const struct pd_team_mon* team, int n) {
     return top;
 }
 
-int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s) {
+int pd_ui_next_boss(const struct pd_game* g, const struct pd_snapshot* s, char* title, size_t len) {
+    if (title && len) title[0] = 0;
     if (!g || !s) return 0;
     struct pd_team_mon team[PD_TEAM_MAX];
     if (pd_gbw_boss_count(g)) {
         for (int b = 0; b < pd_gbw_boss_count(g); b++) {
             const struct pd_gbw_boss* boss = pd_gbw_boss_at(g, b);
             if (pd_gbw_boss_done(s, boss)) continue;
-            return team_top(team, pd_gbw_boss_team(g, s, boss, 0, team));
+            int top = team_top(team, pd_gbw_boss_team(g, s, boss, 0, team));
+            if (top && title && len) snprintf(title, len, "%s", boss->title);
+            return top;
         }
         return 0;
     }
@@ -457,9 +460,35 @@ int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s) {
         if (pd_boss_done(boss, s)) continue;
         const struct pd_variant* var = pd_boss_variants(gd, boss, s);
         int top = team_top(team, pd_trainer_team(g, var ? (int) var->trainer : pd_boss_trainer(gd, boss, s), team));
-        if (top) return top;
+        if (top) {
+            if (title && len) snprintf(title, len, "%s", boss->title);
+            return top;
+        }
     }
     return 0;
+}
+
+int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s) {
+    return pd_ui_next_boss(g, s, NULL, 0);
+}
+
+bool pd_ui_caught_here(const struct pd_game* g, const struct pd_snapshot* s, int* caught, int* total) {
+    *caught = *total = 0;
+    if (!g || !s) return false;
+    static struct pd_wild_set wild;
+    if (!pd_wild_here(g, s, &wild)) return false;
+    int seen[64], n = 0;
+    for (int m = 0; m < PD_WILD_METHODS; m++) {
+        for (int i = 0; i < wild.count[m]; i++) {
+            int sp = wild.mons[m][i].species, k = 0;
+            while (k < n && seen[k] != sp) k++;
+            if (k < n || n == 64) continue;
+            seen[n++] = sp;
+            *caught += caught_species(g, s, sp);
+        }
+    }
+    *total = n;
+    return n > 0;
 }
 
 static void build_bosses(const struct pd_game* g, const struct pd_snapshot* s, const struct pd_guide* gd) {
