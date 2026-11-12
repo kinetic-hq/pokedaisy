@@ -155,6 +155,40 @@ inline DsPlacement ds_place(int layout,int ow,int oh,bool swapped,bool touchWant
   return p;
 }
 
+inline bool ds_same_box(const DsBox& a,const DsBox& b){
+  return a.shown()==b.shown() && (!a.shown() || (a.x==b.x && a.y==b.y && a.w==b.w && a.h==b.h));
+}
+// Two placements that put everything in the same place, drawn the same way.
+inline bool ds_same_placement(const DsPlacement& a,const DsPlacement& b){
+  if(a.touchFloats!=b.touchFloats || a.inset!=b.inset || !ds_same_box(a.top,b.top) || !ds_same_box(a.touch,b.touch))return false;
+  for(int i=0;i<2;i++)if(!ds_same_box(a.panel[i],b.panel[i]) || !ds_same_box(a.half[i],b.half[i]))return false;
+  return true;
+}
+// What a layout is drawn as: a game without touch rules has PICTURE IN PICTURE for ONE SCREEN (frontend.cpp).
+inline int ds_layout_drawn(int layout,bool touchRules){return layout==DSL_ONE && !touchRules?DSL_PIP:layout;}
+// first[l]: the first layout in the picker's order drawn exactly like l on an ow x oh window, with the touch screen
+// wanted and not (a fallback, or two layouts that come out the same on this shape). first[l]==l: l is its own.
+inline void ds_layout_firsts(int ow,int oh,bool touchLeft,bool touchRules,int first[DSL_COUNT]){
+  for(int l=0;l<DSL_COUNT;l++){
+    first[l]=l;
+    for(int k=0;k<l && first[l]==l;k++){
+      if(first[k]!=k)continue;
+      bool same=true;
+      for(int want=0;want<2 && same;want++)
+        same=ds_same_placement(ds_place(ds_layout_drawn(k,touchRules),ow,oh,false,want,touchLeft),
+                               ds_place(ds_layout_drawn(l,touchRules),ow,oh,false,want,touchLeft));
+      if(same)first[l]=k;
+    }
+  }
+}
+// R3's tap: the next layout in the picker's order that doesn't draw the same as one before it on this window.
+inline int ds_layout_cycle(int current,int ow,int oh,bool touchLeft,bool touchRules){
+  int first[DSL_COUNT];ds_layout_firsts(ow,oh,touchLeft,touchRules,first);
+  int from=first[std::clamp(current,0,DSL_COUNT-1)];
+  for(int step=1;step<=DSL_COUNT;step++){int n=(from+step)%DSL_COUNT;if(first[n]==n)return n;}
+  return from;
+}
+
 // A window point on the touch screen as drawn, in DS pixels; clamp keeps a drag that leaves it on its edge.
 inline bool ds_touch_at(const DsBox& touch,int px,int py,bool clamp,int& x,int& y){
   if(!touch.shown() || (!clamp && !touch.contains(px,py)))return false;

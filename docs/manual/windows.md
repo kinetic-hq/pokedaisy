@@ -141,9 +141,11 @@ and R2 stay the touch screen and the DS layout. Pick one and choose
 `SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT`, `DS LAYOUT BACK`, `SWAP SCREENS`,
 `ZOOM IN` or `ZOOM OUT`, or `USUAL USE` to give it back.
 
-R3's usual use is the view: a tap switches between the `COMPANION VIEW` you
-picked and the game alone, and holding it opens every view as a small picture
-to pick from (A takes one, B leaves it as it was). The view's name shows for a
+R3's usual use is the view. In a Game Boy Advance or Game Boy game a tap
+switches between `WINGS` and `BATTLE WINGS`; in a DS game it steps through the
+`DS LAYOUT`s in the picker's order, leaving out any that would look the same as
+one before it on your screen. Holding R3 opens every view as a small picture to
+pick from (A takes one, B leaves it as it was). The view's name shows for a
 moment when it changes. A button with
 a job no longer reaches the game. Screenshots go to `DATA\screenshots`, named
 after the game. Fast forward has no effect in DS games, and the DS LAYOUT and
@@ -264,7 +266,8 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   doesn't tell the app is left out.
 - **Wings**: the party fills the left wing top to bottom, a card a Pokemon with
   its level, status and HP (an empty card for each place still free); the right wing shows the map round you and, under
-  it, your badges, play time and money.
+  it, your badges, play time, how many kinds you have caught and seen, and your
+  money.
 
 DS games have the same rows in the companion's `SET` tab.
 

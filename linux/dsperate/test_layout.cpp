@@ -105,6 +105,17 @@ int main(){
   assert(!ds_touch_at(t,99,50,false,x,y));
   assert(ds_touch_at(t,2000,-5,true,x,y) && x==255 && y==0);
   assert(!ds_touch_at(DsBox{},10,10,true,x,y));
+  // R3's cycle: every layout it lands on is its own (drawn unlike any before it), and it reaches all of those.
+  for(auto wh:{std::pair<int,int>{1920,1080},{1920,1200},{1280,720},{1280,800},{720,1280}})for(int rules=0;rules<2;rules++){
+    int first[DSL_COUNT];ds_layout_firsts(wh.first,wh.second,false,rules,first);
+    int own=0;for(int l=0;l<DSL_COUNT;l++)own+=first[l]==l;
+    int seen=0,at=0;bool visited[DSL_COUNT]={};
+    for(int i=0;i<DSL_COUNT;i++){at=ds_layout_cycle(at,wh.first,wh.second,false,rules);if(first[at]!=at){std::printf("cycle lands on a copy %d\n",at);return 1;}if(!visited[at]){visited[at]=true;seen++;}}
+    if(seen!=own){std::printf("cycle reaches %d of %d at %dx%d\n",seen,own,wh.first,wh.second);return 1;}
+    std::printf("%dx%d%s: R3 skips",wh.first,wh.second,rules?"":" (no touch rules)");
+    for(int l=0;l<DSL_COUNT;l++)if(first[l]!=l)std::printf(" [%s = %s]",ds_layout_name(l),ds_layout_name(first[l]));
+    std::printf("\n");
+  }
   for(int i=0;i<DSL_COUNT;i++)std::printf("%s ",ds_layout_name(i));
   std::puts("\nPASS DS LAYOUT placement, fallbacks and touch mapping");
 }

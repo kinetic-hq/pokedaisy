@@ -118,7 +118,7 @@ enum {
   SRIGHT,
   FN1,
   FN2,
-  R3, // COMPANION VIEW: a tap = the view picked <-> the game alone, a hold = the views to pick from
+  R3, // COMPANION VIEW: a tap = WINGS <-> BATTLE WINGS, a hold = the views to pick from
   NKEYS
 };
 static SDL_GameController *controller; // the first open pad (any open pad plays: pads[])
@@ -459,7 +459,7 @@ static void fullscreen_set(bool on) {
 }
 static void fullscreen_toggle(void) { fullscreen_set(!fullscreenOn); }
 static bool stickChord; // L3 + R3 went to FULLSCREEN since both sticks were last up
-#define R3_HOLD_MS 450u // R3 held this long opens the views to pick from instead of flipping the view
+#define R3_HOLD_MS 450u // R3 held this long opens the views to pick from instead of switching the view
 static int layout_pick(const char *title, const struct pd_layout_option *options, int count, int current);
 /* F11 / Alt+Enter on a keyboard, L3 + R3 on a pad (the second stick pressed while the first is held). True when the
  * event was the toggle's (the game doesn't get it). */
@@ -1396,16 +1396,13 @@ static void present_menu(struct pd_menu *m, unsigned gw, unsigned gh) {
 static struct view_layout viewShown, viewFrom, viewTo;
 static uint32_t viewSince;
 static bool viewReady;
-static bool viewGameOnly; // R3's tap: the game alone (EXPAND full screen, no wings or bars) until the next tap
 static void view_update(const struct pd_settings *st, bool companionOpen, bool battle, unsigned fw, unsigned fh) {
   int ow = W, oh = H;
   if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
     ow = W, oh = H;
-  bool alone = viewGameOnly && !companionOpen;
-  struct view_state vs = {ow, oh, (int)fw, (int)fh, companionOpen, battle && !alone, st->panelLocked};
+  struct view_state vs = {ow, oh, (int)fw, (int)fh, companionOpen, battle, st->panelLocked};
   struct view_layout to;
-  // The game alone: BATTLE WINGS while walking (EXPAND full screen, nothing beside it), in a battle too.
-  view_layout(alone ? POCKET_VIEW_BATTLE_WINGS : st->companionView, &vs, &to);
+  view_layout(st->companionView, &vs, &to);
   uint32_t now = SDL_GetTicks();
   if (!viewReady) {
     viewShown = viewFrom = viewTo = to;
@@ -2525,8 +2522,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     if (hkFired & (1u << HK_LOAD))
       notice(!pocket_exists(ss) ? "No state saved yet" : state(c, ss, false) ? "State loaded" : "State load failed");
     bool ffHeld = hkOn & (1u << HK_FF), rewinding = (hkOn & (1u << HK_REWIND)) && rewindOn;
-    // R3 (its usual use): a tap flips between the view picked and the game alone, a hold opens the views to pick
-    // from (A or a tap picks, B leaves it as it was).
+    // R3 (its usual use): a tap switches between WINGS and BATTLE WINGS (from any other view: WINGS), a hold opens
+    // every view to pick from (A or a tap picks, B leaves it as it was). The view's name shows either way.
     static uint32_t r3Since;
     static bool r3Picked;
     if (!quickOpen && !companion && !hotkeyMap[PD_HOTKEY_R3]) {
@@ -2541,7 +2538,6 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         int v = layout_pick("PICK A VIEW", companion_layouts(), POCKET_VIEWS, settings.companionView);
         if (v >= 0) {
           settings.companionView = v;
-          viewGameOnly = false;
           pd_settings_save(&settings, config);
           notice(pd_companion_view_name(v));
         }
@@ -2549,8 +2545,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           SDL_ClearQueuedAudio(audio);
       } else if (!r3 && r3Since) {
         if (!r3Picked && !stickChord) {
-          viewGameOnly = !viewGameOnly;
-          notice(viewGameOnly ? "GAME ONLY" : pd_companion_view_name(settings.companionView));
+          settings.companionView =
+              settings.companionView == POCKET_VIEW_WINGS ? POCKET_VIEW_BATTLE_WINGS : POCKET_VIEW_WINGS;
+          pd_settings_save(&settings, config);
+          notice(pd_companion_view_name(settings.companionView));
         }
         r3Since = 0;
       }
@@ -3515,7 +3513,8 @@ static bool get_started(void) {
     case SETUP_BUTTONS: {
       static const char *const rows[] = {"NINTENDO\tA ON THE RIGHT", "XBOX\tA AT THE BOTTOM"};
       snprintf(hint, hintSize, "STEP %d OF %d. Which button is A? LT / RT zoom, L3 is fast-forward and R3 "
-                               "switches the view (hold it to pick one): SETTINGS > HOTKEYS changes them.",
+                               "switches the view (hold it to pick one): "
+                               "SETTINGS > HOTKEYS changes them.",
                number, steps);
       pick = menu_pick_hint("BUTTON LAYOUT", hint, rows, 2, st.buttonLayout == PD_LAYOUT_XBOX ? 1 : 0);
       if (pick < 0)
