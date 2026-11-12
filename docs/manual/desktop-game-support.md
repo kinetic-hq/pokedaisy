@@ -106,7 +106,7 @@ By tab:
 | GS Chronicles | 2.7.6; SHA-1 25f8840e | works | works | partly | works | works | works | None |
 | Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | works | works | partly | works | works | works | None |
 | Emerald Legacy | 1.1.4; SHA-1 cbd71af6 | works | works | partly | works | works | works | None |
-| Lazarus | 2.0; SHA-1 7dcdc7e2 | works | works | partly | works | no | partly | No `DEX` tab |
+| Lazarus | 2.0; SHA-1 7dcdc7e2 | works | works | partly | works | works | partly | None |
 | Emerald Seaglass | 3.0; SHA-1 b9f4d332 | works | works | partly | works | no | partly | No `DEX` tab |
 | Too Many Types 2 | 1.5.2; SHA-1 3fa8e61e | works | works | partly | works | no | partly | No `DEX` tab |
 | Glazed | 9.2.0; SHA-1 e10105d8 | works | works | partly | works | works | partly | None |
@@ -135,10 +135,10 @@ By tab:
   `GUIDE` included. HeartGold and SoulSilver (USA) have it too.
   Black, White, Black 2, White 2, Origin HeartGold and the French and Spanish
   Platinum carts get no companion yet.
-- **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow and Dreamstone
-  Mysteries now have their `DEX` on the desktop, read from each game's own
-  data. The other games built the same way get it too once the desktop sees
-  that data in the game. Let's Go, Lazarus, Monomyth, Emerald Rogue and
+- **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow, Dreamstone
+  Mysteries and Lazarus now have their `DEX` on the desktop, read from each
+  game's own data. The other games built the same way get it too once the
+  desktop sees that data in the game. Let's Go, Monomyth, Emerald Rogue and
   SoulGold still have no `DEX` tab on the desktop, though the app shows one.
 - **No foe team in battle.** In the German, French, Italian and Japanese FireRed
   and LeafGreen carts, the battle panes show your side and the Pokémon you face,

@@ -250,7 +250,7 @@ void game_support_start(const char *root, const char *const *list, int n, const 
     lock = SDL_CreateMutex();
   snprintf(cachePath, sizeof cachePath, "%s/support-cache.tsv", root);
   // The rules' own revision too, so a build that changes them looks again within a version.
-  snprintf(stampText, sizeof stampText, "pokedaisy %s rules 3", stamp ? stamp : "?");
+  snprintf(stampText, sizeof stampText, "pokedaisy %s rules 4", stamp ? stamp : "?");
   entries = calloc((size_t)n + 1, sizeof *entries);
   paths = calloc((size_t)n + 1, sizeof *paths);
   if (!entries || !paths || !lock)

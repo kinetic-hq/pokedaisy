@@ -184,7 +184,15 @@ static void build(const struct pd_game* g) {
         // app's BestEffort.dexHolds, species 1 must read national 1, 0.7 m, 6.9 kg.
         const struct pd_dex_x* x = cfg->expansion;
         const uint8_t* one = pd_rom_at(g, cfg->speciesInfo + (uint32_t) x->stride, (size_t) x->natDexOff + 6);
-        if (!one || u16(one + x->natDexOff) != 1 || u16(one + x->natDexOff + 2) != 7 || u16(one + x->natDexOff + 4) != 69) return;
+        if (!one) return;
+        if (u16(one + x->natDexOff) != 1 || u16(one + x->natDexOff + 2) != 7 || u16(one + x->natDexOff + 4) != 69) {
+            // A game that zeroes the species it leaves out (Lazarus: its dex starts elsewhere) is probed on species 25
+            // instead, national 25, 0.4 m, 6.0 kg, its species 1 all zero.
+            const uint8_t* p25 = pd_rom_at(g, cfg->speciesInfo + 25u * (uint32_t) x->stride, (size_t) x->natDexOff + 6);
+            if (u16(one + x->natDexOff) || u16(one + x->natDexOff + 2) || u16(one + x->natDexOff + 4) || !p25 ||
+                u16(p25 + x->natDexOff) != 25 || u16(p25 + x->natDexOff + 2) != 4 || u16(p25 + x->natDexOff + 4) != 60)
+                return;
+        }
         for (int s = 1; s < speciesCount; s++) {
             const uint8_t* e = pd_rom_at(g, cfg->speciesInfo + (uint32_t) s * (uint32_t) x->stride + (uint32_t) x->natDexOff, 2);
             if (!e) return;
