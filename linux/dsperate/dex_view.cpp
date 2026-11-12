@@ -35,6 +35,23 @@ std::string evolution_requirement(const DsDexEvolution& evo,DsGame game){
     if(method>7)--method;
   }
   const std::string level=param>0 && param<=100?"Lv"+std::to_string(param):"Level up";
+  // Origin HeartGold's hg-engine methods past HeartGold's 26 (Gen4Dex.originEvoReqs).
+  if(game==DsGame::Johto && ds_origin() && method>26){
+    switch(method){
+      case 27:return std::string("Know a ")+pd_type_name(nullptr,param)+" move";
+      case 28:return level+" / day";
+      case 29:return level+" / night";
+      case 30:return level+" / rain";
+      case 31:return level+" / Dark type in party";
+      case 33:return std::to_string(param)+" critical hits in one battle";
+      case 34:return std::string("Level up with 999 ")+ds_item(param,game);
+      case 37:return std::string("Level up holding ")+ds_item(param,game);
+      case 38:return "Lose "+std::to_string(param)+" HP to recoil";
+      case 40:return "Level up after "+std::to_string(param)+" steps";
+      case 41:return level;
+      default:return "Special condition";
+    }
+  }
   switch(method){
     case 1:return "Level up with friendship";
     case 2:return "Friendship by day";

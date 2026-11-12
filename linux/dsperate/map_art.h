@@ -42,11 +42,15 @@ struct DsDexArt {
   std::vector<DsDexDetails> details;
   std::vector<int> regional; // species by displayed regional number (Gen 5 starts at zero)
   std::vector<uint8_t> pictures,learnsets;
+  std::vector<uint8_t> tutors;  // Origin HeartGold: /data/tutor_moves.narc (its machines' fit rule, ds_dex_page)
   std::vector<DsDexEvolution> evolutions;
 };
 DsDexArt ds_dex_art(const std::vector<uint8_t>&,DsGame);
 DsDexPage ds_dex_page(const DsDexArt&,DsGame,int species);
 std::vector<DsDexMove> ds_level_moves(const DsDexArt&,DsGame,int species);
 std::vector<DsDexEvolution> ds_dex_evolutions(const DsDexArt&,int species);
+
+// Origin HeartGold's tables from its cart (OriginHeartGold.kt / NdsArt.readOrigin); species empty if it can't be read.
+DsOrigin ds_read_origin(const std::vector<uint8_t>& rom);
 
 std::vector<std::vector<uint32_t>> ds_hud_item_icons(const std::vector<uint8_t>& rom, DsGame game);

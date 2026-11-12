@@ -20,6 +20,24 @@ int ds_egg_icon(DsGame game);
 bool ds_platinum_cart(const uint8_t* rom,size_t size);
 // Renegade Platinum (v1.2.0 / v1.3.0 / Classic): overlay 16 points its type chart into overlay 21 (RenegadePlatinum.kt).
 bool ds_renegade_platinum(const uint8_t* rom,size_t size);
+// Origin HeartGold (v4.0.3, English 1.0.0): a Japanese HeartGold's header (IPKJ rev 0), told apart by SaveData_Get's
+// pool word in its ARM9 (OriginHeartGold.kt). It runs as DsGame::Johto on its own save offsets and, once ds_set_origin
+// hands them over, its own tables read from the cart (ds_read_origin, map_art.h).
+bool ds_origin_cart(const uint8_t* rom,size_t size);
+constexpr int dsOriginLastNational=1025, dsOriginLastSpecies=1440, dsOriginEgg=1441;
+struct DsOrigin {
+  std::vector<std::string> species,moves,items;      // the cart's names by id (species to 1025)
+  std::vector<std::array<uint8_t,2>> speciesTypes;   // by species / form id, 1..1440 (Fairy is type 9)
+  std::vector<std::array<uint8_t,2>> moveMeta;       // by move id: type, power
+  std::array<uint8_t,18*18> chart{};                 // attacker by defender, in quarters (4 = 1x)
+  std::vector<std::array<uint16_t,3>> forms;         // species, its form's own species id, form
+  std::array<int,138> machines{};                    // TM01..TM92, HM01..HM08, TM93..TM130
+  int formSpecies(int species,int form) const;       // a form's own id (species when form 0 or unknown)
+  int baseSpecies(int id) const;                     // the National Dex species of a form id
+};
+// The running Origin HeartGold's tables, or nullptr (any other game). The data outlives the companion.
+void ds_set_origin(const DsOrigin* data);
+const DsOrigin* ds_origin();
 // What the cart is, by its header, for messages: "Platinum (USA) rev 0", "Black 2 (USA / Europe)"...
 std::string ds_cart_label(const uint8_t* rom,size_t size);
 struct DsMon {

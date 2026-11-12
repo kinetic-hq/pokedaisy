@@ -68,11 +68,14 @@ const char* pd_move_name(const struct pd_game* g, int move, char* buf, size_t le
     return buf;
 }
 
+const struct pd_ds_types* pd_ds_types = NULL;
+
 const char* pd_type_name(const struct pd_game* g, int type) {
     const struct pd_text* t = hack_text(g);
     if (t && t->typeNames) {
         return type >= 0 && type < t->typeNamesCount && t->typeNames[type] ? t->typeNames[type] : "";
     }
+    if (!g && pd_ds_types && pd_ds_types->name9 && type == 9) return pd_ds_types->name9;
     if (type >= 0 && type < pd_type_names_count && pd_type_names[type]) return pd_type_names[type];
     return "";
 }
@@ -117,6 +120,8 @@ int pd_move_low_pp(const struct pd_game* g, int move, int pp) {
 static int single_pct(const struct pd_game* g, int atk, int def) {
     int pct;
     if (pd_randomized_pct(g, atk, def, &pct)) return pct;
+    if (!g && pd_ds_types && pd_ds_types->chart && atk >= 0 && atk < 18 && def >= 0 && def < 18)
+        return pd_ds_types->chart[atk * 18 + def] * 25;
     const struct pd_text* t = hack_text(g);
     const struct pd_type_pair* chart = t && t->typeChart ? t->typeChart : pd_type_chart;
     int n = t && t->typeChart ? t->typeChartCount : pd_type_chart_count;
