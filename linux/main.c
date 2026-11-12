@@ -3521,7 +3521,7 @@ int main(int argc, char **argv) {
     items = malloc(sizeof *items * (size_t)(games.count + 1));                                                         \
     count = items ? games.count : 0;                                                                                   \
     for (int i = 0; i < count; i++)                                                                                    \
-      items[i] = games.labels[i];                                                                                      \
+      items[i] = games.names[i];                                                                                       \
     pd_menu_init(&menu, POCKET_HOST_NAME, items, count);                                                               \
     rail_setup(&menu, RAIL_GAMES);                                                                                     \
     menu.actions = GAMES_ACTIONS;                                                                                      \

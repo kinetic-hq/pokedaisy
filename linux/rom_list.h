@@ -10,7 +10,8 @@
 
 struct rom_list {
   char **paths;  // full paths, for opening
-  char **labels; // the file names, as the list shows them
+  char **labels; // the file names
+  char **names;  // the games' names, as the list shows them (game_display_name)
   int count, cap;
 };
 
@@ -28,7 +29,7 @@ bool rom_folders_write(const char *root, char folders[][POCKET_FOLDER_MAX], int 
 /* ROM sits in one of the added folders (or below it). */
 bool rom_in_added_folder(const char *root, const char *rom);
 /* DATA/roms, then each line of DATA/roms-folders.txt (blank lines and # comments skipped, surrounding spaces and
- * quotes dropped); sorted by label, a path listed twice kept once. */
+ * quotes dropped); sorted by name, a path listed twice kept once. */
 void rom_list_load(struct rom_list *l, const char *root, bool nds);
 void rom_list_free(struct rom_list *l);
 

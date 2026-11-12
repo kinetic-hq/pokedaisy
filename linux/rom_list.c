@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "game_name.h"
 #include "pocket_os.h"
 
 bool rom_list_playable(const char *name, bool nds) {
@@ -55,10 +56,25 @@ static void add(struct rom_list *l, const char *folder, const char *name) {
       return;
     }
     l->labels = q;
+    char **r = realloc(l->names, cap * sizeof *r);
+    if (!r) {
+      free(path);
+      return;
+    }
+    l->names = r;
     l->cap = cap;
   }
   l->paths[l->count] = path;
   l->labels[l->count] = path + strlen(folder) + 1;
+  char shown[256];
+  game_display_name(l->labels[l->count], game_header_is_pokemon(path), shown, sizeof shown);
+  size_t len = strlen(shown) + 1;
+  l->names[l->count] = malloc(len);
+  if (!l->names[l->count]) {
+    free(path);
+    return;
+  }
+  memcpy(l->names[l->count], shown, len);
   l->count++;
 }
 
@@ -95,7 +111,9 @@ void rom_list_scan(struct rom_list *l, const char *folder, bool nds) {
 static int by_label(const void *a, const void *b) {
   const char *const *x = a, *const *y = b;
   int c = strcasecmp(x[0], y[0]);
-  return c ? c : strcmp(x[1], y[1]);
+  if (!c)
+    c = strcasecmp(x[1], y[1]);
+  return c ? c : strcmp(x[2], y[2]);
 }
 
 int rom_folders_read(const char *root, char folders[][POCKET_FOLDER_MAX], int max) {
@@ -177,27 +195,32 @@ void rom_list_load(struct rom_list *l, const char *root, bool nds) {
   int n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
   for (int i = 0; i < n; i++)
     rom_list_scan(l, folders[i], nds);
-  // Sorted as pairs (label, path), so both arrays keep in step.
-  char **pairs = malloc(2 * (size_t)l->count * sizeof *pairs);
+  // Sorted as triples (name, label, path), so the arrays keep in step.
+  char **pairs = malloc(3 * (size_t)l->count * sizeof *pairs);
   if (!pairs)
     return;
   for (int i = 0; i < l->count; i++) {
-    pairs[2 * i] = l->labels[i];
-    pairs[2 * i + 1] = l->paths[i];
+    pairs[3 * i] = l->names[i];
+    pairs[3 * i + 1] = l->labels[i];
+    pairs[3 * i + 2] = l->paths[i];
   }
-  qsort(pairs, l->count, 2 * sizeof *pairs, by_label);
+  qsort(pairs, l->count, 3 * sizeof *pairs, by_label);
   for (int i = 0; i < l->count; i++) {
-    l->labels[i] = pairs[2 * i];
-    l->paths[i] = pairs[2 * i + 1];
+    l->names[i] = pairs[3 * i];
+    l->labels[i] = pairs[3 * i + 1];
+    l->paths[i] = pairs[3 * i + 2];
   }
   free(pairs);
 }
 
 void rom_list_free(struct rom_list *l) {
-  for (int i = 0; i < l->count; i++)
+  for (int i = 0; i < l->count; i++) {
     free(l->paths[i]);
+    free(l->names[i]);
+  }
   free(l->paths);
   free(l->labels);
+  free(l->names);
   *l = (struct rom_list){0};
 }
 
