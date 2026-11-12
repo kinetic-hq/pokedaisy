@@ -481,8 +481,8 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   grows in each, how far along it is, the time left until its next step (or
   until ripe berries fall) and `DRY` when it needs water.
 - **`TOUCH PIECES`**: the top screen in the middle and the touch screen taken
-  apart, button by button, into the two wings. In HeartGold and SoulSilver the
-  battle's buttons each get a card of their own: FIGHT in one wing and the
+  apart, button by button, into the two wings. In HeartGold, SoulSilver and
+  Platinum the battle's buttons each get a card of their own: FIGHT in one wing and the
   other three in the other; your moves, two to a wing; the bag's pockets; your
   party, three to a wing; with `BACK` or `CANCEL` as a button of its own under
   them. The buttons are drawn as large as both wings allow, so neither wing is

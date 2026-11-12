@@ -119,7 +119,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **DS wings** on the desktop host: `TOUCH IN WING` puts the touch screen in one wing and the companion's party in
   the other; `WINGS` is `ONE SCREEN` with party and trainer panels in both wings and the touch screen floating in;
   `TOUCH PIECES` takes the touch screen apart into its buttons, each on a card in the wings, balanced between them
-  (HeartGold / SoulSilver's battle menu, moves, bag and party; other screens and games get the screen's two halves).
+  (HeartGold / SoulSilver's and Platinum's battle menu, moves, bag and party; other screens and games get the screen's
+  two halves).
 - **Low PP warning** on the desktop host: a move's PP turns orange at a quarter left (2 where the full PP isn't known)
   and red at 0, in the summary, the party's move list and the battle's moves.
 - **Level cap** on the desktop host: SETTINGS > GAMEPLAY > LEVEL CAP takes the next unbeaten leader's top level as the

@@ -22,9 +22,8 @@ static std::vector<uint32_t> outlines(const DsPieceScreen& sc){
     for(int y=c.y;y<std::min(192,c.y+c.h);y++){px[y*256+c.x]=0xFF414141u;px[y*256+c.x+c.w-1]=0xFF414141u;}}
   return px;
 }
-int main(){
-  const DsPieceGame& game=*ds_pieces_game("IPGE");
-  assert(ds_pieces_game("IPKE")==&game && ds_pieces_game("CPUE")==nullptr && ds_pieces_game(nullptr)==nullptr);
+static void check(const DsPieceGame& game,const char* name){
+  std::printf("%s\n",name);
   // Recognition: each screen's own outlines and nothing else; a blank screen is none.
   for(int s=0;s<game.count;s++){auto px=outlines(game.screens[s]);assert(ds_pieces_detect(game,px.data())==s);}
   {std::vector<uint32_t> blank(256*192,0xFFF7FFEBu);assert(ds_pieces_detect(game,blank.data())==-1);}
@@ -86,5 +85,14 @@ int main(){
   // The FIGHT button keeps the BAG / POKEMON / RUN buttons together in the other wing.
   const DsPieceScreen& cmd=game.screens[0];
   assert(cmd.pieces[1].wing==cmd.pieces[2].wing && cmd.pieces[2].wing==cmd.pieces[3].wing && cmd.pieces[0].wing!=cmd.pieces[1].wing);
+}
+int main(){
+  const DsPieceGame& hgss=*ds_pieces_game("IPGE");
+  const DsPieceGame& platinum=*ds_pieces_game("CPUE");
+  assert(ds_pieces_game("IPKE")==&hgss && &platinum!=&hgss && ds_pieces_game("ADAE")==nullptr && ds_pieces_game(nullptr)==nullptr);
+  check(hgss,"HeartGold / SoulSilver");
+  check(platinum,"Platinum");
+  // Neither game's screens pass for the other's.
+  for(int s=0;s<platinum.count;s++){auto px=outlines(platinum.screens[s]);int h=ds_pieces_detect(hgss,px.data());assert(h<0 || h==s);}
   std::printf("touch pieces: ok\n");
 }
