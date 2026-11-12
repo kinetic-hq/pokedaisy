@@ -43,6 +43,8 @@ struct DsDexArt {
   std::vector<int> regional; // species by displayed regional number (Gen 5 starts at zero)
   std::vector<uint8_t> pictures,learnsets;
   std::vector<uint8_t> tutors;  // Origin HeartGold: /data/tutor_moves.narc (its machines' fit rule, ds_dex_page)
+  std::vector<uint8_t> machineBits;  // HeartFelt Gold: hg-engine's machine learnsets, a bit per machine, by species id
+  std::vector<int> machineMoves;     // HeartFelt Gold: each machine's move, in hg-engine's machine order
   std::vector<DsDexEvolution> evolutions;
 };
 DsDexArt ds_dex_art(const std::vector<uint8_t>&,DsGame);
