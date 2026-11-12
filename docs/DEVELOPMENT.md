@@ -1,7 +1,9 @@
 # PokeDaisy - developer notes
 
 How PokeDaisy is built, how each game is read, and how to work on it. For what
-the app does and how to install it, see the [README](../README.md).
+the app does and how to install it, see the [README](../README.md). The project notes
+that used to fill CLAUDE.md (Lidor Itzhari's guidance, with this fork's additions) are in
+[notes/](notes/), split by area.
 
 Dual-screen Android app for the AYN Thor and the Retroid Pocket Duo Lite (its
 4:3 1280x960 bottom screen: `DuoLiteCompanionScreenshotTest`; the original Duo

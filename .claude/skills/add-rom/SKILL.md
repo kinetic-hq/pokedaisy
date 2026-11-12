@@ -7,7 +7,7 @@ description: Add PokeDaisy support for a ROM - a new ROM hack, a new version / b
 
 The work always runs in the same order: **identify → save → capture → prove → implement → extras → books → checklist**.
 The two scripts below cover the steps a script can do. You prove the addresses; that part can't be skipped.
-CLAUDE.md stays the authority on every rule. This skill only puts those rules in order.
+CLAUDE.md (and the notes it points to in docs/notes/) stays the authority on every rule. This skill only puts those rules in order.
 
 ## Interactive here, or the unattended agent?
 
@@ -120,8 +120,8 @@ Anything partly right stays off: say what was left out and why.
 - **docs/manual/supported-games.md**: the manual's rules apply. Plain, second person, **no em / en dashes or spaced
   hyphens, no real Pokémon / move / item names** (name the game only).
 - **docs/DEVELOPMENT.md**: a "Supported ROMs" row and, if the mapping had surprises, a section in the siblings' style.
-- **CLAUDE.md**: a short paragraph **only** for a gotcha a future change would trip on. It's loaded in every session, so
-  keep it short.
+- **docs/notes/ui-and-features.md** (the old CLAUDE.md notes): a short paragraph **only** for a gotcha a future change
+  would trip on, beside the sibling's. CLAUDE.md itself stays rules only.
 - **NOTICE**: only if something new is bundled. It shouldn't be: no game art, ever.
 
 ## 7. Tests
@@ -165,4 +165,4 @@ When a game teaches something the next one needs, put it where it applies:
 - a new kind of ROM into a new playbook, plus `classify()` in `scripts/rom_identify.py`;
 - a new place a ROM must reach into `scripts/rom_checklist.py`.
 
-Keep CLAUDE.md for rules, not per-game detail.
+Keep CLAUDE.md for rules, not per-game detail: per-game notes go in docs/notes/.
