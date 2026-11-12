@@ -27,6 +27,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->levelCap = false;
     s->resumeGames = true;
     s->rumble = false;
+    s->batterySaver = PD_SAVER_AUTO;
     s->quickGrid = false;
     s->lcdFilter = false;
     s->quickBtn = PD_BTN_Y;
@@ -106,6 +107,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "ffnormal")) s->ffNormal = atoi(value) != 0;
         else if (!strcmp(key, "cheats")) s->cheats = atoi(value) != 0;
         else if (!strcmp(key, "theme")) int_in(value, 0, 99, &s->theme);
+        else if (!strcmp(key, "batterysaver")) int_in(value, 0, PD_SAVER_COUNT - 1, &s->batterySaver);
         else if (!strcmp(key, "aspect")) int_in(value, 0, PD_ASPECTS - 1, &s->aspect);
         else if (!strcmp(key, "view")) int_in(value, 0, PD_COMPANION_VIEWS - 1, &s->companionView);
         else if (!strcmp(key, "panellock")) s->panelLocked = atoi(value) != 0;
@@ -205,8 +207,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "scaling=%d\nffaudio=%d\nrewind=%d\nrunindoors=%d\n", s->scaling, s->ffAudio ? 1 : 0,
             s->rewind ? 1 : 0, s->runIndoors ? 1 : 0);
     fprintf(f, "quickbtn=%d\ncompanionbtn=%d\nhudbtn=%d\n", s->quickBtn, s->companionBtn, s->hudBtn);
-    fprintf(f, "levelcap=%d\nresume=%d\nrumble=%d\n", s->levelCap ? 1 : 0, s->resumeGames ? 1 : 0,
-            s->rumble ? 1 : 0);
+    fprintf(f, "levelcap=%d\nresume=%d\nrumble=%d\nbatterysaver=%d\n", s->levelCap ? 1 : 0, s->resumeGames ? 1 : 0,
+            s->rumble ? 1 : 0, s->batterySaver);
     fprintf(f, "dark=%d\ntheme=%d\nffnormal=%d\ncheats=%d\n", s->darkMode, s->theme, s->ffNormal, s->cheats);
     fprintf(f, "speed=%d\nvolume=%d\nnohints=%d\nonetap=%d\nmute=%d\nautorun=%d\nperf=%d\n", s->gameSpeed,
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);

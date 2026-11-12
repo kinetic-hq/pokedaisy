@@ -305,6 +305,7 @@ static unsigned hostActions;  // HA_* bits pressed since the game loop last look
 static bool screenshotWanted; // the next present writes DATA/screenshots/...
 static int gameTouch; // GAME TOUCH, enum pd_game_touch
 static void orientation_set(int o);
+static int saverMode = PD_SAVER_AUTO; // BATTERY SAVER, kept by controls_load and the game loop
 static void controls_load(void) {
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
@@ -314,6 +315,7 @@ static void controls_load(void) {
   memcpy(hotkeyMap, st.hotkeys, sizeof hotkeyMap);
   gameTouch = st.gameTouch;
   orientation_set(st.orientation);
+  saverMode = st.batterySaver;
 }
 /* REWIND HOLD: held, not pressed - the HOTKEYS button (or trigger, or stick) bound to it, or R on a keyboard while
  * REWIND is on. Any button bound to it keeps the ring running, as the setting does. */
@@ -2464,6 +2466,7 @@ static void settings_host_wide(struct pd_settings *dst, const struct pd_settings
   dst->updateCheck = src->updateCheck;
   dst->resumeGames = src->resumeGames;
   dst->rumble = src->rumble;
+  dst->batterySaver = src->batterySaver;
   dst->fullscreen = src->fullscreen;
   dst->savesBeside = src->savesBeside;
   dst->boxartAuto = src->boxartAuto;
@@ -2482,6 +2485,24 @@ static void settings_put(const struct pd_settings *s, const char *config) {
   pd_settings_load(&g, config);
   settings_host_wide(&g, s);
   pd_settings_save(&g, config);
+}
+/* BATTERY SAVER (settings.batterySaver): AUTO saves while the machine runs on its battery (checked every few
+ * seconds), ON always. Saving: fast forward at most 3x, xBRZ drawn as SHARP, the companion and the game list redrawn
+ * half as often. */
+static bool saver_active(void) {
+  static uint32_t checked;
+  static bool onBattery;
+  if (saverMode == PD_SAVER_ON)
+    return true;
+  if (saverMode != PD_SAVER_AUTO)
+    return false;
+  uint32_t t = SDL_GetTicks();
+  if (!checked || t - checked > 3000) {
+    checked = t ? t : 1;
+    int secs, pct;
+    onBattery = SDL_GetPowerInfo(&secs, &pct) == SDL_POWERSTATE_ON_BATTERY || getenv("POCKET_ON_BATTERY");
+  }
+  return onBattery;
 }
 static void run_game(const char *path, int maxFrames, const char *shot) {
   {
@@ -2709,6 +2730,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   host.hasResume = true;
   host.hasRumble = true;
   host.hasPerGame = true;
+  host.hasSaver = true;
   host.perGame = *gameConfig != 0;
   slotsStale = true;
   /* RESUME GAMES: leaving a game leaves states/<rom>.resume.ss; the next start asks CONTINUE or START FROM SAVE.
@@ -2768,7 +2790,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     lastStart = frameStart;
     rewind_follow(settings.rewind || rewindBound || rewind_hotkey());
     lcdEnabled = settings.lcdFilter;
-    pocket_shader_set(settings.shader, settings.colors, false);
+    saverMode = settings.batterySaver;
+    bool saving = saver_active();
+    host.saving = saving;
+    pocket_shader_set(saving && settings.shader == POCKET_SHADER_XBRZ ? POCKET_SHADER_SHARP : settings.shader,
+                      settings.colors, false);
     oledBlack = settings.colors == POCKET_COLORS_OLED;
     dimCompanion = settings.dimCompanion;
     reduceMotion = settings.reduceMotion;
@@ -3241,6 +3267,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       muted = (fast && !settings.ffAudio) || rewinding;
       c->setKeys(c, ((quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023) | (gameKeyFrames > 0 ? gameKeys : 0));
       int count = fast ? ff_frames(&settings, hz, frameCost) : 1;
+      if (saving && count > 3)
+        count = 3;
       audio_rate(c, hz, count);
       uint64_t runStart = SDL_GetPerformanceCounter();
       for (int i = 0; i < count; i++) {
@@ -3463,6 +3491,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     uint64_t now = SDL_GetPerformanceCounter();
     pacing_check((double)(now - lastFrame) * 1000.0 / SDL_GetPerformanceFrequency());
     lastFrame = now;
+    if (saving && companion && !maxFrames)
+      SDL_Delay(16); // the game waits under the companion: half the redraws
     if (vsyncPaced) {
       due = now; // the present waited for the refresh: that's the pace
       continue;
@@ -3521,7 +3551,7 @@ static bool menu_frame(void) {
     running = 0;
     return true;
   }
-  SDL_Delay(16);
+  SDL_Delay(saver_active() ? 33 : 16);
   return false;
 }
 static void menu_script(void) {
@@ -3980,6 +4010,7 @@ enum {
   ROW_BEZEL_STYLE,
   ROW_BEZEL,
   ROW_RUMBLE,
+  ROW_SAVER,
   ROW_BEZEL_SLOT0 = 80,
   ROW_HOTKEY0 = 100
 };
@@ -4036,6 +4067,11 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_HOTKEYS, "HOTKEYS" PD_MENU_PAGE);
       ROW(ROW_RUMBLE, "RUMBLE\t%s", st.rumble ? "ON" : "OFF");
       ROW(0, PD_MENU_GROUP "APP");
+      {
+        static const char *const SAVER[PD_SAVER_COUNT] = {"AUTO", "ON", "OFF"};
+        int v = st.batterySaver >= 0 && st.batterySaver < PD_SAVER_COUNT ? st.batterySaver : 0;
+        ROW(ROW_SAVER, "BATTERY SAVER\t%s", v == PD_SAVER_AUTO && saver_active() ? "AUTO, SAVING" : SAVER[v]);
+      }
       ROW(ROW_UPDATES, "CHECK FOR UPDATES\t%s", st.updateCheck ? "ON" : "OFF");
       ROW(ROW_SETUP, "RUN SETUP" PD_MENU_PAGE);
       ROW(0, "VERSION\t" PD_MENU_MUTED "%s", POCKET_VERSION);
@@ -4177,6 +4213,10 @@ static int settings_page(bool *foldersChanged) {
       break;
     case ROW_UPDATES:
       st.updateCheck = !st.updateCheck;
+      break;
+    case ROW_SAVER:
+      st.batterySaver = (st.batterySaver + 1) % PD_SAVER_COUNT;
+      saverMode = st.batterySaver;
       break;
     case ROW_RUMBLE:
       st.rumble = !st.rumble;

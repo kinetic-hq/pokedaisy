@@ -149,9 +149,11 @@ static void test_replace(void) {
   set.levelCap = true;
   set.resumeGames = false;
   set.rumble = true;
+  set.batterySaver = PD_SAVER_OFF;
   assert(pd_settings_save(&set, ini));
   pd_settings_defaults(&back);
-  assert(pd_settings_load(&back, ini) && back.ffSpeed == 4 && back.levelCap && !back.resumeGames && back.rumble);
+  assert(pd_settings_load(&back, ini) && back.ffSpeed == 4 && back.levelCap && !back.resumeGames && back.rumble &&
+         back.batterySaver == PD_SAVER_OFF);
   assert(pocket_remove(ini));
   assert(pocket_remove(a) && !pocket_exists(a));
   assert(pocket_mkdir(dir) && pocket_rmdir(dir)); // mkdir of an existing one is fine
