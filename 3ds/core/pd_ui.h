@@ -105,6 +105,7 @@ struct pd_settings {
     bool ffAudio;    // the game's sound sped up under fast-forward, else silent
     bool rewind;     // REWIND: the last ~20 s kept for the rewind hotkey
     bool runIndoors; // RUN INDOORS: every map lets the player run
+    int batterySaver; // BATTERY SAVER: enum pd_battery_saver
     bool rumble;      // RUMBLE: the controller buzzes as a battle starts, harder for a shiny foe, and for rumble carts
     bool resumeGames; // RESUME GAMES: a state on leaving a game, offered back (CONTINUE) at its next start
     bool levelCap;   // LEVEL CAP: party levels past the next boss's top level show orange (a Nuzlocke's rule)
@@ -146,6 +147,9 @@ struct pd_settings {
     int bezelStyle;    // ... and the bezel bars (linux/bezel.h): BEZEL STYLE, -1 = by BACKGROUND
     int bezelSlots[6]; // ... and what each of their six places shows (BEZEL_* items)
 };
+
+// BATTERY SAVER (the desktop host): AUTO saves only while the machine runs on its battery.
+enum pd_battery_saver { PD_SAVER_AUTO, PD_SAVER_ON, PD_SAVER_OFF, PD_SAVER_COUNT };
 
 // COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.
 enum pd_companion_view {
@@ -242,6 +246,8 @@ struct pd_host_info {
     bool hasUpdateCheck;   // Optional: CHECK FOR UPDATES' row (settings.updateCheck)
     bool hasResume;        // Optional: RESUME GAMES' row (settings.resumeGames)
     bool hasRumble;        // Optional: RUMBLE's row in CONTROLS (settings.rumble)
+    bool hasSaver;         // Optional: BATTERY SAVER's row in APP (settings.batterySaver) ...
+    bool saving;           // ... and whether it is saving right now (AUTO on battery, or ON)
     bool hasPerGame;       // Optional: THIS GAME ONLY's row in APP ...
     bool perGame;          // ... on: this game keeps its own settings
     bool hasShaders;       // Optional: SHADER, COLORS and DIM COMPANION's rows
