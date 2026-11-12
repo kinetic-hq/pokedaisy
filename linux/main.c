@@ -2841,16 +2841,18 @@ static const char *menu_title(const char *title, char *buf, size_t size) {
   }
   return title;
 }
+/* Where the games go, shown while a list has none. */
+#ifdef _WIN32
+#define ROMS_PATH "DATA\\roms\\"
+#else
+#define ROMS_PATH "DATA/roms/"
+#endif
 /* A pick-list: the chosen row, or -1 for B (or the app closing). */
 static int menu_pick(const char *title, const char *const *items, int count, int selected) {
   char shortTitle[1100];
   struct pd_menu m;
   pd_menu_init(&m, menu_title(title, shortTitle, sizeof shortTitle), items, count);
-#ifdef _WIN32
-  m.emptyPath = "DATA\\roms\\";
-#else
-  m.emptyPath = "DATA/roms/";
-#endif
+  m.emptyPath = ROMS_PATH;
   m.selected = selected >= 0 && selected < count ? selected : 0;
   while (running) {
     events();
@@ -2878,6 +2880,8 @@ static int menu_pick(const char *title, const char *const *items, int count, int
 extern const struct pd_layout_option *pd_ds_layouts(int *count);
 extern int pd_ds_layout_load(const char *root);
 extern bool pd_ds_layout_save(const char *root, int layout);
+extern bool pd_ds_wing_left_load(const char *root);
+extern bool pd_ds_wing_left_save(const char *root, bool left);
 #endif
 /* LAYOUT's picker from the game list's Settings: the layouts as drawn tiles (pd_layout_pick.h). The D-pad walks
  * them, A or a tap picks one, B leaves. The picked index, or -1. */
@@ -3004,106 +3008,295 @@ static bool folders_screen(void) {
   }
   return changed;
 }
-/* CONTROLS: BUTTON LAYOUT and what each extra pad button does (HOTKEYS), saved to DATA/settings.ini at once. */
-static void controls_screen(void) {
-  char path[1100];
-  snprintf(path, sizeof path, "%s/settings.ini", root);
-  int selected = 0;
-  while (running) {
-    struct pd_settings st;
-    pd_settings_load(&st, path);
-    static char rows[PD_HOTKEY_BUTTONS + 1][64];
-    const char *items[PD_HOTKEY_BUTTONS + 1];
-    snprintf(rows[0], sizeof rows[0], "BUTTON LAYOUT: %s", st.buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
-    for (int i = 0; i < PD_HOTKEY_BUTTONS; i++)
-      snprintf(rows[i + 1], sizeof rows[i + 1], "%s: %s", HOTKEY_BUTTON_NAMES[i], HOTKEY_ACTIONS[st.hotkeys[i]]);
-    for (int i = 0; i <= PD_HOTKEY_BUTTONS; i++)
-      items[i] = rows[i];
-    int pick = menu_pick("CONTROLS", items, PD_HOTKEY_BUTTONS + 1, selected);
-    if (pick < 0)
-      return;
-    selected = pick;
-    if (pick == 0)
-      st.buttonLayout = (st.buttonLayout + 1) % PD_BUTTON_LAYOUTS;
-    else {
-      int action = menu_pick(HOTKEY_BUTTON_NAMES[pick - 1], HOTKEY_ACTIONS, PD_HOTKEY_ACTIONS, st.hotkeys[pick - 1]);
-      if (action < 0)
-        continue;
-      st.hotkeys[pick - 1] = (unsigned char)action;
-    }
-    pd_settings_save(&st, path);
-    controls_load();
-  }
+/* The library's rail (the app's LibraryNav: GAMES / SETTINGS down the left; the app's TOOLS has nothing this host
+ * runs) and the game list's header button (the app's +, here ADD GAMES: GAME FOLDERS). */
+static const char *const RAIL[] = {"GAMES", "SETTINGS"};
+enum { RAIL_GAMES, RAIL_SETTINGS };
+static const char *const GAMES_ACTIONS[] = {"+ ADD GAMES"};
+static void rail_setup(struct pd_menu *m, int open) {
+  m->nav = RAIL;
+  m->navCount = 2;
+  m->navSelected = open;
 }
-/* SCREEN: COMPANION VIEW, DS LAYOUT (each a LAYOUT picker of drawn tiles), FULLSCREEN, ORIENTATION and GAME TOUCH from
- * the game list, saved to DATA/settings.ini (DS LAYOUT: DATA/ds-settings.ini) at once. */
-static void screen_screen(void) {
+static int first_pickable(const struct pd_menu *m) {
+  for (int i = 0; i < m->count; i++)
+    if (pd_menu_pickable(m, i))
+      return i;
+  return -1;
+}
+/* The D-pad on the rail and the header: LEFT from the list goes to the rail, UP / DOWN there open the next page,
+ * RIGHT (or A) goes back to the list; UP from the list's first row (or from the rail's top) goes to the header's
+ * buttons. Returns the rail item to open (-1: none) and sets *act to a header button picked (-1: none); *listKeys
+ * says whether the list still takes this frame's keys. */
+static int rail_keys(struct pd_menu *m, int *act, bool *listKeys) {
+  int open = -1, before = m->focus;
+  *act = -1;
+  if (before == PD_MENU_FOCUS_NAV) {
+    if (down(UP) && m->navSelected > 0)
+      open = m->navSelected - 1;
+    else if (down(UP) && m->actionCount)
+      m->focus = PD_MENU_FOCUS_ACTIONS;
+    if (down(DOWN) && m->navSelected < m->navCount - 1)
+      open = m->navSelected + 1;
+    if (down(RIGHT) || down(A))
+      m->focus = PD_MENU_FOCUS_LIST;
+  } else if (before == PD_MENU_FOCUS_ACTIONS) {
+    if (down(LEFT)) {
+      if (m->actionSelected > 0)
+        m->actionSelected--;
+      else if (m->navCount)
+        m->focus = PD_MENU_FOCUS_NAV;
+    }
+    if (down(RIGHT) && m->actionSelected < m->actionCount - 1)
+      m->actionSelected++;
+    if (down(DOWN))
+      m->focus = PD_MENU_FOCUS_LIST;
+    if (down(A))
+      *act = m->actionSelected;
+  } else {
+    if (down(LEFT) && m->navCount)
+      m->focus = PD_MENU_FOCUS_NAV;
+    else if (down(UP) && m->actionCount && (m->count == 0 || m->selected == first_pickable(m)))
+      m->focus = PD_MENU_FOCUS_ACTIONS;
+  }
+  *listKeys = before == PD_MENU_FOCUS_LIST && m->focus == PD_MENU_FOCUS_LIST;
+  return open;
+}
+/* A rail / header tap from the last menu_taps. */
+static int rail_taps(struct pd_menu *m, int *act) {
+  int open = m->navPicked;
+  if (m->actionPicked >= 0)
+    *act = m->actionPicked;
+  m->navPicked = m->actionPicked = -1;
+  return open;
+}
+/* The game list's SETTINGS: the app's top-screen Settings in its groups and order (SCREEN, LIBRARY, CONTROLS, APP;
+ * its FF / SPEED and ONLINE rows have nothing to set here), with its sub-pages DISPLAY OPTIONS, GAME BUTTONS and
+ * HOTKEYS. COMPANION VIEW and DS LAYOUT open the LAYOUT pickers. Saved to DATA/settings.ini (DS LAYOUT:
+ * DATA/ds-settings.ini) at once. Returns the rail item to open next (RAIL_GAMES), or -1 when the app closes;
+ * *foldersChanged says the game list needs reading again. */
+enum { PAGE_SET_HOME, PAGE_SET_DISPLAY, PAGE_SET_BUTTONS, PAGE_SET_HOTKEYS };
+enum {
+  ROW_VIEW = 1,
+  ROW_DS,
+  ROW_DS_SIDE,
+  ROW_DISPLAY,
+  ROW_FOLDERS,
+  ROW_BUTTONS,
+  ROW_HOTKEYS,
+  ROW_UPDATES,
+  ROW_SHADER,
+  ROW_COLORS,
+  ROW_DIM,
+  ROW_FULL,
+  ROW_ORIENT,
+  ROW_TOUCH,
+  ROW_LAYOUT,
+  ROW_HOTKEY0 = 100
+};
+static int settings_page(bool *foldersChanged) {
   static const char *const ORIENTATIONS[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED",
                                                             "PORTRAIT FLIPPED"};
+  static const char *const SHADERS[PD_SHADERS] = {"OFF", "SHARP", "xBRZ"};
+  static const char *const COLORS[PD_COLORS] = {"ORIGINAL", "HANDHELD", "OLED"};
+  static const char *const TITLES[] = {"SETTINGS", "DISPLAY OPTIONS", "GAME BUTTONS", "HOTKEYS"};
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
-  int selected = 0;
+  int page = PAGE_SET_HOME, homeRow = -1, focus = PD_MENU_FOCUS_LIST;
+  int selectedOn[4] = {-1, -1, -1, -1};
   while (running) {
     struct pd_settings st;
     pd_settings_load(&st, path);
     const struct pd_layout_option *views = companion_layouts();
-    int dsCount = 0;
+    int dsCount = 0, dsLayout = 0;
+    bool dsWingLeft = false;
     const struct pd_layout_option *dsLayouts = NULL;
-    int dsLayout = 0;
 #ifdef POCKET_DS
     dsLayouts = pd_ds_layouts(&dsCount);
     dsLayout = pd_ds_layout_load(root);
+    dsWingLeft = pd_ds_wing_left_load(root);
 #else
     (void)dsCount;
 #endif
-    char rows[5][64];
-    const char *items[5];
-    int n = 0, ids[5];
-    snprintf(rows[n], sizeof rows[n], "COMPANION VIEW: %s", views[st.companionView].name);
-    ids[n++] = 3;
-    if (dsLayouts) {
-      snprintf(rows[n], sizeof rows[n], "DS LAYOUT: %s", dsLayouts[dsLayout].name);
-      ids[n++] = 4;
+    static char rows[PD_HOTKEY_BUTTONS + 16][96];
+    const char *items[PD_HOTKEY_BUTTONS + 16];
+    int ids[PD_HOTKEY_BUTTONS + 16], n = 0;
+#define ROW(id, ...)                                                                                                   \
+  do {                                                                                                                 \
+    snprintf(rows[n], sizeof rows[n], __VA_ARGS__);                                                                    \
+    ids[n++] = (id);                                                                                                   \
+  } while (0)
+    if (page == PAGE_SET_HOME) {
+      ROW(0, PD_MENU_GROUP "SCREEN");
+      ROW(ROW_VIEW, "COMPANION VIEW\t%s", views[st.companionView].name);
+      if (dsLayouts) {
+        ROW(ROW_DS, "DS LAYOUT\t%s", dsLayouts[dsLayout].name);
+        ROW(ROW_DS_SIDE, "DS WING SIDE\tTOUCH %s", dsWingLeft ? "LEFT" : "RIGHT");
+      }
+      ROW(ROW_DISPLAY, "DISPLAY OPTIONS" PD_MENU_PAGE);
+      ROW(0, PD_MENU_GROUP "LIBRARY");
+      ROW(ROW_FOLDERS, "GAME FOLDERS" PD_MENU_PAGE);
+      ROW(0, PD_MENU_GROUP "CONTROLS");
+      ROW(ROW_BUTTONS, "GAME BUTTONS" PD_MENU_PAGE);
+      ROW(ROW_HOTKEYS, "HOTKEYS" PD_MENU_PAGE);
+      ROW(0, PD_MENU_GROUP "APP");
+      ROW(ROW_UPDATES, "CHECK FOR UPDATES\t%s", st.updateCheck ? "ON" : "OFF");
+      ROW(0, "VERSION\t" PD_MENU_MUTED "%s", POCKET_VERSION);
+    } else if (page == PAGE_SET_DISPLAY) {
+      ROW(ROW_SHADER, "SHADER\t%s", SHADERS[st.shader >= 0 && st.shader < PD_SHADERS ? st.shader : 0]);
+      ROW(ROW_COLORS, "COLORS\t%s", COLORS[st.colors >= 0 && st.colors < PD_COLORS ? st.colors : 0]);
+      ROW(ROW_DIM, "DIM COMPANION\t%s", st.dimCompanion ? "ON" : "OFF");
+      ROW(ROW_FULL, "FULLSCREEN\t%s", fullscreenOn ? "ON" : "OFF");
+      ROW(ROW_ORIENT, "ORIENTATION\t%s", ORIENTATIONS[st.orientation]);
+      ROW(ROW_TOUCH, "GAME TOUCH\t%s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
+    } else if (page == PAGE_SET_BUTTONS) {
+      ROW(ROW_LAYOUT, "BUTTON LAYOUT\t%s", st.buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
+    } else {
+      for (int i = 0; i < PD_HOTKEY_BUTTONS; i++)
+        ROW(ROW_HOTKEY0 + i, "%s\t%s", HOTKEY_BUTTON_NAMES[i], HOTKEY_ACTIONS[st.hotkeys[i]]);
     }
-    snprintf(rows[n], sizeof rows[n], "FULLSCREEN: %s", fullscreenOn ? "ON" : "OFF");
-    ids[n++] = 0;
-    snprintf(rows[n], sizeof rows[n], "ORIENTATION: %s", ORIENTATIONS[st.orientation]);
-    ids[n++] = 1;
-    snprintf(rows[n], sizeof rows[n], "GAME TOUCH: %s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
-    ids[n++] = 2;
+#undef ROW
     for (int i = 0; i < n; i++)
       items[i] = rows[i];
-    int row = menu_pick("SCREEN", items, n, selected);
-    if (row < 0)
-      return;
-    selected = row;
-    int pick = ids[row];
-    if (pick == 3) {
+    struct pd_menu m;
+    pd_menu_init(&m, TITLES[page], items, n);
+    rail_setup(&m, RAIL_SETTINGS);
+    m.focus = focus;
+    if (selectedOn[page] >= 0 && pd_menu_pickable(&m, selectedOn[page]))
+      m.selected = selectedOn[page];
+    int pick = -1, open = -1;
+    bool back = false;
+    while (running && pick < 0 && open < 0 && !back) {
+      events();
+      repeat_directions();
+      menu_script();
+      int act;
+      bool listKeys;
+      open = rail_keys(&m, &act, &listKeys);
+      int tapped = menu_taps(&m);
+      int tapOpen = rail_taps(&m, &act);
+      if (tapOpen >= 0)
+        open = tapOpen;
+      if (down(B) || down(MENU))
+        back = true;
+      else if (listKeys) {
+        if (down(UP))
+          pd_menu_move(&m, -1);
+        if (down(DOWN))
+          pd_menu_move(&m, 1);
+        if (down(A) && pd_menu_pickable(&m, m.selected))
+          pick = m.selected;
+      }
+      if (tapped >= 0)
+        pick = tapped;
+      if (open == RAIL_SETTINGS)
+        open = -1; // already here
+      companion_canvas();
+      pd_menu_draw(&m, &canvas);
+      if (menu_frame())
+        return -1;
+    }
+    if (!running)
+      return -1;
+    focus = m.focus;
+    selectedOn[page] = m.selected;
+    if (open >= 0)
+      return open;
+    if (back) {
+      if (page == PAGE_SET_HOME)
+        return RAIL_GAMES;
+      page = PAGE_SET_HOME;
+      if (homeRow >= 0)
+        selectedOn[PAGE_SET_HOME] = homeRow;
+      continue;
+    }
+    int id = ids[pick];
+    bool save = true;
+    switch (id) {
+    case ROW_VIEW: {
       int v = layout_pick("COMPANION VIEW", views, POCKET_VIEWS, st.companionView);
       if (v < 0)
-        continue;
-      st.companionView = v;
-    } else if (pick == 4) {
+        save = false;
+      else
+        st.companionView = v;
+      break;
+    }
+    case ROW_DS:
 #ifdef POCKET_DS
+    {
       int l = layout_pick("DS LAYOUT", dsLayouts, dsCount, dsLayout);
       if (l >= 0 && !pd_ds_layout_save(root, l))
         notice("Couldn't save DS LAYOUT");
-#endif
-      continue;
-    } else if (pick == 0) {
-      fullscreen_toggle(); // saves FULLSCREEN itself
-      continue;
     }
-    else if (pick == 1) {
+#endif
+      save = false;
+      break;
+    case ROW_DS_SIDE:
+#ifdef POCKET_DS
+      if (!pd_ds_wing_left_save(root, !dsWingLeft))
+        notice("Couldn't save DS WING SIDE");
+#endif
+      save = false;
+      break;
+    case ROW_DISPLAY:
+    case ROW_BUTTONS:
+    case ROW_HOTKEYS:
+      homeRow = pick;
+      page = id == ROW_DISPLAY ? PAGE_SET_DISPLAY : id == ROW_BUTTONS ? PAGE_SET_BUTTONS : PAGE_SET_HOTKEYS;
+      save = false;
+      break;
+    case ROW_FOLDERS:
+      if (folders_screen())
+        *foldersChanged = true;
+      save = false;
+      break;
+    case ROW_UPDATES:
+      st.updateCheck = !st.updateCheck;
+      break;
+    case ROW_SHADER:
+      st.shader = (st.shader + 1) % PD_SHADERS;
+      break;
+    case ROW_COLORS:
+      st.colors = (st.colors + 1) % PD_COLORS;
+      break;
+    case ROW_DIM:
+      st.dimCompanion = !st.dimCompanion;
+      break;
+    case ROW_FULL:
+      fullscreen_toggle(); // saves FULLSCREEN itself
+      save = false;
+      break;
+    case ROW_ORIENT: {
       int o = menu_pick("ORIENTATION", ORIENTATIONS, PD_ORIENTATIONS, st.orientation);
       if (o < 0)
-        continue;
-      st.orientation = o;
-    } else
+        save = false;
+      else
+        st.orientation = o;
+      break;
+    }
+    case ROW_TOUCH:
       st.gameTouch = st.gameTouch == PD_GAME_TOUCH_OFF ? PD_GAME_TOUCH_DS_SCREEN : PD_GAME_TOUCH_OFF;
-    pd_settings_save(&st, path);
-    controls_load();
+      break;
+    case ROW_LAYOUT:
+      st.buttonLayout = (st.buttonLayout + 1) % PD_BUTTON_LAYOUTS;
+      break;
+    default:
+      if (id >= ROW_HOTKEY0 && id < ROW_HOTKEY0 + PD_HOTKEY_BUTTONS) {
+        int b = id - ROW_HOTKEY0;
+        int action = menu_pick(HOTKEY_BUTTON_NAMES[b], HOTKEY_ACTIONS, PD_HOTKEY_ACTIONS, st.hotkeys[b]);
+        if (action < 0)
+          save = false;
+        else
+          st.hotkeys[b] = (unsigned char)action;
+      } else
+        save = false;
+    }
+    if (save) {
+      pd_settings_save(&st, path);
+      controls_load();
+    }
   }
+  return -1;
 }
 static bool update_prompt(void) {
   enum updater_state st = updater_state();
@@ -3325,16 +3518,15 @@ int main(int argc, char **argv) {
     rom_list_free(&games);                                                                                             \
     rom_list_load(&games, root, LIST_NDS);                                                                             \
     free(items);                                                                                                       \
-    items = malloc(sizeof *items * (size_t)(games.count + 3));                                                         \
+    items = malloc(sizeof *items * (size_t)(games.count + 1));                                                         \
     count = items ? games.count : 0;                                                                                   \
     for (int i = 0; i < count; i++)                                                                                    \
       items[i] = games.labels[i];                                                                                      \
-    if (items) {                                                                                                       \
-      items[count] = "GAME FOLDERS";                                                                                   \
-      items[count + 1] = "CONTROLS";                                                                                   \
-      items[count + 2] = "SCREEN";                                                                                     \
-    }                                                                                                                  \
-    pd_menu_init(&menu, POCKET_HOST_NAME, items, items ? count + 3 : 0);                                               \
+    pd_menu_init(&menu, POCKET_HOST_NAME, items, count);                                                               \
+    rail_setup(&menu, RAIL_GAMES);                                                                                     \
+    menu.actions = GAMES_ACTIONS;                                                                                      \
+    menu.actionCount = 1;                                                                                              \
+    menu.emptyPath = ROMS_PATH;                                                                                        \
   } while (0)
 #ifdef POCKET_DS
 #define LIST_NDS true
@@ -3355,31 +3547,41 @@ int main(int argc, char **argv) {
       }
       if (down(B) || down(MENU))
         break;
-      if (down(UP))
-        pd_menu_move(&menu, -1);
-      if (down(DOWN))
-        pd_menu_move(&menu, 1);
-      {
-        int tapped = menu_taps(&menu);
-        if (tapped >= 0 && tapped < menu.count) {
-          menu.selected = tapped;
-          pressed |= 1u << A;
-        }
+      int act, open;
+      bool listKeys;
+      open = rail_keys(&menu, &act, &listKeys);
+      int tapped = menu_taps(&menu);
+      int tapOpen = rail_taps(&menu, &act);
+      if (tapOpen >= 0)
+        open = tapOpen;
+      if (listKeys) {
+        if (down(UP))
+          pd_menu_move(&menu, -1);
+        if (down(DOWN))
+          pd_menu_move(&menu, 1);
       }
-      if (down(A) && menu.count) {
-        if (menu.selected == count) {
-          if (folders_screen()) {
-            LOAD_GAMES();
-            menu.selected = count; // stays on GAME FOLDERS
-          }
-        } else if (menu.selected == count + 1) {
-          controls_screen();
-        } else if (menu.selected == count + 2) {
-          screen_screen();
-        } else {
-          snprintf(path, sizeof path, "%s", games.paths[menu.selected]);
-          run_game(path, 0, NULL);
-        }
+      int play = tapped >= 0 && tapped < count ? tapped : listKeys && down(A) && count ? menu.selected : -1;
+      if (act == 0) {
+        // + ADD GAMES: GAME FOLDERS.
+        int focus = menu.focus;
+        if (folders_screen())
+          LOAD_GAMES();
+        menu.focus = focus;
+      } else if (open == RAIL_SETTINGS) {
+        bool changed = false;
+        int selected = menu.selected;
+        int next = settings_page(&changed);
+        if (changed)
+          LOAD_GAMES();
+        else
+          menu.selected = selected;
+        if (next < 0)
+          break;
+        menu.focus = PD_MENU_FOCUS_NAV;
+      } else if (play >= 0) {
+        menu.selected = play;
+        snprintf(path, sizeof path, "%s", games.paths[play]);
+        run_game(path, 0, NULL);
       }
       companion_canvas();
       pd_menu_draw(&menu, &canvas);

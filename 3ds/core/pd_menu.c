@@ -13,7 +13,7 @@
 // pd_list_box's frame: 1 + 1 + 2 + 1 + 2 px (the list window's layers).
 #define LIST_FRAME 7
 // The library rail's width (the app's LibraryNav, narrowed to the canvas) and a header button's height.
-#define RAIL_W 64
+#define RAIL_W 76
 #define ACTION_H (TITLE_H - 6)
 #define HINT_H 16
 

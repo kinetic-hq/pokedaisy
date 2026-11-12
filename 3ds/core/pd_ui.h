@@ -605,6 +605,13 @@ bool pd_ui_tick(struct pd_ui* ui, unsigned ms);
 // down a column, the battle's matchup (the foe, its types, your moves with their verdicts), the map round the player,
 // and a strip of up to three texts (left, centre, right) for above and below the game.
 void pd_ui_party_panel(struct pd_canvas*, const struct pd_game*, const struct pd_snapshot*);
+// The same, each slot's icon drawn by ICON (false: a Poke Ball stands in) for a host whose species aren't the GBA's
+// (the DS games); the game may be NULL, then the names are the snapshot's nicknames.
+typedef bool (*pd_ui_icon_fn)(struct pd_canvas*, void* ctx, int slot, int x, int y, bool fainted);
+void pd_ui_party_panel_icons(struct pd_canvas*, const struct pd_game*, const struct pd_snapshot*, pd_ui_icon_fn icon,
+                             void* ctx);
+// A narrow panel of facts under a title, each row "LABEL\tVALUE" (the value under its label).
+void pd_ui_facts_panel(struct pd_canvas*, const char* title, const char* const* rows, int count);
 void pd_ui_battle_panel(struct pd_canvas*, const struct pd_game*, const struct pd_snapshot*, const struct pd_battle_source*);
 void pd_ui_map_panel(struct pd_canvas*, const struct pd_game*, const struct pd_snapshot*, bool blink);
 void pd_ui_strip(struct pd_canvas*, const char* left, const char* middle, const char* right);

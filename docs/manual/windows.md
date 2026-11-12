@@ -30,8 +30,8 @@ whole folder to another PC or a memory card.
 ## Games in other folders
 
 Your games can stay where they are, in a folder another emulator or a sync app
-already uses. Pick `GAME FOLDERS` at the bottom of the game list, then
-`ADD A FOLDER`: you see your drives, `A` opens a folder, `B` goes back up, and
+already uses. Pick `+ ADD GAMES` at the top of the game list (or `SETTINGS` >
+`GAME FOLDERS` on its rail), then `ADD A FOLDER`: you see your drives, `A` opens a folder, `B` goes back up, and
 `USE THIS FOLDER` adds the one you're in, with a controller or the keyboard.
 Pick a folder on the `GAME FOLDERS` list to take it off the list again; its
 games and saves stay where they are.
@@ -109,14 +109,14 @@ Escape for the game menu.
 
 ### Button layout and hotkeys
 
-`CONTROLS` at the bottom of the game list sets up your controller.
-`BUTTON LAYOUT` says which face button is the game's A. Pick the one printed on
+`SETTINGS` > `CONTROLS` on the game list's rail sets up your controller.
+`GAME BUTTONS` > `BUTTON LAYOUT` says which face button is the game's A. Pick the one printed on
 your controller: `NINTENDO` (the default) makes the right button A and the
 bottom one B, as on a Nintendo style controller or a handheld with the A on the
 right; `XBOX` makes the button labelled A, the bottom one, the game's A. The
 companion's `SETTINGS` has the same `BUTTON LAYOUT` row.
 
-Below it, each extra button your controller may have gets a job: `GUIDE / HOME`,
+In `HOTKEYS`, each extra button your controller may have gets a job: `GUIDE / HOME`,
 `SHARE`, the four back `PADDLE` buttons, and `L3` and `R3` (the sticks pressed
 down). Pick one and choose `GAME MENU`, `COMPANION`, `FAST FORWARD`,
 `SAVE STATE`, `LOAD STATE`, `SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT NEXT`,
@@ -127,9 +127,14 @@ SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
 
 ### Screen, touch and orientation
 
-`SCREEN` at the bottom of the game list has `COMPANION VIEW`, `DS LAYOUT`,
-`FULLSCREEN`, `ORIENTATION` and `GAME TOUCH`; the companion's `SETTINGS` has the
-same rows (see "Where the settings are" below).
+The game list has a rail down its left: `GAMES` (the list) and `SETTINGS`.
+Press LEFT to reach the rail and RIGHT to go back to the list; UP from the top
+row reaches `+ ADD GAMES`. `SETTINGS` there is in the app's groups: `SCREEN`
+(`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE` and `DISPLAY OPTIONS`, which has
+`SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
+`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`), `CONTROLS` (`GAME BUTTONS`,
+`HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `VERSION`). The companion's
+`SETTINGS` has the same rows (see "Where the settings are" below).
 
 `ORIENTATION` turns the whole picture for a screen that is mounted another way:
 `LANDSCAPE` (the usual), `PORTRAIT` (a quarter turn clockwise),
@@ -153,7 +158,7 @@ folder than the one beside the program.
 
 On a wide screen the companion doesn't have to cover the game. Pick how it
 shares the screen in the companion's `SETTINGS` > `SCREEN` > `COMPANION VIEW`,
-in `SCREEN` at the bottom of the game list, or press the right stick (V on a
+in the game list's `SETTINGS`, or press the right stick (V on a
 keyboard) to step to the next one as you play. The picker draws every view as a
 small picture of the screen, so you can see where the game and the companion go
 before you choose; the new one takes over at once. A filled red mark is a view
@@ -199,7 +204,8 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `APP` | | `CHECK FOR UPDATES` |
 
 Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close
-with B. DS games keep their own `SET` tab, which has `DS LAYOUT`.
+with B. DS games keep their own `SET` tab, which has `DS LAYOUT` and
+`DS WING SIDE`.
 
 ## Shaders and colours
 
@@ -233,10 +239,11 @@ Each time a DS game starts its save is first copied to `DATA\backups`. DS save
 states go to `DATA\states` and never hold the save.
 
 `DS LAYOUT` picks where the two DS screens go in the window. Change it in the
-companion's `SET` tab, in `SCREEN` at the bottom of the game list, or hold
+companion's `SET` tab, in the game list's `SETTINGS`, or hold
 SELECT (Backspace) and press R2 (Space) for the next one or L2 (Tab) for the one
 before. The picker shows each layout as a small picture of the window, marked
-the same way as the companion views (`TOUCH IN WING` is the one added here):
+the same way as the companion views (`TOUCH IN WING` and `WINGS` are the ones
+added here):
 
 - **`ONE SCREEN`** (the first choice): the top screen fills the window. In
   Platinum (USA, revision 1) the touch screen floats in over the dimmed game
@@ -244,17 +251,30 @@ the same way as the companion views (`TOUCH IN WING` is the one added here):
   `PICTURE IN PICTURE` instead.
 - **`PICTURE IN PICTURE`**: the top screen fills the window and the touch
   screen sits small in its bottom right corner.
-- **`TOUCH IN WING`**: the top screen as tall as the window, and the touch
-  screen in the room beside it. A window too narrow for that gets `PICTURE IN
+- **`TOUCH IN WING`**: the top screen in the middle at the largest whole size
+  that leaves a wing on each side. The touch screen sits in one wing, level
+  with the top screen's bottom, and the companion fills the other: your party
+  down that wing, and your trainer's place, money, badges and dex above the
+  touch screen. `DS WING SIDE` puts the touch screen on the `LEFT` or the
+  `RIGHT` (the default). A window too narrow for that gets `PICTURE IN
   PICTURE`.
 - **`STACKED`**: the top screen over the touch screen, like the DS itself.
 - **`SIDE BY SIDE`**: the two screens next to each other. In a window taller
   than it is wide they go `STACKED`.
 - **`LARGE + SMALL`**: a large top screen with a small touch screen beside it.
+- **`WINGS`**: `ONE SCREEN` with the companion beside it. The top screen sits
+  in the middle at a whole size, your party fills one wing and your trainer's
+  facts the other (`DS WING SIDE` says which side the party is on). The touch
+  screen floats in over the game when the game wants it, as in `ONE SCREEN`,
+  or when you press R2. A window with no room for wings gets `ONE SCREEN`.
+
+The companion's panels in the wings read Platinum (USA, revision 1) for now; in
+other DS games they say so. While they show, the HUD leaves out its party row.
 
 R2 (Space on a keyboard) swaps the two screens: in `ONE SCREEN` you see the
-touch screen alone, and in `PICTURE IN PICTURE` and `LARGE + SMALL` the touch
-screen becomes the large one. L2 (Tab) opens the quick menu. To touch the touch
+touch screen alone, in `PICTURE IN PICTURE`, `LARGE + SMALL` and
+`TOUCH IN WING` the touch screen becomes the large one, and in `WINGS` it
+floats in over the game. L2 (Tab) opens the quick menu. To touch the touch
 screen, click it with the mouse or tap it with your finger on a touch display,
 wherever it shows; a drag works too. With a controller, hold SELECT, move the
 pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
