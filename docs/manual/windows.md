@@ -592,11 +592,13 @@ moves, items, types and pictures, read from its cart, and `BATTLE` from its
 own battle engine: your creature and the foe, their moves and types, and a
 trainer's team. Its `GUIDE` has one page, `HERE`: the wild creatures where you
 stand, by time of day, read from its cart.
-HeartFelt Gold gets `PARTY`, `BAG` and `MAP`, with its own creatures, moves,
-items, types and icons read from its cart, and a `GUIDE` with one page,
-`HERE`: the wild creatures where you stand, by time of day, read from its
-cart. Its Pokédex, trainers and battles aren't read yet, so it has no `DEX`
-or `BATTLE`, and no EXPAND.
+HeartFelt Gold gets `PARTY`, `BAG`, `MAP` and `DEX`, with its own creatures,
+moves, items, types and icons read from its cart. `DEX` lists the whole
+National Dex in order, with each creature's picture, stats, size, entry text,
+evolutions and level-up moves; its machines aren't listed. Its `GUIDE` has one
+page, `HERE`: the wild creatures where you stand, by time of day, read from
+its cart. Its trainers and battles aren't read yet, so it has no `BATTLE`,
+and no EXPAND.
 For other DS games you get the game alone, and `SETTINGS` tells you
 which game and revision it found, and which ones the companion reads.
 

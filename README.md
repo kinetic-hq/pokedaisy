@@ -203,6 +203,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   the next gym leader or League member with the hack's own team, read from the cart's trainer data.
 - **Origin HeartGold's `BATTLE` on the desktop host**: its own battle engine's objects are read (as on Android): your
   creature and the foe with their stats, types and moves, and a trainer's team.
+- **HeartFelt Gold's `DEX` on the desktop host**: its Pokédex (1534 species ids, caught and seen) read from the save,
+  listed in National Dex order, with each page's front, stats, size, text, evolutions and level-up moves from the cart.
+  Its machines aren't mapped, so none are listed.
 - **HeartFelt Gold's `GUIDE` on the desktop host**: `HERE` lists the wild creatures where you stand by time of day,
   read from the cart's own map headers and encounter tables, with the build's own species.
 - **HeartFelt Gold on the desktop host** (an hg-engine build of HeartGold, not read on Android): `PARTY`, `BAG` and

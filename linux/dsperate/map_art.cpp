@@ -517,6 +517,74 @@ DsDexArt ds_dex_art(const std::vector<uint8_t>& rom,DsGame game){
     }catch(const std::exception&){}
     return art;
   }
+  if(game==DsGame::Johto && ds_heartfelt()){
+    // HeartFelt Gold (hg-engine): HeartGold's archives grown to its 1534 species ids (Gen 5 on sit at national + 50,
+    // 494..543 the egg and blanks, past national 1025 the forms), retail's text banks (descriptions 803, categories
+    // 816; the US heights and weights as text in 814 / 812), retail's encrypted fronts (6 a species in /a/0/0/4), its
+    // evolutions 9 to a 56-byte record, and its learnsets one flat table (ds_level_moves). Its machine compatibility
+    // isn't in the personal records, so no machines.
+    constexpr int count=dsHeartfeltLastSpecies;
+    try{
+      const auto personal=file(rom,"/a/0/0/2");
+      Bytes heights,weights;
+      try{const auto zukan=file(rom,"/a/0/7/4");heights=member(zukan,0);weights=member(zukan,1);}catch(const std::exception&){}
+      const auto messages=file(rom,"/a/0/2/7");
+      std::vector<std::string> heightText,weightText;
+      try{heightText=dex_text(member(messages,814),false,count);weightText=dex_text(member(messages,812),false,count);}
+      catch(const std::exception&){}
+      const auto numbers=[](const std::string& text){
+        std::vector<int> out;
+        for(size_t i=0;i<text.size();){
+          if(text[i]<'0' || text[i]>'9'){++i;continue;}
+          int n=0;
+          while(i<text.size() && text[i]>='0' && text[i]<='9')n=n*10+(text[i++]-'0');
+          out.push_back(n);
+        }
+        return out;
+      };
+      std::vector<DsDexDetails> details(count+1);
+      for(int species=1;species<=count;++species){
+        const auto record=member(personal,species);
+        if(record.size()<0x1c)continue;
+        auto& entry=details[species];
+        std::copy_n(record.begin(),6,entry.stats.begin());
+        if(record[0x13]<6)entry.growth=record[0x13];
+        if(species<=493 && size_t(species*4+4)<=std::min(heights.size(),weights.size())){
+          entry.heightDm=u32(heights,species*4);entry.weightHg=u32(weights,species*4);
+        }else{
+          // "2'04"" and "15.2 lbs." to decimetres and hectograms.
+          const auto h=size_t(species)<heightText.size()?numbers(heightText[species]):std::vector<int>{};
+          const auto w=size_t(species)<weightText.size()?numbers(weightText[species]):std::vector<int>{};
+          if(h.size()==2)entry.heightDm=int(((h[0]*12+h[1])*2.54+5)/10);
+          if(w.size()==2)entry.weightHg=int((w[0]+w[1]/10.0)*4.5359237+0.5);
+        }
+      }
+      art.details=std::move(details);
+      auto descriptions=dex_text(member(messages,803),false,count);
+      auto categories=dex_text(member(messages,816),false,count);
+      for(size_t i=1;i<art.details.size();++i){
+        if(i<descriptions.size())art.details[i].description=std::move(descriptions[i]);
+        if(i<categories.size())art.details[i].category=std::move(categories[i]);
+      }
+      // The list in National Dex order: index n holds national n's species id (index 0 unused, as read_regional's).
+      art.regional.push_back(0);
+      for(int id=1;id<=493;++id)art.regional.push_back(id);
+      for(int id=544;id<=dsHeartfeltLastNationalId;++id)art.regional.push_back(id);
+    }catch(const std::exception&){}
+    try{art.pictures=file(rom,"/a/0/0/4");}catch(const std::exception&){}
+    try{art.learnsets=member(file(rom,"/a/0/3/3"),0);}catch(const std::exception&){}
+    try{
+      const auto evo=file(rom,"/a/0/3/4");
+      for(int species=1;species<=count;++species){
+        const auto record=member(evo,species);
+        for(size_t i=0;i+6<=record.size() && i<54;i+=6){
+          const int method=u16(record,i),param=u16(record,i+2),to=u16(record,i+4);
+          if(method && to>0 && to<=count && to!=species)art.evolutions.push_back({species,to,method,param});
+        }
+      }
+    }catch(const std::exception&){}
+    return art;
+  }
   const bool unova=ds_unova(game),johto=game==DsGame::Johto;
   const int count=unova?649:493;
   try{
@@ -618,6 +686,16 @@ std::vector<DsDexMove> ds_level_moves(const DsDexArt& art,DsGame game,int specie
     }catch(const std::exception&){}
     return moves;
   }
+  if(game==DsGame::Johto && ds_heartfelt()){
+    // HeartFelt Gold: /a/0/3/3's one member, 136 bytes a species id: 34 { u16 move, u16 level }, a move of 0xFFFF last.
+    if(species<=0 || species>dsHeartfeltLastSpecies || size_t(species+1)*136>art.learnsets.size())return moves;
+    for(size_t i=size_t(species)*136,end=i+136;i<end;i+=4){
+      const int move=u16(art.learnsets,i),level=u16(art.learnsets,i+2);
+      if(move==0xffff)break;
+      if(move && level<=100)moves.push_back({level,move});
+    }
+    return moves;
+  }
   if(species<=0 || species>(unova?649:493))return moves;
   try{
     const auto record=member(art.learnsets,species);
@@ -666,7 +744,8 @@ DsDexPage ds_dex_page(const DsDexArt& art,DsGame game,int species){
     }catch(const std::exception&){page.sprite.clear();page.side=0;}
     return page;
   }
-  if(species<=0 || species>(unova?649:493))return page;
+  const bool heartfelt=game==DsGame::Johto && ds_heartfelt();  // retail's fronts, to its 1534 species ids
+  if(species<=0 || species>(unova?649:heartfelt?dsHeartfeltLastSpecies:493))return page;
   if(size_t(species)<art.details.size() && art.details[species].hasMachines){
     const auto& bits=art.details[species].machineBits;
     const auto* renegade=game==DsGame::Platinum?ds_renegade():nullptr;

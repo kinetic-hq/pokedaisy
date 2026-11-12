@@ -138,7 +138,11 @@ int main(int argc,char** argv){
     const int species[]={155,750,25,937,445,6},levels[]={12,20,9,35,40,30};
     for(int i=0;i<6;++i)assert(t.party[i].species==species[i] && t.party[i].level==levels[i] && t.party[i].hp==t.party[i].maxHp);
     assert(t.party[2].heldItem==234);
-    assert(t.money==3000 && t.map==64 && t.repelSteps==0 && !t.hasPots && !t.dexValid);
+    assert(t.money==3000 && t.map==64 && t.repelSteps==0 && !t.hasPots && t.dexValid && t.nationalDex);
+    // Its Pokédex: 1534 species ids, the six given creatures caught and seen (two past 493), nothing else in the list.
+    assert(t.dexSeen.size()==size_t(dsHeartfeltLastSpecies+1));
+    for(int id:species)assert(t.dexSeen[id] && t.dexCaught[id]);
+    assert(!t.dexSeen[1] && !t.dexCaught[154] && !t.dexCaught[751]);
     auto count=[&](int id){for(auto& i:t.bag)if(i.id==id)return i.count;return 0;};
     assert(count(17)==5 && count(4)==10 && count(155)==3 && count(79)==2 && count(328)==1 && count(450)==1 && count(420)==1);
     auto pocket=[&](int id){for(auto& i:t.bag)if(i.id==id)return i.pocket;return -1;};
@@ -165,6 +169,18 @@ int main(int argc,char** argv){
       const auto day=ds_guide_here(DsGame::Johto,9,12,6);
       assert(day.count>=2 && day.entries[0].species==584 && day.entries[0].chance==20 && day.entries[0].low==79);
       assert(day.entries[1].species==68 && ds_guide_page_count(DsGame::Johto)==1 && !ds_guide_spots(DsGame::Johto,584).empty());
+      // DEX: national order over its ids (national 494 is id 544), sizes from the zukan to 493 and from the US text past
+      // it (Sylveon 3'03" and 51.8 lbs), retail's fronts, the flat learnsets, evolutions.
+      auto dex=ds_dex_art(rom,DsGame::Johto);
+      assert(dex.details.size()==size_t(dsHeartfeltLastSpecies+1) && dex.regional.size()==1026);
+      assert(dex.regional[493]==493 && dex.regional[494]==544 && dex.regional[1025]==dsHeartfeltLastNationalId);
+      assert(dex.details[1].heightDm==7 && dex.details[1].weightHg==69 && dex.details[1].category=="Seed Pokémon");
+      assert(dex.details[750].heightDm==10 && dex.details[750].weightHg==235 && dex.details[750].category.rfind("Intertwin",0)==0);
+      assert(!dex.details[750].description.empty() && dex.details[750].stats[0]==95);
+      for(int id:{1,750,937}){auto p=ds_dex_page(dex,DsGame::Johto,id);assert(p.side==80 && !p.sprite.empty() && !p.moves.empty());}
+      const auto bulbasaur=ds_level_moves(dex,DsGame::Johto,1);
+      assert(bulbasaur[0].level==1 && bulbasaur[0].move==33 && bulbasaur[1].move==45);
+      assert(!ds_dex_evolutions(dex,1).empty() && ds_dex_evolutions(dex,1)[0].to==2);
       ds_set_heartfelt(nullptr);
       std::puts("PASS HeartFelt Gold's cart: names, types, moves, chart and icons");
     }
