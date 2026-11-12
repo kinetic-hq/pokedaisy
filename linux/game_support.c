@@ -105,7 +105,7 @@ int game_support_of_rom(const char *path, char *detail, size_t size) {
   } else {
     // The tabs the companion shows for it (pd_ui.c's ui_tab_available) and the battle's foe team.
     const struct pd_config *cfg = g.cfg;
-    bool dex = cfg->dexEntries || pd_dex_gb_count(&g);
+    bool dex = pd_dex_tab(&g);
     bool guide = pd_guide_for(&g) != NULL;
     bool foes = cfg->enemyParty != 0;
     char missing[96] = "";
@@ -250,7 +250,7 @@ void game_support_start(const char *root, const char *const *list, int n, const 
     lock = SDL_CreateMutex();
   snprintf(cachePath, sizeof cachePath, "%s/support-cache.tsv", root);
   // The rules' own revision too, so a build that changes them looks again within a version.
-  snprintf(stampText, sizeof stampText, "pokedaisy %s rules 2", stamp ? stamp : "?");
+  snprintf(stampText, sizeof stampText, "pokedaisy %s rules 3", stamp ? stamp : "?");
   entries = calloc((size_t)n + 1, sizeof *entries);
   paths = calloc((size_t)n + 1, sizeof *paths);
   if (!entries || !paths || !lock)

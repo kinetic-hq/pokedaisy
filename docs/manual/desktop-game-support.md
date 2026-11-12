@@ -93,7 +93,7 @@ By tab:
 | Radical Red | 4.1; SHA-1 964f951a | works | works | partly | works | works | works | None |
 | Gaia | 3.2; SHA-1 d5b1e779 | works | works | partly | works | works | works | None |
 | Odyssey | 4.1.1; SHA-1 8745ddbd | works | works | partly | works | works | works | None |
-| Heart and Soul | 2.0.6; SHA-1 79ee6df0 | works | works | partly | works | no | works | No `DEX` tab |
+| Heart and Soul | 2.0.6; SHA-1 79ee6df0 | works | works | partly | works | works | works | None |
 | Amethyst | 1.3.0 (SHA-1 00e70c03), 1.4.1 (91291aad), 1.4.3 (411e9023) | works | works | partly | works | works | works | None |
 | Celia's Stupid Romhack | 1.1.4; SHA-1 3cbd5a2e | works | works | partly | works | works | works | None |
 | Orange Islands | Beta 5.7 and an older beta; SHA-1 8bac897d, d2e3800e | works | works | partly | works | works | works | None |
@@ -122,8 +122,8 @@ By tab:
 | Elite Redux | 2.65.3b (SHA-1 5b38a681), 2.65.4.1b (2f3e17e5) | works | works | partly | works | works | partly | None |
 | Team Rocket Dragonsden | 1.5; SHA-1 40780347 | works | works | partly | partly | no | partly | None (no `DEX` on Android either) |
 | Team Rocket Dragonsden | 2026 3.0.9 Spanish (BPEE, 32 MB, SHA-1 0d8bdaee) | no | no | no | no | no | no | No companion: the desktop doesn't know this build |
-| Wishes of Tomorrow | 1.2.6; SHA-1 60182b93 | works | works | partly | works | no | partly | No `DEX` tab |
-| Dreamstone Mysteries | The one release; SHA-1 20e91aec | works | works | partly | works | no | partly | No `DEX` tab |
+| Wishes of Tomorrow | 1.2.6; SHA-1 60182b93 | works | works | partly | works | works | partly | None |
+| Dreamstone Mysteries | The one release; SHA-1 20e91aec | works | works | partly | works | works | partly | None |
 | Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | no | partly | No `DEX` tab; the guide has no trainer or wild tables |
 | Emerald Rogue | 2.2.1 EX; SHA-1 7600af1f | works | works | works | works | no | no | No `DEX` tab (no guide on Android either) |
 | SoulGold | 1.1.4, 1.2 (3 builds), 1.2.1 (2 builds) | works | works | partly | works | no | partly | No `DEX` tab |
@@ -135,10 +135,11 @@ By tab:
   `GUIDE` included. HeartGold and SoulSilver (USA) have it too.
   Black, White, Black 2, White 2, Origin HeartGold and the French and Spanish
   Platinum carts get no companion yet.
-- **A missing `DEX` tab.** In Heart and Soul, Let's Go, Lazarus, Emerald
-  Seaglass, Too Many Types 2, Emerald Imperium, Wishes of Tomorrow, Dreamstone
-  Mysteries, Monomyth, Emerald Rogue and SoulGold, the desktop
-  hides the `DEX` tab, though the app shows one.
+- **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow and Dreamstone
+  Mysteries now have their `DEX` on the desktop, read from each game's own
+  data. The other games built the same way get it too once the desktop sees
+  that data in the game. Let's Go, Lazarus, Monomyth, Emerald Rogue and
+  SoulGold still have no `DEX` tab on the desktop, though the app shows one.
 - **No foe team in battle.** In the German, French, Italian and Japanese FireRed
   and LeafGreen carts, the battle panes show your side and the Pokémon you face,
   but not the rest of the foe's team.

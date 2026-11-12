@@ -232,6 +232,11 @@ static void build(const struct pd_game* g) {
     available = true;
 }
 
+bool pd_dex_tab(const struct pd_game* g) {
+    const struct pd_config* cfg = g ? g->cfg : NULL;
+    return cfg && (cfg->dexEntries || (cfg->expansion && pd_dex_available(g)) || pd_dex_gb_count(g));
+}
+
 bool pd_dex_available(const struct pd_game* g) {
     if (g->cfg->gb) return g->cfg->gb->dexCount > 0 || pd_gb2_dex(g);  // a Game Boy game: the list from the save's flags
     build(g);
