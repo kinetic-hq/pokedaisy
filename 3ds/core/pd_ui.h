@@ -203,6 +203,7 @@ enum pd_action {
     PD_ACTION_BOX_DEPOSIT,  // party slot ui.boxPartySlot into box ui.boxTarget
     PD_ACTION_FLY_ASK,   // MAP's FLY: where it can go is wanted
     PD_ACTION_FLY_TO,    // ... and the pick: ui.flyPick
+    PD_ACTION_PER_GAME,  // THIS GAME ONLY flipped (host->perGame says which way it was)
 };
 
 // A party slot in USE / GIVE's pick: dimmed, or which of its moves it would help.
@@ -241,6 +242,8 @@ struct pd_host_info {
     bool hasUpdateCheck;   // Optional: CHECK FOR UPDATES' row (settings.updateCheck)
     bool hasResume;        // Optional: RESUME GAMES' row (settings.resumeGames)
     bool hasRumble;        // Optional: RUMBLE's row in CONTROLS (settings.rumble)
+    bool hasPerGame;       // Optional: THIS GAME ONLY's row in APP ...
+    bool perGame;          // ... on: this game keeps its own settings
     bool hasShaders;       // Optional: SHADER, COLORS and DIM COMPANION's rows
     bool hasSavesBeside;   // Optional: SAVES BESIDE GAMES' row (settings.savesBeside)
     bool hasFullscreen;    // Optional: FULLSCREEN's row (settings.fullscreen)

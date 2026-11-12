@@ -153,6 +153,7 @@ enum setting_row {
     SETTING_LEVEL_CAP, // flips in place
     SETTING_RESUME,    // hosts with hasResume: flips in place
     SETTING_RUMBLE,    // hosts with hasRumble: flips in place
+    SETTING_PER_GAME,  // hosts with hasPerGame: PD_ACTION_PER_GAME
 };
 // SETTINGS' pages (ui->settingsPage): HOME, then one per SETTING_PAGE_* row in their order.
 enum settings_page { PAGE_HOME, PAGE_SPEED, PAGE_DISPLAY, PAGE_BUTTONS, PAGE_HOTKEYS, PAGE_QUICK };

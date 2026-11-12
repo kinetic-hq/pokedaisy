@@ -2452,6 +2452,37 @@ static void rumble_events(const struct pd_snapshot *s, bool fieldBattle) {
       }
   was = now;
 }
+/* THIS GAME ONLY: a game can keep its own settings in DATA/game-settings/<rom>.ini. The program-wide ones (buttons,
+ * hotkeys, the window, updates, rumble ...) stay in settings.ini whatever the game: they're read from there and written
+ * back there, so a change to them while a game keeps its own still holds everywhere. */
+static void settings_host_wide(struct pd_settings *dst, const struct pd_settings *src) {
+  dst->guideNotice = src->guideNotice;
+  dst->buttonLayout = src->buttonLayout;
+  memcpy(dst->hotkeys, src->hotkeys, sizeof dst->hotkeys);
+  dst->orientation = src->orientation;
+  dst->gameTouch = src->gameTouch;
+  dst->updateCheck = src->updateCheck;
+  dst->resumeGames = src->resumeGames;
+  dst->rumble = src->rumble;
+  dst->fullscreen = src->fullscreen;
+  dst->savesBeside = src->savesBeside;
+  dst->boxartAuto = src->boxartAuto;
+  dst->quickBtn = src->quickBtn;
+  dst->companionBtn = src->companionBtn;
+  dst->hudBtn = src->hudBtn;
+}
+static char gameConfig[1100]; // the running game's own settings file, "" while it uses settings.ini
+static void settings_put(const struct pd_settings *s, const char *config) {
+  if (!*gameConfig) {
+    pd_settings_save(s, config);
+    return;
+  }
+  pd_settings_save(s, gameConfig);
+  struct pd_settings g;
+  pd_settings_load(&g, config);
+  settings_host_wide(&g, s);
+  pd_settings_save(&g, config);
+}
 static void run_game(const char *path, int maxFrames, const char *shot) {
   {
     const char *file = path + strlen(path);
@@ -2623,6 +2654,13 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   snprintf(config, sizeof config, "%s/settings.ini", root);
   struct pd_settings settings;
   pd_settings_load(&settings, config);
+  snprintf(gameConfig, sizeof gameConfig, "%s/game-settings/%s.ini", root, name);
+  if (pocket_exists(gameConfig)) {
+    struct pd_settings global = settings;
+    pd_settings_load(&settings, gameConfig);
+    settings_host_wide(&settings, &global);
+  } else
+    gameConfig[0] = 0;
   if (wildSwitch)
     pk_field_wild(wildSwitch, settings.wildOff);
   bool quickOpen = false;
@@ -2670,6 +2708,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   host.hasStates = true; // STATES: slot 0 (the old one state file) is picked to begin with
   host.hasResume = true;
   host.hasRumble = true;
+  host.hasPerGame = true;
+  host.perGame = *gameConfig != 0;
   slotsStale = true;
   /* RESUME GAMES: leaving a game leaves states/<rom>.resume.ss; the next start asks CONTINUE or START FROM SAVE.
    * States never carry the save, so the save file is never touched; a save newer than the state (played elsewhere
@@ -2797,7 +2837,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         int v = layout_pick("PICK A VIEW", companion_layouts(), POCKET_VIEWS, settings.companionView);
         if (v >= 0) {
           settings.companionView = v;
-          pd_settings_save(&settings, config);
+          settings_put(&settings, config);
           notice(pd_companion_view_name(v));
         }
         if (audio)
@@ -2806,7 +2846,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         if (!r3Picked && !stickChord) {
           settings.companionView =
               settings.companionView == POCKET_VIEW_WINGS ? POCKET_VIEW_BATTLE_WINGS : POCKET_VIEW_WINGS;
-          pd_settings_save(&settings, config);
+          settings_put(&settings, config);
           notice(pd_companion_view_name(settings.companionView));
         }
         r3Since = 0;
@@ -3004,7 +3044,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           break;
         case QUICK_WILD:
           settings.wildOff = !settings.wildOff;
-          pd_settings_save(&settings, config);
+          settings_put(&settings, config);
           notice(settings.wildOff ? "Wild encounters off" : "Wild encounters on");
           break;
         case QUICK_SAVE_STATE:
@@ -3113,7 +3153,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         if (down(L3) && settings.companionView == PD_VIEW_SIDE_PANEL) {
           settings.panelLocked = !settings.panelLocked;
           notice(settings.panelLocked ? "Side panel locked" : "Side panel unlocked");
-          pd_settings_save(&settings, config);
+          settings_put(&settings, config);
         }
         if (down(L) || down(R)) {
           pd_ui_next_tab(&ui, down(R) ? 1 : -1);
@@ -3148,6 +3188,30 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           c->reset(c);
           notice("Game restarted");
           break;
+        case PD_ACTION_PER_GAME:
+          if (!host.perGame) { // from now on this game's changes stay its own, starting from what it has now
+            char dir[1100];
+            snprintf(dir, sizeof dir, "%s/game-settings", root);
+            pocket_mkdir(dir);
+            snprintf(gameConfig, sizeof gameConfig, "%s/game-settings/%s.ini", root, name);
+            settings_put(&settings, config);
+            host.perGame = pocket_exists(gameConfig);
+            if (!host.perGame)
+              gameConfig[0] = 0;
+            notice(host.perGame ? "This game keeps its own settings now" : "Couldn't keep this game's settings");
+          } else { // back to the usual settings, as they are
+            pocket_remove(gameConfig);
+            gameConfig[0] = 0;
+            host.perGame = false;
+            struct pd_settings global;
+            pd_settings_load(&global, config);
+            settings = global;
+            if (wildSwitch)
+              pk_field_wild(wildSwitch, settings.wildOff);
+            rewind_follow(settings.rewind || rewindBound || rewind_hotkey());
+            notice("This game uses your usual settings again");
+          }
+          break;
         case PD_ACTION_SETTINGS_CHANGED:
           rewind_follow(settings.rewind || rewindBound || rewind_hotkey());
           if ((settings.fullscreen == 1) != fullscreenOn)
@@ -3156,7 +3220,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           buttonLayout = settings.buttonLayout;
           orientation_set(settings.orientation);
           gameTouch = settings.gameTouch;
-          pd_settings_save(&settings, config);
+          settings_put(&settings, config);
           break;
         default:
           break;
@@ -3421,6 +3485,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
 cleanup:
   rewind_follow(false);
   rumble(0, 0, 0); // a rumble cart left buzzing stops with the game
+  gameConfig[0] = 0; // the game list writes settings.ini again
   pk_wide_configure(0);
   wideSupported = wideReady = false;
   c->unloadROM(c);

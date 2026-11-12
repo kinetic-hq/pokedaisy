@@ -232,8 +232,10 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
         if (host->hasQuickMenu) page_row(ui, c, ix, &y, iw, SETTING_PAGE_QUICK, "QUICK MENU");
         if (host->hasRumble) setting(ui, c, ix, &y, iw, SETTING_RUMBLE, "RUMBLE", on_off(st->rumble));
     }
-    if (host->hasUpdateCheck || host->hasResume) {
+    if (host->hasUpdateCheck || host->hasResume || host->hasPerGame) {
         group(c, ix, &y, "APP");
+        if (host->hasPerGame)
+            setting(ui, c, ix, &y, iw, SETTING_PER_GAME, "THIS GAME ONLY", on_off(host->perGame));
         if (host->hasResume) setting(ui, c, ix, &y, iw, SETTING_RESUME, "RESUME GAMES", on_off(st->resumeGames));
         if (host->hasUpdateCheck)
             setting(ui, c, ix, &y, iw, SETTING_UPDATES, "CHECK FOR UPDATES", on_off(st->updateCheck));

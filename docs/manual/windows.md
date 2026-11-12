@@ -141,6 +141,15 @@ leave a GBA or Game Boy game. The next time you open it you're asked
 changed by this. If the save was played somewhere else since, the question is
 skipped and the game starts from the save.
 
+`THIS GAME ONLY` (in the companion's `SETTINGS`, `APP`) gives the game you're
+playing its own settings. Turn it on and every change you make while that game
+runs (fast forward, `ASPECT`, the view, the `HUD`, `LEVEL CAP`, the shader and so
+on) stays with that game; your other games keep your usual settings. Your
+buttons, `HOTKEYS`, `FULLSCREEN`, `RUMBLE`, `RESUME GAMES` and
+`CHECK FOR UPDATES` are the same for every game, so changing one of them here
+still changes it everywhere. Turn `THIS GAME ONLY` off to put the game back on
+your usual settings; what it had of its own is forgotten.
+
 `RUMBLE` (in `SETTINGS`, `CONTROLS`, off at first) makes your controller buzz
 briefly when a battle starts in a GBA or Game Boy game, and harder when the foe
 is a shiny one. A Game Boy cartridge with a rumble motor shakes the controller
@@ -292,7 +301,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |
 | `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `RUMBLE`; `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
-| `APP` | | `RESUME GAMES`, `CHECK FOR UPDATES` |
+| `APP` | | `THIS GAME ONLY`, `RESUME GAMES`, `CHECK FOR UPDATES` |
 
 Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close
 with B. DS games keep their own `SET` tab, which has `DS LAYOUT` and
