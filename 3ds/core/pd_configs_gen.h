@@ -101,10 +101,8 @@ extern const struct pd_text pd_text_soulgold_v1_2_1;
 
 // The configs, each with the parts the port reads for it so far (`name` is the C's: PD_CONFIG_<name>) and the
 // records `@name.` paths start from (`records`).
-// FireRed rev 0 and LeafGreen: the tabs that read RAM (and the MAP, whose art is found by fingerprint)
-// and the party icons. The FOE TEAM's addresses are known for rev 1 only. Retail FireRed rev 0 as the app
-// reads it: no POKéDEX / GUIDE tables (none on file for rev 0), its trainer card set in code (Poller.kt), the
-// quick menu from FIELD_ITEMS_PORTS["BPRE0"] (fieldItemsFor).
+// FireRed and LeafGreen, every tab. Retail FireRed rev 0 is firered_rev0_retail (firered_rev0 is the hacks' base),
+// its quick menu from FIELD_ITEMS_PORTS["BPRE0"] (fieldItemsFor).
 // gamedata/gen3/retail/firered.toml: firered_rev1 (ram, foes, icons, dex, guide, card, fly, field, battle, engine, boxes, dexsec)
 static const struct pd_config PD_CONFIG_FIRERED_REV1 = {
     .itemDescs = &(const struct pd_item_descs){ .base = 138260632, .stride = 44, .descOff = 20, .idOff = 14 },
@@ -321,7 +319,7 @@ static const struct pd_config PD_CONFIG_FIRERED_REV1 = {
     .dexMapGroups = 0x08352718,
 };
 
-// gamedata/gen3/retail/firered.toml: firered_rev0 (ram, icons, dex, card, fly, field, battle, engine, boxes)
+// gamedata/gen3/retail/firered.toml: firered_rev0_retail (ram, foes, icons, dex, guide, card, fly, field, battle, engine, boxes, dexsec)
 static const struct pd_config PD_CONFIG_FIRERED_REV0 = {
     .itemDescs = &(const struct pd_item_descs){ .base = 138260520, .stride = 44, .descOff = 20, .idOff = 14 },
     .playerParty = 0x02024284,
@@ -366,6 +364,11 @@ static const struct pd_config PD_CONFIG_FIRERED_REV0 = {
     .flagsOff = 0xEE0,
     .varsOff = 0x1000,
     .flagBytes = 0x120,
+    .enemyParty = 0x0202402C,
+    .battlerPartyIndexes = 0x02023BCE,
+    .battleStructPtr = 0x02023FE8,
+    .battleStructStatic = false,
+    .monToSwitchIntoOff = 0x5C,
     .eggSpecies = 0,
     .speciesCount = 412,
     .monIconTable = 0x083D37A0,
@@ -378,15 +381,15 @@ static const struct pd_config PD_CONFIG_FIRERED_REV0 = {
     .monPalIdxMask = 0xFF,
     .itemPalCompressed = true,
     .monIconPalettes = 0,
-    .dexPalettes = 0,
+    .dexPalettes = 0x0823730C,
     .monPalettes = 0x0823730C,
-    .dexEntries = 0,
+    .dexEntries = 0x0844E850,
     .dexEntryStride = 0x24,
-    .speciesInfo = 0,
-    .speciesToNational = 0,
-    .abilityNames = 0,
-    .frontPics = 0,
-    .palettes = 0,
+    .speciesInfo = 0x08254784,
+    .speciesToNational = 0x08251FEE,
+    .abilityNames = 0x0824FC40,
+    .frontPics = 0x082350AC,
+    .palettes = 0x0823730C,
     .regionalOrder = 0,
     .regionalCount = 151,
     .regionalOrderStride = 2,
@@ -408,6 +411,33 @@ static const struct pd_config PD_CONFIG_FIRERED_REV0 = {
     .probeWeight = 69,
     .probeSpecies = 1,
     .regionName = "KANTO",
+    .trainerMonStride = 0,
+    .trainerMonMovesOff = 0,
+    .trainerMonSpeciesOff = 0,
+    .trainerMonItemOff = 0,
+    .trainerMonLevelOff = 0,
+    .trainers = 0x0823EAC8,
+    .trainerStride = 0x28,
+    .trainerNameOff = 4,
+    .trainerNameLen = 12,
+    .trainerNamePtr = false,
+    .trainerSizeOff = 0x20,
+    .trainerPartyOff = 0x24,
+    .trainerHardPartyOff = -1,
+    .altTrainers = { 0 },
+    .learnsets = 0x0825D7B4,
+    .learnsetCfru = false,
+    .learnsetPairs = false,
+    .wildHeaders = 0x083C9CB8,
+    .probeTrainer = 414,
+    .probeName = "BROCK",
+    .wildSets = 1,
+    .wildSet = 0,
+    .wildLayout = 0,
+    .wildSetVars = 0,
+    .nightWild = 0,
+    .flagBank = { 0 },
+    .varBank = { 0 },
     .cardStyle = PD_CARD_KANTO,
     .gameStatsOff = 0x1200,
     .badgeFlag = 0x820,
@@ -483,8 +513,8 @@ static const struct pd_config PD_CONFIG_FIRERED_REV0 = {
     .handleInputChooseTarget = 0x0802e674,
     .completeWhenChoseItem = 0x0803073c,
     .waitForMonSelection = 0x08030684,
-    .actionCursor = 0,
-    .moveCursor = 0,
+    .actionCursor = 0x02023FF8,
+    .moveCursor = 0x02023FFC,
     .partyMenu = 0,
     .monStride = 100,
     .saveBlock1PosOff = 0,
@@ -498,6 +528,11 @@ static const struct pd_config PD_CONFIG_FIRERED_REV0 = {
     .extraItemStride = 8,
     .pokemonStoragePtr = 0x03005010,
     .pcStorage = &pd_pc_vanilla,
+    .dexEvolutions = 0x08259754,
+    .dexTmhm = 0x08252BC8,
+    .dexTmhmMoves = 0x0845A5A4,
+    .dexSpeciesCount = 412,
+    .dexMapGroups = 0x083526A8,
 };
 
 // gamedata/gen3/retail/leafgreen.toml: leafgreen_rev0 (ram, icons, dex, guide, card, fly, field, battle, engine, boxes, dexsec)

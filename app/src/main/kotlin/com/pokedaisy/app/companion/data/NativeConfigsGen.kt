@@ -52,6 +52,20 @@ val NATIVE_FIRERED_REV0 = NativeConfig(
     itemIconTable = 0x083D4294L, // sItemIconTable (static, but readable)
 )
 
+// Retail FireRed rev 0 itself (firered_rev0 is the hacks' base too, so these stay off it): its POKéDEX and GUIDE
+// tables (records/firered.toml), the trainer card, and the FOE TEAM's RAM, which is rev 1's (every RAM global is).
+val NATIVE_FIRERED_REV0_RETAIL = NATIVE_FIRERED_REV0.copy(
+    pokedex = POKEDEX_FIRERED_REV0,
+    guideTables = GUIDE_TABLES_FIRERED_REV0,
+    trainerCard = TRAINER_CARD_FIRERED,
+    actionCursor = 0x02023FF8L,
+    moveCursor = 0x02023FFCL,
+    enemyParty = 0x0202402CL,
+    battlerPartyIndexes = 0x02023BCEL,
+    battleStructPtr = 0x02023FE8L,
+    monToSwitchIntoOff = 0x5C,
+)
+
 // A prior version of this config guessed rev 1 shifted gMain/saveBlock1Ptr/
 // saveBlock2Ptr to 0x03003100/0x03005018/0x0300501C — WRONG, never live-
 // verified (see CLAUDE.md). Confirmed 2026-09-15 by building the pinned

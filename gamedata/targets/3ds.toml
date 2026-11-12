@@ -322,21 +322,18 @@ dexMapGroups = 'guideTables.mapGroups'
 
 # The configs, each with the parts the port reads for it so far (`name` is the C's: PD_CONFIG_<name>) and the
 # records `@name.` paths start from (`records`).
-# FireRed rev 0 and LeafGreen: the tabs that read RAM (and the MAP, whose art is found by fingerprint)
-# and the party icons. The FOE TEAM's addresses are known for rev 1 only. Retail FireRed rev 0 as the app
-# reads it: no POKéDEX / GUIDE tables (none on file for rev 0), its trainer card set in code (Poller.kt), the
-# quick menu from FIELD_ITEMS_PORTS["BPRE0"] (fieldItemsFor).
+# FireRed and LeafGreen, every tab. Retail FireRed rev 0 is firered_rev0_retail (firered_rev0 is the hacks' base),
+# its quick menu from FIELD_ITEMS_PORTS["BPRE0"] (fieldItemsFor).
 [config.firered_rev1]
 name = 'FIRERED_REV1'
 parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec']
 records = { items = 'FIELD_ITEMS_FIRERED_REV1' }
 values = { partyMenu = 0x0203B0A0, pokemonStoragePtr = 0x03005010 }
 
-[config.firered_rev0]
+[config.firered_rev0_retail]
 name = 'FIRERED_REV0'
-parts = ['ram', 'icons', 'dex', 'card', 'fly', 'field', 'battle', 'engine', 'boxes']
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec']
 records = { items = 'FIELD_ITEMS_PORTS_BPRE0' }
-set = { trainerCard = 'TRAINER_CARD_FIRERED' }
 values = { pokemonStoragePtr = 0x03005010 }
 
 [config.leafgreen_rev0]

@@ -36,10 +36,10 @@ foe team is listed as a gap even then.
 
 Of the 71 rows:
 
-- **46** get the companion at the same level as on Android, every tab
+- **47** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **18** get a companion that falls short of Android's somewhere.
+- **17** get a companion that falls short of Android's somewhere.
 - **7** get no companion at all yet.
 
 By tab:
@@ -50,8 +50,8 @@ By tab:
 | `BAG` | 64 | 0 | 7 |
 | `BATTLE` | 5 | 58 | 8 |
 | `MAP` | 63 | 1 | 7 |
-| `DEX` | 49 | 3 | 19 |
-| `GUIDE` | 32 | 26 | 13 |
+| `DEX` | 50 | 2 | 19 |
+| `GUIDE` | 33 | 25 | 13 |
 
 ## Game by game
 
@@ -68,7 +68,7 @@ By tab:
 | Crystal Clear (GBC) | 2.5.11 and 2.6.0, each with a Color Filter build (4 builds) | works | works | partly | works | works | no | None (no guide on Android either) |
 | Prism (GBC) | 0.95 build 254 Hotfix 5; SHA-1 75207669 | works | works | partly | works | works | no | None (no guide on Android either) |
 | Polished Crystal (GBC) | 3.2.0 to 3.2.3, normal and Faithful (16 builds) | works | works | partly | works | works | works | None |
-| FireRed | USA/Europe: BPRE rev 0 (SHA-1 41cb23d8) and rev 1 (dd5945db) | works | works | partly | works | partly | partly | Rev 0 has no Pokedex tables (no `DEX` tab), no foe team in battle and no trainer or wild tables in the guide; rev 1 has everything |
+| FireRed | USA/Europe: BPRE rev 0 (SHA-1 41cb23d8) and rev 1 (dd5945db) | works | works | partly | works | works | works | None |
 | FireRed | Spanish, German, French, Italian rev 0 (BPRS, BPRD, BPRF, BPRI); Japanese rev 0 and 1 (BPRJ) | works | works | partly | works | works | partly | No guide for the Japanese cart; no foe team in battle in the German, French, Italian and Japanese carts |
 | LeafGreen | USA/Europe: BPGE rev 0 (SHA-1 574fa542) and rev 1 (7862c67b) | works | works | partly | works | works | works | Rev 0 has no foe team in battle |
 | LeafGreen | Spanish, German, French, Italian rev 0 (BPGS, BPGD, BPGF, BPGI); Japanese rev 0 and 1 (BPGJ) | works | works | partly | works | works | partly | No guide for the Japanese cart; no foe team in battle in the German, French, Italian and Japanese carts |
@@ -137,10 +137,10 @@ By tab:
   Platinum carts get no companion yet.
 - **A missing `DEX` tab.** In Heart and Soul, Let's Go, Lazarus, Emerald
   Seaglass, Too Many Types 2, Emerald Imperium, Wishes of Tomorrow, Dreamstone
-  Mysteries, Monomyth, Emerald Rogue, SoulGold and FireRed rev 0, the desktop
+  Mysteries, Monomyth, Emerald Rogue and SoulGold, the desktop
   hides the `DEX` tab, though the app shows one.
 - **No foe team in battle.** In Unbound, Radical Red, Gaia, Odyssey, Heart and
-  Soul, Celia's hack, FireRed and LeafGreen rev 0, and the German, French,
+  Soul, Celia's hack, LeafGreen rev 0, and the German, French,
   Italian and Japanese FireRed and LeafGreen carts, the battle panes show your
   side and the Pokémon you face, but not the rest of the foe's team.
 - **No guide for the Japanese carts** of FireRed, LeafGreen, Ruby, Sapphire and
