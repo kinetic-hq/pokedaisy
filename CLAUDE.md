@@ -46,7 +46,8 @@ These come first where they differ from upstream's notes:
   manual gets one too (`docs/manual/windows.md` for the desktop host).
 - **Upstream sync**: `.github/workflows/upstream-sync.yml` merges lidor30/pokedaisy daily. `CLAUDE.md` always
   resolves as ours. Whatever upstream changed in its CLAUDE.md is appended to `docs/notes/upstream-claude-md.md` for a
-  person to fold into the right note.
+  person to fold into the right note. The workflow defines the `ours` merge driver itself; before syncing by hand, run
+  `git config merge.ours.driver true` once in the checkout, or `merge=ours` is ignored and CLAUDE.md conflicts.
 
 ## Build and test
 
