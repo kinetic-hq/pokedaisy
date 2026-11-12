@@ -69,6 +69,7 @@
 #define H 384
 #define CANVAS_MAX_W 1024
 #define CANVAS_MAX_H 768
+#define PANEL_MAX_H 1440 // the wings' canvases: WING LOOK's COMPACT draws a full-height wing a pixel a pixel
 static uint32_t pixels[CANVAS_MAX_W * CANVAS_MAX_H];
 static int canvasW = W, canvasH = H;
 static color_t video[256 * 256];
@@ -565,6 +566,8 @@ static char *droppedFile;
 static int wheelSteps;
 static bool rightClicked;
 static int rightClickX, rightClickY;
+static bool wingClicked; // a click / touch this frame, in the renderer's pixels: on a wing, it opens that page
+static float wingClickX, wingClickY;
 static bool textEntry;   // RENAME's keyboard is up: the keyboard types instead of pressing buttons
 static char textTyped[64];
 static int textBackspaces;
@@ -723,6 +726,7 @@ static uint32_t lastInputAt;  // the last input (the bezel bars' BUTTON HINTS)
 static void events(void) {
   pressed = 0;
   tapCount = 0;
+  wingClicked = false;
   tap_script();
   key_script();
   SDL_Event e;
@@ -733,6 +737,16 @@ static void events(void) {
         e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_FINGERDOWN || e.type == SDL_CONTROLLERAXISMOTION)
       wingActivity = lastInputAt = SDL_GetTicks();
     controller_device_event(&e);
+    if ((e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT && e.button.which != SDL_TOUCH_MOUSEID) ||
+        e.type == SDL_FINGERDOWN) {
+      int mx = 0, my = 0, ww = 1, wh = 1;
+      SDL_GetMouseState(&mx, &my);
+      SDL_GetWindowSize(window, &ww, &wh);
+      float nx = e.type == SDL_FINGERDOWN ? e.tfinger.x : (float)mx / (ww > 0 ? ww : 1);
+      float ny = e.type == SDL_FINGERDOWN ? e.tfinger.y : (float)my / (wh > 0 ? wh : 1);
+      pd_host_point(nx, ny, &wingClickX, &wingClickY);
+      wingClicked = true;
+    }
     tap_event(&e);
     if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
       tapHeld = false;
@@ -1277,6 +1291,7 @@ static bool oledBlack;    // COLORS OLED: the panels' backdrops true black, like
 static bool dimCompanion; // DIM COMPANION: the companion and its panels drawn darker, against OLED burn-in
 static bool reduceMotion; // REDUCE MOTION: no easing HP bars or sliding cards in the wings
 static int background = POCKET_BACKGROUND_THEME; // BACKGROUND in force (backdrop.h)
+static int wingLook = POCKET_WING_COMFY;          // WING LOOK (backdrop.h)
 
 static uint32_t panel_back(void) {
   struct pocket_backdrop b = pocket_backdrop_for(background);
@@ -1563,7 +1578,7 @@ static struct view_rect view_companion(const struct view_layout *v) {
  * that keeps a panel 160 pixels wide (a strip 24 tall), never past the companion's, redrawn only when the
  * companion's data or the panel's size changed. */
 enum { PANEL_LEFT, PANEL_RIGHT, PANEL_TOP, PANEL_BOTTOM, PANELS };
-static uint32_t panelPixels[CANVAS_MAX_W * CANVAS_MAX_H];
+static uint32_t panelPixels[CANVAS_MAX_W * PANEL_MAX_H];
 static SDL_Texture *panelTexture[PANELS];
 static uint32_t panelKey[PANELS], panelGen;
 static int panelW[PANELS], panelH[PANELS];
@@ -1712,6 +1727,42 @@ static void bezel_strip(struct pd_canvas *pc, const char *a, const char *b, cons
   }
   (void)muted;
 }
+/* The game's frame squeezed to 16 x 12: a blur of its colours for free (GLOW's bars, BLUR's wings). False with no
+ * frame yet. */
+static bool game_glow_ready(void) {
+  if (!bezelGlowSource)
+    return false;
+  if (!bezelGlow) {
+    bezelGlow = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 16, 12);
+    if (!bezelGlow)
+      return false;
+    SDL_SetTextureScaleMode(bezelGlow, SDL_ScaleModeLinear);
+  }
+  SDL_Texture *was = SDL_GetRenderTarget(renderer);
+  if (SDL_SetRenderTarget(renderer, bezelGlow) != 0) {
+    SDL_SetRenderTarget(renderer, was);
+    return false;
+  }
+  SDL_ScaleMode mode;
+  SDL_GetTextureScaleMode(bezelGlowSource, &mode);
+  SDL_SetTextureScaleMode(bezelGlowSource, SDL_ScaleModeLinear);
+  SDL_RenderCopy(renderer, bezelGlowSource, &bezelGlowSourceRect, NULL);
+  SDL_SetTextureScaleMode(bezelGlowSource, mode);
+  SDL_SetRenderTarget(renderer, was);
+  return true;
+}
+/* BLUR's wing room: the game's side nearest it (side 0 left, 1 right), blurred, dark and faint. */
+static void draw_game_blur(SDL_Rect room, int side) {
+  if (!game_glow_ready())
+    return;
+  SDL_Rect from = {side ? 8 : 0, 0, 8, 12};
+  SDL_SetTextureBlendMode(bezelGlow, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureAlphaMod(bezelGlow, 200);
+  SDL_SetTextureColorMod(bezelGlow, 170, 170, 170);
+  SDL_RenderCopy(renderer, bezelGlow, &from, &room);
+  SDL_SetTextureColorMod(bezelGlow, 255, 255, 255);
+  SDL_SetTextureAlphaMod(bezelGlow, 255);
+}
 static void draw_panel(int which, struct view_rect r, const struct pd_game *g, const struct pd_snapshot *s,
                        bool battle) {
   if (r.w < 8 || r.h < 8)
@@ -1724,15 +1775,17 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     scale = fit;
   if (scale < 1)
     scale = 1;
+  if (which == PANEL_LEFT || which == PANEL_RIGHT)
+    scale = pocket_wing_look_scale(scale, wingLook, r.w, r.h, CANVAS_MAX_W, PANEL_MAX_H);
   // Never a canvas taller (or wider) than its texture: the card would stop short of the wing's height.
-  while (r.h / scale > CANVAS_MAX_H || r.w / scale > CANVAS_MAX_W)
+  while (r.h / scale > PANEL_MAX_H || r.w / scale > CANVAS_MAX_W)
     scale++;
   // BLACK / DARK: the wing is a card inset in its room, on the background, its content moved a step now and then.
   struct pocket_backdrop look = pocket_backdrop_for(background);
   struct view_rect room = r;
   int dx = 0, dy = 0;
   if (look.cards) {
-    int pad = (which == PANEL_TOP || which == PANEL_BOTTOM ? r.h : r.w) / 40;
+    int pad = (which == PANEL_TOP || which == PANEL_BOTTOM ? r.h : r.w) / (look.blur ? 12 : 40);
     if (pad < 3)
       pad = 3;
     pocket_wing_shift(background, SDL_GetTicks(), pad / 3, &dx, &dy);
@@ -1743,11 +1796,11 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   int w = r.w / scale, h = r.h / scale;
   if (w > CANVAS_MAX_W)
     w = CANVAS_MAX_W;
-  if (h > CANVAS_MAX_H)
-    h = CANVAS_MAX_H;
+  if (h > PANEL_MAX_H)
+    h = PANEL_MAX_H;
   if (!panelTexture[which]) {
     panelTexture[which] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING,
-                                            CANVAS_MAX_W, CANVAS_MAX_H);
+                                            CANVAS_MAX_W, PANEL_MAX_H);
     if (!panelTexture[which])
       return;
   }
@@ -1760,14 +1813,14 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   for (const char *t[3] = {a, b, c}, **p = t; p < t + 3; p++)
     for (const char *q = *p; *q; q++)
       textKey = (textKey ^ (uint8_t)*q) * 16777619u;
-  uint32_t key = panelGen * 2654435761u ^ (uint32_t)(w * 65599 + h) ^ (battle ? 0x80000000u : 0) ^
+  uint32_t key = panelGen * 2654435761u ^ (uint32_t)(w * 65599 + h) ^ (battle ? 0x80000000u : 0) ^ (uint32_t)scale << 20 ^
                  (uint32_t)background << 28 ^ (uint32_t)bezelStyle << 24 ^
                  (strip ? textKey : pd_ui_bar_facts * 2246822519u);
   // The bars' see-through texture (GLOW: only the text is drawn over the glow).
   static SDL_Texture *bezelTexture[PANELS];
   if (bezel && !bezelTexture[which]) {
     bezelTexture[which] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
-                                            CANVAS_MAX_W, CANVAS_MAX_H);
+                                            CANVAS_MAX_W, PANEL_MAX_H);
     if (!bezelTexture[which])
       return;
     SDL_SetTextureBlendMode(bezelTexture[which], SDL_BLENDMODE_BLEND);
@@ -1788,8 +1841,8 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     h = r.h / scale;
     if (w > CANVAS_MAX_W)
       w = CANVAS_MAX_W;
-    if (h > CANVAS_MAX_H)
-      h = CANVAS_MAX_H;
+    if (h > PANEL_MAX_H)
+      h = PANEL_MAX_H;
   }
   // A bar whose words changed (not its size): the last picture is kept and faded out over the new one.
   static SDL_Texture *altTexture[2][PANELS];
@@ -1802,7 +1855,7 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     SDL_Texture **alt = &altTexture[bezel][which];
     if (!*alt) {
       *alt = SDL_CreateTexture(renderer, bezel ? SDL_PIXELFORMAT_ARGB8888 : SDL_PIXELFORMAT_RGB888,
-                               SDL_TEXTUREACCESS_STREAMING, CANVAS_MAX_W, CANVAS_MAX_H);
+                               SDL_TEXTUREACCESS_STREAMING, CANVAS_MAX_W, PANEL_MAX_H);
       if (*alt)
         SDL_SetTextureBlendMode(*alt, SDL_BLENDMODE_BLEND);
     }
@@ -1868,29 +1921,14 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     SDL_Rect bar = {room.x, room.y, room.w, room.h};
     set_color(bezelStyle == BEZEL_STYLE_BLACK ? 0x0B0B0D : 0x000000, 255);
     SDL_RenderFillRect(renderer, &bar);
-    if (bezelStyle == BEZEL_STYLE_GLOW && bezelGlowSource) {
-      // The game's frame squeezed to 16 x 12 and stretched over the bar: a soft glow of its colours, dark and faint.
-      if (!bezelGlow) {
-        bezelGlow = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 16, 12);
-        if (bezelGlow)
-          SDL_SetTextureScaleMode(bezelGlow, SDL_ScaleModeLinear);
-      }
-      SDL_Texture *was = SDL_GetRenderTarget(renderer);
-      if (bezelGlow && SDL_SetRenderTarget(renderer, bezelGlow) == 0) {
-        SDL_ScaleMode mode;
-        SDL_GetTextureScaleMode(bezelGlowSource, &mode);
-        SDL_SetTextureScaleMode(bezelGlowSource, SDL_ScaleModeLinear);
-        SDL_RenderCopy(renderer, bezelGlowSource, &bezelGlowSourceRect, NULL);
-        SDL_SetTextureScaleMode(bezelGlowSource, mode);
-        SDL_SetRenderTarget(renderer, was);
-        // Above the game its top edge's colours, below it its bottom's: the glow comes out of the picture.
-        SDL_Rect from = {0, which == PANEL_TOP ? 0 : 6, 16, 6};
-        SDL_SetTextureBlendMode(bezelGlow, SDL_BLENDMODE_BLEND);
-        SDL_SetTextureAlphaMod(bezelGlow, 170);
-        SDL_SetTextureColorMod(bezelGlow, 170, 170, 170);
-        SDL_RenderCopy(renderer, bezelGlow, &from, &bar);
-      } else if (bezelGlow)
-        SDL_SetRenderTarget(renderer, was);
+    if (bezelStyle == BEZEL_STYLE_GLOW && game_glow_ready()) {
+      // The game's frame squeezed and stretched over the bar: a soft glow of its colours, dark and faint. Above the
+      // game its top edge's colours, below it its bottom's: the glow comes out of the picture.
+      SDL_Rect from = {0, which == PANEL_TOP ? 0 : 6, 16, 6};
+      SDL_SetTextureBlendMode(bezelGlow, SDL_BLENDMODE_BLEND);
+      SDL_SetTextureAlphaMod(bezelGlow, 170);
+      SDL_SetTextureColorMod(bezelGlow, 170, 170, 170);
+      SDL_RenderCopy(renderer, bezelGlow, &from, &bar);
     }
     SDL_Rect to = {r.x + dx + (r.w - w * scale) / 2, r.y + dy + (r.h - h * scale) / 2, w * scale, h * scale};
     if (fading) {
@@ -1907,8 +1945,12 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   if (look.cards) {
     set_color(look.outside, 255);
     SDL_RenderFillRect(renderer, &(SDL_Rect){room.x, room.y, room.w, room.h});
+    if (look.blur)
+      draw_game_blur((SDL_Rect){room.x, room.y, room.w, room.h}, which == PANEL_LEFT ? 0 : 1);
     SDL_Rect card = {r.x + dx, r.y + dy, r.w, r.h};
-    set_color(look.card, 255);
+    // BLUR: the card a little see-through, so the game's colours show faintly through it too.
+    SDL_SetRenderDrawBlendMode(renderer, look.blur ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
+    set_color(look.card, look.blur ? 170 : 255);
     SDL_RenderFillRect(renderer, &card);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     set_color(look.border, look.borderAlpha);
@@ -1927,6 +1969,10 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     SDL_SetTextureBlendMode(panelTexture[which], SDL_BLENDMODE_BLEND);
   }
   dim_texture(panelTexture[which]);
+  if (look.blur) {
+    SDL_SetTextureBlendMode(panelTexture[which], SDL_BLENDMODE_BLEND);
+    fadeK = fadeK * 200 / 255;
+  }
   SDL_SetTextureAlphaMod(panelTexture[which], (uint8_t)fadeK);
   SDL_RenderCopy(renderer, panelTexture[which], &(SDL_Rect){0, 0, w, h}, &to);
   SDL_SetTextureAlphaMod(panelTexture[which], 255);
@@ -1982,6 +2028,71 @@ static void draw_toast(struct view_rect r) {
   SDL_RenderCopy(renderer, texture, &(SDL_Rect){0, 0, w, h},
                  &(SDL_Rect){r.x + (r.w - w * scale) / 2, r.y + (26 - drop) * scale, w * scale, h * scale});
 }
+/* The wings' button hints, where no bezel bar carries them: a small card at the bottom of the left wing for the first
+ * WING_HINT_MS of a game and again once the player has been idle WING_HINT_IDLE_MS. */
+#define WING_HINT_MS 8000u
+#define WING_HINT_IDLE_MS 20000u
+#define WING_HINT_FADE_MS 500u
+static uint32_t wingHintsFrom; // the game's first wing frame (0: none yet)
+static void draw_hints(struct view_rect r) {
+  uint32_t now = SDL_GetTicks();
+  if (!wingHintsFrom)
+    wingHintsFrom = now ? now : 1;
+  uint32_t shown = now - wingHintsFrom, idle = now - lastInputAt;
+  int alpha = 0;
+  if (shown < WING_HINT_MS)
+    alpha = shown > WING_HINT_MS - WING_HINT_FADE_MS ? (int)(255u * (WING_HINT_MS - shown) / WING_HINT_FADE_MS) : 255;
+  if (idle > WING_HINT_IDLE_MS) {
+    int a = idle - WING_HINT_IDLE_MS >= WING_HINT_FADE_MS ? 255 : (int)(255u * (idle - WING_HINT_IDLE_MS) / WING_HINT_FADE_MS);
+    if (a > alpha)
+      alpha = a;
+  }
+  if (reduceMotion && alpha)
+    alpha = 255;
+  if (!alpha || r.w < 60 || r.h < 60)
+    return;
+  int ow, oh;
+  SDL_GetRendererOutputSize(renderer, &ow, &oh);
+  int scale = r.w / 112;
+  int most = ow / canvasW < oh / canvasH ? ow / canvasW : oh / canvasH;
+  if (most > 0 && scale > most)
+    scale = most;
+  if (scale < 1)
+    scale = 1;
+  int w = r.w / scale - 12, h = 2 * 16 + 10;
+  if (w > CANVAS_MAX_W)
+    w = CANVAS_MAX_W;
+  if (w < 40)
+    return;
+  static SDL_Texture *texture;
+  static uint32_t drawnKey;
+  uint32_t key = (uint32_t)w ^ (uint32_t)background << 24 ^ 0x9E3779B9u;
+  if (!texture) {
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, CANVAS_MAX_W, 48);
+    if (!texture)
+      return;
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+  }
+  if (key != drawnKey) {
+    const uint32_t clear = 0x00FE01FE;
+    struct pd_canvas pc;
+    pd_canvas_init(&pc, w, h, panelPixels);
+    struct pocket_wing_look wl;
+    pocket_wing_look_begin(background, &wl);
+    pd_fill(&pc, 0, 0, w, h, clear);
+    pd_title_box(&pc, 0, 0, w, h, PD_TITLE_FILL);
+    pd_text_fit(&pc, 7, 4, w - 14, "X COMPANION  Y QUICK MENU", PD_LABEL, PD_LABEL_SHADOW);
+    pd_text_fit(&pc, 7, 4 + 16 + 1, w - 14, "R3 VIEW  CLICK A WING: ITS PAGE", PD_MUTED, PD_MUTED_SHADOW);
+    pocket_wing_look_end(&wl);
+    for (int i = 0; i < w * h; i++)
+      panelPixels[i] = (panelPixels[i] & 0xFFFFFF) == clear ? 0 : 0xFF000000u | panelPixels[i];
+    SDL_UpdateTexture(texture, &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
+    drawnKey = key;
+  }
+  SDL_SetTextureAlphaMod(texture, (uint8_t)alpha);
+  SDL_RenderCopy(renderer, texture, &(SDL_Rect){0, 0, w, h},
+                 &(SDL_Rect){r.x + (r.w - w * scale) / 2, r.y + r.h - (h + 10) * scale, w * scale, h * scale});
+}
 /* BLACK / DARK: a thin dark grey line round the game beside the wings, so its edge doesn't meet pure black. */
 static void draw_gutter(void) {
   struct pocket_backdrop look = pocket_backdrop_for(background);
@@ -2015,6 +2126,17 @@ static void draw_panels(const struct view_layout *v, const struct pd_game *g, co
     draw_toast(v->right);
   else if (v->left.w >= 60)
     draw_toast(v->left);
+  // The button hints at the bottom of the left wing, where no bar shows them.
+  if (!companionInRight && v->left.w >= 60 && !(v->top.h >= 8 || v->bottom.h >= 8))
+    draw_hints(v->left);
+}
+/* The companion page a click at (x, y) on a wing opens, -1 off the wings. */
+static int wing_tab_at(const struct view_layout *v, float x, float y, bool battle) {
+  const struct view_rect *r[2] = {&v->left, &v->right};
+  for (int i = 0; i < 2; i++)
+    if (r[i]->w >= 8 && x >= r[i]->x && y >= r[i]->y && x < r[i]->x + r[i]->w && y < r[i]->y + r[i]->h)
+      return i == 0 ? PD_TAB_PARTY : battle ? PD_TAB_BATTLE : PD_TAB_MAP;
+  return -1;
 }
 static bool view_has_panels(const struct view_layout *v) {
   return v->left.w || v->right.w || v->top.w || v->bottom.w;
@@ -2979,6 +3101,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     dimCompanion = settings.dimCompanion;
     reduceMotion = settings.reduceMotion;
     background = pocket_background_resolve(settings.background, oledBlack, settings.darkMode);
+    wingLook = settings.wingLook;
     pocket_shader_brightness(settings.brightness);
     // DARK MODE and THEME: the core's look follows them (the wings, the strips, the HUD, the companion).
     static int lookKey = -1;
@@ -3065,6 +3188,21 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       if (audio)
         SDL_ClearQueuedAudio(audio);
     }
+    // A click on a wing opens the companion on that wing's page: the party's on PARTY, the map's on MAP (BATTLE in
+    // a battle).
+    if (wingClicked && !companion && !menuOpen && !quickOpen) {
+      int tab = wing_tab_at(&viewShown, wingClickX, wingClickY, snap.inBattle);
+      if (tab >= 0) {
+        ui.tab = tab;
+        if (tab == PD_TAB_MAP)
+          ui.mapPage = -1;
+        companion = true;
+        c->setKeys(c, 0);
+        if (audio)
+          SDL_ClearQueuedAudio(audio);
+      }
+    }
+    wingClicked = false;
     if ((!hostMenu && down(MENU)) || host_action(HA_MENU) || ((down(START) || down(SELECT)) &&
                        (held & (1u << START)) && (held & (1u << SELECT)))) {
       // A second press closes the menu back to the game, like B and RESUME GAME do (it used to leave the
@@ -4203,6 +4341,7 @@ enum {
   ROW_DIM,
   ROW_MOTION,
   ROW_BACKGROUND,
+  ROW_WING_LOOK,
   ROW_FULL,
   ROW_ORIENT,
   ROW_TOUCH,
@@ -4284,6 +4423,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_MOTION, "REDUCE MOTION\t%s", st.reduceMotion ? "ON" : "OFF");
       ROW(ROW_BACKGROUND, "BACKGROUND\t%s",
           pocket_background_name(pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED, st.darkMode)));
+      ROW(ROW_WING_LOOK, "WING LOOK\t%s", pocket_wing_look_name(st.wingLook));
       ROW(ROW_BEZEL_STYLE, "BEZEL STYLE\t%s",
           BEZEL_STYLE_NAMES[bezel_style_resolve(st.bezelStyle, pocket_background_resolve(st.background, st.colors ==
                                                                 POCKET_COLORS_OLED, st.darkMode) == POCKET_BACKGROUND_BLACK)]);
@@ -4499,13 +4639,24 @@ static int settings_page(bool *foldersChanged) {
       break;
     case ROW_BACKGROUND: {
       static const char *const rows[POCKET_BACKGROUNDS] = {"BLACK\tTRUE BLACK, FOR OLED", "DARK\tA NEAR BLACK",
-                                                           "THEME\tTHE THEME'S DARK SLATE"};
+                                                           "THEME\tTHE THEME'S DARK SLATE",
+                                                           "BLUR\tTHE GAME, BLURRED, ROUND THE CARDS"};
       int b = menu_pick("BACKGROUND", rows, POCKET_BACKGROUNDS,
                         pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED, st.darkMode));
       if (b < 0)
         save = false;
       else
         st.background = b;
+      break;
+    }
+    case ROW_WING_LOOK: {
+      static const char *const rows[POCKET_WING_LOOKS] = {"COMPACT\tSMALLER, MORE FITS", "COMFY\tAS WORKED OUT",
+                                                          "BIG\tLARGER, EASIER FROM A DISTANCE"};
+      int l = menu_pick("WING LOOK", rows, POCKET_WING_LOOKS, st.wingLook);
+      if (l < 0)
+        save = false;
+      else
+        st.wingLook = l;
       break;
     }
     case ROW_FULL:

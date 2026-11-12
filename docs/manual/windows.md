@@ -311,6 +311,13 @@ stays in the middle of the screen in every view but a locked side panel.
 - **`STEP BACK`**: the game steps back two sizes and the companion sits around
   it.
 
+Click a wing (or touch it) to open the companion on that wing's page: the
+party's wing opens `PARTY`, the other `MAP`, or `BATTLE` during a battle. Under
+the map, `CAUGHT HERE` shows this area's wild kinds as small icons, the ones
+you haven't caught yet faded. When no strip runs above or below the game, a
+small card at the bottom of the left wing shows the buttons for a few seconds
+as a game starts, and again when you've been idle a while.
+
 The game moves into its new place smoothly when a view changes.
 
 A move running low on PP shows its PP in orange (a quarter of its PP left, or 2
@@ -337,7 +344,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
 | `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `CHEATS` | `LEVEL CAP` |
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
-| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
+| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `WING LOOK`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |
 | `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `RUMBLE`; `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
 | `APP` | | `BATTERY SAVER`, `THIS GAME ONLY`, `RESUME GAMES`, `CHECK FOR UPDATES` |
@@ -360,11 +367,17 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   black, which an OLED doesn't light at all.
 - **`BRIGHTNESS`**: lifts the game's darker colours, 80% to 150%. `110%` is the
   default; `100%` is the game's own picture.
+- **`WING LOOK`**: how large the panels beside the game are drawn. `COMPACT`
+  draws them a size smaller so more fits, `COMFY` (the default) as worked out
+  for the window, and `BIG` a size larger, easier to read from the couch, where
+  the window has room for it.
 - **`DIM COMPANION`**: the companion and the panels beside the game are drawn
   a little darker, so the game stands out.
 - **`BACKGROUND`**: `BLACK` makes everything round the game true black and
   draws the panels beside it as near black cards with a faint edge. `DARK` is
-  the same a shade lighter. `THEME` keeps the theme's own colours. With
+  the same a shade lighter. `THEME` keeps the theme's own colours. `BLUR`
+  puts a soft, blurred copy of the game behind the panels, which turn a little
+  see-through. With
   `COLORS` `OLED` it starts on `BLACK`, with `DARK MODE` on `DARK`, and in DS games it always starts
   on `BLACK`: most of the window is room round the screens there. Panels that stay still for a minute dim
   a little more, and move by a pixel every few minutes, so nothing burns in.

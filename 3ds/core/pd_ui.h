@@ -146,6 +146,7 @@ struct pd_settings {
     int brightness;    // ... and BRIGHTNESS, a percent (80 ... 150, linux/shader.h)
     int bezelStyle;    // ... and the bezel bars (linux/bezel.h): BEZEL STYLE, -1 = by BACKGROUND
     int bezelSlots[6]; // ... and what each of their six places shows (BEZEL_* items)
+    int wingLook;      // ... and WING LOOK (linux/backdrop.h): 0 COMPACT, 1 COMFY, 2 BIG
 };
 
 // BATTERY SAVER (the desktop host): AUTO saves only while the machine runs on its battery.
@@ -598,6 +599,8 @@ int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s);
 int pd_ui_next_boss(const struct pd_game* g, const struct pd_snapshot* s, char* title, size_t len);
 // The wild POKéMON of the player's area: how many kinds, and how many of them are caught. False with none known.
 bool pd_ui_caught_here(const struct pd_game* g, const struct pd_snapshot* s, int* caught, int* total);
+// This area's wild kinds (every method, each once, in the guide's order) and whether each is caught; up to max.
+int pd_ui_wild_here(const struct pd_game* g, const struct pd_snapshot* s, int* species, bool* caught, int max);
 void pd_ui_dex_view(struct pd_ui*,struct pd_canvas*,const struct pd_game*,const struct pd_snapshot*,int selected);
 void pd_ui_bag_cycle_sort(struct pd_ui*);
 // The tab bar's D-pad step: the key after / before `key` in `keys` (the tabs in the order they are drawn), the ends
