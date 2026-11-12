@@ -120,6 +120,7 @@ battlerPartyIndexes = 'battlerPartyIndexes'
 battleStructPtr = 'battleStructPtr'
 battleStructStatic = 'battleStructStatic'
 monToSwitchIntoOff = 'monToSwitchIntoOff'
+activeGimmickOff = 'activeGimmickOff'
 
 # The party menu's icons and the bag's.
 [part.icons]

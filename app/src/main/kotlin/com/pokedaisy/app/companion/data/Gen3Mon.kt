@@ -496,6 +496,9 @@ private class Gen3Substructs(
     val evs: List<Int>, val ivWord: Long, val heldItem: Int,
 )
 
+/** pokeemerald-expansion's Tera type: the 5 bits above the 11-bit species of an encrypted party mon; 0 = none / unreadable. */
+fun gen3TeraType(raw: ByteArray, off: Int): Int = decryptGen3Substructs(raw, off)?.species?.ushr(11) ?: 0
+
 private fun decryptGen3Substructs(raw: ByteArray, off: Int, monomyth: Boolean = false): Gen3Substructs? {
     val personality = u32(raw, off + 0)
     val otId = u32(raw, off + 4)

@@ -87,6 +87,8 @@ Tap `INFO` for the battle at a glance. It's split down the middle, you on the le
 - **Bottom left**: your moves, each with its verdict against the foe.
 - **Bottom right**: what the foe is `WEAK TO`, what it `RESISTS` and what it's `IMMUNE TO`, strongest weakness first.
 
+In Petalburg Dynasty, a Pokémon that has Terastallized shows its Tera type in place of its own types, and the verdicts and weaknesses follow that type. A Stellar Tera keeps the Pokémon's own types, as the game does.
+
 ![The INFO page: EMBERPUP's card and moves on the left, CRAGMAW's card and its weaknesses on the right, the foe team along the bottom](shots/companion-battle-info.png "INFO in a trainer battle")
 
 In a single battle all of that fits without scrolling. In a double battle the page scrolls.

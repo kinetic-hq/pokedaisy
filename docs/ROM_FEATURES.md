@@ -484,9 +484,11 @@ change to any of the places listed under "Where it's decided" updates its rows h
     SCOUTING or the match day builds them, so there's no NEXT CHALLENGER page.
     Careers started headless on copies: DOUBLE (every trainer battle a double: the panes show the left foe and both
     of its slots, and the one-press buttons stay off as in every double battle), TERA and DYNAMAX (the foes use them
-    too). A Dynamaxed mon's doubled HP reads right. A Terastallized mon still shows its own types and weaknesses:
-    the Tera type isn't read yet. MEGA and Z-MOVE careers start fine, but their starters can't Mega Evolve and
-    carry no Z crystal, so those two weren't seen in battle.
+    too). A Dynamaxed mon's doubled HP reads right. A Terastallized mon shows its Tera type and that type's weaknesses
+    (gBattleStruct's activeGimmick at +0x30B, then the 5 bits above the party mon's species; a foe that
+    "terastallized into the Ground type" read Ground, after Ground/Grass the turn before). The MEGA and Z-MOVE careers' starters can't Mega Evolve and carry no Z
+    crystal, so a scratch state gave the lead one: a Mega Stone holder's Mega Evolution shows as its Mega form (its
+    own types and HP) and a Z crystal's Z-Move plays out with the panes unchanged.
 
 ## What each column is
 

@@ -37,6 +37,7 @@ struct pd_mon {
     int pp[PD_NUM_MOVES];
     uint32_t personality;
     bool shiny;       // only where the config reads it (pd_party_layout shiny*)
+    int teraType;     // expansion's Tera type, the 5 bits above the species (where activeGimmickOff is known); 0 = none
     // Optional live fields used by the native companions.
     bool hasExperience, hasHeldItem; // distinguish unavailable data from zero
     uint32_t experience;
@@ -57,6 +58,7 @@ struct pd_battle_mon {
     // Optional live Gen 2 battle fields, in Attack/Defense/Speed/Sp.Atk/Sp.Def order.
     int heldItem, stats[5];
     bool shiny; // by its personality and OT ID, where the game's shiny check is known
+    bool tera;  // Terastallized: type1 / type2 are its Tera type
 };
 
 #define PD_POS_PLAYER_LEFT 0

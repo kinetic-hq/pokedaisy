@@ -354,6 +354,14 @@ kotlin = 'Int'
 type = 'int'
 default = 0
 
+# pokeemerald-expansion's gBattleStruct->gimmick.activeGimmick[side][partyIndex] (u8s, side 0 the player's):
+# GIMMICK_TERA (5) there means that party mon is Terastallized, and BATTLE shows its Tera type (the 5 bits
+# above the 11-bit species) in place of its own types. 0 = not known.
+[field.activeGimmickOff]
+kotlin = 'Int'
+type = 'int'
+default = 0
+
 # Ruby/Sapphire's BattleStruct isn't behind a pointer: it sits at a fixed
 # address (gSharedMem), and [battleStructPtr] is that address itself.
 [field.battleStructStatic]
