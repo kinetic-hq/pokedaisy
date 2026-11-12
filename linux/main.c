@@ -2416,6 +2416,42 @@ static unsigned ds_host_actions(void) {
   return bits;
 }
 #endif
+/* RUMBLE (settings.rumble): every open pad buzzes as a battle starts, harder for a shiny foe, and along with a rumble
+ * cartridge (mGBA's mPERIPH_RUMBLE). POCKET_RUMBLE_LOG prints each one (headless checks: no pad there). */
+static bool rumbleOn;
+static void rumble(uint16_t low, uint16_t high, uint32_t ms) {
+  if (!rumbleOn && (low || high))
+    return;
+  if (getenv("POCKET_RUMBLE_LOG"))
+    fprintf(stderr, "rumble %u %u %u\n", low, high, ms);
+  for (int i = 0; i < padCount; i++)
+    SDL_GameControllerRumble(pads[i], low, high, ms);
+}
+static void cart_rumble(struct mRumble *r, int enable) {
+  static int was;
+  (void)r;
+  if (!!enable == was)
+    return;
+  was = !!enable;
+  rumble(was ? 0xA000 : 0, was ? 0xA000 : 0, was ? 2000 : 0);
+}
+static struct mRumble cartRumble = {.setRumble = cart_rumble};
+static void rumble_events(const struct pd_snapshot *s, bool fieldBattle) {
+  static bool was, shinySeen;
+  bool now = (s->valid && s->inBattle) || fieldBattle;
+  if (now && !was)
+    rumble(0x5000, 0x3000, 180);
+  if (!now)
+    shinySeen = false;
+  else if (!shinySeen && s->valid && s->inBattle)
+    for (int i = 1; i < 4; i += 2) // the foes' places
+      if (s->battlers[i].species && s->battlers[i].shiny) {
+        shinySeen = true;
+        rumble(0xFFFF, 0xC000, 700);
+        break;
+      }
+  was = now;
+}
 static void run_game(const char *path, int maxFrames, const char *shot) {
   {
     const char *file = path + strlen(path);
@@ -2555,6 +2591,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   }
   struct mAVStream stream = {.postAudioBuffer = post_audio};
   c->setAVStream(c, &stream);
+  c->setPeripheral(c, mPERIPH_RUMBLE, &cartRumble);
   for (int i = 0; i < 2; i++)
     blip_set_rates(c->getAudioChannel(c, i), c->frequency(c), 32768);
   c->reset(c);
@@ -2632,6 +2669,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   host.hasStates = true; // STATES: slot 0 (the old one state file) is picked to begin with
   host.hasResume = true;
+  host.hasRumble = true;
   slotsStale = true;
   /* RESUME GAMES: leaving a game leaves states/<rom>.resume.ss; the next start asks CONTINUE or START FROM SAVE.
    * States never carry the save, so the save file is never touched; a save newer than the state (played elsewhere
@@ -3172,6 +3210,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       panelGen++;
     }
     companionWas = companion;
+    rumbleOn = settings.rumble;
+    rumble_events(&snap, (fieldFlags & PK_FIELD_BATTLE) != 0);
     // FLY's steps, each between two frames the game's own code can be called in (pk_call_safe), as the app's
     // field-item jobs wait for one.
     bool flyBattle = snap.inBattle || (fieldFlags & PK_FIELD_BATTLE);
@@ -3380,6 +3420,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     SDL_ClearQueuedAudio(audio);
 cleanup:
   rewind_follow(false);
+  rumble(0, 0, 0); // a rumble cart left buzzing stops with the game
   pk_wide_configure(0);
   wideSupported = wideReady = false;
   c->unloadROM(c);
@@ -3873,6 +3914,7 @@ enum {
   ROW_SETUP,
   ROW_BEZEL_STYLE,
   ROW_BEZEL,
+  ROW_RUMBLE,
   ROW_BEZEL_SLOT0 = 80,
   ROW_HOTKEY0 = 100
 };
@@ -3927,6 +3969,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(0, PD_MENU_GROUP "CONTROLS");
       ROW(ROW_BUTTONS, "GAME BUTTONS" PD_MENU_PAGE);
       ROW(ROW_HOTKEYS, "HOTKEYS" PD_MENU_PAGE);
+      ROW(ROW_RUMBLE, "RUMBLE\t%s", st.rumble ? "ON" : "OFF");
       ROW(0, PD_MENU_GROUP "APP");
       ROW(ROW_UPDATES, "CHECK FOR UPDATES\t%s", st.updateCheck ? "ON" : "OFF");
       ROW(ROW_SETUP, "RUN SETUP" PD_MENU_PAGE);
@@ -4069,6 +4112,13 @@ static int settings_page(bool *foldersChanged) {
       break;
     case ROW_UPDATES:
       st.updateCheck = !st.updateCheck;
+      break;
+    case ROW_RUMBLE:
+      st.rumble = !st.rumble;
+      if (st.rumble) { // a taste of it, so you know it works
+        rumbleOn = true;
+        rumble(0x5000, 0x3000, 180);
+      }
       break;
     case ROW_BOXART:
       st.boxartAuto = !st.boxartAuto;

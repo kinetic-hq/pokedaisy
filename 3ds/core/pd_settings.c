@@ -26,6 +26,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->runIndoors = false;
     s->levelCap = false;
     s->resumeGames = true;
+    s->rumble = false;
     s->quickGrid = false;
     s->lcdFilter = false;
     s->quickBtn = PD_BTN_Y;
@@ -181,7 +182,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
                     : !strcmp(key, "onetap") ? &s->oneTapMoves : !strcmp(key, "mute") ? &s->gameMuted
                     : !strcmp(key, "autorun") ? &s->autoRun : !strcmp(key, "updatecheck") ? &s->updateCheck
                     : !strcmp(key, "dim") ? &s->dimCompanion : !strcmp(key, "savesbeside") ? &s->savesBeside
-                    : !strcmp(key, "reducemotion") ? &s->reduceMotion : !strcmp(key, "levelcap") ? &s->levelCap : !strcmp(key, "resume") ? &s->resumeGames
+                    : !strcmp(key, "reducemotion") ? &s->reduceMotion : !strcmp(key, "levelcap") ? &s->levelCap : !strcmp(key, "resume") ? &s->resumeGames : !strcmp(key, "rumble") ? &s->rumble
                     : !strcmp(key, "boxart") ? &s->boxartAuto : NULL;
             if (b && int_in(value, 0, 1, &on)) *b = on;
         }
@@ -204,7 +205,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "scaling=%d\nffaudio=%d\nrewind=%d\nrunindoors=%d\n", s->scaling, s->ffAudio ? 1 : 0,
             s->rewind ? 1 : 0, s->runIndoors ? 1 : 0);
     fprintf(f, "quickbtn=%d\ncompanionbtn=%d\nhudbtn=%d\n", s->quickBtn, s->companionBtn, s->hudBtn);
-    fprintf(f, "levelcap=%d\nresume=%d\n", s->levelCap ? 1 : 0, s->resumeGames ? 1 : 0);
+    fprintf(f, "levelcap=%d\nresume=%d\nrumble=%d\n", s->levelCap ? 1 : 0, s->resumeGames ? 1 : 0,
+            s->rumble ? 1 : 0);
     fprintf(f, "dark=%d\ntheme=%d\nffnormal=%d\ncheats=%d\n", s->darkMode, s->theme, s->ffNormal, s->cheats);
     fprintf(f, "speed=%d\nvolume=%d\nnohints=%d\nonetap=%d\nmute=%d\nautorun=%d\nperf=%d\n", s->gameSpeed,
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);
