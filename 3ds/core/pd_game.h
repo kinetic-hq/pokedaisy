@@ -204,6 +204,7 @@ struct pd_config {
     uint32_t battlerPartyIndexes;
     uint32_t battleStructPtr;
     uint32_t monToSwitchIntoOff;
+    uint32_t activeGimmickOff; // expansion's activeGimmick[side][partyIndex] in gBattleStruct; 0 = not known
     // The battle's touch controls (pd_binput.h; the app's BattleInputController): gMain's inBattle byte,
     // gBattlerControllerFuncs and the handlers each battler's function can be; the battle menus' cursors (a byte per
     // battler; 0 = walked blind); gPartyMenu (0 = no POKéMON switch) and whether its slots sit in two columns.

@@ -4144,6 +4144,10 @@ val NATIVE_PETALBURG = NATIVE_EMERALD.copy(
     battleMonLayout = PETALBURG_BATTLE_MON,
     battleStructPtr = 0x020000E8L,
     monToSwitchIntoOff = 0x14A,
+    // activeGimmick[side][partyIndex] (u8s, +0x30B; usableGimmick per battler at +0x300). A TERA career's foe "terastallized
+    // into the Ground type": the foe side's slot 0 (+0x311) went 0 -> 5 and its party mon's species word read 5 (Ground)
+    // above the species; a DYNAMAX career wrote 4 at +0x30B and +0x311 (both leads).
+    activeGimmickOff = 0x30B,
     actionCursor = 0x02000358L,
     moveCursor = 0x0200035CL,
     battlerControllerFuncs = 0x03002730L,

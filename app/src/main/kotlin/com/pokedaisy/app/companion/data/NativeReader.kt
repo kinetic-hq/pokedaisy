@@ -140,6 +140,9 @@ data class NativeConfig(
     val battlerPartyIndexes: Long = 0,
     val battleStructPtr: Long = 0,
     val monToSwitchIntoOff: Int = 0,
+    // pokeemerald-expansion's gBattleStruct->gimmick.activeGimmick[side][partyIndex]: GIMMICK_TERA (5) shows the
+    // battler's Tera type (the 5 bits above its 11-bit species) in BATTLE. 0 = not known.
+    val activeGimmickOff: Int = 0,
     // Ruby/Sapphire's BattleStruct isn't behind a pointer: it sits at a fixed
     // address (gSharedMem), and [battleStructPtr] is that address itself.
     val battleStructStatic: Boolean = false,
@@ -468,6 +471,7 @@ fun readNativeTelemetry(client: MemoryReader, cfg: NativeConfig): Telemetry {
             if (pos == BATTLE_POS_OPPONENT_LEFT) foeBattler = battler
             battlerAt[pos] = battler
         }
+        if (cfg.activeGimmickOff != 0) runCatching { applyTera(client, cfg, battlerAt, battleMons) }
     }
 
     // --- location ---
@@ -1045,4 +1049,30 @@ fun readNativeBattleInputFast(client: MemoryReader, cfg: NativeConfig): Pair<Int
         }
         0 to BATTLE_INPUT_BUSY
     }.getOrNull()
+}
+
+private const val GIMMICK_TERA = 5   // pokeemerald-expansion 1.16's enum Gimmick
+private const val TYPE_STELLAR = 20  // a Stellar Tera type keeps the Pokémon's own types
+
+/**
+ * A Terastallized battler shows its Tera type: gBattleStruct's activeGimmick[side][partyIndex] says which party mon
+ * is, and that mon's species word holds the type (expansion's GetBattlerTeraType).
+ */
+private fun applyTera(client: MemoryReader, cfg: NativeConfig, battlerAt: IntArray, battleMons: MutableList<BattleMon>) {
+    val bs = if (cfg.battleStructStatic) cfg.battleStructPtr else u32le(client.readCoreMemory(cfg.battleStructPtr, 4), 0)
+    if (bs !in 0x02000000L until 0x04000000L) return
+    val active = client.readCoreMemory(bs + cfg.activeGimmickOff, 2 * PARTY_SIZE)
+    val idx = client.readCoreMemory(cfg.battlerPartyIndexes, 8)
+    for (pos in 0 until 4) {
+        val battler = battlerAt[pos].takeIf { it >= 0 } ?: continue
+        val side = pos and 1
+        val slot = u16le(idx, battler * 2).takeIf { it < PARTY_SIZE } ?: continue
+        if ((active[side * PARTY_SIZE + slot].toInt() and 0xFF) != GIMMICK_TERA) continue
+        val b = battleMons[pos].takeIf { it.species != 0 } ?: continue
+        val party = if (side == 1) cfg.enemyParty else cfg.playerParty
+        if (party == 0L) continue
+        val tera = gen3TeraType(client.readCoreMemory(party + slot.toLong() * cfg.monStride, cfg.monStride), 0)
+        if (tera <= 0 || tera == TYPE_STELLAR) continue
+        battleMons[pos] = b.copy(type1 = tera, type2 = tera)
+    }
 }

@@ -292,6 +292,7 @@ bool pd_decode_party_mon_c(const uint8_t* raw, const struct pd_party_layout* l, 
     int species = u16(growth) & speciesMask & (sum == stored && stored != 0 ? 0xFFFF : l->plainSpeciesMask);
     if (species == 0 || species > 4000) return false;
     m->species = (uint16_t) species;
+    if (cfg && cfg->activeGimmickOff && sum == stored && stored != 0) m->teraType = u16(growth) >> 11;
     m->heldItem = u16(growth + 2) & (sum == stored && stored != 0 ? 0xFFFF : l->plainItemMask);
     m->hasHeldItem = true;
     if (l->hasStats) {
@@ -380,11 +381,43 @@ static void read_save_fields(struct pd_snapshot* s, const struct pd_game* g, pd_
                              uint32_t sb1, uint32_t sb2);
 static void read_foes(struct pd_snapshot* s, const struct pd_config* cfg, pd_read_fn read, void* ctx, int foeBattler);
 
+
 static bool read_u32(pd_read_fn read, void* ctx, uint32_t addr, uint32_t* out) {
     uint8_t b[4];
     if (!read(ctx, addr, b, 4)) return false;
     *out = u32(b);
     return true;
+}
+
+#define GIMMICK_TERA 5     // pokeemerald-expansion 1.16's enum Gimmick
+#define TYPE_STELLAR 20    // its Stellar Tera type keeps the Pokemon's own types
+
+// A Terastallized battler shows its Tera type: activeGimmick[side][partyIndex] in gBattleStruct says which party mon
+// is, and that mon's species word holds the type (expansion's GetBattlerTeraType).
+static void read_tera(struct pd_snapshot* s, const struct pd_config* cfg, pd_read_fn read, void* ctx, int n,
+                      const uint8_t* pos) {
+    uint32_t bs = 0;
+    uint8_t active[2 * PD_PARTY_SIZE], idx[8];
+    if (!(cfg->battleStructStatic ? (bs = cfg->battleStructPtr, true) : read_u32(read, ctx, cfg->battleStructPtr, &bs)) ||
+        !in_ram(bs) || !read(ctx, bs + cfg->activeGimmickOff, active, sizeof(active)) ||
+        !read(ctx, cfg->battlerPartyIndexes, idx, sizeof(idx)))
+        return;
+    const struct pd_party_layout* lay = cfg->partyLayout ? cfg->partyLayout : &pd_party_layout_vanilla;
+    for (int b = 0; b < n; b++) {
+        int side = (pos[b] < 4 ? pos[b] : b) & 1, slot = idx[b * 2] | idx[b * 2 + 1] << 8; // GetBattlerSide
+        if (slot >= PD_PARTY_SIZE || active[side * PD_PARTY_SIZE + slot] != GIMMICK_TERA) continue;
+        uint8_t raw[MON_SIZE_MAX];
+        struct pd_mon m;
+        memset(&m, 0, sizeof(m));
+        uint32_t party = side ? cfg->enemyParty : cfg->playerParty;
+        if (!party || !read(ctx, party + (uint32_t) (slot * lay->size), raw, (size_t) lay->size) ||
+            !pd_decode_party_mon_c(raw, lay, cfg, &m) || m.teraType <= 0 || m.teraType == TYPE_STELLAR)
+            continue;
+        struct pd_battle_mon* bm = &s->battlers[pos[b] < 4 ? pos[b] : b];
+        if (!bm->species) continue;
+        bm->type1 = bm->type2 = m.teraType;
+        bm->tera = true;
+    }
 }
 
 // A save block: where the pointer says, or (Ruby / Sapphire) the address itself.
@@ -530,6 +563,7 @@ void pd_snapshot_read(struct pd_snapshot* s, const struct pd_game* g, pd_read_fn
             }
         }
         if (s->isTrainer && cfg->enemyParty) read_foes(s, cfg, read, ctx, foeBattler);
+        if (cfg->activeGimmickOff) read_tera(s, cfg, read, ctx, n, pos);
     }
 
     // --- location ---
