@@ -137,7 +137,23 @@ static bool is_image(const void *data, size_t len) {
          w <= 8192 && h <= 8192;
 }
 
-/* The string value after "key": in json from `from`, with \/ unescaped. */
+/* Appends code point c to out as UTF-8 (BMP only), if it fits. */
+static size_t put_utf8(char *out, size_t n, size_t size, unsigned c) {
+  if (c < 0x80 && n + 1 < size)
+    out[n++] = (char)c;
+  else if (c >= 0x80 && c < 0x800 && n + 2 < size) {
+    out[n++] = (char)(0xC0 | c >> 6);
+    out[n++] = (char)(0x80 | (c & 0x3F));
+  } else if (c >= 0x800 && n + 3 < size) {
+    out[n++] = (char)(0xE0 | c >> 12);
+    out[n++] = (char)(0x80 | (c >> 6 & 0x3F));
+    out[n++] = (char)(0x80 | (c & 0x3F));
+  }
+  return n;
+}
+
+/* The string value after "key": in json from `from`, unescaped (\/, \" and \uXXXX: SteamGridDB sends
+ * "Pokémon"). */
 static bool json_value(const char *from, const char *key, char *out, size_t size) {
   char pat[64];
   snprintf(pat, sizeof pat, "\"%s\"", key);
@@ -150,6 +166,13 @@ static bool json_value(const char *from, const char *key, char *out, size_t size
   size_t n = 0;
   if (*p == '"') {
     for (p++; *p && *p != '"' && n + 1 < size; p++) {
+      if (*p == '\\' && p[1] == 'u' && isxdigit((unsigned char)p[2]) && isxdigit((unsigned char)p[3]) &&
+          isxdigit((unsigned char)p[4]) && isxdigit((unsigned char)p[5])) {
+        char hex[5] = {p[2], p[3], p[4], p[5], 0};
+        n = put_utf8(out, n, size, (unsigned)strtoul(hex, NULL, 16));
+        p += 5;
+        continue;
+      }
       if (*p == '\\' && p[1])
         p++;
       out[n++] = *p;
@@ -160,6 +183,10 @@ static bool json_value(const char *from, const char *key, char *out, size_t size
   }
   out[n] = 0;
   return n > 0;
+}
+
+bool boxart_json_string(const char *json, const char *key, char *out, size_t size) {
+  return json_value(json, key, out, size);
 }
 
 static char *fetch_image(const char *url, const char *header, size_t *len) {
@@ -216,7 +243,8 @@ static char *from_libretro(const struct boxart_game *g, size_t *len) {
 }
 
 /* A title's words for matching: lower case ASCII ("Pokémon" -> "pokemon"), letters and digits, split at anything
- * else, without the words every entry has ("pokemon", "version", "the"). Returns how many (at most 16). */
+ * else, without the words every entry has ("pokemon", "version", "the") and "and" ("Heart & Soul" is "Heart and
+ * Soul"). Returns how many (at most 16). */
 static int title_words(const char *s, char words[16][32]) {
   int n = 0;
   size_t len = 0;
@@ -235,7 +263,7 @@ static int title_words(const char *s, char words[16][32]) {
     if (len) {
       w[len] = 0;
       len = 0;
-      if (strcmp(w, "pokemon") && strcmp(w, "version") && strcmp(w, "the") && n < 16)
+      if (strcmp(w, "pokemon") && strcmp(w, "version") && strcmp(w, "the") && strcmp(w, "and") && n < 16)
         snprintf(words[n++], 32, "%s", w);
     }
     if (!ch)
@@ -244,12 +272,22 @@ static int title_words(const char *s, char words[16][32]) {
   return n;
 }
 
-/* SteamGridDB's entry is this game: the same words, none missing and none added. "Pokemon Black" isn't
- * "Pokemon Black 2", and a hack's name never matches Pinball or another spin-off. */
+/* SteamGridDB's entry is this game: the same words, none missing and none added, or the same letters once the
+ * spaces go ("Ash Gray" is "AshGray"). "Pokemon Black" isn't "Pokemon Black 2", and a hack's name never matches
+ * Pinball or another spin-off. */
 bool boxart_title_matches(const char *want, const char *got) {
   char a[16][32], b[16][32];
   int na = title_words(want, a), nb = title_words(got, b);
-  if (!na || na != nb)
+  if (!na || !nb)
+    return false;
+  char ja[600] = "", jb[600] = "";
+  for (int i = 0; i < na; i++)
+    strncat(ja, a[i], sizeof ja - strlen(ja) - 1);
+  for (int i = 0; i < nb; i++)
+    strncat(jb, b[i], sizeof jb - strlen(jb) - 1);
+  if (!strcmp(ja, jb))
+    return true;
+  if (na != nb)
     return false;
   for (int i = 0; i < na; i++) {
     bool found = false;
@@ -459,6 +497,21 @@ static void forget_found(const char *name, void *dir) {
   }
 }
 
+/* A base game's box (its .base mark and the art) or a "none found" mark: looked for again. */
+static void forget_base(const char *name, void *dir) {
+  size_t n = strlen(name);
+  char path[1400];
+  if (n > 5 && !strcmp(name + n - 5, ".none")) {
+    snprintf(path, sizeof path, "%s/%s", (const char *)dir, name);
+    pocket_remove(path);
+  } else if (n > 5 && !strcmp(name + n - 5, ".base")) {
+    snprintf(path, sizeof path, "%s/%s", (const char *)dir, name);
+    pocket_remove(path);
+    snprintf(path, sizeof path, "%s/%.*s.img", (const char *)dir, (int)(n - 5), name);
+    pocket_remove(path);
+  }
+}
+
 void boxart_init(const char *data) {
   snprintf(root, sizeof root, "%s", data);
   char dir[1100];
@@ -468,6 +521,13 @@ void boxart_init(const char *data) {
   snprintf(mark, sizeof mark, "%s/matching-v2", dir);
   if (!pocket_exists(mark)) {
     pocket_list_dir(dir, forget_found, dir);
+    write_file(mark, "", 0);
+  }
+  // 1.16.0 read SteamGridDB's "Pokémon" as other words, so a hack got its base game's box or none: those are
+  // looked for again, once. A hack's own art and the player's own stay.
+  snprintf(mark, sizeof mark, "%s/matching-v3", dir);
+  if (!pocket_exists(mark)) {
+    pocket_list_dir(dir, forget_base, dir);
     write_file(mark, "", 0);
   }
   snprintf(dir, sizeof dir, "%s/boxart/custom", root);

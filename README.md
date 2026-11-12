@@ -180,7 +180,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   from the first game; `ORIGINAL` stays a choice, and a pick you made is kept.
 - **The game grid** on the desktop host: whole covers (never cropped), a `FULL` / `PARTLY` / `PLAY ONLY` tag from
   the companion's own detection (`COMPANION` in a game's options says what's missing), `ROMHACK` on every hack's tile,
-  SteamGridDB art only for the same name and in English, and dialogs drawn over the dimmed art.
+  SteamGridDB art only for the same name and in English (its escaped "Pok\u00e9mon" read as the word it is, spaces and
+  "and" not counting, and a hack left on its base game's box looked for again once), and dialogs drawn over the dimmed art.
 - **DS EXPAND** on the desktop host: Platinum, HeartGold and SoulSilver (and the games built on them) draw their world past
   the top screen's edges, Android's EXPAND (`pk_nds_wide.cpp`) on the desktop's melonDS, with the GBA's zoom steps and
   AUTO ZOOM IN.

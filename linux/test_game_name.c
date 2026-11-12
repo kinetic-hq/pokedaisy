@@ -84,6 +84,28 @@ int main(void) {
     assert(!boxart_title_matches("Pokemon HeartFelt Gold", "Pokemon HeartGold Version"));
     assert(boxart_title_matches("Pokemon Radical Red", "Pok\xC3\xA9mon Radical Red"));
     assert(!boxart_title_matches("Pokemon", "Pokemon Pinball"));
+    // SteamGridDB's own names for the hacks: "Pokémon" in its JSON, unescaped first.
+    {
+      char name[64];
+      assert(boxart_json_string("{\"id\":5267499,\"name\":\"Pok\\u00e9mon Glazed\"}", "name", name, sizeof name));
+      assert(!strcmp(name, "Pok\xC3\xA9mon Glazed"));
+      assert(boxart_title_matches("Glazed", name));
+    }
+    assert(boxart_title_matches("Ash Gray", "Pok\xC3\xA9mon AshGray"));
+    assert(boxart_title_matches("Heart and Soul", "Pok\xC3\xA9mon Heart & Soul"));
+    assert(boxart_title_matches("FireRed Rocket Edition", "Pok\xC3\xA9mon FireRed: Rocket Edition"));
+    assert(boxart_title_matches("Gaia", "Pok\xC3\xA9mon Gaia Version"));
+    assert(boxart_title_matches("Amethyst", "Pok\xC3\xA9mon Amethyst"));
+    assert(boxart_title_matches("Lazarus", "Pok\xC3\xA9mon Lazarus"));
+    assert(boxart_title_matches("Dreamstone Mysteries", "Pok\xC3\xA9mon Dreamstone Mysteries"));
+    assert(boxart_title_matches("Odyssey", "Pok\xC3\xA9mon Odyssey"));
+    assert(boxart_title_matches("Unbound", "Pok\xC3\xA9mon Unbound"));
+    // ... and still never another game.
+    assert(!boxart_title_matches("HeartFelt Gold", "Pok\xC3\xA9mon Pinball"));
+    assert(!boxart_title_matches("HeartFelt Gold", "Pok\xC3\xA9mon HeartGold Version"));
+    assert(!boxart_title_matches("Black", "Pok\xC3\xA9mon Black Version 2"));
+    assert(!boxart_title_matches("FireRed Rocket Edition", "Pok\xC3\xA9mon FireRed Version"));
+    assert(!boxart_title_matches("Pinball", "Pok\xC3\xA9mon Pinball: Generations"));
   }
   puts("game names ok");
   return 0;

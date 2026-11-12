@@ -70,8 +70,9 @@ Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 games, by the file's name and then by the game the file itself says it is (so a
 game under a name of your own still gets its box), then SteamGridDB when you add
 your own key, which has many ROM hacks. SteamGridDB's art is only used when its
-game has exactly the same name as yours, and only in English, so a hack never
-gets the box of a sequel or a spin off. To add one, make a free key on
+game has the same name as yours, and only in English, so a hack never gets the
+box of a sequel or a spin off. Spaces and "and" don't count, so "Ash Gray" finds
+"AshGray" and "Heart and Soul" finds "Heart & Soul". To add one, make a free key on
 steamgriddb.com (Preferences, API), copy it, then pick `SETTINGS` > `LIBRARY` >
 `STEAMGRIDDB KEY` > `PASTE THE KEY FROM THE CLIPBOARD`. A ROM hack nobody has art
 for gets the box of the game it was made from, with the hack's name on an orange

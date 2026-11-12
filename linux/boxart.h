@@ -53,6 +53,8 @@ SDL_Texture *boxart_texture(SDL_Renderer *r, const char *stem, int *w, int *h);
 void boxart_textures_free(void);
 /* SteamGridDB's name for an entry is this title (the same words, "Pokemon" and "Version" aside). */
 bool boxart_title_matches(const char *want, const char *got);
+/* The string value of "key" in JSON, unescaped (\uXXXX to UTF-8): exposed for the tests. */
+bool boxart_json_string(const char *json, const char *key, char *out, size_t size);
 /* The libretro thumbnail name for a file stem: &*\/:`<>?\| become _ (their rule). */
 void boxart_libretro_name(const char *stem, char *out, size_t size);
 #endif
