@@ -240,8 +240,13 @@ companion's `SETTINGS` has the same `BUTTON LAYOUT` row.
 In `HOTKEYS`, the triggers and sticks come first (`L2 / LT`, `R2 / RT`, `L3`,
 `R3`), then each extra button your controller may have: `GUIDE / HOME`, `SHARE`
 and the four back `PADDLE` buttons. Out of the box LT zooms out, RT zooms in
-(the first press turns `ASPECT` `EXPAND` on, in a game that has it) and L3 turns fast forward on and off; in a DS game L2
-and R2 stay the touch screen and the DS layout. Pick one and choose
+(the first press turns `ASPECT` `EXPAND` on, in a game that has it) and L3 turns fast forward on and off.
+A DS game uses the same buttons: LT and RT make the game smaller or larger
+against the wings (`WINGS FIRST`, `BALANCED`, `GAME FIRST`, for as long as you
+play; in a layout without wings the game says so), L3 turns fast forward on and
+off, R3 is the DS layout and `GUIDE / HOME` opens the quick menu. Give LT or RT
+`USUAL USE` to have them back as the DS's own: L2 the quick menu, R2 swapping
+the screens. Pick one and choose
 `GAME MENU`, `COMPANION`, `FF TOGGLE`, `SAVE STATE`, `LOAD STATE`,
 `SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT`, `DS LAYOUT BACK`, `SWAP SCREENS`,
 `ZOOM IN`, `ZOOM OUT` or `REWIND HOLD`, or `USUAL USE` to give it back.
@@ -465,8 +470,8 @@ states go to `DATA\states` and never hold the save.
 
 `DS LAYOUT` picks where the two DS screens go in the window. Change it in the
 companion's `SET` tab, in the game list's `SETTINGS`, or hold
-SELECT (Backspace) and press R2 (Space) for the next one or L2 (Tab) for the one
-before. The picker shows each layout as a small picture of the window, marked
+SELECT (Backspace) and press RT (Space) for the next one or LT (Tab) for the one
+before. A tap on R3 also steps to the next one. The picker shows each layout as a small picture of the window, marked
 the same way as the companion views (`TOUCH IN WING`, `WINGS` and
 `TOUCH PIECES` are the ones added here):
 
@@ -514,10 +519,10 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
 The companion's panels in the wings read Platinum (USA, revision 1) and
 Renegade Platinum for now; in other DS games they say so. While they show, the HUD leaves out its party row.
 
-R2 (Space on a keyboard) swaps the two screens: in `ONE SCREEN` you see the
+SELECT and R3 together (Space on a keyboard) swap the two screens: in `ONE SCREEN` you see the
 touch screen alone, in `PICTURE IN PICTURE`, `LARGE + SMALL` and
 `TOUCH IN WING` the touch screen becomes the large one, in `WINGS` it
-floats in over the game, and in `TOUCH PIECES` it shows whole in the middle. L2 (Tab) opens the quick menu. To touch the touch
+floats in over the game, and in `TOUCH PIECES` it shows whole in the middle. `GUIDE / HOME` (Tab) opens the quick menu. To touch the touch
 screen, click it with the mouse or tap it with your finger on a touch display,
 wherever it shows; a drag works too. With a controller, hold SELECT, move the
 pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S

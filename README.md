@@ -146,6 +146,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
   3x, xBRZ drawn as SHARP, the companion and game list redrawn half as often.
 - **DS time of day and Berry Pots** on the desktop host: the DS facts wing shows MORNING / DAY / (EVENING) / NIGHT,
   and HeartGold / SoulSilver get their party and facts wings with each Berry Pot's berry, stage, time left and DRY.
+- **DS buttons as a GBA game's** on the desktop host: `HOTKEYS` now apply in DS games too, so by default LT / RT
+  zoom (the game against the wings), L3 fast forwards (new on DS: three frames a turn, muted), R3 steps / picks the
+  DS layout, `GUIDE / HOME` opens the quick menu and SELECT + R3 swaps the screens; `USUAL USE` on LT / RT gives
+  back the DS's own L2 quick menu and R2 swap.
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 1 cart gets the Platinum companion, as on
   Android (a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
   (game, region, revision, code) and the one it needs.
