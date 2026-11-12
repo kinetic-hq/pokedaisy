@@ -263,7 +263,7 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   it, and for a wild one how likely a ball is to work. Anything your game
   doesn't tell the app is left out.
 - **Wings**: the party fills the left wing top to bottom, a card a Pokemon with
-  its level, status and HP; the right wing shows the map round you and, under
+  its level, status and HP (an empty card for each place still free); the right wing shows the map round you and, under
   it, your badges, play time and money.
 
 DS games have the same rows in the companion's `SET` tab.

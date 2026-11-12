@@ -30,6 +30,13 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
     int rowMin = PD_ICON + 6, rowH = (bottom - y) / PD_PARTY_SIZE;
     if (rowH < rowMin) rowH = rowMin;
     char buf[40];
+    // The places of a party not yet six: an empty card each, so the wing reads as six evenly whatever's in it.
+    for (int i = s->partyCount < 0 ? 0 : s->partyCount, ey = y + i * rowH; i < PD_PARTY_SIZE && ey + rowMin <= bottom;
+         i++, ey += rowH) {
+
+        pd_round_rect(c, x, ey, w, rowH - 4, 3, PD_LIST_FILL);
+        pd_round_rect(c, x + 2, ey + 2, w - 4, rowH - 8, 2, PD_TITLE_FILL);
+    }
     for (int i = 0; i < s->partyCount && i < PD_PARTY_SIZE && y + rowMin <= bottom; i++, y += rowH) {
         const struct pd_mon* m = &s->party[i];
         bool fainted = m->species != PD_SPECIES_EGG && m->maxHp > 0 && m->hp == 0;
