@@ -70,6 +70,7 @@ Press `X`, right click or hold a finger on a game for its options:
   picked key by key with a controller (`B` deletes, `Y` is a space, `START` is
   done). `USE THE FILE'S NAME` takes it back. Names are kept in `DATA\names.txt`;
   the files themselves are never renamed.
+- **`EDIT SAVE`** changes the game's save file: see "Editing a save" below.
 
 ## Games in other folders
 
@@ -162,6 +163,33 @@ briefly when a battle starts in a GBA or Game Boy game, and harder when the foe
 is a shiny one. A Game Boy cartridge with a rumble motor shakes the controller
 too. Turning it on in the program's own settings gives you a short buzz, so you
 know it works.
+
+### Editing a save
+
+`EDIT SAVE` in a game's options in the game list (press `X`, right click or hold
+a finger on the game) changes the game's save file while the game
+isn't running. It covers FireRed, LeafGreen, Emerald, Ruby and Sapphire in
+English and the other Western languages, the hacks that kept those games' save
+layout, and English HeartGold and SoulSilver. Any other game, or a save that
+doesn't check out, is refused and left alone.
+
+- `MONEY` and `COINS`: type a new amount, up to what the game allows.
+- `BAG`: change how many of an item you have, take one out, or `ADD AN ITEM`
+  (GBA games). Key items and HMs stay as they are.
+- `PARTY` and `PC BOXES`: pick a Pokemon to change its species, nickname,
+  level, nature, ability, held item, moves, IVs, EVs and whether it's shiny.
+  `ALL IVS TO 31` fills them in one go. Only values the game itself could have
+  are taken: a move the game doesn't have, the same move twice, EVs over 510 or
+  a level over 100 are refused with the reason.
+- `HEAL THE PARTY` puts every party Pokemon back to full HP and PP with no
+  status.
+- `SAVE CHANGES` writes it all. Before anything is written, the old save is
+  copied next to it as `<save>.before-edit-<date>-<time>.sav`, and the new file
+  is read back and checked; if that fails, the old save is put back.
+
+Leaving with changes you haven't saved asks you first. After saving, start the
+game from its save: answer `Start from save` if you're asked to continue where
+you left off, or the game would go back to where it was before the edit.
 
 ## Full screen and controllers
 
