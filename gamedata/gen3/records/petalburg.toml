@@ -1,0 +1,92 @@
+# Gen 3 records (Pokémon Petalburg Dynasty v1.12.2, sha1 648c88a4…; pokeemerald-expansion 1.16.4): the Pokédex, guide
+# and dex-flag tables its config (gen3/hacks/petalburg.toml) names, for the 3DS / Linux companion
+# (gamedata/targets/3ds.toml). `kotlin = false`: the app keeps its own vals (Pokedex.kt, GuideRom.kt), as Wishes of
+# Tomorrow's do. The format and the commands: gamedata/README.md.
+
+# Dex flags in SaveBlock1 +0x3598 / +0x3619 (the GF ROM header's seen offset), 129 bytes each: the headless party's
+# CHARIZARD, PIKACHU, GENGAR, ZIGZAGOON and LUCARIO read seen and caught there.
+[record.POKEDEX_PETALBURG_FLAGS]
+schema = 'gen3_dexflags'
+kotlin = false
+block = 'DexFlagBlock.SAVE_BLOCK_1'
+seen = 0x3598
+caught = 0x3619
+bytes = 129
+
+# The page from gSpeciesInfo 0x087505B4 (0x108-byte entries with Wishes of Tomorrow's field offsets: category +0x1F,
+# natDexNum +0x3C, text +0x4C, smol front pic +0x58, a plain palette +0x60, footprint +0x80; level-up / teachable /
+# evolutions +0x94 / +0x98 / +0xA0, 12-byte evolution records with a condition list ending at 39). Its text, picture,
+# palette and footprint pointers lead to Wishes' bytes. gAbilitiesInfo 0x08CFB694 (0x1C-byte records, from its RHHEXP
+# block). Expansion's Hoenn list (214 u32 national numbers at 0x08CFB048, Wishes' list), then National (1025).
+[record.POKEDEX_PETALBURG]
+schema = 'gen3_pokedex'
+kotlin = false
+entries = 0
+frontPics = 0
+palettes = 0
+speciesInfo = 0x087505B4
+speciesToNational = 0
+abilityNames = 0x08CFB694
+footprints = 0
+abilityNameLength = 17
+abilityNameStride = 0x1C
+categorySuffix = 'Pokémon'
+speciesCount = 1574
+nationalCount = 1025
+regionalCount = 214
+regionName = 'HOENN'
+regionalOrder = 0x08CFB048
+regionalOrderStride = 4
+evoLayout = { kotlin = 'EvoLayout(EvoScheme.EXPANSION_PARAMS, record = 12, conditionsEnd = 39)' }
+flags = 'POKEDEX_PETALBURG_FLAGS'
+nationalMagicOff = 2
+nationalMagic = 0xDA
+
+[record.POKEDEX_PETALBURG.expansion]
+stride = 0x108
+paletteOff = 0x60
+footprintOff = 0x80
+levelUpOff = 0x94
+teachableOff = 0x98
+evolutionsOff = 0xA0
+
+# HERE only. gTrainers[EASY][NORMAL][HARD][856]: EASY is all zeros, so its NORMAL array 0x0847E2D4 (0x34-byte records:
+# party +8, class +0x1C, a 13-byte name +0x20; 265 is ROXANNE, whose GEODUDE, GEODUDE, NOSEPASS the headless trainer
+# battle met). The party size is a 3-bit field (bits 3-5 of +0x1E), which a whole-byte read can't take: the guide has
+# no bosses, so no team is read from it. Expansion's 0x24-byte TrainerMons. Learnsets: gSpeciesInfo's levelUpLearnset,
+# {move, level} pairs. gWildMonHeaders 0x08E476E0 (16 literal-pool words; 140 headers of 84 bytes, four time-of-day sets
+# with only the first filled: ROUTE 101 reads WURMPLE, POOCHYENA, ZIGZAGOON). gMapGroups 0x08F184B8 (19 literal-pool
+# words; group 0's map 0 is the header gMapHeader held in PETALBURG CITY). SaveBlock1's flags / vars at +0x1270 /
+# +0x139C, 0x12C flag bytes (Emerald's).
+[record.GUIDE_TABLES_PETALBURG]
+schema = 'gen3_guide'
+kotlin = false
+trainers = 0x0847E2D4
+learnsets = 0x08750648  # gSpeciesInfo[0].levelUpLearnset
+learnsetStride = 0x108
+learnsetPairs = true
+wildHeaders = 0x08E476E0
+sb1FlagsOff = 0x1270
+sb1VarsOff = 0x139C
+flagBytes = 0x12C
+probeTrainer = 265
+probeName = 'ROXANNE'
+guide = 'GuideId.PETALBURG'
+trainerStride = 0x34
+trainerNameOff = 0x20
+trainerNameLen = 13
+trainerSizeOff = 0x1E
+trainerPartyOff = 8
+trainerMon = 'GUIDE_TABLES_PETALBURG_TRAINER_MON'
+wildSets = 4
+wildSet = 0
+mapGroups = 0x08F184B8
+
+[record.GUIDE_TABLES_PETALBURG_TRAINER_MON]
+schema = 'gen3_trainer_mon'
+kotlin = false
+stride = 0x24
+movesOff = 0x0C
+speciesOff = 0x14
+itemOff = 0x16
+levelOff = 0x1A

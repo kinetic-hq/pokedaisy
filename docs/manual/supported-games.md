@@ -81,6 +81,7 @@ The companion reads their party, bag, map, Pokédex and guide, with pictures, Po
 | Pokémon Elite Redux | 2.65.3b and 2.65.4.1b |
 | Pokémon Team Rocket Edition: Dragonsden Version | 1.5, and the 2026 edition's 3.0.9 in Spanish (its START menu shows the version) |
 | Pokémon Wishes of Tomorrow | 1.2.6 |
+| Pokémon Petalburg Dynasty | 1.12.2 (its title screen shows the version) |
 | Pokémon Dreamstone Mysteries | its one release (the game shows no version) |
 | Pokémon Monomyth | 1.0 and 1.1 |
 | Emerald Rogue | 2.2.1-EX |

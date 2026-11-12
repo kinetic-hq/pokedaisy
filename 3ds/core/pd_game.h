@@ -56,6 +56,7 @@ enum pd_guide_id {
     PD_GUIDE_MARIOMON,
     PD_GUIDE_DREAMSTONE,
     PD_GUIDE_WISHES,
+    PD_GUIDE_PETALBURG,
     PD_GUIDE_TEAM_ROCKET,
     PD_GUIDE_ELITE_REDUX,
     PD_GUIDE_ULTRA_VIOLET,
@@ -144,7 +145,7 @@ struct pd_battle_layout {
     int personality, otId; // u32s for the SHINY marks; 0 = not mapped
 };
 extern const struct pd_battle_layout pd_battle_layout_vanilla, pd_battle_layout_expansion, pd_battle_layout_tmt2,
-    pd_battle_layout_team_rocket, pd_battle_layout_wishes, pd_battle_layout_rowe, pd_battle_layout_soulgold,
+    pd_battle_layout_team_rocket, pd_battle_layout_wishes, pd_battle_layout_petalburg, pd_battle_layout_rowe, pd_battle_layout_soulgold,
     pd_battle_layout_elite_redux, pd_battle_layout_monomyth;
 
 struct pd_gb_config;

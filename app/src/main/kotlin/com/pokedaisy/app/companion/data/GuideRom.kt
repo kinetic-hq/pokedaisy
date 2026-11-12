@@ -1040,6 +1040,38 @@ val GUIDE_TABLES_WISHES = GuideTables(
 )
 
 /**
+ * Pokémon Petalburg Dynasty v1.12.2 (expansion 1.16.4): HERE only. gTrainers[EASY][NORMAL][HARD][856]: EASY is all
+ * zeros, so its NORMAL array 0x0847E2D4 (0x34-byte records: party +8, class +0x1C, a 13-byte name +0x20; 265 is
+ * ROXANNE, whose three the headless trainer battle met). Its party size is a 3-bit field (bits 3-5 of +0x1E) a
+ * whole-byte read can't take: the guide has no bosses, so no team is read. Expansion's 0x24-byte TrainerMons;
+ * gSpeciesInfo's levelUpLearnset ({move, level} pairs). gWildMonHeaders 0x08E476E0 (140 headers of 84 bytes, four
+ * time-of-day sets with only the first filled), gMapGroups 0x08F184B8. SaveBlock1's flags / vars at +0x1270 / +0x139C.
+ * gamedata/gen3/records/petalburg.toml mirrors it.
+ */
+val GUIDE_TABLES_PETALBURG = GuideTables(
+    trainers = 0x0847E2D4L,
+    learnsets = 0x08750648L, // gSpeciesInfo[0].levelUpLearnset
+    learnsetStride = 0x108,
+    learnsetPairs = true,
+    wildHeaders = 0x08E476E0L,
+    sb1FlagsOff = 0x1270,
+    sb1VarsOff = 0x139C,
+    flagBytes = 0x12C,
+    probeTrainer = 265,
+    probeName = "ROXANNE",
+    guide = GuideId.PETALBURG,
+    trainerStride = 0x34,
+    trainerNameOff = 0x20,
+    trainerNameLen = 13,
+    trainerSizeOff = 0x1E,
+    trainerPartyOff = 8,
+    trainerMon = TrainerMonLayout(stride = 0x24, movesOff = 0x0C, speciesOff = 0x14, itemOff = 0x16, levelOff = 0x1A),
+    wildSets = 4,
+    wildSet = 0,
+    mapGroups = 0x08F184B8L,
+)
+
+/**
  * Pokémon Monomyth v1.0, from the ROM: gTrainers 0x084B6C84 (vanilla's 0x28-byte records; 1 = BUG CATCHER TIM, whose
  * SPINARAK Lv3 and JOLTIK Lv4 the headless trainer battle met), its parties vanilla's structs behind a u32 (12 / 20 / 12 /
  * 24 bytes by party flags, level +6, species +8, item +0xA, moves +0xA or +0xC), gLevelUpLearnsets 0x0850664C ({u16 move,

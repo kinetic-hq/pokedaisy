@@ -350,6 +350,36 @@ GAMES = {
                     moves={1: (1, 40), 33: (1, 40), 44: (18, 60), 52: (11, 40), 57: (12, 90), 89: (5, 100),
                            585: (19, 95)}),
     ),
+    # Pokemon Petalburg Dynasty (its title screen says v1.12.2; BPEE, 32 MB): pokeemerald-expansion 1.16.4 (its RHHEXP
+    # block: 1574 species, 849 moves, 1018 items), gcc, no source. Its GF ROM header gives gSpeciesInfo 0x087505B4,
+    # gItemsInfo 0x086FDAC0 and gMovesInfo 0x0872F8E4; checked against the data and a new game played headless:
+    #  - species: 0x108-byte entries, Wishes' field offsets ("Bulbasaur" at +0x2C of entry 1, types (13, 4) name-0x26,
+    #    genderRatio 31 name-0x1A, growthRate name-0x17). The headless party (Charizard, Pikachu, Gengar, Zigzagoon,
+    #    Lucario) reads these names at those ids; 1574 (the header's species count) is the egg's entry.
+    #  - items: 0x30-byte entries with a name POINTER at +0x14 ("Poké Ball" 1, "Potion" 28 = the bag's), the
+    #    description pointer 8 bytes before the name's.
+    #  - moves: 0x44-byte entries, the name pointer first ("Pound" 1, "Tackle" 33); +0xA type/power bits.
+    #  - chart: the unique [21][21] u32 run whose Normal row is 1x except Rock/Steel 0.5x, Ghost 0x (0x08434720,
+    #    byte for byte Wishes' chart).
+    #  - mapsecs: older {x, y, w, h, name ptr} entries from 0x08D15008, Emerald's 0x00-0xD0 (the headless game's
+    #    gMapHeader in its first town reads 0x07 = PETALBURG CITY). No region map picture.
+    "petalburg": dict(
+        suffix="Petalburg",
+        label="Pokemon Petalburg Dynasty v1.12.2",
+        sha1="648c88a4fd099e6bcb4fcca79b06878b7fb28d06",
+        species_name1=0x087506E8, species_stride=0x108, species_max=1574,
+        species_types_off=-0x26, species_gender_off=-0x1A, species_growth_off=-0x17,
+        items_base=0x086FDAC0 + 0x14, items_stride=0x30, items_desc_off=-8,
+        moves_base=0x0872F8E4, moves_stride=0x44, move_bits_off=0x0A,
+        chart=0x08434720, chart_n=21,
+        mapsec_base=0x08D15008, mapsec_name_off=4,
+        checks=dict(species={1: "Bulbasaur", 6: "Charizard", 25: "Pikachu", 94: "Gengar", 263: "Zigzagoon",
+                             448: "Lucario"},
+                    types={1: (13, 4), 6: (11, 3), 25: (14, 14), 263: (1, 1)},
+                    gender={1: 31, 25: 127}, growth={1: 3, 25: 0, 448: 3},
+                    items={1: "Poké Ball", 2: "Great Ball", 28: "Potion", 472: "Leftovers"},
+                    moves={1: (1, 40), 33: (1, 40), 52: (11, 40), 57: (12, 90), 89: (5, 100), 585: (19, 95)}),
+    ),
 }
 
 # The Western charmap's accented letters and Spanish punctuation, for a game whose text is Spanish (`spanish=True`).

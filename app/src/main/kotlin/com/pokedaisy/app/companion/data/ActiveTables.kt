@@ -27,7 +27,7 @@ package com.pokedaisy.app.companion.data
 // ROM-extracted tables (*Hns.kt / *Lazarus.kt, scripts/gen_expansion_tables.py).
 enum class GameKind { FIRERED, EMERALD, UNBOUND, GAIA, RADICAL_RED, ODYSSEY, HEART_AND_SOUL, LAZARUS, ROWE, EMERALD_ROGUE, AMETHYST, EMERALD_SEAGLASS, CELIA, TMT2, SOULGOLD, YELLOW, GLAZED, IMPERIUM, QUETZAL, ORANGE_ISLANDS, RECHARGED_YELLOW, MARIOMON, SWORD_SHIELD, GS_CHRONICLES, CRYSTAL, CRYSTAL_CLEAR, PRISM,
     GOLD, SILVER, RED, BLUE, ELITE_REDUX, POLISHED_CRYSTAL, PLATINUM, HEARTGOLD, SOULSILVER, TEAM_ROCKET, BLACK, WHITE, BLACK2, WHITE2,
-    WISHES, PURE_RED, PURE_BLUE, DREAMSTONE, MONOMYTH, YELLOW_LEGACY, CRYSTAL_LEGACY }
+    WISHES, PURE_RED, PURE_BLUE, DREAMSTONE, MONOMYTH, YELLOW_LEGACY, CRYSTAL_LEGACY, PETALBURG }
 
 /**
  * Games with an auto-run of their own, on by default: holding B walks there, so AUTO-RUN's flip of B walked and B ran
@@ -292,6 +292,8 @@ private inline val eliteRedux get() = activeGame == GameKind.ELITE_REDUX
 private inline val teamRocket get() = activeGame == GameKind.TEAM_ROCKET
 // Pokémon Wishes of Tomorrow: its own species / moves / items / map sections (gen_expansion_tables.py wishes).
 private inline val wishes get() = activeGame == GameKind.WISHES
+// Pokémon Petalburg Dynasty: its own species / moves / items / map sections (gen_expansion_tables.py petalburg).
+private inline val petalburg get() = activeGame == GameKind.PETALBURG
 // Pokémon Dreamstone Mysteries: its own species / moves / items / types / map sections (gen_expansion_tables.py dreamstone).
 private inline val dreamstone get() = activeGame == GameKind.DREAMSTONE
 // Pokémon Monomyth: its own species / moves / items / types / map sections (gen_monomyth_tables.py).
@@ -341,6 +343,7 @@ val activeSpeciesNames: Map<Int, String> get() = localText?.species ?: when {
     eliteRedux -> if (eliteRedux265_3) speciesNamesEliteRedux265_3 else speciesNamesEliteRedux
     teamRocket -> if (teamRocketV3) speciesNamesTeamRocketV3 else speciesNamesTeamRocket
     wishes -> speciesNamesWishes
+    petalburg -> speciesNamesPetalburg
     dreamstone -> speciesNamesDreamstone
     monomyth -> speciesNamesMonomyth
     else -> frHack?.speciesMerged ?: speciesNames
@@ -379,6 +382,7 @@ val activeMoveData: Map<Int, MoveInfo> get() = localText?.moveData ?: when {
     eliteRedux -> if (eliteRedux265_3) moveDataEliteRedux265_3 else moveDataEliteRedux
     teamRocket -> if (teamRocketV3) moveDataTeamRocketV3 else moveDataTeamRocket
     wishes -> moveDataWishes
+    petalburg -> moveDataPetalburg
     dreamstone -> moveDataDreamstone
     monomyth -> moveDataMonomyth
     odyssey -> fireRedHackOdyssey.movesMerged
@@ -419,6 +423,7 @@ val activeItemNames: Map<Int, String> get() = localText?.items ?: when {
     eliteRedux -> if (eliteRedux265_3) itemNamesEliteRedux265_3 else itemNamesEliteRedux
     teamRocket -> if (teamRocketV3) itemNamesTeamRocketV3 else itemNamesTeamRocket
     wishes -> itemNamesWishes
+    petalburg -> itemNamesPetalburg
     dreamstone -> itemNamesDreamstone
     monomyth -> itemNamesMonomyth
     odyssey -> fireRedHackOdyssey.itemsMerged
@@ -455,6 +460,7 @@ val activeSpeciesTypeData: Map<Int, SpeciesTypes> get() = when {
     eliteRedux -> if (eliteRedux265_3) speciesTypeDataEliteRedux265_3 else speciesTypeDataEliteRedux
     teamRocket -> if (teamRocketV3) speciesTypeDataTeamRocketV3 else speciesTypeDataTeamRocket
     wishes -> speciesTypeDataWishes
+    petalburg -> speciesTypeDataPetalburg
     dreamstone -> speciesTypeDataDreamstone
     monomyth -> speciesTypeDataMonomyth
     odyssey -> fireRedHackOdyssey.typesMerged   // its regional forms (GitHub #206)
@@ -494,6 +500,7 @@ val activeTypeEffectiveness: Map<Int, Int> get() = when {
     eliteRedux -> typeEffectivenessEliteRedux
     teamRocket -> if (teamRocketV3) typeEffectivenessTeamRocketV3 else typeEffectivenessTeamRocket
     wishes -> typeEffectivenessWishes
+    petalburg -> typeEffectivenessPetalburg
     dreamstone -> typeEffectivenessDreamstone
     monomyth -> typeEffectivenessMonomyth
     odyssey -> fireRedHackOdyssey.typeChart ?: typeEffectiveness
@@ -526,6 +533,7 @@ val activeTypeNames: Map<Int, String> get() = when {
     eliteRedux -> typeNamesEliteRedux
     teamRocket -> if (teamRocketV3) typeNamesTeamRocketV3 else typeNamesTeamRocket
     wishes -> typeNamesWishes
+    petalburg -> typeNamesPetalburg
     dreamstone -> typeNamesDreamstone
     monomyth -> typeNamesMonomyth
     else -> frHack?.typeNamesMerged ?: typeNames
@@ -564,6 +572,8 @@ val activeMapSecData: Map<Int, MapSecInfo> get() = localText?.mapSecData ?: when
     teamRocket -> if (teamRocketV3) mapSecDataTeamRocketV3 else mapSecDataTeamRocket
     // Its own JOKAIM sections (Munen Village...) on its own region map; Emerald's / Kanto's leftovers off it.
     wishes -> mapSecDataWishes
+    // Emerald's sections by name (no region map picture of its own is read yet).
+    petalburg -> mapSecDataPetalburg
     // Its own Cormoria sections (and Emerald's leftovers, off the map), on its own region map.
     dreamstone -> mapSecDataDreamstone
     // Athanto's sections; its map isn't drawn yet, so none is "on the map" (the MAP tab names the place).
@@ -686,6 +696,8 @@ val activeRegionMapImages: Array<String> get() = when {
     teamRocket -> if (teamRocketV3) regionMapImagesTeamRocketV3 else emptyArray()
     // Wishes of Tomorrow's JOKAIM map, rebuilt from its ROM (RomArt's WSH_REGION_*).
     wishes -> regionMapImagesWishes
+    // Petalburg Dynasty: its TOWN MAP isn't read yet - the MAP tab names the place.
+    petalburg -> emptyArray()
     // Dreamstone Mysteries' Cormoria map, rebuilt from its ROM (RomArt's DSM_REGION_*).
     dreamstone -> regionMapImagesDreamstone
     // Monomyth's ATHANTO MAP (its PokeNav's), rebuilt from its ROM (RomArt's MMY_REGION_*).
@@ -761,6 +773,7 @@ fun GameKind.displayName(): String = when (this) {
     GameKind.ELITE_REDUX -> "Pokémon Elite Redux"
     GameKind.TEAM_ROCKET -> "Pokémon Team Rocket Edition: Dragonsden Version"
     GameKind.WISHES -> "Pokémon Wishes of Tomorrow"
+    GameKind.PETALBURG -> "Pokémon Petalburg Dynasty"
     GameKind.DREAMSTONE -> "Pokémon Dreamstone Mysteries"
     GameKind.MONOMYTH -> "Pokémon Monomyth"
     GameKind.RECHARGED_YELLOW -> "Pokémon Recharged Yellow"

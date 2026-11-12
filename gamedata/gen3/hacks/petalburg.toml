@@ -1,0 +1,76 @@
+# Gen 3 configs (hacks). The format and the commands: gamedata/README.md.
+
+# Pokémon Petalburg Dynasty v1.12.2 (32 MB, BPEE, sha1 648c88a4…): pokeemerald-expansion 1.16.4 (its RHHEXP block: 1574
+# species, 849 moves, 1018 items), gcc, no source. Keyed by that sha1 alone: another release moves these. Mapped
+# headless from a new game played in it (no save on file: a boy; ZIGZAGOON, Charizard, Pikachu, Gengar, Lucario
+# and a Togepi egg given by `callnative ScrCmd_createmon` / giveegg in PETALBURG), each address checked live:
+# - gPlayerParty 0x02036E84 / gPlayerPartyCount 0x02036E78 (1, then 6), gEnemyParty 0x020370DC (a scripted wild RALTS;
+# LEADER ROXANNE's GEODUDE, GEODUDE, NOSEPASS): vanilla's 100-byte encrypted mons with expansion's packing (species /
+# moves 11 bits, PP 7, experience 21, held item 10), every checksum good; the egg is species 1574 (gSpeciesInfo's last
+# entry, the header's NUM_SPECIES).
+# - gSaveBlock1Ptr / 2Ptr 0x03005508 / 0x03005504; money SB1+0x490 XOR SB2+0xAC (₽3750, its trainer card's). gMain
+# 0x03006A04 (inBattle +0x439: 0 in the field, 2 in battle).
+# - gMapHeader 0x02001BBC (mapsec 0x07 PETALBURG CITY), gObjectEvents 0x020016A8 (the player's coords = pos + 7).
+# - gBagPockets 0x0200B8A8: Emerald's five pockets in Emerald's order (quantities XOR the key; the battle's bag
+# screen shows the same items).
+# - Battle (a scripted wild RALTS, a double wild battle and ROXANNE, trainer 265): gBattleTypeFlags 0x020000E0 (4 wild,
+# 5 double wild, 0x0C trainer), gBattlersCount 0x020000E4 (2 / 4), gBattlerPartyIndexes 0x02000178 (u16s: 0, 0, 1, 1
+# in the double), gBattlerPositions 0x02000280, gBattleMons 0x020004FC ([PETALBURG_BATTLE_MON]: 0x8C bytes, otId
+# +0x84; a poisoned lead reads 8 at +0x50 and PSN on screen), gBattleStruct 0x020000E8 with monToSwitchIntoId at
+# +0x14A (the foe's +0x14B went 6 -> 2 before "is about to send out" and back to 6 once NOSEPASS, her party slot 2,
+# was out), the menus' cursors 0x02000358 / 0x0200035C (RIGHT walked the action cursor 0 -> 1, DOWN in FIGHT the move
+# cursor 0 -> 2). gBattlerControllerFuncs 0x03002730: action / move / bag / party read live (0x0805AD51 / 0x08059EA5
+# / 0x08058CD1 / 0x08058D15), HandleInputChooseTarget 0x08059ABD (live on the double battle's target screen).
+# gPartyMenu 0x02036D80 (slotId +9 walked 0 -> 1 on DOWN in the battle's party menu).
+# - Icons: gSpeciesInfo 0x087505B4 (0x108-byte entries, iconSprite +0x68, iconPalIndex +0x8A: the same icons as
+# Wishes of Tomorrow's, byte for byte), gMonIconPaletteTable 0x08CFDE28 (the GF header's); gItemsInfo 0x086FDAC0
+# (0x30-byte entries: icon +0x24 smol-compressed, its palette +0x28 plain, Wishes' bytes). Names / types / moves /
+# chart / map sections: scripts/gen_expansion_tables.py petalburg.
+[config.petalburg]
+base = 'emerald'
+itemDescs = { base = 0x086FDAD4, stride = 0x30, descOff = -8 }
+playerParty = 0x02036E84
+playerPartyCount = 0x02036E78
+enemyParty = 0x020370DC
+gMain = 0x03006A04
+saveBlock1Ptr = 0x03005508
+saveBlock2Ptr = 0x03005504
+encryptionKeyOff = 0xAC
+moneyOff = 0x490
+objectEvents = 0x020016A8
+mapHeader = 0x02001BBC
+bagPockets = 0x0200B8A8
+bagPocketCount = 5
+bagPocketOrder = 'EMERALD_BAG_POCKET_ORDER'
+speciesMask = 0x07FF
+moveMask = 0x07FF
+ppMask = 0x7F
+battleTypeFlags = 0x020000E0
+battlersCount = 0x020000E4
+battlerPartyIndexes = 0x02000178
+battlerPositions = 0x02000280
+battleMons = 0x020004FC
+battleMonLayout = 'PETALBURG_BATTLE_MON'
+battleStructPtr = 0x020000E8
+monToSwitchIntoOff = 0x14A
+actionCursor = 0x02000358
+moveCursor = 0x0200035C
+battlerControllerFuncs = 0x03002730
+handleInputChooseAction = 0x0805AD51
+handleInputChooseMove = 0x08059EA5
+completeWhenChoseItem = 0x08058CD1
+waitForMonSelection = 0x08058D15
+handleInputChooseTarget = 0x08059ABD
+partyMenu = 0x02036D80
+eggSpecies = 1574
+monIconTable = 0x0875061C  # gSpeciesInfo[0].iconSprite
+monIconStride = 0x108
+monIconPaletteIndices = 0x0875063E  # gSpeciesInfo[0].iconPalIndex
+monPalIdxStride = 0x108
+monPalIdxMask = 0x07
+monIconPaletteTable = 0x08CFDE28
+itemIconTable = 0x086FDAE4  # gItemsInfo[0].iconPic
+itemIconStride = 0x30
+itemPalCompressed = false
+pokedex = 'POKEDEX_PETALBURG'
+guideTables = 'GUIDE_TABLES_PETALBURG'

@@ -730,6 +730,8 @@ fun partySlotStyleFor(game: GameKind): PartySlotStyle? = when (game) {
     GameKind.TEAM_ROCKET -> EliteReduxPartyStyle
     // So is Wishes of Tomorrow's (its own blue backdrop: Theme's backdropColors).
     GameKind.WISHES -> EliteReduxPartyStyle
+    // And Petalburg Dynasty's: Emerald's slots and list in its own green, names in mixed case (headless).
+    GameKind.PETALBURG -> EliteReduxPartyStyle
     GameKind.HEART_AND_SOUL -> HeartAndSoulPartyStyle
     // Unbound FR redrew "HP" / "Lv" as "PV" / "N." and its status icons (GitHub #227): its own art, English's layout.
     GameKind.UNBOUND -> if (romGameCode == com.pokedaisy.app.companion.data.UNBOUND_FR_TEXT) UnboundFrPartyStyle else UnboundPartyStyle

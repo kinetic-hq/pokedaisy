@@ -833,6 +833,37 @@ val POKEDEX_WISHES = PokedexTables(
 )
 
 /**
+ * Pokémon Petalburg Dynasty v1.12.2 (expansion 1.16.4): the page from gSpeciesInfo 0x087505B4 (0x108-byte entries with
+ * Wishes of Tomorrow's field offsets, its text / picture / palette / footprint pointers leading to Wishes' bytes),
+ * gAbilitiesInfo 0x08CFB694 (0x1C-byte records, from its RHHEXP block). Expansion's own Hoenn list (214, u32 national
+ * numbers at 0x08CFB048), then National (1025); flags in SaveBlock1 +0x3598 / +0x3619 (the GF header's seen offset):
+ * the headless party's five read seen and caught there. gamedata/gen3/records/petalburg.toml mirrors it.
+ */
+val POKEDEX_PETALBURG = PokedexTables(
+    entries = 0,
+    frontPics = 0,
+    palettes = 0,
+    speciesInfo = 0x087505B4L,
+    speciesToNational = 0,
+    abilityNames = 0x08CFB694L,
+    footprints = 0,
+    abilityNameLength = 17,
+    abilityNameStride = 0x1C,
+    categorySuffix = "Pokémon",
+    speciesCount = 1574,
+    nationalCount = 1025,
+    regionalCount = 214,
+    regionName = "HOENN",
+    regionalOrder = 0x08CFB048L,
+    regionalOrderStride = 4,
+    expansion = SpeciesInfoDex(stride = 0x108, paletteOff = 0x60, footprintOff = 0x80, levelUpOff = 0x94, teachableOff = 0x98, evolutionsOff = 0xA0),
+    evoLayout = EvoLayout(EvoScheme.EXPANSION_PARAMS, record = 12, conditionsEnd = 39),
+    flags = DexFlags(DexFlagBlock.SAVE_BLOCK_1, 0x3598, 0x3619, 129),
+    nationalMagicOff = 2,
+    nationalMagic = 0xDA,
+)
+
+/**
  * Pokémon Team Rocket Edition 2026, Spanish (v3.0.9, expansion 1.14.4): the page from gSpeciesInfo (0xA8-byte entries:
  * category +0x1F, natDexNum +0x3C, text +0x4C, smol front pic +0x58, a plain palette +0x60, no footprints; level-up /
  * teachable / evolutions +0x90 / +0x94 / +0x9C, 12-byte evolution records with a condition list ending at 39: EEVEE's

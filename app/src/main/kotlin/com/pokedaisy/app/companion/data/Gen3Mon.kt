@@ -631,6 +631,14 @@ val TEAM_ROCKET_V3_BATTLE_MON = EXPANSION_BATTLE_MON.copy(size = 0x68, otId = 0x
 val WISHES_BATTLE_MON = EXPANSION_BATTLE_MON.copy(size = 0x88)
 
 /**
+ * Pokémon Petalburg Dynasty's (pokeemerald-expansion 1.16.4) 0x8C-byte struct BattlePokemon: [EXPANSION_BATTLE_MON]'s
+ * fields up to personality +0x4C (moves +0x0C, types +0x22 / +0x23, PP +0x25, HP +0x2A, level +0x2C, max HP +0x2E,
+ * status1 +0x50: a poisoned lead read 8 there), the otId at +0x84 (the party struct's, both battlers; its wild and
+ * trainer battles read the foe at +0x8C).
+ */
+val PETALBURG_BATTLE_MON = EXPANSION_BATTLE_MON.copy(size = 0x8C, otId = 0x84)
+
+/**
  * Pokémon Monomyth's 0x58-byte struct BattlePokemon, rearranged (its battle dumps, field by field against the party
  * structs): PP +0x00, statStages +0x04, species +0x0C, ability +0x0E, types +0x0F / +0x10, level +0x12, moves +0x18, the
  * held item +0x20 (Leftovers given to the lead read there), the five stats +0x22, HP / max HP +0x2C / +0x2E, status1
