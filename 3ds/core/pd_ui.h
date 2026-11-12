@@ -105,6 +105,7 @@ struct pd_settings {
     bool ffAudio;    // the game's sound sped up under fast-forward, else silent
     bool rewind;     // REWIND: the last ~20 s kept for the rewind hotkey
     bool runIndoors; // RUN INDOORS: every map lets the player run
+    bool rumble;      // RUMBLE: the controller buzzes as a battle starts, harder for a shiny foe, and for rumble carts
     bool resumeGames; // RESUME GAMES: a state on leaving a game, offered back (CONTINUE) at its next start
     bool levelCap;   // LEVEL CAP: party levels past the next boss's top level show orange (a Nuzlocke's rule)
     bool lcdFilter;  // optional host LCD display mask
@@ -239,6 +240,7 @@ struct pd_host_info {
     int layoutCount;
     bool hasUpdateCheck;   // Optional: CHECK FOR UPDATES' row (settings.updateCheck)
     bool hasResume;        // Optional: RESUME GAMES' row (settings.resumeGames)
+    bool hasRumble;        // Optional: RUMBLE's row in CONTROLS (settings.rumble)
     bool hasShaders;       // Optional: SHADER, COLORS and DIM COMPANION's rows
     bool hasSavesBeside;   // Optional: SAVES BESIDE GAMES' row (settings.savesBeside)
     bool hasFullscreen;    // Optional: FULLSCREEN's row (settings.fullscreen)

@@ -225,11 +225,12 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     snprintf(buf, sizeof(buf), "%d TABS", ui_bar_count(ui));
     setting(ui, c, ix, &y, iw, SETTING_TAB_BAR, "TAB BAR", buf);
 
-    if (host->hasButtonLayout || host->hasButtonRows || host->hasQuickMenu) {
+    if (host->hasButtonLayout || host->hasButtonRows || host->hasQuickMenu || host->hasRumble) {
         group(c, ix, &y, "CONTROLS");
         if (host->hasButtonLayout) page_row(ui, c, ix, &y, iw, SETTING_PAGE_BUTTONS, "GAME BUTTONS");
         if (host->hasButtonRows) page_row(ui, c, ix, &y, iw, SETTING_PAGE_HOTKEYS, "HOTKEYS");
         if (host->hasQuickMenu) page_row(ui, c, ix, &y, iw, SETTING_PAGE_QUICK, "QUICK MENU");
+        if (host->hasRumble) setting(ui, c, ix, &y, iw, SETTING_RUMBLE, "RUMBLE", on_off(st->rumble));
     }
     if (host->hasUpdateCheck || host->hasResume) {
         group(c, ix, &y, "APP");

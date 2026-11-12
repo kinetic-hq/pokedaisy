@@ -141,6 +141,12 @@ leave a GBA or Game Boy game. The next time you open it you're asked
 changed by this. If the save was played somewhere else since, the question is
 skipped and the game starts from the save.
 
+`RUMBLE` (in `SETTINGS`, `CONTROLS`, off at first) makes your controller buzz
+briefly when a battle starts in a GBA or Game Boy game, and harder when the foe
+is a shiny one. A Game Boy cartridge with a rumble motor shakes the controller
+too. Turning it on in the program's own settings gives you a short buzz, so you
+know it works.
+
 ## Full screen and controllers
 
 Press F11 or Alt+Enter to switch between full screen and a window, any time: in
@@ -285,7 +291,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
 | `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |
-| `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
+| `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `RUMBLE`; `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
 | `APP` | | `RESUME GAMES`, `CHECK FOR UPDATES` |
 
 Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close

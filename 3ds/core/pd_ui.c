@@ -618,6 +618,9 @@ static void act(struct pd_ui* ui, int id) {
     } else if (id == HIT_SETTING + SETTING_UPDATES) {
         ui->settings->updateCheck = !ui->settings->updateCheck;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_RUMBLE) {
+        ui->settings->rumble = !ui->settings->rumble;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_RESUME) {
         ui->settings->resumeGames = !ui->settings->resumeGames;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
