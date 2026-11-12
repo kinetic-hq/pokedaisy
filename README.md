@@ -171,6 +171,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **DS EXPAND** on the desktop host: Platinum, HeartGold and SoulSilver (and the games built on them) draw their world past
   the top screen's edges, Android's EXPAND (`pk_nds_wide.cpp`) on the desktop's melonDS, with the GBA's zoom steps and
   AUTO ZOOM IN.
+- **The game list's header** on the desktop host: the app's daisy, redrawn as 16 x 16 pixel art, beside the PokeDaisy
+  name, instead of "PokeDaisy Windows" / "PokeDaisy Linux" (the window title and SETTINGS' HOST row keep the platform).
 - **Amethyst 1.4.3**: its own config (PARTY, BAG, BATTLE with the foe's team, DEX, GUIDE, the PC) instead of 1.4.1's
   guessed one, which read the wrong ability names and foe teams; on the desktop, the 3DS port and Android alike.
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 0 or 1 cart gets the Platinum companion (rev 1 as on

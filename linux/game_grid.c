@@ -215,10 +215,65 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
     pd_text_fit(c, left, ty - 4, right - left, it->version, p->muted, PD_NO_SHADOW);
 }
 
+/* The app's daisy (its launcher icon, app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png), redrawn 16 x 16 for the
+ * bar: canvas pixels, so the window's scaling keeps it crisp at every UI SIZE. '.' is clear. */
+static const char *const LOGO[16] = {
+    ".......aa.......",
+    "..a...abca...a..",
+    ".aba..adda..aca.",
+    "abdda.adda.addca",
+    "adddcaaddaabddda",
+    ".acdcaaaaaabdba.",
+    "aaaaaafeefaaaaaa",
+    "abbdcafggfabdcca",
+    "ahiihafggfahiiha",
+    "aaaaaaffffaaaaaa",
+    ".aiiiaaaaaaiiia.",
+    "aiiiihaiiahiiiia",
+    "aiiihaiiiiahiiia",
+    ".ahhaaiiiiaahha.",
+    "..aa..ahha..aa..",
+    ".......aa.......",
+};
+static uint32_t logo_color(char ch) {
+  switch (ch) {
+  case 'a': return 0x202020; // outline
+  case 'b': return 0xFF9080; // red petals: light,
+  case 'c': return 0xB01C14; // shade,
+  case 'd': return 0xE83028; // red
+  case 'e': return 0xFFF0A0; // the middle: light,
+  case 'f': return 0xF8D030; // yellow,
+  case 'g': return 0xFFF8D8; // its spot
+  case 'h': return 0xC4C8D4; // white petals: shade,
+  default: return 0xFFFFFF;  // white
+  }
+}
+
+/* The logo at (x, y); in the dark looks a light rim, so its dark outline reads on the dark (and OLED black) bar. Its
+ * width. */
+static int draw_logo(struct pd_canvas *c, int x, int y) {
+  for (int r = 0; pd_dark && r < 16; r++)
+    for (int col = 0; col < 16; col++)
+      if (LOGO[r][col] == 'a') {
+        static const int d[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int k = 0; k < 4; k++) {
+          int rr = r + d[k][1], cc = col + d[k][0];
+          if (rr < 0 || rr > 15 || cc < 0 || cc > 15 || LOGO[rr][cc] == '.')
+            pd_fill(c, x + cc, y + rr, 1, 1, 0x5A6070);
+        }
+      }
+  for (int r = 0; r < 16; r++)
+    for (int col = 0; col < 16; col++)
+      if (LOGO[r][col] != '.')
+        pd_fill(c, x + col, y + r, 1, 1, logo_color(LOGO[r][col]));
+  return 16;
+}
+
 static void draw_bar(struct game_grid *g, struct pd_canvas *c, const struct palette *p) {
   pd_fill(c, 0, 0, c->w, BAR_H, p->bar);
   pd_fill(c, 0, BAR_H, c->w, 1, p->barEdge);
-  pd_heading(c, PAD, 5, g->title ? g->title : "", RING, PD_NO_SHADOW);
+  int titleX = PAD + draw_logo(c, PAD, (BAR_H - 16) / 2) + 5;
+  pd_heading(c, titleX, 5, g->title ? g->title : "", RING, PD_NO_SHADOW);
   g->barY = 4;
   g->barH = BAR_H - 8;
   int right = c->w - PAD;
