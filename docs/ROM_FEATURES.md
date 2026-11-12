@@ -482,6 +482,11 @@ change to any of the places listed under "Where it's decided" updates its rows h
     FORFEIT in place of RUN) reads too, checked on the desktop: the foe strip shows its four slots, the foe's types and
     weaknesses and your moves' matchups are right. The challengers' teams aren't in the game's memory until the desk's
     SCOUTING or the match day builds them, so there's no NEXT CHALLENGER page.
+    Careers started headless on copies: DOUBLE (every trainer battle a double: the panes show the left foe and both
+    of its slots, and the one-press buttons stay off as in every double battle), TERA and DYNAMAX (the foes use them
+    too). A Dynamaxed mon's doubled HP reads right. A Terastallized mon still shows its own types and weaknesses:
+    the Tera type isn't read yet. MEGA and Z-MOVE careers start fine, but their starters can't Mega Evolve and
+    carry no Z crystal, so those two weren't seen in battle.
 
 ## What each column is
 

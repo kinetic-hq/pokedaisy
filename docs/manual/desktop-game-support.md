@@ -126,7 +126,7 @@ By tab:
 | Team Rocket Dragonsden | 1.5; SHA-1 40780347 | works | works | partly | partly | no | partly | None (no `DEX` on Android either) |
 | Team Rocket Dragonsden | 2026 3.0.9 Spanish (BPEE, 32 MB, SHA-1 0d8bdaee) | no | no | no | no | no | no | No companion: the desktop doesn't know this build |
 | Wishes of Tomorrow | 1.2.6; SHA-1 60182b93 | works | works | partly | works | works | partly | None |
-| Petalburg Dynasty | 1.12.2; SHA-1 648c88a4 | works | works | partly | works | works | partly | None |
+| Petalburg Dynasty | 1.12.2; SHA-1 648c88a4 | works | works | partly | works | works | partly | BATTLE shows a Terastallized Pokémon's own types, not its Tera type |
 | Dreamstone Mysteries | The one release; SHA-1 20e91aec | works | works | partly | works | works | partly | None |
 | Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | works | partly | The `DEX` page has no evolutions or egg groups; the guide has no trainer or wild tables |
 | Emerald Rogue | 2.2.1 EX; SHA-1 7600af1f | works | works | works | works | no | no | No `DEX` tab (no guide on Android either) |
