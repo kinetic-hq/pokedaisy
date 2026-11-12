@@ -71,7 +71,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Controllers**: hot plugging, several at once (a handheld's own controls and an Xbox pad together).
 - **Shaders and colours** on the desktop host: `SHARP` and `xBRZ` scaling, `HANDHELD` and `OLED` colours,
   `BRIGHTNESS` (80% to 150%, 110% by default), `DIM COMPANION`, and `BACKGROUND` (`BLACK` by default with
-  `OLED` and in every DS game): true black round the game, the wings as near black cards with a faint edge (dark mode and themes
+  `OLED` and in every DS game, `DARK` with `DARK MODE`): true black round the game, the wings as near black cards with a faint edge (dark mode and themes
   reach them too), a thin grey gutter at the game's border, still wings dimmed after a minute and moved a pixel
   every few minutes against burn in. The wings fill the screen's height: the party as tall cards, the map round
   the player with badges, play time and money under it. Bezel bars above and below the game where there's room
