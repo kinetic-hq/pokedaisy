@@ -590,8 +590,10 @@ guide; they go by the game code too, so another dump of the same cart works.
 Origin HeartGold gets `PARTY`, `BAG`, `MAP` and `DEX` with its own creatures,
 moves, items, types and pictures, read from its cart, and `BATTLE` from its
 own battle engine: your creature and the foe, their moves and types, and a
-trainer's team. Its `GUIDE` has one page, `HERE`: the wild creatures where you
-stand, by time of day, read from its cart.
+trainer's team. Its `GUIDE` has two pages, read from its cart: `HERE` lists the
+wild creatures where you stand by time of day, and `NEXT BOSS` shows the next
+gym leader or League member with the hack's own team, the Kanto leaders first
+since the hack sends you there first.
 HeartFelt Gold gets `PARTY`, `BAG`, `MAP`, `DEX` and `BATTLE`, with its own creatures,
 moves, items, types and icons read from its cart. `DEX` lists the whole
 National Dex in order, with each creature's picture, stats, size, entry text,

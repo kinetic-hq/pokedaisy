@@ -356,6 +356,15 @@ DsOrigin ds_read_origin(const std::vector<uint8_t>& rom){
         o.wildSets.push_back(std::move(set));
       }
     }catch(const std::exception&){o.mapWild.clear();o.wildSets.clear();}
+    // NEXT BOSS: trdata (/a/0/5/5) and trpoke (/a/0/5/6), retail's ids kept with the hack's own teams, each mon a fixed
+    // 28 bytes. A failure only costs the boss list.
+    try{
+      const auto trdata=file(rom,"/a/0/5/5"),trpoke=file(rom,"/a/0/5/6");
+      for(unsigned i=0;i<std::min(u16(trdata,24),u16(trpoke,24));++i){
+        o.trainers.push_back(member(trdata,i));
+        o.trainerParties.push_back(member(trpoke,i));
+      }
+    }catch(const std::exception&){o.trainers.clear();o.trainerParties.clear();}
   }catch(const std::exception& e){std::fprintf(stderr,"Origin HeartGold tables: %s\n",e.what());o.species.clear();}
   return o;
 }
