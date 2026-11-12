@@ -447,6 +447,24 @@ val POKEDEX_FIRERED_REV1: PokedexTables by lazy {
     )
 }
 
+// Retail FireRed rev 0 (SHA1 41cb23d8...): rev 1's tables 0x70 lower, as LeafGreen's rev 0 / rev 1 are, but the dex
+// entries and the TM / HM move list only 0x60 (each checked on the cart: Bulbasaur's stats, evolution, level-up moves,
+// height / weight and SEED category, Stench, Treecko's National number, TM01's move, BROCK at trainer 414).
+val POKEDEX_FIRERED_REV0: PokedexTables by lazy {
+    PokedexTables(
+        entries = 0x0844E850L,
+        frontPics = 0x082350ACL,
+        palettes = 0x0823730CL,
+        speciesInfo = 0x08254784L,
+        speciesToNational = 0x08251FEEL,
+        abilityNames = 0x0824FC40L,
+        footprints = 0x0843FAB0L,
+        evolutions = 0x08259754L,
+        tmhmLearnsets = 0x08252BC8L,
+        tmhmMoves = 0x0845A5A4L,
+    )
+}
+
 // LeafGreen: FireRed's layout, its own tables (and dex text).
 val POKEDEX_LEAFGREEN_REV0: PokedexTables by lazy {
     PokedexTables(
@@ -484,6 +502,16 @@ val GUIDE_TABLES_FIRERED_REV1: GuideTables by lazy {
         learnsets = 0x0825D824L,
         wildHeaders = 0x083C9D28L,
         mapGroups = 0x08352718L,
+    )
+}
+
+// Retail FireRed rev 0: rev 1's, 0x70 lower (see POKEDEX_FIRERED_REV0).
+val GUIDE_TABLES_FIRERED_REV0: GuideTables by lazy {
+    GuideTables(
+        trainers = 0x0823EAC8L,
+        learnsets = 0x0825D7B4L,
+        wildHeaders = 0x083C9CB8L,
+        mapGroups = 0x083526A8L,
     )
 }
 

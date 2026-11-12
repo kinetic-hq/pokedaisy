@@ -45,6 +45,20 @@ monIconPaletteIndices = 0x083D3E80
 monIconPaletteTable = 0x083D4038
 itemIconTable = 0x083D4294  # sItemIconTable (static, but readable)
 
+# Retail FireRed rev 0 itself (firered_rev0 is the hacks' base too, so these stay off it): its POKéDEX and GUIDE
+# tables (records/firered.toml), the trainer card, and the FOE TEAM's RAM, which is rev 1's (every RAM global is).
+[config.firered_rev0_retail]
+base = 'firered_rev0'
+pokedex = 'POKEDEX_FIRERED_REV0'
+guideTables = 'GUIDE_TABLES_FIRERED_REV0'
+trainerCard = 'TRAINER_CARD_FIRERED'
+actionCursor = 0x02023FF8
+moveCursor = 0x02023FFC
+enemyParty = 0x0202402C
+battlerPartyIndexes = 0x02023BCE
+battleStructPtr = 0x02023FE8
+monToSwitchIntoOff = 0x5C
+
 # A prior version of this config guessed rev 1 shifted gMain/saveBlock1Ptr/
 # saveBlock2Ptr to 0x03003100/0x03005018/0x0300501C — WRONG, never live-
 # verified (see CLAUDE.md). Confirmed 2026-09-15 by building the pinned

@@ -649,8 +649,8 @@ class TelemetrySampler {
         val cfg = when {
             emerald -> NATIVE_EMERALD_RETAIL
             rev >= 1 -> NATIVE_FIRERED_REV1
-            // NATIVE_FIRERED_REV0 is the hacks' base too: only retail gets the card.
-            else -> NATIVE_FIRERED_REV0.copy(trainerCard = TRAINER_CARD_FIRERED)
+            // NATIVE_FIRERED_REV0 is the hacks' base too: retail rev 0 has its own (card, dex, guide, foes).
+            else -> NATIVE_FIRERED_REV0_RETAIL
         }
         // The SHINY marks: retail's shiny check (8 of 65536), on this copy only - a randomizer leaves it be. BOXES:
         // gPokemonStoragePtr, right after gSaveBlock2Ptr (FireRed 0x03005010 in both revisions, Emerald 0x03005D94; read

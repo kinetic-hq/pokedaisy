@@ -32,6 +32,22 @@ evolutions = 0x082597C4
 tmhmLearnsets = 0x08252C38
 tmhmMoves = 0x0845A604
 
+# Retail FireRed rev 0 (SHA1 41cb23d8...): rev 1's tables 0x70 lower, as LeafGreen's rev 0 / rev 1 are, but the dex
+# entries and the TM / HM move list only 0x60 (each checked on the cart: Bulbasaur's stats, evolution, level-up moves,
+# height / weight and SEED category, Stench, Treecko's National number, TM01's move, BROCK at trainer 414).
+[record.POKEDEX_FIRERED_REV0]
+schema = 'gen3_pokedex'
+entries = 0x0844E850
+frontPics = 0x082350AC
+palettes = 0x0823730C
+speciesInfo = 0x08254784
+speciesToNational = 0x08251FEE
+abilityNames = 0x0824FC40
+footprints = 0x0843FAB0
+evolutions = 0x08259754
+tmhmLearnsets = 0x08252BC8
+tmhmMoves = 0x0845A5A4
+
 # LeafGreen: FireRed's layout, its own tables (and dex text).
 [record.POKEDEX_LEAFGREEN_REV0]
 schema = 'gen3_pokedex'
@@ -65,6 +81,14 @@ trainers = 0x0823EB38
 learnsets = 0x0825D824
 wildHeaders = 0x083C9D28
 mapGroups = 0x08352718
+
+# Retail FireRed rev 0: rev 1's, 0x70 lower (see POKEDEX_FIRERED_REV0).
+[record.GUIDE_TABLES_FIRERED_REV0]
+schema = 'gen3_guide'
+trainers = 0x0823EAC8
+learnsets = 0x0825D7B4
+wildHeaders = 0x083C9CB8
+mapGroups = 0x083526A8
 
 # LeafGreen, from pret/pokefirered's `leafgreen` / `leafgreen_rev1` maps (both
 # builds byte-identical to retail): same layouts, its own addresses and data
