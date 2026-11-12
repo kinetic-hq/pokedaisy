@@ -54,6 +54,7 @@ uint32_t ui_type_color(int type) {
         0xA8A878, 0xC03028, 0xA890F0, 0xA040A0, 0xE0C068, 0xB8A038, 0xA8B820, 0x705898, 0xB8B8D0,
         0x68A090, 0xF08030, 0x6890F0, 0x78C850, 0xF8D030, 0xF85888, 0x98D8D8, 0x7038F8, 0x705848,
     };
+    if (type == 9 && pd_ds_types && pd_ds_types->name9) return 0xEE99AC;  // Fairy (Origin HeartGold's type 9)
     return type >= 0 && type < 18 ? COLORS[type] : PD_MUTED;
 }
 

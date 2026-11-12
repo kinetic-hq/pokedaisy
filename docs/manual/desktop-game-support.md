@@ -42,18 +42,18 @@ Of the 72 rows:
 - **58** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **11** get a companion that falls short of Android's somewhere.
-- **3** get no companion at all yet.
+- **12** get a companion that falls short of Android's somewhere.
+- **2** get no companion at all yet.
 
 By tab:
 
 | Area | works | partly | no |
 | --- | --- | --- | --- |
-| `PARTY` | 69 | 0 | 3 |
-| `BAG` | 69 | 0 | 3 |
+| `PARTY` | 70 | 0 | 2 |
+| `BAG` | 70 | 0 | 2 |
 | `BATTLE` | 5 | 63 | 4 |
-| `MAP` | 68 | 1 | 3 |
-| `DEX` | 60 | 2 | 10 |
+| `MAP` | 69 | 1 | 2 |
+| `DEX` | 61 | 2 | 9 |
 | `GUIDE` | 37 | 26 | 9 |
 
 ## Game by game
@@ -89,7 +89,7 @@ By tab:
 | White (DS) | USA/Europe (IRAO, SHA-1 bc696a0d) and every language | works | works | partly | works | works | works | Same as Black |
 | Black 2 (DS) | USA/Europe (IREO, SHA-1 e51e6dfb) and every language | works | works | partly | works | works | works | Same as Black |
 | White 2 (DS) | USA/Europe (IRDO, SHA-1 b5d7490b) and every language | works | works | partly | works | works | works | Same as Black |
-| Origin HeartGold (DS) | 4.0.3 English 1.0.0 (IPKJ rev 0) | no | no | no | no | no | no | No companion: its Japanese header isn't read |
+| Origin HeartGold (DS) | 4.0.3 English 1.0.0 (IPKJ rev 0) | works | works | no | works | works | no | No `BATTLE` panes yet (no guide on Android either) |
 | Renegade Platinum (DS) | 1.2.0, 1.3.0 and 1.3.0 Classic (CPUE rev 1) | works | works | no | works | partly | partly | Read as Platinum: types, stats, `DEX` pages and the `GUIDE` are the original game's |
 | Unbound | 2.1.1.1; SHA-1 b4776b82 | works | works | partly | works | works | works | None |
 | Unbound | 2.1.1.1 French; SHA-1 0ce2a880 | works | works | partly | works | works | works | None |
@@ -137,9 +137,10 @@ By tab:
 
 - **The DS games.** Platinum (USA) has the whole companion, `BATTLE` and
   `GUIDE` included. HeartGold and SoulSilver (USA) have it too, and so do
-  Black, White, Black 2 and White 2 (USA / Europe). Their other languages,
-  Origin HeartGold and the French and Spanish Platinum carts get no companion
-  yet.
+  Black, White, Black 2 and White 2 (USA / Europe). Origin HeartGold has
+  `PARTY`, `BAG`, `MAP` and `DEX` from its own cart, but no `BATTLE` panes yet.
+  The other languages and the French and Spanish Platinum carts get no
+  companion yet.
 - **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow, Dreamstone
   Mysteries, Lazarus, Monomyth and Petalburg Dynasty now have their `DEX` on the desktop, read from
   each game's own data. The other games built the same way get it too once the

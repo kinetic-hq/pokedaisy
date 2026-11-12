@@ -77,6 +77,14 @@ extern const int pd_nature_names_count;
 extern const unsigned char pd_hidden_power_types[16];
 
 #define PD_TYPE_NONE 255
+
+// A DS host's own types where g is NULL (retail's numbering): Origin HeartGold has Fairy as type 9, where the Gen 4
+// carts keep "???", and its own 18 x 18 chart (attacker by defender, in quarters: 4 = 1x). NULL = the retail ones.
+struct pd_ds_types {
+    const char* name9;
+    const unsigned char* chart;
+};
+extern const struct pd_ds_types* pd_ds_types;
 // An egg, whatever its game numbers it (retail 412, Emerald Legacy 415: pd_config.eggSpecies): past every game's
 // species, so a hack's species 412 (Legacy's Deoxys forms) isn't one.
 #define PD_SPECIES_EGG 0x7FFF

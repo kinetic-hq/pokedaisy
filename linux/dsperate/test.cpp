@@ -116,6 +116,69 @@ int main(int argc,char** argv){
   assert(ds_berry_pot_text(DsBerryPot{149,3,200,0})=="GROWING, 3H 20M, DRY");
   assert(ds_berry_pot_text(DsBerryPot{149,5,45,0})=="READY, FALL IN 45M");
   std::puts("PASS time of day and Berry Pot lines");
+  {
+    // Origin HeartGold: HeartGold's reader on its grown save (the origin_heartgold fixture: a new game played headless,
+    // OriginHeartGoldTest's values). The forms come from the cart; one is enough here.
+    std::ifstream f(std::filesystem::path(argv[1]).parent_path().parent_path()/"origin_heartgold"/"mainram.bin",std::ios::binary);
+    std::vector<uint8_t> o{std::istreambuf_iterator<char>(f),{}};
+    assert(o.size()==4*1024*1024);
+    assert(!ds_read_companion(o.data(),o.size(),DsGame::Johto).valid);  // HeartGold's offsets: no save there
+    DsOrigin tables;tables.forms.push_back({6,1028,2});
+    ds_set_origin(&tables);
+    auto t=ds_read_companion(o.data(),o.size(),DsGame::Johto);
+    assert(t.valid && t.party.size()==6);
+    const int species[]={155,700,25,1028,445,887},levels[]={12,20,9,30,40,35},hp[]={32,73,28,92,139,117};
+    for(int i=0;i<6;++i)assert(t.party[i].species==species[i] && t.party[i].level==levels[i] && t.party[i].hp==hp[i] && t.party[i].maxHp==hp[i]);
+    assert(t.party[1].heldItem==234);
+    assert((t.party[0].moves==std::array<int,4>{33,43,108,52}));
+    assert(t.money==3000 && t.map==49 && t.repelSteps==0 && !t.hasPots);
+    auto pocket=[&](int p){std::vector<std::pair<int,int>> v;for(auto& i:t.bag)if(i.pocket==p)v.push_back({i.id,i.count});return v;};
+    assert((pocket(1)==std::vector<std::pair<int,int>>{{744,1},{450,1}}));
+    assert((pocket(2)==std::vector<std::pair<int,int>>{{328,1}}));
+    assert((pocket(3)==std::vector<std::pair<int,int>>{{137,1}}));
+    assert((pocket(4)==std::vector<std::pair<int,int>>{{17,5},{780,1},{26,4}}));
+    assert((pocket(5)==std::vector<std::pair<int,int>>{{155,3}}));
+    assert((pocket(6)==std::vector<std::pair<int,int>>{{4,10},{1,1}}));
+    assert((pocket(7)==std::vector<std::pair<int,int>>{{55,2}}));
+    assert(t.dexValid && t.dexSeen.size()==1026 && t.seenCount==5 && t.caughtCount==5);
+    for(int n:{25,155,445,700,887})assert(t.dexSeen[n] && t.dexCaught[n]);
+    assert(ds_egg_icon(DsGame::Johto)==dsOriginEgg);
+    ds_set_origin(nullptr);
+    assert(ds_egg_icon(DsGame::Johto)==494);
+    std::puts("PASS Origin HeartGold's save: party past 493 and a form's id, its bag's pockets, its wider Pokedex");
+    // Its tables and art from the cart, when one is given (PD_ORIGIN_ROM; nothing of it is in the repo).
+    if(const char* path=std::getenv("PD_ORIGIN_ROM")){
+      std::ifstream cart(path,std::ios::binary);std::vector<uint8_t> rom{std::istreambuf_iterator<char>(cart),{}};
+      assert(ds_origin_cart(rom.data(),rom.size()));
+      DsOrigin cartTables=ds_read_origin(rom);
+      assert(cartTables.species.size()>1025 && cartTables.species[1]=="Bulbasaur" && cartTables.species[700]=="Sylveon");
+      assert(cartTables.species[887]=="Dragapult" && cartTables.species[1025]=="Pecharunt" && cartTables.items[780]=="Rash Mint");
+      assert((cartTables.speciesTypes[700]==std::array<uint8_t,2>{9,9}) && (cartTables.speciesTypes[887]==std::array<uint8_t,2>{16,7}));
+      assert(cartTables.moves[33]=="Tackle" && (cartTables.moveMeta[33]==std::array<uint8_t,2>{0,40}));
+      assert((cartTables.moveMeta[52]==std::array<uint8_t,2>{10,40}) && cartTables.moves.size()>920);
+      assert(cartTables.chart[9*18+16]==8 && cartTables.chart[16*18+9]==0 && cartTables.chart[8*18+9]==8 && cartTables.chart[7*18+8]==4);
+      assert(cartTables.formSpecies(6,1)==1027 && cartTables.formSpecies(6,2)==1028 && cartTables.formSpecies(6,0)==6);
+      assert(cartTables.baseSpecies(1028)==6);
+      assert(cartTables.machines[0]==264 && cartTables.machines[93]==19 && cartTables.machines[100]==473 && cartTables.machines[137]==815);
+      ds_set_origin(&cartTables);
+      assert(!std::strcmp(ds_species(1028,DsGame::Johto),"Charizard") && !std::strcmp(ds_move(52,DsGame::Johto),"Ember"));
+      assert(ds_species_type(700,0,DsGame::Johto)==9);
+      auto icons=ds_party_icons(rom,DsGame::Johto);
+      assert(int(icons.size())==dsOriginEgg+1);
+      for(int id:{1,700,887,1025,1028,1440,dsOriginEgg})assert(icons[id].size()==1024);
+      auto dex=ds_dex_art(rom,DsGame::Johto);
+      assert(dex.details.size()==1026 && dex.details[700].category=="Intertwine Pokémon" && dex.details[700].heightDm==10 && dex.details[700].weightHg==235);
+      assert(dex.regional.empty());
+      auto page=ds_dex_page(dex,DsGame::Johto,700);
+      assert(page.side==80 && !page.sprite.empty());
+      assert(!ds_dex_page(dex,DsGame::Johto,1).moves.empty() && ds_dex_page(dex,DsGame::Johto,1).moves[0].level==1 && ds_dex_page(dex,DsGame::Johto,1).moves[0].move==33);
+      assert(ds_dex_page(dex,DsGame::Johto,151).machines.size()==138);
+      bool sylveon=false;for(auto& e:dex.evolutions)sylveon|=e.from==133 && e.to==700 && e.method==27 && e.param==9;
+      assert(sylveon);
+      ds_set_origin(nullptr);
+      std::puts("PASS Origin HeartGold's cart: names, types, chart, forms, machines, icons and DEX pages");
+    }
+  }
 #if PD_TEST_DSPERATE
   auto nds=std::make_unique<ds::NDS>();
   nds->bus.dma_write32(ds::Cpu::ARM9,0x02000000,0x12345678);

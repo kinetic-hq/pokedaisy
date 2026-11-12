@@ -34,9 +34,43 @@ std::string utf16_text(const uint8_t* p,int count){
   return out;
 }
 }
+namespace {
+const DsOrigin* originData=nullptr;
+const DsOrigin* origin_for(DsGame game){return game==DsGame::Johto?originData:nullptr;}
+// HeartGold / SoulSilver's SaveData and FieldSystem layout, or Origin HeartGold's grown one (Gen4Reader.kt's
+// GEN4_ORIGIN_HEARTGOLD: the bag's TM pocket holds 151, and everything after the trainer's block moved).
+struct JohtoLayout {
+  uint32_t saveDataPtr,fieldSystemPtr,locationOff,pokedexOff,nationalOff,dexStride,dexCount,repelOff,flagsOff,wordOff;
+  const int* pockets;
+};
+constexpr int originPockets[]={165,50,151,12,40,64,24,30};
+JohtoLayout johto_layout(){
+  using namespace pd_ds_data;
+  if(originData)return {0x021D11B4,0x021D31F4,0x1324,0x13A8,0x367,0xC8,dsOriginLastNational,0x6A48+0x65,0xEAC+0x170*2,
+                        0xBC84+4,originPockets};
+  return {johto_saveDataPtr,uint32_t(pg_fieldSystemPtr),johto_locationOff,johto_pokedexOff,johto_nationalDexOff,64,493,
+          johto_repelStepsOff,uint32_t(pg_flagsOff),uint32_t(pg_wordOff),johtoPockets};
+}
+}
+void ds_set_origin(const DsOrigin* data){originData=data;}
+const DsOrigin* ds_origin(){return originData;}
+int DsOrigin::formSpecies(int id,int form) const{
+  if(!form)return id;
+  for(const auto& f:forms)if(f[0]==id&&f[2]==form)return f[1];
+  return id;
+}
+int DsOrigin::baseSpecies(int id) const{
+  if(id<=dsOriginLastNational)return id;
+  for(const auto& f:forms)if(f[1]==id)return f[0];
+  return id;
+}
+bool ds_origin_cart(const uint8_t* rom,size_t size){
+  constexpr size_t sig=0x4000+0x2773C;
+  return size>=sig+4 && !std::memcmp(rom+0x0C,"IPKJ",4) && rom[0x1E]==0 && u32(rom+sig)==0x021D11B0u;
+}
 bool ds_unova(DsGame game){return game==DsGame::Black||game==DsGame::White||ds_unova_sequel(game);}
 bool ds_unova_sequel(DsGame game){return game==DsGame::Black2||game==DsGame::White2;}
-int ds_egg_icon(DsGame game){return ds_unova(game)?650:pd_ds_data::iconEgg;}
+int ds_egg_icon(DsGame game){return ds_unova(game)?650:origin_for(game)?dsOriginEgg:pd_ds_data::iconEgg;}
 const char* ds_canonical_sha1(const char* digest){
   using namespace pd_ds_data;
   // Decrypted dumps: the secure area differs, the rest of the file (every offset the
@@ -91,7 +125,9 @@ bool decode_mon(const uint8_t* raw,size_t size,DsMon& mon,DsGame game) {
   const char* order=pd_ds_data::orders[((pid>>13)&31)%24];
   auto block=[&](char c){return blocks+32*(std::strchr(order,c)-order);};
   const uint8_t *a=block('A'),*b=block('B'),*c=block('C');
-  int species=u16(a);if(species<1 || species>(unova?649:493))return false;
+  const DsOrigin* origin=origin_for(game);
+  int species=u16(a);if(species<1 || species>(unova?649:origin?dsOriginLastSpecies:493))return false;
+  if(origin)species=origin->formSpecies(species,b[24]>>3);
   uint8_t party[100];static_assert(pd_ds_data::monSize-pd_ds_data::boxSize==sizeof party);
   const size_t partySize=record-pd_ds_data::boxSize;
   std::memcpy(party,raw+pd_ds_data::boxSize,partySize);
@@ -149,12 +185,12 @@ template<size_t N> bool read_bag(const Ram& ram,uint32_t addr,const int (&capaci
   return true;
 }
 
-void read_dex(const Ram& ram,uint32_t address,DsCompanion& out,unsigned nationalOff){
+void read_dex(const Ram& ram,uint32_t address,DsCompanion& out,unsigned nationalOff,unsigned dexCount=0,unsigned dexStride=0){
   using namespace pd_ds_data;
   const bool unova=ds_unova(out.game);
-  const unsigned count=unova?649:dexMax;
-  const unsigned stride=unova?0x54:64, caughtBase=unova?8:dexCaughtBase;
-  const auto* dex=ram.at(address,unova?caughtBase+5*stride:dexSize);
+  const unsigned count=unova?649:dexCount?dexCount:dexMax;
+  const unsigned stride=unova?0x54:dexStride?dexStride:64, caughtBase=unova?8:dexCaughtBase;
+  const auto* dex=ram.at(address,unova?caughtBase+5*stride:std::max<size_t>(dexSize,std::max(caughtBase+2*stride,nationalOff+1)));
   if(!dex||u32(dex)!=dexMagic)return;
   out.dexValid=true;
   out.nationalDex=!unova&&dex[nationalOff]!=0;
@@ -184,44 +220,47 @@ DsCompanion read_other_companion(const Ram& ram,DsGame game){
   DsCompanion out;
   out.game=game;
   if(game==DsGame::Johto){
-    const uint32_t save=ram.word(johto_saveDataPtr);
-    if(!ram.at(save,johto_locationOff+johto_bodyOff+4))return out;
+    const JohtoLayout lay=johto_layout();
+    const uint32_t save=ram.word(lay.saveDataPtr);
+    if(!ram.at(save,lay.locationOff+johto_bodyOff+4))return out;
     const uint32_t body=save+johto_bodyOff;
     const auto* trainer=ram.at(body+johto_trainerOff,johto_kantoBadgesOff+1);
-    if(!trainer||!read_party(ram,body+johto_partyOff,out)||!read_bag(ram,body+johto_bagOff,johtoPockets,out))return {};
+    if(!trainer||!read_party(ram,body+johto_partyOff,out)||
+       !(originData?read_bag(ram,body+johto_bagOff,originPockets,out):read_bag(ram,body+johto_bagOff,johtoPockets,out)))return {};
     out.trainer=text(trainer,8);out.money=u32(trainer+20);
     out.badges=trainer[26]|(trainer[johto_kantoBadgesOff]<<8);out.playerGender=trainer[24];
-    out.map=ram.word(body+johto_locationOff);
-    if(const auto* flags=ram.at(body+pg_flagsOff,gen4FlagBytes))
+    out.map=ram.word(body+lay.locationOff);
+    if(const auto* flags=ram.at(body+lay.flagsOff,gen4FlagBytes))
       out.eventFlags.assign(flags,flags+gen4FlagBytes);
-    if(const auto* steps=ram.at(body+johto_repelStepsOff,1))out.repelSteps=*steps;
-    read_dex(ram,body+johto_pokedexOff,out,johto_nationalDexOff);
+    if(const auto* steps=ram.at(body+lay.repelOff,1))out.repelSteps=*steps;
+    read_dex(ram,body+lay.pokedexOff,out,lay.nationalOff,lay.dexCount,lay.dexStride);
     // SAVE_MISC_DATA follows the Pal Pad: 128 apricorn trees (4 bytes each), then the four 12-byte Berry Pots. Its
     // offset was checked on a SoulSilver save (the rival's name sits at +0x270, the 31 trees' first state at +0).
+    // Origin HeartGold's grown save moved it, and no save of it has been checked: no pots there.
     constexpr uint32_t miscOff=8292,potsOff=0x200;
-    out.hasPots=std::any_of(out.bag.begin(),out.bag.end(),[](const DsItem& i){return i.id==470;});
-    if(const auto* pot=ram.at(body+miscOff+potsOff,4*12))
+    out.hasPots=!originData&&std::any_of(out.bag.begin(),out.bag.end(),[](const DsItem& i){return i.id==470;});
+    if(const auto* pot=out.hasPots?ram.at(body+miscOff+potsOff,4*12):nullptr)
       for(int i=0;i<4;++i,pot+=12)
         if(pot[0]&&pot[1]>=1&&pot[1]<=5)
           out.pots[i]={pot[0]+148,pot[1],int(pot[2]|pot[3]<<8),std::min(100,int(pot[9]))};
-    const uint32_t gear=ram.word(body+pg_wordOff);
+    const uint32_t gear=ram.word(body+lay.wordOff);
     out.mapSkin=std::min(5u,(gear>>18)&127);out.mapUnlock=(gear>>27)&3;
     for(unsigned i=0;i<38;++i){
       const unsigned bit=pg_firstFlag+i;
-      const auto* p=ram.at(body+pg_flagsOff+bit/8,1);
+      const auto* p=ram.at(body+lay.flagsOff+bit/8,1);
       if(p&&((*p>>(bit%8))&1))out.arrivals|=uint64_t(1)<<i;
     }
     const auto point=std::find_if(std::begin(pgWorld),std::end(pgWorld),[&](const auto& p){return p[0]==out.map;});
     const bool main=std::find(std::begin(pgHeaders),std::end(pgHeaders),out.map)!=std::end(pgHeaders);
-    const uint32_t field=ram.word(pg_fieldSystemPtr), avatar=ram.word(field+pg_offPlayerAvatar);
+    const uint32_t field=ram.word(lay.fieldSystemPtr), avatar=ram.word(field+pg_offPlayerAvatar);
     const uint32_t object=ram.word(avatar+pg_offAvatarMapObject);
     if(main&&ram.at(object,pg_offObjectZ+4)){
       out.mapX=ram.word(object+pg_offObjectX)/32;out.mapY=ram.word(object+pg_offObjectZ)/32+2;
     }else if(point!=std::end(pgWorld)){
       out.mapX=(*point)[1];out.mapY=(*point)[2]+2;
     }else{
-      out.mapX=ram.word(body+johto_locationOff+pg_offSpecialSpawn+8)/32;
-      out.mapY=ram.word(body+johto_locationOff+pg_offSpecialSpawn+12)/32+2;
+      out.mapX=ram.word(body+lay.locationOff+pg_offSpecialSpawn+8)/32;
+      out.mapY=ram.word(body+lay.locationOff+pg_offSpecialSpawn+12)/32+2;
     }
   }else if(ds_unova(game)){
     const uint32_t save=unova_save(ram,game);
@@ -337,10 +376,22 @@ int ds_unova_month(const uint8_t* ram,size_t size,DsGame game){
   const auto* month=memory.at(save+vars+2,2);
   return month?u16(month):0;
 }
-const char* ds_species(int id,DsGame game){return ds_unova(game)?name(pd_ds_data::unovaSpecies,id):name(pd_ds_data::species,id);}
-const char* ds_move(int id,DsGame game){return ds_unova(game)?name(pd_ds_data::unovaMoves,id):name(pd_ds_data::moves,id);}
+namespace {
+const char* cart_name(const std::vector<std::string>& names,int id){
+  return id>0 && size_t(id)<names.size() && !names[id].empty()?names[id].c_str():"?";
+}
+}
+const char* ds_species(int id,DsGame game){
+  if(const auto* o=origin_for(game))return cart_name(o->species,o->baseSpecies(id));
+  return ds_unova(game)?name(pd_ds_data::unovaSpecies,id):name(pd_ds_data::species,id);
+}
+const char* ds_move(int id,DsGame game){
+  if(const auto* o=origin_for(game))return cart_name(o->moves,id);
+  return ds_unova(game)?name(pd_ds_data::unovaMoves,id):name(pd_ds_data::moves,id);
+}
 const char* ds_item(int id,DsGame game){
   using namespace pd_ds_data;
+  if(const auto* o=origin_for(game))return cart_name(o->items,id);
   if(game==DsGame::Johto)return name(johtoItems,id);
   if(ds_unova_sequel(game)&&id>=0&&size_t(id)<std::size(sequelItems)&&*sequelItems[id])return sequelItems[id];
   return ds_unova(game)?name(unovaItems,id):name(items,id);
@@ -365,17 +416,20 @@ const char* ds_status(const DsMon& m){
 
 int ds_move_type(int id,DsGame game){
   using namespace pd_ds_data;
+  if(const auto* o=origin_for(game))return id>0&&size_t(id)<o->moveMeta.size()?o->moveMeta[id][0]:-1;
   if(ds_unova(game))return id>0&&size_t(id)<std::size(unovaTypes)?unovaTypes[id]:-1;
   return id>0&&size_t(id)<std::size(moveMeta)?moveMeta[id][0]:-1;
 }
 int ds_move_power(int id,DsGame game){
   using namespace pd_ds_data;
+  if(const auto* o=origin_for(game))return id>0&&size_t(id)<o->moveMeta.size()?o->moveMeta[id][1]:0;
   if(ds_unova(game))return id>0 && size_t(id)<std::size(unovaPower)?unovaPower[id]:0;
   return id>0 && size_t(id)<std::size(moveMeta)?moveMeta[id][1]:0;
 }
 int ds_species_type(int id,int slot,DsGame game){
   using namespace pd_ds_data;
   if(id<1||slot<0||slot>1)return -1;
+  if(const auto* o=origin_for(game))return size_t(id)<o->speciesTypes.size()?o->speciesTypes[id][slot]:-1;
   if(ds_unova(game))return size_t(id)<std::size(unovaSpeciesTypes)?unovaSpeciesTypes[id][slot]:-1;
   return size_t(id)<std::size(speciesTypes)?speciesTypes[id][slot]:-1;
 }
@@ -396,11 +450,12 @@ DsRepelResult ds_use_repel(const uint8_t* bytes,size_t size,DsGame game,int item
     slots=unovaPockets[0];
   }else{
     const bool johto=game==DsGame::Johto;
-    const uint32_t save=ram.word(johto?johto_saveDataPtr:saveDataPtr);
+    const JohtoLayout lay=johto_layout();
+    const uint32_t save=ram.word(johto?lay.saveDataPtr:saveDataPtr);
     if(save<0x02000000||save>=0x023e0000)return R::NotAvailable;
     const uint32_t body=save+(johto?johto_bodyOff:bodyOff);
-    bag=body+(johto?johto_bagOff:bagOff);counter=body+(johto?johto_repelStepsOff:repelStepsOff);
-    slots=johto?johtoPockets[0]:pockets[0];
+    bag=body+(johto?johto_bagOff:bagOff);counter=body+(johto?lay.repelOff:repelStepsOff);
+    slots=johto?lay.pockets[0]:pockets[0];
   }
   const auto* items=ram.at(bag,slots*4);
   const auto* active=ram.at(counter,1);

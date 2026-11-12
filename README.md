@@ -190,6 +190,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Black, White, Black 2 and White 2 on the desktop host**: the USA / Europe carts (any dump with their header) get the
   whole DS companion (`PARTY`, `BAG`, `DEX`, their own Town Map in `MAP`, `GUIDE`, `BATTLE`), the party and facts wings,
   the HUD and EXPAND, on the app's Gen 5 reader and field reads.
+- **Origin HeartGold on the desktop host**: `PARTY`, `BAG`, `MAP` and `DEX` (Pokédex pages, pictures, learnsets,
+  machines, evolutions) on its own save offsets, with its species, moves, items, Fairy type and type chart read from
+  the cart. No `BATTLE` panes yet.
 - **DS EXPAND** on the desktop host: Platinum, HeartGold and SoulSilver (and the games built on them) draw their world past
   the top screen's edges, Android's EXPAND (`pk_nds_wide.cpp`) on the desktop's melonDS, with the GBA's zoom steps and
   AUTO ZOOM IN.
