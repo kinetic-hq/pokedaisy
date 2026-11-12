@@ -124,7 +124,7 @@ By tab:
 | Team Rocket Dragonsden | 2026 3.0.9 Spanish (BPEE, 32 MB, SHA-1 0d8bdaee) | no | no | no | no | no | no | No companion: the desktop doesn't know this build |
 | Wishes of Tomorrow | 1.2.6; SHA-1 60182b93 | works | works | partly | works | works | partly | None |
 | Dreamstone Mysteries | The one release; SHA-1 20e91aec | works | works | partly | works | works | partly | None |
-| Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | no | partly | No `DEX` tab; the guide has no trainer or wild tables |
+| Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | works | partly | The `DEX` page has no evolutions or egg groups; the guide has no trainer or wild tables |
 | Emerald Rogue | 2.2.1 EX; SHA-1 7600af1f | works | works | works | works | no | no | No `DEX` tab (no guide on Android either) |
 | SoulGold | 1.1.4, 1.2 (3 builds), 1.2.1 (2 builds) | works | works | partly | works | no | partly | No `DEX` tab |
 | R.O.W.E. | 2.1.9.1 Experimental; SHA-1 81bd0f4b | works | works | partly | works | partly | no | None (no guide on Android either) |
@@ -136,10 +136,10 @@ By tab:
   Black, White, Black 2, White 2, Origin HeartGold and the French and Spanish
   Platinum carts get no companion yet.
 - **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow, Dreamstone
-  Mysteries and Lazarus now have their `DEX` on the desktop, read from each
-  game's own data. The other games built the same way get it too once the
-  desktop sees that data in the game. Let's Go, Monomyth, Emerald Rogue and
-  SoulGold still have no `DEX` tab on the desktop, though the app shows one.
+  Mysteries, Lazarus and Monomyth now have their `DEX` on the desktop, read from
+  each game's own data. The other games built the same way get it too once the
+  desktop sees that data in the game. Let's Go, Emerald Rogue and SoulGold still
+  have no `DEX` tab on the desktop, though the app shows one.
 - **No foe team in battle.** In the German, French, Italian and Japanese FireRed
   and LeafGreen carts, the battle panes show your side and the Pokémon you face,
   but not the rest of the foe's team.

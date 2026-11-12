@@ -853,7 +853,8 @@ def c_value(v, f, names, lists, where, none):
             return "(const uint32_t[]){ " + ", ".join(f"0x{int(g) << 8 | int(n):X}, {v}" for g, n, v in pairs) + ", 0xFFFFFFFF }"
         if expr.startswith("BaseStatsLayout("):  # a hack's gBaseStats shape, spelled out
             kv = dict(re.findall(r"(\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+|true|false)", expr))
-            known = {"stride", "genderOff", "eggGroupsOff", "abilitiesOff", "abilityU16", "statsU16", "typesOff", "catchRateOff"}
+            known = {"stride", "genderOff", "eggGroupsOff", "abilitiesOff", "abilityU16", "statsU16", "typesOff", "catchRateOff",
+                     "eggGroupsPacked"}  # the C shows no egg groups, so a packed byte changes nothing there
             if not set(kv) <= known or expr.count("=") != len(kv):
                 fail(where, f"{expr} has a part the C can't read")
             kv.setdefault("stride", "28"); kv.setdefault("abilitiesOff", "0x16"); kv.setdefault("typesOff", "6")
@@ -868,6 +869,8 @@ def c_value(v, f, names, lists, where, none):
         return "0"
     if f["type"] == "string":
         return '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    if f["type"] == "char":
+        return "'" + v.replace("\\", "\\\\").replace("'", "\\'") + "'"
     if f["type"] == "bool":
         return "true" if v else "false"
     if isinstance(v, bool):

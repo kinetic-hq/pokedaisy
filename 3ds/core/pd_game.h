@@ -290,6 +290,9 @@ struct pd_config {
     int probeHeight, probeWeight, probeSpecies;
     int regionalCount;
     const char* regionName;
+    // A metric cart's heights and weights (Europe, Japan, Monomyth): "0,4 m" with dexDecimal and dexUnitSpace.
+    bool dexMetric, dexUnitSpace;
+    char dexDecimal;
     // ... and the save: SaveBlock2's owned / seen flags, SaveBlock1's two
     // copies of seen (all must agree), the National Dex byte.
     uint32_t dexSeenCopy1, dexSeenCopy2; // in SaveBlock1

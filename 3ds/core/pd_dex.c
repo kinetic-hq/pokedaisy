@@ -447,11 +447,15 @@ void pd_dex_weight(int hg, char* buf, int len) {
 
 void pd_dex_measures(const struct pd_game* g, const struct pd_dex_entry* e, char* height, int heightLen, char* weight, int weightLen) {
     const struct pd_gb_dex* d = g->entry ? g->entry->gbDex : NULL;
+    // A Game Boy cart says it in its gbDex; a GBA one in its config (the app's PokedexTables.metric).
+    bool metric = d ? d->metric : (g->cfg && g->cfg->dexMetric);
+    char decimal = d ? d->decimal : (g->cfg && g->cfg->dexDecimal ? g->cfg->dexDecimal : ',');
+    const char* space = (d ? d->unitSpace : (g->cfg && g->cfg->dexUnitSpace)) ? " " : "";
     if (e->heightIn > 0) snprintf(height, (size_t) heightLen, "%d'%02d\"", e->heightIn / 12, e->heightIn % 12);
-    else if (d && d->metric) snprintf(height, (size_t) heightLen, "%d%c%d%sm", e->heightDm / 10, d->decimal, e->heightDm % 10, d->unitSpace ? " " : "");
+    else if (metric) snprintf(height, (size_t) heightLen, "%d%c%d%sm", e->heightDm / 10, decimal, e->heightDm % 10, space);
     else pd_dex_height(e->heightDm, height, heightLen);
     if (e->weightLbs10 > 0) snprintf(weight, (size_t) weightLen, "%d.%d lbs.", e->weightLbs10 / 10, e->weightLbs10 % 10);
-    else if (d && d->metric) snprintf(weight, (size_t) weightLen, "%d%c%d%skg", e->weightHg / 10, d->decimal, e->weightHg % 10, d->unitSpace ? " " : "");
+    else if (metric) snprintf(weight, (size_t) weightLen, "%d%c%d%skg", e->weightHg / 10, decimal, e->weightHg % 10, space);
     else pd_dex_weight(e->weightHg, weight, weightLen);
 }
 
