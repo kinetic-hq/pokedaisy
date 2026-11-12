@@ -15,7 +15,7 @@ the companion beside the game on one screen.
 
 ### Download, install and update
 
-1. Open this fork's [Releases](https://github.com/kinetic-hq/pokedaisy/releases/latest) page and download
+1. Open this fork's [Releases](https://github.com/kinetic-hq/pokedaisy/releases) page and download
    `pokedaisy-windows-x86_64.zip` (Windows) or `pokedaisy-linux-x86_64.zip` (Linux). `SHA256SUMS.txt` lists their
    checksums.
 2. Unzip it anywhere you can write to (your Documents folder, not `Program Files`). Keep `pokedaisy.exe` and
@@ -91,7 +91,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
   `SPLIT TOUCH` cuts the touch screen in two, a half in each wing.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
-  change.
+  change. Desktop builds are a beta: every one goes up as a GitHub pre-release until one is called stable, and the
+  update check counts pre-releases.
 - **Upstream mirroring**: a daily job opens a pull request bringing PokeDaisy's own changes in.
 
 Everything else, the Android app and the companion itself, is Lidor's PokeDaisy. What follows is the original

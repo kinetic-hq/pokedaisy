@@ -15,7 +15,7 @@ of your saves.
 ## Install it
 
 There is no installer. Download `pokedaisy-windows-x86_64.zip` from the
-[Releases page](https://github.com/kinetic-hq/pokedaisy/releases/latest), unzip it anywhere you can write to (your Documents folder is
+[Releases page](https://github.com/kinetic-hq/pokedaisy/releases) (the top `desktop-v` one: desktop builds are a beta, marked pre-release), unzip it anywhere you can write to (your Documents folder is
 fine, `Program Files` isn't), and you get:
 
 - `pokedaisy.exe` and `SDL2.dll`, which must stay side by side
