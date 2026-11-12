@@ -336,9 +336,9 @@ parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle
 records = { items = 'FIELD_ITEMS_PORTS_BPRE0' }
 values = { pokemonStoragePtr = 0x03005010 }
 
-[config.leafgreen_rev0]
+[config.leafgreen_rev0_retail]
 name = 'LEAFGREEN_REV0'
-parts = ['ram', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec']
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec']
 records = { items = 'FIELD_ITEMS_LEAFGREEN_REV0' }
 
 [config.leafgreen_rev1]

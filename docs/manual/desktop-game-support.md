@@ -36,10 +36,10 @@ foe team is listed as a gap even then.
 
 Of the 71 rows:
 
-- **51** get the companion at the same level as on Android, every tab
+- **52** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **13** get a companion that falls short of Android's somewhere.
+- **12** get a companion that falls short of Android's somewhere.
 - **7** get no companion at all yet.
 
 By tab:
@@ -70,7 +70,7 @@ By tab:
 | Polished Crystal (GBC) | 3.2.0 to 3.2.3, normal and Faithful (16 builds) | works | works | partly | works | works | works | None |
 | FireRed | USA/Europe: BPRE rev 0 (SHA-1 41cb23d8) and rev 1 (dd5945db) | works | works | partly | works | works | works | None |
 | FireRed | Spanish, German, French, Italian rev 0 (BPRS, BPRD, BPRF, BPRI); Japanese rev 0 and 1 (BPRJ) | works | works | partly | works | works | partly | No guide for the Japanese cart; no foe team in battle in the German, French, Italian and Japanese carts |
-| LeafGreen | USA/Europe: BPGE rev 0 (SHA-1 574fa542) and rev 1 (7862c67b) | works | works | partly | works | works | works | Rev 0 has no foe team in battle |
+| LeafGreen | USA/Europe: BPGE rev 0 (SHA-1 574fa542) and rev 1 (7862c67b) | works | works | partly | works | works | works | None |
 | LeafGreen | Spanish, German, French, Italian rev 0 (BPGS, BPGD, BPGF, BPGI); Japanese rev 0 and 1 (BPGJ) | works | works | partly | works | works | partly | No guide for the Japanese cart; no foe team in battle in the German, French, Italian and Japanese carts |
 | Emerald | USA/Europe: BPEE (SHA-1 f3ae0881, and the common collection dump) | works | works | works | works | works | works | None |
 | Emerald | Spanish, German, French, Italian, Japanese (BPES, BPED, BPEF, BPEI, BPEJ) | works | works | works | works | works | partly | No guide for the Japanese cart |
@@ -139,7 +139,7 @@ By tab:
   Seaglass, Too Many Types 2, Emerald Imperium, Wishes of Tomorrow, Dreamstone
   Mysteries, Monomyth, Emerald Rogue and SoulGold, the desktop
   hides the `DEX` tab, though the app shows one.
-- **No foe team in battle.** In Radical Red, Celia's hack, LeafGreen rev 0, and
+- **No foe team in battle.** In Radical Red, Celia's hack and
   the German, French, Italian and Japanese FireRed and LeafGreen carts, the
   battle panes show your side and the Pokémon you face, but not the rest of the
   foe's team.

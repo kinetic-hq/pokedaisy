@@ -535,7 +535,7 @@ static const struct pd_config PD_CONFIG_FIRERED_REV0 = {
     .dexMapGroups = 0x083526A8,
 };
 
-// gamedata/gen3/retail/leafgreen.toml: leafgreen_rev0 (ram, icons, dex, guide, card, fly, field, battle, engine, boxes, dexsec)
+// gamedata/gen3/retail/leafgreen.toml: leafgreen_rev0_retail (ram, foes, icons, dex, guide, card, fly, field, battle, engine, boxes, dexsec)
 static const struct pd_config PD_CONFIG_LEAFGREEN_REV0 = {
     .itemDescs = &(const struct pd_item_descs){ .base = 138260068, .stride = 44, .descOff = 20, .idOff = 14 },
     .playerParty = 0x02024284,
@@ -580,6 +580,11 @@ static const struct pd_config PD_CONFIG_LEAFGREEN_REV0 = {
     .flagsOff = 0xEE0,
     .varsOff = 0x1000,
     .flagBytes = 0x120,
+    .enemyParty = 0x0202402C,
+    .battlerPartyIndexes = 0x02023BCE,
+    .battleStructPtr = 0x02023FE8,
+    .battleStructStatic = false,
+    .monToSwitchIntoOff = 0x5C,
     .eggSpecies = 0,
     .speciesCount = 412,
     .monIconTable = 0x083D35DC,
@@ -724,8 +729,8 @@ static const struct pd_config PD_CONFIG_LEAFGREEN_REV0 = {
     .handleInputChooseTarget = 0x0802e674,
     .completeWhenChoseItem = 0x0803073c,
     .waitForMonSelection = 0x08030684,
-    .actionCursor = 0,
-    .moveCursor = 0,
+    .actionCursor = 0x02023FF8,
+    .moveCursor = 0x02023FFC,
     .partyMenu = 0,
     .monStride = 100,
     .saveBlock1PosOff = 0,

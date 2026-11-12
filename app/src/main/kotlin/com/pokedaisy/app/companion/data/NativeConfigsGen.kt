@@ -132,6 +132,17 @@ val NATIVE_LEAFGREEN_REV0 = NATIVE_FIRERED_REV0.copy(
     pokemonStoragePtr = 0x03005010L,
 )
 
+// Retail LeafGreen rev 0 itself (leafgreen_rev0 is the other languages' base, whose RAM moves): the FOE TEAM's RAM,
+// FireRed rev 0's (every RAM global is, per the map above, as FireRed rev 0's is rev 1's).
+val NATIVE_LEAFGREEN_REV0_RETAIL = NATIVE_LEAFGREEN_REV0.copy(
+    actionCursor = NATIVE_FIRERED_REV0_RETAIL.actionCursor,
+    moveCursor = NATIVE_FIRERED_REV0_RETAIL.moveCursor,
+    enemyParty = NATIVE_FIRERED_REV0_RETAIL.enemyParty,
+    battlerPartyIndexes = NATIVE_FIRERED_REV0_RETAIL.battlerPartyIndexes,
+    battleStructPtr = NATIVE_FIRERED_REV0_RETAIL.battleStructPtr,
+    monToSwitchIntoOff = NATIVE_FIRERED_REV0_RETAIL.monToSwitchIntoOff,
+)
+
 val NATIVE_LEAFGREEN_REV1 = NATIVE_FIRERED_REV1.copy(
     pokemonStoragePtr = 0x03005010L, // BOXES, as rev 0's
     itemDescs = vanillaItems(0x083DAED4L),

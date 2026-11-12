@@ -898,7 +898,7 @@ class TelemetrySampler {
 
         /** The config for [code] at header revision [rev], or null if that revision isn't mapped. */
         fun otherRetailConfig(code: String, rev: Int): NativeConfig? = RETAIL_PORTS["$code$rev"]?.invoke() ?: when (code) {
-            "BPGE" -> when (rev) { 0 -> NATIVE_LEAFGREEN_REV0; 1 -> NATIVE_LEAFGREEN_REV1; else -> null }
+            "BPGE" -> when (rev) { 0 -> NATIVE_LEAFGREEN_REV0_RETAIL; 1 -> NATIVE_LEAFGREEN_REV1; else -> null }
             // Revs 1 and 2 share every address (both built from pokeruby); rev 0 wasn't checked.
             "AXVE" -> if (rev == 1 || rev == 2) NATIVE_RUBY else null
             "AXPE" -> if (rev == 1 || rev == 2) NATIVE_SAPPHIRE else null
