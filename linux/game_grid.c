@@ -9,7 +9,7 @@
 #define PAD 8
 #define BAR_H 26
 #define HINT_H 16
-#define TARGET_TILE 84 // tiles are about this wide; the columns follow the canvas
+#define TARGET_TILE 92 // tiles are about this wide (the system and ROMHACK / ORIGINAL side by side); the columns follow
 #define TAG_H 12
 #define LINE_H 12 // a line of a tile's name
 #define NAME_LINES 2 // room kept for the name (a third line takes the version's)
@@ -25,7 +25,7 @@ static struct palette colors(void) {
 }
 
 static const char *const SYSTEM_NAMES[] = {"GBA", "GBC", "GB", "NDS"};
-static const uint32_t SYSTEM_COLORS[] = {0x5A6FD8, 0x8E5BD0, 0x6E9B3A, 0x6B7280};
+static const uint32_t SYSTEM_COLORS[] = {0x5A6FD8, 0x8E5BD0, 0x6E9B3A, 0xC2415E};
 
 void game_grid_init(struct game_grid *g, const struct game_grid_item *items, int count) {
   memset(g, 0, sizeof *g);
@@ -43,7 +43,7 @@ static void layout(struct game_grid *g, int w, int h) {
   if (g->columns < 2)
     g->columns = 2;
   g->tileW = (w - PAD * (g->columns + 1)) / g->columns;
-  int artH = (g->tileW - 8) * 4 / 3; // portrait, the shape of a GBA or DS box
+  int artH = g->tileW - 8; // square: about the shape of a GBA or DS box (the art is fitted whole, never cut)
   g->tileH = 4 + artH + 3 + NAME_LINES * LINE_H + 3 + TAG_H + 2 + 12 + 2;
   g->gridTop = BAR_H + 6;
   g->gridBottom = h - (g->hint ? HINT_H : 0) - 2;
@@ -154,7 +154,7 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   pd_round_rect(c, x, y, g->tileW, g->tileH, 6, on ? RING : p->tileEdge);
   pd_round_rect(c, x + 1, y + 1, g->tileW - 2, g->tileH - 2, 5, on ? p->tileOn : p->tile);
   // The art's well: the system's colour, darkened, with its name, until a picture covers it.
-  int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = (g->tileW - 8) * 4 / 3;
+  int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = g->tileW - 8;
   int sys = it->system >= 0 && it->system <= BOXART_NDS ? it->system : 0;
   uint32_t sc = SYSTEM_COLORS[sys];
   uint32_t well = pd_dark ? ((sc >> 2) & 0x3F3F3F) + 0x0A0A0A : (sc & 0xFEFEFE) / 2 + 0x7F7F7F;
@@ -191,14 +191,28 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
     ty += LINE_H;
   int tx = x + 4;
   tx += tag(c, tx, ty, sn, sc) + 3;
-  const char *kind = it->hack ? "ROM HACK" : "ORIGINAL";
-  if (it->hack && tx + pd_text_width(kind) + 6 > x + g->tileW - 4) // a narrow tile: the short word
-    kind = "HACK";
-  if (tx + pd_text_width(kind) + 6 <= x + g->tileW - 4)
-    tag(c, tx, ty, kind, it->hack ? 0xD9822B : 0x2E9E6A);
+  const char *kind = it->hack ? "ROMHACK" : "ORIGINAL"; // one word each, the same length, never shortened
+  uint32_t kindColor = it->hack ? 0xD9822B : 0x2E9E6A;
+  bool kindLater = tx + pd_text_width(kind) + 6 > x + g->tileW - 4; // too narrow: it leads the next line instead
+  if (!kindLater)
+    tag(c, tx, ty, kind, kindColor);
   ty += TAG_H + 2;
-  if (version)
-    pd_text_fit(c, x + 4, ty - 4, g->tileW - 8, it->version, p->muted, PD_NO_SHADOW);
+  // How well the companion supports it, at the right of the version's line: FULL, PARTLY or PLAY ONLY.
+  static const char *const SUPPORT[] = {NULL, "FULL", "PARTLY", "PLAY ONLY"};
+  static const uint32_t SUPPORT_COLORS[] = {0, 0x1F8F9E, 0xB7791F, 0x5B6270};
+  int right = x + g->tileW - 4;
+  if (it->support > 0 && it->support <= 3) {
+    int w = pd_text_width(SUPPORT[it->support]) + 6;
+    if (right - w >= x + 4) {
+      tag(c, right - w, ty - 1, SUPPORT[it->support], SUPPORT_COLORS[it->support]);
+      right -= w + 4;
+    }
+  }
+  int left = x + 4;
+  if (kindLater)
+    left += tag(c, left, ty - 1, kind, kindColor) + 3;
+  if (version && right - left > 12)
+    pd_text_fit(c, left, ty - 4, right - left, it->version, p->muted, PD_NO_SHADOW);
 }
 
 static void draw_bar(struct game_grid *g, struct pd_canvas *c, const struct palette *p) {

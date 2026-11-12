@@ -1,6 +1,6 @@
 /* GPL-3.0, see ../NOTICE. The game list as a grid of box art (the landing page): a slim bar along the top (the
  * program's name, GAME FOLDERS, SETTINGS), then a tile a game - its art, its name, two tags (the system; ORIGINAL or
- * ROM HACK) and its version - driven by the D-pad, touch, the mouse and its wheel. Drawn on the canvas; the art itself
+ * ROMHACK), its version and how well the companion supports it - driven by the D-pad, touch, the mouse and its wheel. Drawn on the canvas; the art itself
  * is left to the host (art[]: where each visible tile's picture goes), so it stays sharp at the screen's resolution. */
 #ifndef POCKET_GAME_GRID_H
 #define POCKET_GAME_GRID_H
@@ -18,6 +18,7 @@ struct game_grid_item {
   int system;          // enum boxart_system
   bool hack;           // a ROM hack (else ORIGINAL)
   bool banner;         // the art is the base game's box: the name goes on a banner across its foot
+  int support;         // game_support.h's GAME_SUPPORT_*: FULL / PARTLY / PLAY ONLY, beside the version (0: not known yet)
 };
 
 struct game_grid_art {

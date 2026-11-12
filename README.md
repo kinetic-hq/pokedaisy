@@ -165,6 +165,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   on the desktop, the 3DS port and Android alike.
 - **ASPECT starts on EXPAND** on the desktop host (Android starts on `ORIGINAL`), so `AUTO ZOOM IN` and the zoom hotkeys work
   from the first game; `ORIGINAL` stays a choice, and a pick you made is kept.
+- **The game grid** on the desktop host: whole covers (never cropped), a `FULL` / `PARTLY` / `PLAY ONLY` tag from
+  the companion's own detection (`COMPANION` in a game's options says what's missing), `ROMHACK` on every hack's tile,
+  SteamGridDB art only for the same name and in English, and dialogs drawn over the dimmed art.
 - **DS EXPAND** on the desktop host: Platinum, HeartGold and SoulSilver (and the games built on them) draw their world past
   the top screen's edges, Android's EXPAND (`pk_nds_wide.cpp`) on the desktop's melonDS, with the GBA's zoom steps and
   AUTO ZOOM IN.

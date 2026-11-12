@@ -46,10 +46,19 @@ it. `SKIP SETUP` on the welcome page leaves it for later. To see it again, open
 
 ## Your game list
 
-Your games open as a grid of box art. Each tile has the shape of a game box,
-and the art fills it. Each game shows its name (on up to three lines when it is
-long), the system (`GBA`, `GBC`, `GB` or `NDS`), `ORIGINAL` or `ROM HACK`
-(`HACK` on a narrow tile), and its version when the file name has one. Move with
+Your games open as a grid of box art. Each tile shows the whole box, never cut
+off, over a blurred copy of it where the box is a different shape. Each game
+shows its name (on up to three lines when it is long), the system (`GBA`, `GBC`,
+`GB` or `NDS`), `ORIGINAL` or `ROMHACK`, its version when the file name has one,
+and how much of the companion it gets:
+
+- **`FULL`**: every companion tab, including the `DEX`, the `GUIDE` and the
+  foe's team in `BATTLE`.
+- **`PARTLY`**: the companion, with some of that missing. Press `X` on the game
+  and pick `COMPANION` to see what.
+- **`PLAY ONLY`**: the game runs, without a companion.
+
+Move with
 the D-pad, the mouse or a finger; `A` or a tap plays, the mouse wheel or a drag
 scrolls, and `Y` opens `SETTINGS`. `SYNC BOX ART`, `GAME FOLDERS` and `SETTINGS`
 sit in the bar along the top: press UP from the first row to reach them.
@@ -58,7 +67,9 @@ Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 `BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
 games, by the file's name and then by the game the file itself says it is (so a
 game under a name of your own still gets its box), then SteamGridDB when you add
-your own key, which has many ROM hacks. To add one, make a free key on
+your own key, which has many ROM hacks. SteamGridDB's art is only used when its
+game has exactly the same name as yours, and only in English, so a hack never
+gets the box of a sequel or a spin off. To add one, make a free key on
 steamgriddb.com (Preferences, API), copy it, then pick `SETTINGS` > `LIBRARY` >
 `STEAMGRIDDB KEY` > `PASTE THE KEY FROM THE CLIPBOARD`. A ROM hack nobody has art
 for gets the box of the game it was made from, with the hack's name on an orange
@@ -72,6 +83,8 @@ pictures always stay.
 
 Press `X`, right click or hold a finger on a game for its options:
 
+- **`COMPANION`** says how much of the companion the game gets and, for
+  `PARTLY` and `PLAY ONLY`, what's missing.
 - **`FIND BOX ART`** looks again now, even for a game it found nothing for before.
 - **`SET BOX ART`** uses your own picture: copy a PNG or JPG file's path, or an
   https link to one, then pick `USE THE COPIED PATH OR LINK`. You can also drop
