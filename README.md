@@ -202,6 +202,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Petalburg Dynasty 1.12.2**: a new supported hack (pokeemerald-expansion 1.16.4, its sha1 only): PARTY, BAG, BATTLE
   with the foe's team and the battle buttons, MAP place names and the GUIDE's wild Pokemon on the desktop, the 3DS port
   and Android, and its DEX on all three.
+- **Petalburg Dynasty's MAP picture** on the desktop host, the 3DS port and Android: the game keeps Emerald's own map,
+  stored in the newer smol compression, and now shows it with each of its places where the game puts them. On the desktop
+  and the 3DS port, Wishes of Tomorrow's map shows too: its pictures were too large for the smol reader before.
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 0 or 1 cart gets the Platinum companion (rev 1 as on
   Android, rev 0 too here: its addresses are the same; a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
   (game, region, revision, code) and the one it needs.

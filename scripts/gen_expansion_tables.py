@@ -362,7 +362,11 @@ GAMES = {
     #  - chart: the unique [21][21] u32 run whose Normal row is 1x except Rock/Steel 0.5x, Ghost 0x (0x08434720,
     #    byte for byte Wishes' chart).
     #  - mapsecs: older {x, y, w, h, name ptr} entries from 0x08D15008, Emerald's 0x00-0xD0 (the headless game's
-    #    gMapHeader in its first town reads 0x07 = PETALBURG CITY). No region map picture.
+    #    gMapHeader in its first town reads 0x07 = PETALBURG CITY); MAPSEC_NONE is 0xD1.
+    #  - region map: Emerald's region_map.c with Emerald's own map, smol-compressed (RomArt's EM_*_SMOL rebuild
+    #    regionmap/hoenn.png); its grid (sRegionMap_MapSectionLayout, 0x08D15D24) is vanilla's with MAPSEC_NONE 0xD1.
+    #    Hoenn is 0x00-0x57 and 0xC1-0xD0; 0x58-0xC0 are Kanto, Sevii and SPECIAL AREA with FireRed's rects, kept off
+    #    this map.
     "petalburg": dict(
         suffix="Petalburg",
         label="Pokemon Petalburg Dynasty v1.12.2",
@@ -373,6 +377,7 @@ GAMES = {
         moves_base=0x0872F8E4, moves_stride=0x44, move_bits_off=0x0A,
         chart=0x08434720, chart_n=21,
         mapsec_base=0x08D15008, mapsec_name_off=4,
+        region_map=dict(image="hoenn", layout=0x08D15D24, w=28, h=15, ox=1, oy=2, none=0xD1, off_map=(0x58, 0xC0)),
         checks=dict(species={1: "Bulbasaur", 6: "Charizard", 25: "Pikachu", 94: "Gengar", 263: "Zigzagoon",
                              448: "Lucario"},
                     types={1: (13, 4), 6: (11, 3), 25: (14, 14), 263: (1, 1)},
@@ -666,7 +671,10 @@ def main():
             x, y, mw, mh = (rom.u8(a + k) for k in range(4))
             # place_min: a hack that drew a region of its own over Emerald's ids keeps Emerald's {x, y, w, h} for
             # the Hoenn sections it never uses - below this id a section is placed only where the grid names it.
-            stale = i < rm.get("place_min", 0) and i not in on_grid
+            # off_map: ids (lo, hi) of another region's sections (expansion's Kanto / Sevii, which carry FireRed's
+            # rects) - placed only where this map's grid names them.
+            lo, hi = rm.get("off_map", (1, 0))
+            stale = (i < rm.get("place_min", 0) or lo <= i <= hi) and i not in on_grid
             if (x, y) != (0, 0) and mw and mh and not stale:
                 rows.append(f"    {i} to MapSecInfo({kstr(s)}, 0, {x + rm['ox']}, {y + rm['oy']}, {mw}, {mh}),\n")
             elif i in on_grid:

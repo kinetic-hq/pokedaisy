@@ -440,11 +440,13 @@ static const struct pd_map_art* load_art(const struct pd_game* g) {
             }
         }
     } else {
-        if (blob[PD_EM_REGION_GFX] && blob[PD_EM_REGION_PAL] && blob[PD_EM_REGION_MAP]) {
+        // Emerald's map, or the same bytes smol-compressed by an expansion build that kept it (Petalburg Dynasty).
+        bool smol = !blob[PD_EM_REGION_GFX] || !blob[PD_EM_REGION_MAP];
+        int gfx = smol ? PD_EM_REGION_GFX_SMOL : PD_EM_REGION_GFX, map = smol ? PD_EM_REGION_MAP_SMOL : PD_EM_REGION_MAP;
+        if (blob[gfx] && blob[PD_EM_REGION_PAL] && blob[map]) {
             int colours = (int) pd_blob_sigs[PD_EM_REGION_PAL].size / 2;
             palette(blob[PD_EM_REGION_PAL], colours, pal);
-            screen_8bpp(blob[PD_EM_REGION_GFX], pd_blob_sigs[PD_EM_REGION_GFX].size, pal, colours,
-                        blob[PD_EM_REGION_MAP], cached->page[0]);
+            screen_8bpp(blob[gfx], pd_blob_sigs[gfx].size, pal, colours, blob[map], cached->page[0]);
             cached->pages = 1;
             cached->ok = true;
         }
@@ -494,6 +496,15 @@ static const struct pd_mapsec_rect* rect_of(const struct pd_game* g, int mapsec)
         const struct pd_game_entry* e = g->entry;
         if (mapsec < 0 || mapsec >= e->mapsecAtCount || e->mapsecAt[mapsec][0] == 255) return NULL;
         const unsigned char* a = e->mapsecAt[mapsec];
+        r = (struct pd_mapsec_rect) { (int8_t) a[0], a[1], a[2], a[3], a[4] };
+        return &r;
+    }
+    const struct pd_text* t = g->cfg ? g->cfg->text : NULL;
+    if (g->kind == PD_GAME_EMERALD && t && t->mapsecRects) {
+        // An expansion hack on Emerald's map with its own numbering (pd_text.mapsecRects, from its MapSecData).
+        static struct pd_mapsec_rect r;
+        if (mapsec < 0 || mapsec >= t->mapsecsCount || t->mapsecRects[mapsec][0] == 255) return NULL;
+        const uint8_t* a = t->mapsecRects[mapsec];
         r = (struct pd_mapsec_rect) { (int8_t) a[0], a[1], a[2], a[3], a[4] };
         return &r;
     }

@@ -27,7 +27,7 @@ object RomArt {
     const val DIR = "rom-art"
 
     /** Bump when [OUTPUTS] grows, so ROMs scanned before get scanned again. */
-    private const val SCAN_VERSION = 27
+    private const val SCAN_VERSION = 28
 
     /** Bumped whenever new art lands on disk, so loaders can retry. */
     val updates: StateFlow<Int> get() = _updates
@@ -440,6 +440,8 @@ object RomArt {
         // Emerald's region map, and Seaglass's / Lazarus's / SoulGold's / Glazed's / Imperium's own (same region_map.c, their own art).
         listOf(
             "hoenn" to Triple(RomBlob.EM_REGION_GFX, RomBlob.EM_REGION_PAL, RomBlob.EM_REGION_MAP),
+            // The same map, smol-compressed by an expansion build that kept it (Petalburg Dynasty).
+            "hoenn" to Triple(RomBlob.EM_REGION_GFX_SMOL, RomBlob.EM_REGION_PAL, RomBlob.EM_REGION_MAP_SMOL),
             // Seaglass redrew the tiles, keeping Emerald's tilemap and palette.
             "seaglass" to Triple(RomBlob.SGL_REGION_GFX, RomBlob.EM_REGION_PAL, RomBlob.EM_REGION_MAP),
             "lazarus" to Triple(RomBlob.LZ_REGION_GFX, RomBlob.LZ_REGION_PAL, RomBlob.LZ_REGION_MAP),

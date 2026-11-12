@@ -19,7 +19,7 @@ put it. Source: the pinned decomp builds (see CLAUDE.md) and their ELFs.
 
 Usage: scripts/gen_rom_art_sigs.py   (needs $DECOMPS/pokefirered and
 $DECOMPS/pokeemerald built once, and the hack ROMs at the *_ROM paths below - Unbound /
-Radical Red / Odyssey / Amethyst / Sword and Shield Ultimate Plus / Heart and Soul / Lazarus / Seaglass / SoulGold / Glazed / Imperium / Dreamstone Mysteries / Wishes of Tomorrow /
+Radical Red / Odyssey / Amethyst / Sword and Shield Ultimate Plus / Heart and Soul / Lazarus / Seaglass / SoulGold / Glazed / Imperium / Dreamstone Mysteries / Wishes of Tomorrow / Petalburg Dynasty /
 Quetzal / R.O.W.E. / Super Mariomon / Recharged Emerald, and $DECOMPS/pokelegacy built; a missing one keeps its rows as they were. Re-run only if a pin changes)
 """
 import os
@@ -241,6 +241,18 @@ WISHES_ROM = os.path.expanduser("~/Downloads/Game ROMs & Emulation/gba/Pokemon W
 
 def wishes_symbols(rom):
     return {"RegionGfx": (0xCE59A8, 0), "RegionMap": (0xCE5880, 0), "RegionPal": (0xCE77C8, 0x60)}
+
+
+# Pokemon Petalburg Dynasty v1.12.2 (sha1 648c88a4...), pokeemerald-expansion 1.16.4: Emerald's own region map, byte for
+# byte once decoded (EM_REGION_GFX's 14912 bytes and EM_REGION_MAP's 4096, same CRCs), but smol-compressed as expansion
+# 1.16 stores its art, so the LZ77 fingerprints can't find it. Its map code's region table (0x08D10740: seven words a
+# region, Wishes' layout) points its first row's second triple at them: tilemap 0x08D15FC8, tiles 0x08D161D8, and
+# Emerald's palette 0x08D1736C (EM_REGION_PAL finds it). The EM_*_SMOL rows serve any expansion build that kept the map.
+PETALBURG_ROM = os.path.expanduser("~/Downloads/Game ROMs & Emulation/gba/Pokemon Petalburg Dynasty (v1.12.2).gba")
+
+
+def petalburg_symbols(rom):
+    return {"RegionGfx": (0xD161D8, 0), "RegionMap": (0xD15FC8, 0)}
 
 
 # Pokemon Team Rocket Edition 2026, Spanish (v3.0.9, sha1 0d8bdaee...): Wishes' kind of screen (8bpp smol tiles, a 64x64
@@ -564,6 +576,10 @@ GAMES = {
         ("WSH_REGION_MAP", "RegionMap", "smol"),
         ("WSH_REGION_PAL", "RegionPal", False),
     ]),
+    "EMS": (PETALBURG_ROM, None, [
+        ("EM_REGION_GFX_SMOL", "RegionGfx", "smol"),
+        ("EM_REGION_MAP_SMOL", "RegionMap", "smol"),
+    ]),
     "TR3": (TEAM_ROCKET_V3_ROM, None, [
         row for region in ("KANTO", "SEVII123", "SEVII45", "SEVII67", "JOHTO", "HOENN", "SINNOH")
         for row in ((f"TR3_{region}_GFX", f"{region.title()}Gfx", "smol"), (f"TR3_{region}_MAP", f"{region.title()}Map", "smol"),
@@ -727,7 +743,7 @@ def fireRed_symbols(p):
 
 # The binary hacks' made-up symbols (no ELF).
 ROM_SYMBOLS = {"RY": recharged_yellow_symbols, "UB": unbound_symbols, "UBFR": unbound_fr_symbols, "RR": cfru_symbols, "OD": cfru_symbols, "AM": cfru_symbols, "SS": cfru_symbols, "LGO": cfru_symbols, "LZ": lazarus_symbols, "SGL": seaglass_symbols, "SG": soulgold_symbols,
-               "GZ": glazed_symbols, "IMP": imperium_symbols, "DSM": dreamstone_symbols, "WSH": wishes_symbols, "MMY": monomyth_symbols, "TR3": team_rocket_v3_symbols, "QTZ": quetzal_symbols, "HNS": hns_symbols, "RW": rowe_symbols, "MM": mariomon_symbols, "RE": recharged_emerald_symbols,
+               "GZ": glazed_symbols, "IMP": imperium_symbols, "DSM": dreamstone_symbols, "WSH": wishes_symbols, "EMS": petalburg_symbols, "MMY": monomyth_symbols, "TR3": team_rocket_v3_symbols, "QTZ": quetzal_symbols, "HNS": hns_symbols, "RW": rowe_symbols, "MM": mariomon_symbols, "RE": recharged_emerald_symbols,
                **{"EM" + lang: emerald_eu_symbols(lang) for lang in EMERALD_EU_ROMS},
                **{"FR" + lang: fireRed_symbols(p) for lang, p in fireRed_ports().items()}}
 

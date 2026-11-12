@@ -696,8 +696,8 @@ val activeRegionMapImages: Array<String> get() = when {
     teamRocket -> if (teamRocketV3) regionMapImagesTeamRocketV3 else emptyArray()
     // Wishes of Tomorrow's JOKAIM map, rebuilt from its ROM (RomArt's WSH_REGION_*).
     wishes -> regionMapImagesWishes
-    // Petalburg Dynasty: its TOWN MAP isn't read yet - the MAP tab names the place.
-    petalburg -> emptyArray()
+    // Petalburg Dynasty: Emerald's own map, smol-compressed (RomArt's EM_*_SMOL), with its own section numbering.
+    petalburg -> regionMapImagesPetalburg
     // Dreamstone Mysteries' Cormoria map, rebuilt from its ROM (RomArt's DSM_REGION_*).
     dreamstone -> regionMapImagesDreamstone
     // Monomyth's ATHANTO MAP (its PokeNav's), rebuilt from its ROM (RomArt's MMY_REGION_*).
