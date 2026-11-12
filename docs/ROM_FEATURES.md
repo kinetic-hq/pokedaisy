@@ -478,6 +478,10 @@ change to any of the places listed under "Where it's decided" updates its rows h
     written move cell + A spent that move's PP, and the switch (Emerald's list at its own gPartyMenu) went written
     POKéMON cell + A, slotId 1 written, A, SHIFT: party slot 1 out. Nothing reads its field yet (no EXPAND row, no
     field reads), so WILD ENCOUNTERS, field items, FLY and the PC stay off; no shiny value or player look is mapped.
+    A match day's challenger battle (season 1, match day 1: a Veteran's four Lv8 picks, its own trainer and a
+    FORFEIT in place of RUN) reads too, checked on the desktop: the foe strip shows its four slots, the foe's types and
+    weaknesses and your moves' matchups are right. The challengers' teams aren't in the game's memory until the desk's
+    SCOUTING or the match day builds them, so there's no NEXT CHALLENGER page.
 
 ## What each column is
 
