@@ -193,6 +193,15 @@ inline int ds_layout_cycle(int current,int ow,int oh,bool touchLeft,bool touchRu
   return from;
 }
 
+// R3's tap: WINGS and ONE SCREEN back and forth, like WINGS / BATTLE WINGS in a GBA game; from any other layout,
+// WINGS. A layout this screen draws as another counts as that one. Where the two look the same, the full cycle.
+inline int ds_layout_toggle(int current,int ow,int oh,bool touchLeft,bool touchRules){
+  int first[DSL_COUNT];ds_layout_firsts(ow,oh,touchLeft,touchRules,first);
+  int from=first[std::clamp(current,0,DSL_COUNT-1)],wings=first[DSL_WINGS],one=first[DSL_ONE];
+  if(wings==one)return ds_layout_cycle(current,ow,oh,touchLeft,touchRules);
+  return from==wings?one:wings;
+}
+
 // A window point on the touch screen as drawn, in DS pixels; clamp keeps a drag that leaves it on its edge.
 inline bool ds_touch_at(const DsBox& touch,int px,int py,bool clamp,int& x,int& y){
   if(!touch.shown() || (!clamp && !touch.contains(px,py)))return false;
