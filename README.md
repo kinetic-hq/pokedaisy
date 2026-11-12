@@ -35,6 +35,19 @@ The full guide is in [docs/manual/windows.md](docs/manual/windows.md) (and [linu
 [android-parity.md](docs/manual/android-parity.md) compares it with the Android app. When
 something goes wrong, `DATA\pokedaisy.log` is what to attach to a report.
 
+## Game support
+
+The goal is for every supported game to be `FULL`. The games the maintainer plays come first, then every other game
+listed on the site. Each tile in the game list carries a tag:
+
+- `FULL`: every companion tab follows the game (PARTY, BAG, DEX, MAP, GUIDE and, in a battle, BATTLE).
+- `PARTLY`: the game runs and the companion follows it, but a tab is missing or it's read as the game it's built on.
+  `COMPANION` in the game's options says what's missing.
+- `PLAY ONLY`: the game runs, but the companion doesn't follow it yet.
+
+`PARTLY` and `PLAY ONLY` are steps on the way to `FULL`, not where a game stops.
+[desktop-game-support.md](docs/manual/desktop-game-support.md) lists each game's state and what's left.
+
 ## OLED handhelds (OneXPlayer 3, Legion Go 2)
 
 An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everything around the game dark:

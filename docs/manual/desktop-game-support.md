@@ -14,6 +14,9 @@ compared](android-parity.md) covers the rest of the program (settings, controls,
 link play), and [Supported games](supported-games.md) explains how the companion
 recognises a ROM.
 
+The aim is for every game here to reach `FULL`, so a game marked `PARTLY` or
+`PLAY ONLY` is still being worked on. The games the maintainer plays come first.
+
 ## How to read it
 
 Each row is one row of the games table, with the versions it covers. The desktop
