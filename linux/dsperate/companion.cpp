@@ -42,8 +42,10 @@ const DsOrigin* origin_for(DsGame game){return game!=DsGame::Johto?nullptr:origi
 // HeartGold / SoulSilver's SaveData and FieldSystem layout, or Origin HeartGold's grown one (Gen4Reader.kt's
 // GEN4_ORIGIN_HEARTGOLD: the bag's TM pocket holds 151, and everything after the trainer's block moved).
 // HeartFelt Gold keeps retail's pointers and the blocks before the bag; its bigger bag (245 items, 92 key items)
-// moves the rest by 496 bytes (checked on a new game: the player's room, the event flags, the Pokédex's magic). The
-// Pokédex, the repel counter and the Pokégear word sit past blocks whose growth nobody has checked: 0, not read.
+// moves the rest by 496 bytes (checked on a new game: the player's room, the event flags, the Pokédex's magic). Its
+// Pokédex holds 1534 species ids: caught bits at +4, seen bits at +0x400 (checked on six given creatures, two past 493;
+// it lists the National Dex alone, so the national flag is read off the magic). The repel counter and the Pokégear
+// word sit past blocks whose growth nobody has checked: 0, not read.
 struct JohtoLayout {
   uint32_t saveDataPtr,fieldSystemPtr,locationOff,pokedexOff,nationalOff,dexStride,dexCount,repelOff,flagsOff,wordOff;
   const int* pockets;
@@ -56,7 +58,8 @@ JohtoLayout johto_layout(){
   using namespace pd_ds_data;
   if(originData)return {0x021D11B4,0x021D31F4,0x1324,0x13A8,0x367,0xC8,dsOriginLastNational,0x6A48+0x65,0xEAC+0x170*2,
                         0xBC84+4,originPockets,8};
-  if(heartfeltData)return {johto_saveDataPtr,uint32_t(pg_fieldSystemPtr),johto_locationOff+heartfeltShift,0,0,0,0,0,
+  if(heartfeltData)return {johto_saveDataPtr,uint32_t(pg_fieldSystemPtr),johto_locationOff+heartfeltShift,
+                           johto_pokedexOff+heartfeltShift,0,0x3FC,dsHeartfeltLastSpecies,0,
                            uint32_t(pg_flagsOff)+heartfeltShift,0,heartfeltPockets,8};
   return {johto_saveDataPtr,uint32_t(pg_fieldSystemPtr),johto_locationOff,johto_pokedexOff,johto_nationalDexOff,64,493,
           johto_repelStepsOff,uint32_t(pg_flagsOff),uint32_t(pg_wordOff),johtoPockets,8};

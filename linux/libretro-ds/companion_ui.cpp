@@ -137,9 +137,9 @@ void DsCompanionUi::set_game(DsGame value,bool soulSilverVersion){
     frame.availableTabs&=~(1<<PD_TAB_GUIDE);
     if(frame.tab==PD_TAB_GUIDE)frame.tab=PD_TAB_PARTY;
   }
-  // HeartFelt Gold: its Pokédex block is unmapped, so no DEX; its GUIDE is HERE's wild encounters from the cart.
+  // HeartFelt Gold: its GUIDE is HERE's wild encounters from the cart.
   if(game==DsGame::Johto && ds_heartfelt()){
-    frame.availableTabs&=~((ds_heartfelt()->mapWild.empty()?1<<PD_TAB_GUIDE:0)|(1<<PD_TAB_DEX));
+    frame.availableTabs&=~(ds_heartfelt()->mapWild.empty()?1<<PD_TAB_GUIDE:0);
     if(!(frame.availableTabs&(1<<frame.tab)))frame.tab=PD_TAB_PARTY;
   }
   if(game==DsGame::Unsupported){
@@ -219,6 +219,8 @@ void DsCompanionUi::draw_settings(pd_canvas* c){
 }
 const std::vector<int>* DsCompanionUi::dex_order() const{
   if(dexArt.regional.empty() || !snapshot)return nullptr;
+  // HeartFelt Gold's list is the National Dex in national order (its species ids skip 494..543): always that.
+  if(game==DsGame::Johto && ds_heartfelt())return &dexArt.regional;
   if(dexMode>=0)return dexMode?nullptr:&dexArt.regional;
   if(snapshot->nationalDex)return nullptr;
   if(ds_unova(game)){
@@ -274,7 +276,7 @@ void DsCompanionUi::draw_body(pd_ui* u,pd_canvas* c){
       ds_dex_entry(c,*snapshot,dexEntry,number,*icons,details,dexPage,dexEvolutions,dexSpots,
                    dexRow,int(entries.size()),dexSection,dexDetailRow);
     }else{
-      const char* label=dexArt.regional.empty()?nullptr:!regional?"NATIONAL DEX":
+      const char* label=dexArt.regional.empty()?nullptr:!regional || (game==DsGame::Johto && ds_heartfelt())?"NATIONAL DEX":
         game==DsGame::Platinum?"SINNOH DEX":game==DsGame::Johto?"JOHTO DEX":"UNOVA DEX";
       ds_dex_view(c,*snapshot,filter,dexRow,dexFilterFocus,icons,regional,label);
     }

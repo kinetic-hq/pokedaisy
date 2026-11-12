@@ -53,6 +53,7 @@ const DsOrigin* ds_renegade();
 // National Dex to 493, 494 the Egg, then Gen 5 on at national + 50.
 bool ds_heartfelt_cart(const uint8_t* rom,size_t size);
 constexpr int dsHeartfeltLastSpecies=1534;
+constexpr int dsHeartfeltLastNationalId=1075;  // national 1025 (Gen 5 on sit at national + 50; forms after)
 void ds_set_heartfelt(const DsOrigin* data);
 const DsOrigin* ds_heartfelt();
 // What the cart is, by its header, for messages: "Platinum (USA) rev 0", "Black 2 (USA / Europe)"...

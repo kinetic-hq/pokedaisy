@@ -1,6 +1,6 @@
 captured: 2026-11-12 (headless native-capture/nds_dump, by hand; mainram.bin = the DS's 4 MB main RAM at 0x02000000,
   zeroed but for what the desktop's Johto reader reads: 0x021D1000-0x021D3FFF (sSaveDataPtr 0x021D2228, sFieldSysPtr
-  0x021D4158, as retail), the SaveData at 0x0227C254 through its location block (+16 +5156 +0x100), the FieldSystem,
+  0x021D4158, as retail), the SaveData at 0x0227C254 through its Pokedex (+16 +5288 +0x800), the FieldSystem,
   the PlayerAvatar and the player's map object) - the rest is unrelated memory, and zeros keep the file tiny in git.
 rom: Pokemon - HeartFelt Gold (~/Downloads/Game ROMs & Emulation/nds/, sha1 59f5d4f8..., IPKE rev 0, ARM9 0x111EF8 bytes,
   an hg-engine build of the US HeartGold)
@@ -12,3 +12,4 @@ layout found: party at body+144 and the trainer at body+100 as retail; the bag a
   {245, 92, 101, 12, 40, 64, 24, 30} (items and key items grown), so everything after it sits 496 bytes later: the
   location at body+5156 (64, as a SoulSilver new game made the same way), the event flags at body+4788, the Pokedex
   (magic 0xBEEFCAFE) at body+5288. The repel counter, SAVE_MISC_DATA and the Pokegear word aren't mapped.
+pokedex: 1534 species ids; caught bits at dex+4, seen bits at dex+0x400 (the six given creatures in both).
