@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -230,7 +230,7 @@ companion's `SETTINGS` has the same `BUTTON LAYOUT` row.
 In `HOTKEYS`, the triggers and sticks come first (`L2 / LT`, `R2 / RT`, `L3`,
 `R3`), then each extra button your controller may have: `GUIDE / HOME`, `SHARE`
 and the four back `PADDLE` buttons. Out of the box LT zooms out, RT zooms in
-(with `ASPECT` `EXPAND`) and L3 turns fast forward on and off; in a DS game L2
+(the first press turns `ASPECT` `EXPAND` on, in a game that has it) and L3 turns fast forward on and off; in a DS game L2
 and R2 stay the touch screen and the DS layout. Pick one and choose
 `GAME MENU`, `COMPANION`, `FF TOGGLE`, `SAVE STATE`, `LOAD STATE`,
 `SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT`, `DS LAYOUT BACK`, `SWAP SCREENS`,
@@ -344,7 +344,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
 | `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `CHEATS` | `LEVEL CAP` |
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
-| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `WING LOOK`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
+| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `UI SIZE`, `WING ROOM`, `WING LOOK`, `STRETCH`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |
 | `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `RUMBLE`; `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
 | `APP` | | `BATTERY SAVER`, `THIS GAME ONLY`, `RESUME GAMES`, `CHECK FOR UPDATES` |
@@ -367,6 +367,15 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   black, which an OLED doesn't light at all.
 - **`BRIGHTNESS`**: lifts the game's darker colours, 80% to 150%. `110%` is the
   default; `100%` is the game's own picture.
+- **`UI SIZE`**: how large the menus, the HUD, the panels beside the game and
+  the companion are drawn. `MEDIUM` is the default; `SMALL` fits more on the
+  screen, and `LARGE` is the old, bigger size, easier to read from a distance.
+- **`WING ROOM`**: how the width is shared between the game and the panels
+  beside it. `BALANCED` (the default) keeps the game large with roomy panels;
+  `GAME FIRST` makes the game as large as it goes, and `WINGS FIRST` gives the
+  panels more room for a slightly smaller game. The game always keeps its shape.
+- **`STRETCH`**: off by default. On, the game grows a little past its own shape
+  (at most 5%) to fill the gaps round it.
 - **`WING LOOK`**: how large the panels beside the game are drawn. `COMPACT`
   draws them a size smaller so more fits, `COMFY` (the default) as worked out
   for the window, and `BIG` a size larger, easier to read from the couch, where

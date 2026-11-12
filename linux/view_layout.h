@@ -31,6 +31,8 @@ struct view_state {
   bool companionOpen;   // the companion has the buttons (the game waits)
   bool battle;          // a battle is on
   bool panelLocked;     // SIDE PANEL: the panel stays beside the game
+  int wingRoom;         // WING ROOM: VIEW_WING_ROOM_* (0, GAME FIRST, is the old layout)
+  bool stretch;         // STRETCH: the game may lose its shape by up to VIEW_STRETCH_PERCENT to fill its room
 };
 
 struct view_layout {
@@ -48,6 +50,11 @@ struct view_layout {
 
 /* The share of the screen's width each wing keeps at least (BATTLE WINGS, WINGS). */
 #define VIEW_WING_MIN_PERCENT 12
+// WING ROOM: each wing's least share of the width, per mille. GAME FIRST keeps the old 12%; BALANCED about 240 px at
+// 1920 wide (GBA 6x on 1080p and 1200p); WINGS FIRST about 320 px there.
+enum { VIEW_WING_ROOM_GAME_FIRST, VIEW_WING_ROOM_BALANCED, VIEW_WING_ROOM_WINGS_FIRST, VIEW_WING_ROOMS };
+#define VIEW_STRETCH_PERCENT 5
+int view_wing_room_permille(int room);
 /* Strips go above and below the game only when that many percent of the height is free each side. */
 #define VIEW_STRIP_MIN_PERCENT 8
 #define VIEW_STRIP_MIN_PX 48 // or this much room, whichever is less: a 16:9 screen's ~5% is enough for a bar

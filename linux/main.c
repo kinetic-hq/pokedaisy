@@ -960,12 +960,15 @@ static void stick_hotkeys(void) {
     stickChord = false;
 }
 /* The companion's canvas for an ow x oh screen: the largest whole scale that
- * keeps it at least 320x240 (the 3DS's, which every tab is laid out for), so
- * its pixel text is about as big on every panel: 320x240 at 2x on 640x480,
- * 426x240 at 3x on 1280x720, 341x256 on 1024x768, 480x270 on 1920x1080.
+ * keeps it at least UI SIZE's least size (LARGE: 320x240, the 3DS's, which every tab is laid out for; MEDIUM
+ * 427x320; SMALL 560x420), so its pixel text is about as big on every panel: on 1920x1080 LARGE is 480x270 at 4x,
+ * MEDIUM 640x360 at 3x, SMALL 960x540 at 2x. The menus, the HUD and the wings all follow this canvas's scale.
  * POCKET_COMPANION_SCALE=N picks the scale instead. */
+static int uiSize = 1; // UI SIZE: 0 SMALL, 1 MEDIUM, 2 LARGE
 static void companion_size(int ow, int oh, int *w, int *h) {
-  int scale = ow / 320 < oh / 240 ? ow / 320 : oh / 240;
+  static const int leastW[3] = {560, 427, 320}, leastH[3] = {420, 320, 240};
+  int u = uiSize >= 0 && uiSize < 3 ? uiSize : 1;
+  int scale = ow / leastW[u] < oh / leastH[u] ? ow / leastW[u] : oh / leastH[u];
   const char *forced = getenv("POCKET_COMPANION_SCALE");
   if (forced && atoi(forced) > 0)
     scale = atoi(forced);
@@ -1546,7 +1549,7 @@ static void view_update(const struct pd_settings *st, bool companionOpen, bool b
   int ow = W, oh = H;
   if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
     ow = W, oh = H;
-  struct view_state vs = {ow, oh, (int)fw, (int)fh, companionOpen, battle, st->panelLocked};
+  struct view_state vs = {ow, oh, (int)fw, (int)fh, companionOpen, battle, st->panelLocked, st->wingRoom, st->stretch};
   struct view_layout to;
   view_layout(st->companionView, &vs, &to);
   uint32_t now = SDL_GetTicks();
@@ -2775,6 +2778,7 @@ static void settings_host_wide(struct pd_settings *dst, const struct pd_settings
   dst->quickBtn = src->quickBtn;
   dst->companionBtn = src->companionBtn;
   dst->hudBtn = src->hudBtn;
+  dst->uiSize = src->uiSize; // UI SIZE is the screen's, not a game's
 }
 static char gameConfig[1100]; // the running game's own settings file, "" while it uses settings.ini
 static void settings_put(const struct pd_settings *s, const char *config) {
@@ -3102,6 +3106,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     reduceMotion = settings.reduceMotion;
     background = pocket_background_resolve(settings.background, oledBlack, settings.darkMode);
     wingLook = settings.wingLook;
+    uiSize = settings.uiSize;
     pocket_shader_brightness(settings.brightness);
     // DARK MODE and THEME: the core's look follows them (the wings, the strips, the HUD, the companion).
     static int lookKey = -1;
@@ -3125,9 +3130,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     }
     int zoomStep = host_action(HA_ZOOM_OUT) ? 1 : host_action(HA_ZOOM_IN) ? -1 : 0;
     if (zoomStep) {
-      if (!wideSupported || settings.aspect == PD_ASPECT_ORIGINAL)
-        notice("Zoom needs ASPECT EXPAND");
+      if (!wideSupported)
+        notice("This game doesn't zoom");
       else {
+        // ASPECT ORIGINAL has nothing to zoom: the first press turns EXPAND on (and keeps it).
+        if (settings.aspect == PD_ASPECT_ORIGINAL) {
+          settings.aspect = PD_ASPECT_EXPAND;
+          settings_put(&settings, config);
+        }
         int to = wideCam.level + zoomStep;
         to = to < 0 ? 0 : to >= wideLevelCount ? wideLevelCount - 1 : to;
         static char zoomText[32];
@@ -4342,6 +4352,9 @@ enum {
   ROW_MOTION,
   ROW_BACKGROUND,
   ROW_WING_LOOK,
+  ROW_UI_SIZE,
+  ROW_WING_ROOM,
+  ROW_STRETCH,
   ROW_FULL,
   ROW_ORIENT,
   ROW_TOUCH,
@@ -4359,6 +4372,8 @@ static int settings_page(bool *foldersChanged) {
                                                             "PORTRAIT FLIPPED"};
   static const char *const SHADERS[PD_SHADERS] = {"OFF", "SHARP", "xBRZ"};
   static const char *const COLORS[PD_COLORS] = {"ORIGINAL", "HANDHELD", "OLED"};
+  static const char *const UI_SIZES[3] = {"SMALL", "MEDIUM", "LARGE"};
+  static const char *const WING_ROOMS[3] = {"GAME FIRST", "BALANCED", "WINGS FIRST"};
   static const char *const TITLES[] = {"SETTINGS", "DISPLAY OPTIONS", "GAME BUTTONS", "HOTKEYS", "BEZEL BARS"};
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
@@ -4423,7 +4438,10 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_MOTION, "REDUCE MOTION\t%s", st.reduceMotion ? "ON" : "OFF");
       ROW(ROW_BACKGROUND, "BACKGROUND\t%s",
           pocket_background_name(pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED, st.darkMode)));
+      ROW(ROW_UI_SIZE, "UI SIZE\t%s", UI_SIZES[st.uiSize >= 0 && st.uiSize < 3 ? st.uiSize : 1]);
+      ROW(ROW_WING_ROOM, "WING ROOM\t%s", WING_ROOMS[st.wingRoom >= 0 && st.wingRoom < 3 ? st.wingRoom : 1]);
       ROW(ROW_WING_LOOK, "WING LOOK\t%s", pocket_wing_look_name(st.wingLook));
+      ROW(ROW_STRETCH, "STRETCH\t%s", st.stretch ? "ON" : "OFF");
       ROW(ROW_BEZEL_STYLE, "BEZEL STYLE\t%s",
           BEZEL_STYLE_NAMES[bezel_style_resolve(st.bezelStyle, pocket_background_resolve(st.background, st.colors ==
                                                                 POCKET_COLORS_OLED, st.darkMode) == POCKET_BACKGROUND_BLACK)]);
@@ -4649,6 +4667,30 @@ static int settings_page(bool *foldersChanged) {
         st.background = b;
       break;
     }
+    case ROW_UI_SIZE: {
+      static const char *const rows[3] = {"SMALL\tMORE ON SCREEN", "MEDIUM\tTHE USUAL",
+                                          "LARGE\tBIG TEXT, FROM A DISTANCE"};
+      int l = menu_pick("UI SIZE", rows, 3, st.uiSize);
+      if (l < 0)
+        save = false;
+      else
+        st.uiSize = l;
+      break;
+    }
+    case ROW_WING_ROOM: {
+      static const char *const rows[3] = {"GAME FIRST\tTHE GAME AS LARGE AS IT GOES",
+                                          "BALANCED\tROOMY WINGS, THE GAME STILL LARGE",
+                                          "WINGS FIRST\tWIDE WINGS, A SMALLER GAME"};
+      int l = menu_pick("WING ROOM", rows, 3, st.wingRoom);
+      if (l < 0)
+        save = false;
+      else
+        st.wingRoom = l;
+      break;
+    }
+    case ROW_STRETCH:
+      st.stretch = !st.stretch;
+      break;
     case ROW_WING_LOOK: {
       static const char *const rows[POCKET_WING_LOOKS] = {"COMPACT\tSMALLER, MORE FITS", "COMFY\tAS WORKED OUT",
                                                           "BIG\tLARGER, EASIER FROM A DISTANCE"};
