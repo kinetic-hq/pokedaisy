@@ -163,6 +163,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   battle RAM, which it shares), on every platform.
 - **Foe teams in six hacks**: Gaia, Odyssey, Unbound, Heart and Soul, Radical Red and Celia's hack show the trainer's whole team in `BATTLE`,
   on the desktop, the 3DS port and Android alike.
+- **ASPECT starts on EXPAND** on the desktop host (Android starts on `ORIGINAL`), so `AUTO ZOOM IN` and the zoom hotkeys work
+  from the first game; `ORIGINAL` stays a choice, and a pick you made is kept.
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 0 or 1 cart gets the Platinum companion (rev 1 as on
   Android, rev 0 too here: its addresses are the same; a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
   (game, region, revision, code) and the one it needs.

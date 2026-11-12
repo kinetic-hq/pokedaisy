@@ -508,7 +508,10 @@ static void act(struct pd_ui* ui, int id) {
             }
             if (ui->overlay == PD_OVERLAY_PICK_SCREEN) ui->settings->screenMode = i + (ui->pixelOff ? 1 : 0);
             if (ui->overlay == PD_OVERLAY_PICK_FF && i < PD_FF_CHOICES) ui->settings->ffSpeed = PD_FF_SPEEDS[i];
-            if (ui->overlay == PD_OVERLAY_PICK_ASPECT && i < PD_ASPECTS) ui->settings->aspect = i;
+            if (ui->overlay == PD_OVERLAY_PICK_ASPECT && i < PD_ASPECTS) {
+                ui->settings->aspect = i;
+                ui->settings->aspectPicked = true;
+            }
             if (ui->overlay == PD_OVERLAY_PICK_SPEED) ui->settings->gameSpeed = i;
             if (ui->overlay == PD_OVERLAY_PICK_VOLUME) ui->settings->gameVolume = (i + 1) * 20;
             if ((ui->overlay == PD_OVERLAY_PICK_VIEW || ui->overlay == PD_OVERLAY_LAYOUT) && i < PD_COMPANION_VIEWS)

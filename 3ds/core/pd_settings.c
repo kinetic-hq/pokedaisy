@@ -7,11 +7,14 @@
 #include <windows.h>
 #endif
 
+bool pd_settings_expand_default = false;
+
 void pd_settings_defaults(struct pd_settings* s) {
     s->screenMode = PD_SCREEN_SHARP;
     s->ffSpeed = PD_FF_MIN;
     s->guideNotice = 0;
-    s->aspect = PD_ASPECT_ORIGINAL;
+    s->aspect = pd_settings_expand_default ? PD_ASPECT_EXPAND : PD_ASPECT_ORIGINAL;
+    s->aspectPicked = false;
     s->autoZoom = true;
     s->wildOff = false;
     s->tabBar = PD_TAB_BAR_DEFAULT;
@@ -197,7 +200,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
             bool* b = !strcmp(key, "ffaudio") ? &s->ffAudio : !strcmp(key, "rewind") ? &s->rewind
                     : !strcmp(key, "runindoors") ? &s->runIndoors : !strcmp(key, "nohints") ? &s->hideHints
                     : !strcmp(key, "onetap") ? &s->oneTapMoves : !strcmp(key, "mute") ? &s->gameMuted
-                    : !strcmp(key, "autorun") ? &s->autoRun : !strcmp(key, "updatecheck") ? &s->updateCheck
+                    : !strcmp(key, "aspectpicked") ? &s->aspectPicked : !strcmp(key, "autorun") ? &s->autoRun : !strcmp(key, "updatecheck") ? &s->updateCheck
                     : !strcmp(key, "dim") ? &s->dimCompanion : !strcmp(key, "savesbeside") ? &s->savesBeside
                     : !strcmp(key, "reducemotion") ? &s->reduceMotion : !strcmp(key, "levelcap") ? &s->levelCap : !strcmp(key, "resume") ? &s->resumeGames : !strcmp(key, "rumble") ? &s->rumble
                     : !strcmp(key, "boxart") ? &s->boxartAuto : NULL;
@@ -205,6 +208,8 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         }
     }
     fclose(f);
+    // An ORIGINAL the player never picked is the old default: the desktop's EXPAND replaces it.
+    if (pd_settings_expand_default && !s->aspectPicked && s->aspect == PD_ASPECT_ORIGINAL) s->aspect = PD_ASPECT_EXPAND;
     return true;
 }
 
@@ -229,6 +234,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);
     fprintf(f, "updatecheck=%d\nshader=%d\ncolors=%d\ndim=%d\nsavesbeside=%d\n", s->updateCheck ? 1 : 0, s->shader,
             s->colors, s->dimCompanion ? 1 : 0, s->savesBeside ? 1 : 0);
+    fprintf(f, "aspectpicked=%d\n", s->aspectPicked ? 1 : 0);
     fprintf(f, "fullscreen=%d\nreducemotion=%d\nboxart=%d\n", s->fullscreen, s->reduceMotion ? 1 : 0,
             s->boxartAuto ? 1 : 0);
     fprintf(f, "buttons=%d\nhotkeys=", s->buttonLayout);

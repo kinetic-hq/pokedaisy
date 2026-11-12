@@ -3220,6 +3220,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         // ASPECT ORIGINAL has nothing to zoom: the first press turns EXPAND on (and keeps it).
         if (settings.aspect == PD_ASPECT_ORIGINAL) {
           settings.aspect = PD_ASPECT_EXPAND;
+          settings.aspectPicked = true;
           settings_put(&settings, config);
         }
         int to = wideCam.level + zoomStep;
@@ -5856,6 +5857,7 @@ static void library_screen(void) {
 }
 
 int main(int argc, char **argv) {
+  pd_settings_expand_default = true; // ASPECT EXPAND unless the player picked another (pd_settings.h)
   const char *rom = NULL, *shot = NULL;
   int frames = 0;
 #ifdef POCKET_DS

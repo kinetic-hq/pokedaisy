@@ -16,9 +16,9 @@ Everything on this page is in the `SCREEN` group of Settings, on both screens: t
 
 | Choice | What you get |
 | --- | --- |
-| `ORIGINAL` | The GBA's 3:2 picture, as big as it fits, with bars at the sides. This is the default. |
+| `ORIGINAL` | The GBA's 3:2 picture, as big as it fits, with bars at the sides. This is the default on Android. |
 | `STRETCH` | The game stretched sideways to fill the screen. No bars, but everything looks a bit wider than it should. |
-| `EXPAND` | The map drawn past the GBA's edges, so the whole screen is game with square pixels and nothing stretched. Only in the games that support it. |
+| `EXPAND` | The map drawn past the GBA's edges, so the whole screen is game with square pixels and nothing stretched. Only in the games that support it. On Windows and Linux this is the default, so `AUTO ZOOM IN` works from the start; pick `ORIGINAL` to go back to the GBA's own picture. |
 
 On the top screen, `ASPECT` opens a preview: each choice is drawn as a little top screen, using your newest save state picture when there is one. Tap the one you want. On the companion it's a pick-list, and the game changes as soon as you pick.
 
