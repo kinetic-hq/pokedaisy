@@ -116,6 +116,16 @@ int main(){
     for(int l=0;l<DSL_COUNT;l++)if(first[l]!=l)std::printf(" [%s = %s]",ds_layout_name(l),ds_layout_name(first[l]));
     std::printf("\n");
   }
+  // R3's tap: back to WINGS in one press from anywhere, then ONE SCREEN, then WINGS again.
+  for(auto wh:{std::pair<int,int>{1920,1080},{1920,1200},{1280,720}})for(int rules=0;rules<2;rules++){
+    int first[DSL_COUNT];ds_layout_firsts(wh.first,wh.second,false,rules,first);
+    for(int l=0;l<DSL_COUNT;l++){
+      int t=ds_layout_toggle(l,wh.first,wh.second,false,rules);
+      if(first[l]!=first[DSL_WINGS] && t!=first[DSL_WINGS]){std::printf("toggle from %d misses WINGS\n",l);return 1;}
+    }
+    int a=ds_layout_toggle(DSL_WINGS,wh.first,wh.second,false,rules),b=ds_layout_toggle(a,wh.first,wh.second,false,rules);
+    if(first[DSL_WINGS]!=first[DSL_ONE] && (a!=first[DSL_ONE] || b!=first[DSL_WINGS])){std::printf("toggle %d %d\n",a,b);return 1;}
+  }
   for(int i=0;i<DSL_COUNT;i++)std::printf("%s ",ds_layout_name(i));
   std::puts("\nPASS DS LAYOUT placement, fallbacks and touch mapping");
 }
