@@ -22,6 +22,7 @@
 #include "wing_look.h"
 #include "wide_camera.h"
 #include "bezel.h"
+#include "wing_toast.h"
 #include "shader.h"
 #include "hud.h"
 #include "pd_dex.h"
@@ -1567,6 +1568,8 @@ static SDL_Texture *panelTexture[PANELS];
 static uint32_t panelKey[PANELS], panelGen;
 static int panelW[PANELS], panelH[PANELS];
 static uint32_t barFacts[2]; // PD_BAR_* the top / bottom bar showed last draw: the right wing leaves them out
+static struct wing_toasts wingToasts; // the wings' toasts (a level up, a new area, a save, the spray worn off)
+#define BAR_FADE_MS 240u              // a bar's old words fading into its new ones
 static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int which, bool battle, char *a,
                        char *b, char *c, size_t n) {
   a[0] = b[0] = c[0] = 0;
@@ -1788,6 +1791,39 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     if (h > CANVAS_MAX_H)
       h = CANVAS_MAX_H;
   }
+  // A bar whose words changed (not its size): the last picture is kept and faded out over the new one.
+  static SDL_Texture *altTexture[2][PANELS];
+  static uint32_t fadeAt[PANELS], textSeen[PANELS];
+  static int fadeW[PANELS], fadeH[PANELS];
+  SDL_Texture **current = bezel ? &bezelTexture[which] : &panelTexture[which];
+  bool redraw = key != panelKey[which] || w != panelW[which] || h != panelH[which];
+  if (strip && redraw && !reduceMotion && textSeen[which] && textSeen[which] != textKey && w == panelW[which] &&
+      h == panelH[which]) {
+    SDL_Texture **alt = &altTexture[bezel][which];
+    if (!*alt) {
+      *alt = SDL_CreateTexture(renderer, bezel ? SDL_PIXELFORMAT_ARGB8888 : SDL_PIXELFORMAT_RGB888,
+                               SDL_TEXTUREACCESS_STREAMING, CANVAS_MAX_W, CANVAS_MAX_H);
+      if (*alt)
+        SDL_SetTextureBlendMode(*alt, SDL_BLENDMODE_BLEND);
+    }
+    if (*alt) {
+      SDL_Texture *old = *current;
+      *current = *alt;
+      *alt = old;
+      fadeAt[which] = SDL_GetTicks();
+      fadeW[which] = panelW[which];
+      fadeH[which] = panelH[which];
+      shown = *current;
+    }
+  }
+  if (strip)
+    textSeen[which] = textKey;
+  SDL_Texture *fading = NULL;
+  int fadeK = 255;
+  if (strip && fadeAt[which] && SDL_GetTicks() - fadeAt[which] < BAR_FADE_MS && altTexture[bezel][which]) {
+    fading = altTexture[bezel][which];
+    fadeK = (int)(255u * (SDL_GetTicks() - fadeAt[which]) / BAR_FADE_MS);
+  }
   if (bezel && (key != panelKey[which] || w != panelW[which] || h != panelH[which])) {
     const uint32_t clear = 0x00FE01FE; // a colour no text uses: see-through
     struct pd_canvas pc;
@@ -1856,10 +1892,16 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
       } else if (bezelGlow)
         SDL_SetRenderTarget(renderer, was);
     }
+    SDL_Rect to = {r.x + dx + (r.w - w * scale) / 2, r.y + dy + (r.h - h * scale) / 2, w * scale, h * scale};
+    if (fading) {
+      dim_texture(fading);
+      SDL_SetTextureAlphaMod(fading, (uint8_t)(255 - fadeK));
+      SDL_RenderCopy(renderer, fading, &(SDL_Rect){0, 0, fadeW[which], fadeH[which]}, &to);
+    }
     dim_texture(shown);
-    SDL_RenderCopy(renderer, shown, &(SDL_Rect){0, 0, w, h},
-                   &(SDL_Rect){r.x + dx + (r.w - w * scale) / 2, r.y + dy + (r.h - h * scale) / 2, w * scale,
-                               h * scale});
+    SDL_SetTextureAlphaMod(shown, (uint8_t)fadeK);
+    SDL_RenderCopy(renderer, shown, &(SDL_Rect){0, 0, w, h}, &to);
+    SDL_SetTextureAlphaMod(shown, 255);
     return;
   }
   if (look.cards) {
@@ -1877,9 +1919,68 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     SDL_RenderFillRect(renderer, &(SDL_Rect){r.x, r.y, r.w, r.h});
   }
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_Rect to = {r.x + dx + (r.w - w * scale) / 2, r.y + dy + (r.h - h * scale) / 2, w * scale, h * scale};
+  if (fading) { // the old bar under, the new one coming in over it
+    dim_texture(fading);
+    SDL_SetTextureAlphaMod(fading, 255);
+    SDL_RenderCopy(renderer, fading, &(SDL_Rect){0, 0, fadeW[which], fadeH[which]}, &to);
+    SDL_SetTextureBlendMode(panelTexture[which], SDL_BLENDMODE_BLEND);
+  }
   dim_texture(panelTexture[which]);
-  SDL_RenderCopy(renderer, panelTexture[which], &(SDL_Rect){0, 0, w, h},
-                 &(SDL_Rect){r.x + dx + (r.w - w * scale) / 2, r.y + dy + (r.h - h * scale) / 2, w * scale, h * scale});
+  SDL_SetTextureAlphaMod(panelTexture[which], (uint8_t)fadeK);
+  SDL_RenderCopy(renderer, panelTexture[which], &(SDL_Rect){0, 0, w, h}, &to);
+  SDL_SetTextureAlphaMod(panelTexture[which], 255);
+}
+/* A wing's toast: a small card near the wing's top, faded in and out (wing_toast.h). */
+static void draw_toast(struct view_rect r) {
+  uint32_t now = SDL_GetTicks();
+  int alpha = wing_toast_alpha(&wingToasts, now);
+  if (!alpha || r.w < 60 || r.h < 60)
+    return;
+  int ow, oh;
+  SDL_GetRendererOutputSize(renderer, &ow, &oh);
+  int scale = r.w / 112;
+  int most = ow / canvasW < oh / canvasH ? ow / canvasW : oh / canvasH;
+  if (most > 0 && scale > most)
+    scale = most;
+  if (scale < 1)
+    scale = 1;
+  int w = r.w / scale - 12, h = 2 * 16 + 10; // two lines: the kind of news over the news
+  if (w > CANVAS_MAX_W)
+    w = CANVAS_MAX_W;
+  if (w < 40)
+    return;
+  static SDL_Texture *texture;
+  static uint32_t drawnKey;
+  uint32_t key = wingToasts.at * 2654435761u ^ (uint32_t)w ^ (uint32_t)background << 24;
+  if (!texture) {
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, CANVAS_MAX_W, 48);
+    if (!texture)
+      return;
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+  }
+  if (key != drawnKey) {
+    const uint32_t clear = 0x00FE01FE;
+    struct pd_canvas pc;
+    pd_canvas_init(&pc, w, h, panelPixels);
+    struct pocket_wing_look wl;
+    pocket_wing_look_begin(background, &wl);
+    pd_fill(&pc, 0, 0, w, h, clear);
+    pd_title_box(&pc, 0, 0, w, h, PD_TITLE_FILL);
+    pd_text_fit(&pc, 7, 4, w - 14, wingToasts.head, PD_VALUE, PD_VALUE_SHADOW);
+    pd_text_fit(&pc, 7, 4 + 16 + 1, w - 14, wingToasts.text, PD_LABEL, PD_LABEL_SHADOW);
+    pocket_wing_look_end(&wl);
+    for (int i = 0; i < w * h; i++)
+      panelPixels[i] = (panelPixels[i] & 0xFFFFFF) == clear ? 0 : 0xFF000000u | panelPixels[i];
+    SDL_UpdateTexture(texture, &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
+    drawnKey = key;
+  }
+  // In: down from a few pixels above its place as it fades in.
+  uint32_t age = now - wingToasts.at;
+  int drop = !reduceMotion && age < WING_TOAST_IN_MS ? (int)(6 * (WING_TOAST_IN_MS - age) / WING_TOAST_IN_MS) : 0;
+  SDL_SetTextureAlphaMod(texture, (uint8_t)alpha);
+  SDL_RenderCopy(renderer, texture, &(SDL_Rect){0, 0, w, h},
+                 &(SDL_Rect){r.x + (r.w - w * scale) / 2, r.y + (26 - drop) * scale, w * scale, h * scale});
 }
 /* BLACK / DARK: a thin dark grey line round the game beside the wings, so its edge doesn't meet pure black. */
 static void draw_gutter(void) {
@@ -1909,6 +2010,11 @@ static void draw_panels(const struct view_layout *v, const struct pd_game *g, co
     draw_panel(PANEL_RIGHT, v->right, g, s, battle);
   draw_panel(PANEL_TOP, v->top, g, s, battle);
   draw_panel(PANEL_BOTTOM, v->bottom, g, s, battle);
+  // The toast over the right wing (the left one while the companion takes the right).
+  if (!companionInRight && v->right.w >= 60)
+    draw_toast(v->right);
+  else if (v->left.w >= 60)
+    draw_toast(v->left);
 }
 static bool view_has_panels(const struct view_layout *v) {
   return v->left.w || v->right.w || v->top.w || v->bottom.w;
@@ -3523,6 +3629,24 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         gameSavedYet = true;
       }
       bezelFf = ff ? settings.ffSpeed : 0;
+      {
+        static uint32_t savedSeen;
+        struct wing_toast_in in = {.valid = snap.valid && snap.partyCount > 0, .battle = viewBattle,
+                                   .saved = bezelSavedAt != savedSeen && wingToasts.primed, .mapsec = snap.mapsec,
+                                   .place = snap.valid ? pd_mapsec_name(&game, snap.mapsec) : NULL,
+                                   .repel = hudRepelSteps, .partyCount = snap.partyCount};
+        savedSeen = bezelSavedAt; // a save while the game loads (before a party is read) is no news
+        for (int i = 0; i < snap.partyCount && i < WING_TOAST_PARTY; i++) {
+          const struct pd_mon *m = &snap.party[i];
+          in.party[i].key = m->personality ^ (uint32_t)m->species;
+          in.party[i].level = m->species == PD_SPECIES_EGG ? 0 : m->level;
+          if (m->nickname[0])
+            snprintf(in.party[i].name, sizeof in.party[i].name, "%s", m->nickname);
+          else
+            pd_species_name(&game, m->species, in.party[i].name, sizeof in.party[i].name);
+        }
+        wing_toast_watch(&wingToasts, &in, SDL_GetTicks());
+      }
       bezelStyle = bezel_style_resolve(settings.bezelStyle, pocket_backdrop_for(background).cards);
       memcpy(bezelSlots, settings.bezelSlots, sizeof bezelSlots);
       if (game.cfg && c->platform(c) == mPLATFORM_GBA && (frames & 15) == 0) {

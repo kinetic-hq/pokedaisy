@@ -1,5 +1,6 @@
 /* The bezel bars' facts: what each item says, what it leaves out when the game doesn't give it. */
 #include "bezel.h"
+#include "wing_toast.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -92,6 +93,47 @@ int main(void) {
       strcmp(bezel_matchup(0), "NO MOVE HITS IT")) {
     puts("matchup");
     failures++;
+  }
+  {
+    // The wings' toasts: nothing on the first frame, then a new area, a level up, the spray, a save.
+    struct wing_toasts t = {0};
+    struct wing_toast_in in = {.valid = true, .mapsec = 3, .place = "ROUTE 1", .repel = 40, .partyCount = 1};
+    in.party[0] = (struct wing_toast_mon){.key = 77, .level = 5};
+    snprintf(in.party[0].name, sizeof in.party[0].name, "EMBERPUP");
+    wing_toast_watch(&t, &in, 100);
+    if (wing_toast_alpha(&t, 120)) {
+      puts("toast on the first frame");
+      failures++;
+    }
+    in.mapsec = 4;
+    in.place = "ROUTE 2";
+    wing_toast_watch(&t, &in, 200);
+    if (strcmp(t.head, "NEW AREA") || strcmp(t.text, "ROUTE 2") || wing_toast_alpha(&t, 200 + 1000) != 255 ||
+        wing_toast_alpha(&t, 200 + WING_TOAST_MS) != 0 || wing_toast_alpha(&t, 200 + 40) <= 0) {
+      printf("area toast '%s'\n", t.text);
+      failures++;
+    }
+    in.battle = true;
+    in.mapsec = 5;
+    in.party[0].level = 6;
+    wing_toast_watch(&t, &in, 300);
+    if (strcmp(t.head, "LEVEL UP") || strcmp(t.text, "EMBERPUP Lv6")) {
+      printf("level toast '%s'\n", t.text);
+      failures++;
+    }
+    in.battle = false;
+    in.repel = 0;
+    wing_toast_watch(&t, &in, 400);
+    if (strcmp(t.head, "REPEL")) {
+      printf("repel toast '%s'\n", t.text);
+      failures++;
+    }
+    in.saved = true;
+    wing_toast_watch(&t, &in, 500);
+    if (strcmp(t.head, "SAVED") || t.at != 500) {
+      printf("save toast '%s'\n", t.text);
+      failures++;
+    }
   }
   if (failures)
     printf("%d failures\n", failures);

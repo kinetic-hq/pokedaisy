@@ -534,8 +534,27 @@ static int wing_facts(const struct pd_game* g, const struct pd_snapshot* s, stru
         rows[n++].pips = -1;
     }
     if (s->money >= 0 && !(bars & PD_BAR_MONEY)) {
+        // A change rolls to the new sum over ROLL_MS rather than jumping.
+        static long from = -1, to = -1;
+        static uint32_t since;
+        enum { ROLL_MS = 700 };
+        long shownMoney = s->money;
+        if (to < 0 || pd_ui_reduce_motion || !pd_ui_now_ms) {
+            from = to = s->money;
+        } else {
+            uint32_t t = pd_ui_now_ms - since;
+            long now = t >= ROLL_MS ? to : from + (to - from) * (long)t / ROLL_MS;
+            if (s->money != to) {
+                from = now;
+                to = s->money;
+                since = pd_ui_now_ms;
+                t = 0;
+            }
+            shownMoney = t >= ROLL_MS ? to : from + (to - from) * (long)t / ROLL_MS;
+            if (t < ROLL_MS) pd_ui_panel_moving = true;
+        }
         snprintf(rows[n].label, sizeof(rows[n].label), "MONEY");
-        snprintf(rows[n].value, sizeof(rows[n].value), "$%ld", s->money);
+        snprintf(rows[n].value, sizeof(rows[n].value), "$%ld", shownMoney);
         rows[n++].pips = -1;
     }
     return n;
@@ -549,10 +568,23 @@ static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct
     for (int i = 0; i < n && y + 2 * 16 <= bottom; i++, y += 2 * 16 + 4) {
         pd_heading_fit(c, x, y, w, rows[i].label, PD_MUTED, PD_MUTED_SHADOW);
         if (rows[i].pips >= 0 && w - 4 >= 8 * 10) {
+            // A new badge's dot pops: drawn bigger for POP_MS, then settles.
+            static int badgesSeen = -1;
+            static uint32_t popSince;
+            enum { POP_MS = 900 };
+            if (badgesSeen >= 0 && rows[i].pips > badgesSeen && pd_ui_now_ms && !pd_ui_reduce_motion)
+                popSince = pd_ui_now_ms;
+            badgesSeen = rows[i].pips;
+            bool pop = popSince && pd_ui_now_ms - popSince < POP_MS;
+            if (pop) pd_ui_panel_moving = true;
             // Eight dots, the badges earned filled gold, the rest as rings.
             for (int k = 0; k < 8; k++) {
                 int px = x + 4 + k * 10, py = y + 16 + 4;
-                if (k < rows[i].pips) {
+                if (pop && k == rows[i].pips - 1) {
+                    pd_round_rect(c, px - 2, py - 2, 12, 12, 6, 0xB08820);
+                    pd_round_rect(c, px - 1, py - 1, 10, 10, 5, 0xF8C830);
+                    pd_fill(c, px + 1, py + 1, 3, 2, 0xFFFFFF);
+                } else if (k < rows[i].pips) {
                     pd_round_rect(c, px, py, 8, 8, 4, 0xB08820);
                     pd_round_rect(c, px + 1, py + 1, 6, 6, 3, 0xF8C830);
                     pd_fill(c, px + 2, py + 2, 2, 1, 0xFFF0B0);
