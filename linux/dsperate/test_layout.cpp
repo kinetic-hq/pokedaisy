@@ -64,6 +64,13 @@ int main(){
   assert(wings.used==DSL_WINGS && wings.top.w==1280 && !wings.touch.shown() && wings.panel[0].shown() && wings.panel[1].shown());
   assert(ds_place(DSL_WINGS,1920,1080,false,true).touchFloats && ds_place(DSL_WINGS,1920,1080,true,false).touchFloats);
   assert(ds_place(DSL_WINGS,1024,768,false,false).used==DSL_WINGS);
+  // WING ROOM: GAME FIRST fills the height when the wings still fit, WINGS FIRST takes a scale off for wider wings.
+  assert(ds_place(DSL_WINGS,1920,1080,false,false,false,DS_WING_ROOM_GAME_FIRST).top.w==1440);
+  assert(ds_place(DSL_WINGS,1920,1080,false,false,false,DS_WING_ROOM_WINGS_FIRST).top.w==1024);
+  assert(ds_place(DSL_WING,1920,1080,false,false,false,DS_WING_ROOM_GAME_FIRST).top.w==1280);  // 240 px: no TOUCH IN WING
+  assert(ds_place(DSL_WING,1920,1080,false,false,false,DS_WING_ROOM_WINGS_FIRST).top.w==1024);  // 448 px
+  assert(ds_place(DSL_WINGS,1280,720,false,false,false,DS_WING_ROOM_WINGS_FIRST).used==DSL_WINGS);
+  assert(ds_place(DSL_WINGS,1920,1080,false,false,false,DS_WING_ROOM_BALANCED).top.w==1280);   // the old size
   // SPLIT TOUCH: the top screen as WINGS places it, a half of the touch screen filling each wing, level with the top
   // screen's bottom, the left half (DS x 0-127) on the left; DS WING SIDE swaps them.
   struct Split{int w,h,top,half,halfH;} splits[]={
