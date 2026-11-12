@@ -20,6 +20,17 @@ trainerCard = 'TRAINER_CARD_FIRERED'
 # record's checksum held). Retail only: the Poller drops it for any other ROM under these codes.
 pokemonStoragePtr = 0x03005010
 
+# Retail LeafGreen rev 0 itself (leafgreen_rev0 is the other languages' base, whose RAM moves): the FOE TEAM's RAM,
+# FireRed rev 0's (every RAM global is, per the map above, as FireRed rev 0's is rev 1's).
+[config.leafgreen_rev0_retail]
+base = 'leafgreen_rev0'
+actionCursor = { from = 'firered_rev0_retail' }
+moveCursor = { from = 'firered_rev0_retail' }
+enemyParty = { from = 'firered_rev0_retail' }
+battlerPartyIndexes = { from = 'firered_rev0_retail' }
+battleStructPtr = { from = 'firered_rev0_retail' }
+monToSwitchIntoOff = { from = 'firered_rev0_retail' }
+
 [config.leafgreen_rev1]
 base = 'firered_rev1'
 pokemonStoragePtr = 0x03005010  # BOXES, as rev 0's
