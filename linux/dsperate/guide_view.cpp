@@ -39,6 +39,52 @@ DsGuideHere here(const Location (&locations)[N],const Encounter* entries,int key
 constexpr const char* methods[]={"LAND","DARK GRASS","RUSTLING GRASS","SURF","RIPPLING WATER",
   "SUPER ROD","RIPPLING FISHING","OLD ROD","GOOD ROD","ROCK SMASH"};
 
+// Origin HeartGold's wild encounters, read from its cart (DsOrigin::wildSets): HeartGold's 196-byte record, turned into
+// rows as gen_guide.py turns Android's (the same methods, odds and merging). Land: 12 levels at 8, then the morning, day
+// and night species (12 u16 each) at 20 / 44 / 68; surf (5 slots of min, max, species) at 100, rock smash (2) at 120,
+// the old, good and super rods (5 each) at 128 / 148 / 168; their rates at 0..5; the night's fish at 192.
+std::vector<DsGuideEncounter> origin_encounters(const std::vector<uint8_t>& d,int time){
+  static constexpr uint8_t land[12]={20,20,10,10,10,10,5,5,4,4,1,1},water[5]={60,30,5,4,1},rock[2]={80,20},
+                           rod[5]={40,30,15,10,5};
+  const auto u16=[&](size_t at){return unsigned(d[at]|d[at+1]<<8);};
+  struct Method{uint8_t method,rate;size_t at;int count;const uint8_t* odds;};
+  const Method list[]={{0,d[0],8,12,land},{3,d[1],100,5,water},{9,d[2],120,2,rock},{7,d[3],128,5,rod},
+                       {8,d[4],148,5,rod},{5,d[5],168,5,rod}};
+  std::vector<DsGuideEncounter> out;
+  for(const auto& m:list){
+    if(!m.rate)continue;
+    std::vector<DsGuideEncounter> merged;
+    for(int i=0;i<m.count;++i){
+      unsigned species,low,high;
+      if(m.method==0){species=u16(20+24*time+2*i);low=high=d[8+i];}
+      else{low=d[m.at+4*i];high=d[m.at+4*i+1];species=u16(m.at+4*i+2);}
+      if(time==2 && ((m.method==8 && i==3) || (m.method==5 && i==1)) && u16(192))species=u16(192);
+      if(!species)continue;
+      auto it=std::find_if(merged.begin(),merged.end(),[&](const DsGuideEncounter& e){return e.species==species;});
+      if(it==merged.end())merged.push_back({m.method,uint16_t(species),uint8_t(low),uint8_t(high),m.odds[i]});
+      else{it->low=std::min<uint8_t>(it->low,low);it->high=std::max<uint8_t>(it->high,high);it->chance+=m.odds[i];}
+    }
+    std::stable_sort(merged.begin(),merged.end(),[](const auto& a,const auto& b){return a.chance>b.chance;});
+    out.insert(out.end(),merged.begin(),merged.end());
+  }
+  return out;
+}
+const DsOrigin* origin_wild(DsGame game){
+  const auto* o=game==DsGame::Johto?ds_origin():nullptr;
+  return o && !o->mapWild.empty()?o:nullptr;
+}
+const std::vector<DsGuideEncounter>* origin_set(const DsOrigin& o,int map,int time){
+  if(map<0 || size_t(map)>=o.mapWild.size() || o.mapWild[map]>=o.wildSets.size())return nullptr;
+  // Built once per set and time, for the game's run (the tables don't change under it).
+  static const DsOrigin* owner=nullptr;
+  static std::vector<std::array<std::vector<DsGuideEncounter>,3>> cache;
+  static std::vector<std::array<bool,3>> built;
+  if(owner!=&o || cache.size()!=o.wildSets.size()){owner=&o;cache.assign(o.wildSets.size(),{});built.assign(o.wildSets.size(),{});}
+  const unsigned set=o.mapWild[map];
+  if(!built[set][time]){cache[set][time]=origin_encounters(o.wildSets[set],time);built[set][time]=true;}
+  return &cache[set][time];
+}
+
 template<size_t N>
 std::vector<DsGuideSpot> spots(const Location (&locations)[N],const Encounter* entries,DsGame game,int species){
   std::vector<DsGuideSpot> result;
@@ -117,6 +163,25 @@ bool ds_fly_unlocked(const DsCompanion& s,const DsFlySpot& spot){
 
 std::vector<DsGuideSpot> ds_guide_spots(DsGame game,int species,bool soulSilver){
   using namespace ds_guide_data;
+  if(const auto* o=origin_wild(game)){
+    std::vector<DsGuideSpot> result;
+    for(int map=0;map<int(o->mapWild.size());++map)for(int time=0;time<3;++time){
+      const auto* set=origin_set(*o,map,time);
+      if(!set)break;
+      for(const auto& e:*set){
+        if(e.species!=species)continue;
+        const auto* name=ds_place(map,game);
+        const auto match=std::find_if(result.begin(),result.end(),[&](const DsGuideSpot& spot){
+          const auto& other=spot.encounter;
+          const bool samePlace=spot.map==map || (*name!='?' && std::strcmp(name,ds_place(spot.map,game))==0);
+          return samePlace && other.method==e.method && other.low==e.low && other.high==e.high && other.chance==e.chance;
+        });
+        if(match==result.end())result.push_back({map,e,1u<<time});
+        else match->variants|=1u<<time;
+      }
+    }
+    return result;
+  }
   switch(game){
     case DsGame::Platinum:return spots(ptLocations,ptEncounters,game,species);
     case DsGame::Johto:return soulSilver?spots(ssLocations,ssEncounters,game,species):spots(hgLocations,hgEncounters,game,species);
@@ -134,6 +199,10 @@ DsGuideHere ds_guide_here(DsGame game,int map,int hour,int month,bool soulSilver
   if(map<0 || map>65535 || hour<0 || hour>23 || month<1 || month>12)return {};
   const int time=hour>=4 && hour<10?0:hour>=10 && hour<20?1:2;
   const int key=map*4+(ds_unova(game)?(month-1)%4:time);
+  if(const auto* o=origin_wild(game)){
+    const auto* set=origin_set(*o,map,time);
+    return set?DsGuideHere{set->data(),int(set->size())}:DsGuideHere{};
+  }
   switch(game){
     case DsGame::Platinum:return here(ptLocations,ptEncounters,key);
     case DsGame::Johto:return soulSilver?here(ssLocations,ssEncounters,key):here(hgLocations,hgEncounters,key);
@@ -295,13 +364,17 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
     }
   }
   std::vector<GuideRow> rows;
+  // Origin HeartGold: HERE's wild encounters from its cart only (its items, tips and bosses are its own, unmapped).
+  const bool origin=origin_wild(s.game)!=nullptr;
   if(page!=GuidePage::Here){
-    authored_rows(rows,s,page,soulSilver);
+    if(!origin)authored_rows(rows,s,page,soulSilver);
     return rows;
   }
   const auto place=area_key(ds_place(s.map,s.game));
-  authored_rows(rows,s,GuidePage::WhereIs,soulSilver,&place);
-  authored_rows(rows,s,GuidePage::Stuck,soulSilver,&place);
+  if(!origin){
+    authored_rows(rows,s,GuidePage::WhereIs,soulSilver,&place);
+    authored_rows(rows,s,GuidePage::Stuck,soulSilver,&place);
+  }
   if(!rows.empty())rows.insert(rows.begin(),{"TO DO",{},{},{},false,true});
   const auto encounters=ds_guide_here(s,soulSilver);
   int previousMethod=-1;
@@ -320,7 +393,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
     rows.push_back({seen?name:"???",levels,{},seen?"":name,caught});
   }
   const size_t itemsBegin=rows.size();
-  switch(s.game){
+  if(!origin)switch(s.game){
     case DsGame::Platinum:append_items(rows,s,ptPlaces,ptItems);break;
     case DsGame::Johto:append_items(rows,s,hgPlaces,hgItems);break;
     case DsGame::Black:append_items(rows,s,blackPlaces,blackItems);break;
@@ -334,6 +407,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
 }
 
 int ds_guide_page_count(DsGame game){
+  if(origin_wild(game))return 1;  // HERE alone
   return game==DsGame::Platinum || game==DsGame::Johto?int(GuidePage::Count):int(GuidePage::Stuck);
 }
 

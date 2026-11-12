@@ -9,6 +9,7 @@
 #include "pk_nds_field.h"
 #include <filesystem>
 #include "map_art.h"
+#include "guide_view.h"
 #include <cassert>
 #include <fstream>
 #include <cstdio>
@@ -232,6 +233,13 @@ int main(int argc,char** argv){
       assert(cartTables.baseSpecies(1028)==6);
       assert(cartTables.machines[0]==264 && cartTables.machines[93]==19 && cartTables.machines[100]==473 && cartTables.machines[137]==815);
       ds_set_origin(&cartTables);
+      // GUIDE's HERE from the cart: map header 9's set 111 by day (Caterpie and Rattata first, Lv2), map 65's (a set
+      // retail has none of), a page count of one, and where a species is found.
+      assert(cartTables.mapWild.size()==540 && cartTables.wildSets.size()==149 && cartTables.mapWild[9]==111 && cartTables.mapWild[65]==89);
+      const auto day=ds_guide_here(DsGame::Johto,9,12,6);
+      assert(day.count>=2 && day.entries[0].method==0 && day.entries[0].species==10 && day.entries[1].species==19 && day.entries[0].low==2);
+      assert(ds_guide_here(DsGame::Johto,65,12,6).count>0 && ds_guide_page_count(DsGame::Johto)==1);
+      assert(!ds_guide_spots(DsGame::Johto,10).empty());
       assert(!std::strcmp(ds_species(1028,DsGame::Johto),"Charizard") && !std::strcmp(ds_move(52,DsGame::Johto),"Ember"));
       assert(ds_species_type(700,0,DsGame::Johto)==9);
       auto icons=ds_party_icons(rom,DsGame::Johto);

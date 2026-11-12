@@ -343,6 +343,19 @@ DsOrigin ds_read_origin(const std::vector<uint8_t>& rom){
     }
     for(int i=0;i<138;++i)o.machines[i]=i<100?rom16(0x4000+0xFFFF8+i*2):rom16(0x4000+0xFFFAC+(i-100)*2);
     (void)rom32;
+    // GUIDE's wild encounters: the map headers (540 of 24 bytes in the ARM9, the encounter set first, as retail's; the
+    // hack gives 7 more maps a set) and /a/0/3/7's sets in HeartGold's format. A failure only costs the guide.
+    try{
+      constexpr size_t headers=0x4000+0xF37C4;
+      o.mapWild.resize(540);
+      for(size_t i=0;i<o.mapWild.size();++i)o.mapWild[i]=rom.at(headers+i*24);
+      const auto sets=file(rom,"/a/0/3/7");
+      for(unsigned i=0;i<u16(sets,24);++i){
+        auto set=member(sets,i);
+        if(set.size()<196)set.resize(196,0);
+        o.wildSets.push_back(std::move(set));
+      }
+    }catch(const std::exception&){o.mapWild.clear();o.wildSets.clear();}
   }catch(const std::exception& e){std::fprintf(stderr,"Origin HeartGold tables: %s\n",e.what());o.species.clear();}
   return o;
 }
