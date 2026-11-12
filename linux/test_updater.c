@@ -13,20 +13,20 @@ int main(void) {
   assert(updater_compare("1.0", "0.1.0") == 0);
 
   const char *json =
-      "{\"url\":\"https://api.github.com/repos/kinetic-hq/pokedaisy-desktop/releases/1\","
-      "\"html_url\":\"https://github.com/kinetic-hq/pokedaisy-desktop/releases/tag/desktop-v1.2.3\","
+      "{\"url\":\"https://api.github.com/repos/kinetic-hq/pokedaisy/releases/1\","
+      "\"html_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/tag/desktop-v1.2.3\","
       "\"author\":{\"html_url\":\"https://github.com/someone\"},"
       "\"tag_name\": \"desktop-v1.2.3\",\"assets\":["
       "{\"name\":\"SHA256SUMS.txt\",\"browser_download_url\":"
-      "\"https://github.com/kinetic-hq/pokedaisy-desktop/releases/download/desktop-v1.2.3/SHA256SUMS.txt\"},"
+      "\"https://github.com/kinetic-hq/pokedaisy/releases/download/desktop-v1.2.3/SHA256SUMS.txt\"},"
       "{\"name\":\"pokedaisy-linux-x86_64.zip\",\"browser_download_url\":"
-      "\"https://github.com/kinetic-hq/pokedaisy-desktop/releases/download/desktop-v1.2.3/pokedaisy-linux-x86_64.zip\"},"
+      "\"https://github.com/kinetic-hq/pokedaisy/releases/download/desktop-v1.2.3/pokedaisy-linux-x86_64.zip\"},"
       "{\"name\":\"pokedaisy-windows-x86_64.zip\",\"browser_download_url\":"
-      "\"https://github.com/kinetic-hq/pokedaisy-desktop/releases/download/desktop-v1.2.3/pokedaisy-windows-x86_64.zip\"}]}";
+      "\"https://github.com/kinetic-hq/pokedaisy/releases/download/desktop-v1.2.3/pokedaisy-windows-x86_64.zip\"}]}";
   char version[32], zip[512], sums[512], page[512];
   assert(updater_parse(json, version, sizeof version, zip, sizeof zip, sums, sizeof sums, page, sizeof page));
   assert(!strcmp(version, "1.2.3"));
-  assert(!strcmp(page, "https://github.com/kinetic-hq/pokedaisy-desktop/releases/tag/desktop-v1.2.3"));
+  assert(!strcmp(page, "https://github.com/kinetic-hq/pokedaisy/releases/tag/desktop-v1.2.3"));
   assert(strstr(zip, "/pokedaisy-windows-x86_64.zip"));
   assert(strstr(sums, "/SHA256SUMS.txt"));
   // The Android app's tags (v*) and anything off GitHub are never taken.
