@@ -586,8 +586,9 @@ too, with the party's icons in the HUD and the wings. So are Black, White,
 Black 2 and White 2 (USA / Europe), with their own Town Map, Pokédex pages and
 guide; they go by the game code too, so another dump of the same cart works.
 Origin HeartGold gets `PARTY`, `BAG`, `MAP` and `DEX` with its own creatures,
-moves, items, types and pictures, read from its cart; its battles aren't read
-yet, so `BATTLE` stays empty.
+moves, items, types and pictures, read from its cart, and `BATTLE` from its
+own battle engine: your creature and the foe, their moves and types, and a
+trainer's team.
 HeartFelt Gold gets `PARTY`, `BAG` and `MAP`, with its own creatures, moves,
 items, types and icons read from its cart. Its Pokédex, trainers and battles
 aren't read yet, so it has no `DEX`, `GUIDE` or `BATTLE`, and no EXPAND.
