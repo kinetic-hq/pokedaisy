@@ -53,6 +53,17 @@ struct DsCore {
   virtual bool saveBesideRom() const = 0;
   // 59.8261 for both.
   virtual double fps() const { return 59.8261; }
+  // EXPAND (melonDS only: the app's pk_nds_wide.cpp, the game's 3D drawn again past the top screen's edges).
+  virtual bool wideAvailable() const { return false; }
+  virtual void wideEnable(bool on) { (void) on; }
+  // What the next frames' margins show: the overworld's 3D, a battle's background (Gen 4), or nothing (black).
+  virtual void wideState(bool overworld, bool battle) { (void) overworld; (void) battle; }
+  // The window shown, in the top screen's pixels (its top-left (0, 0)): the margins drawn after each frame.
+  virtual void wideWindow(int x, int y, int w, int h) { (void) x; (void) y; (void) w; (void) h; }
+  // The last frame's window as ARGB (w x h): false when EXPAND drew nothing.
+  virtual bool wideView(uint32_t* out, int x, int y, int w, int h) { (void) out; (void) x; (void) y; (void) w; (void) h; return false; }
+  // The top screen faded all the way to black or white (a door, a warp): the camera's FADE.
+  virtual bool topFadedOut() const { return false; }
 };
 
 std::unique_ptr<DsCore> ds_core_create();

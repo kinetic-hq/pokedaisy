@@ -7,6 +7,7 @@
 #include "display.h"
 #include "map_art.h"
 #include "pk_nds_field.h"
+#include "pk_nds_wide.h"
 #include "ds_layout.h"
 #include "touch_pieces.h"
 #include "companion_ui.h"
@@ -14,6 +15,7 @@
 #include "../shader.h"
 #include "../backdrop.h"
 #include "../wing_look.h"
+#include "../wide_camera.h"
 #include <SDL.h>
 #include <algorithm>
 #include <filesystem>
@@ -159,7 +161,7 @@ extern "C" bool pd_ds_wing_left_save(const char* root,bool left){
 }
 // The SET tab's rows: SCREEN, DS LAYOUT, AUTO-RESUME, BATTLES, HUD, SHADER, COLORS, DIM COMPANION, WING SIDE, BACKGROUND.
 constexpr int DS_SETTINGS=10;
-struct Texture {SDL_Texture* p;~Texture(){SDL_DestroyTexture(p);}};
+struct Texture {SDL_Texture* p=nullptr;~Texture(){if(p)SDL_DestroyTexture(p);}};
 struct Audio {SDL_AudioDeviceID id=0;SDL_AudioStream* stream=nullptr;~Audio(){SDL_FreeAudioStream(stream);if(id)SDL_CloseAudioDevice(id);}};
 // UI SIZE: the companion's canvas (341 x 256) at no more than the scale the host's companion has for this size of
 // screen (its least canvas: LARGE 320 x 240, MEDIUM 427 x 320, SMALL 560 x 420), so both are about as large.
@@ -348,7 +350,9 @@ extern "C" { bool (*pd_ds_host_event)(const SDL_Event*)=nullptr; }
 // BUTTON LAYOUT XBOX: the bottom face button is A (SDL reports pads by position); else the right one, as before.
 extern "C" { int pd_ds_xbox_layout=0; }
 // UI SIZE and WING ROOM, the host's SCREEN settings, for the DS companion and the layouts with wings.
-extern "C" { int pd_ds_ui_size=1; int pd_ds_wing_room=1; int pd_ds_theme=0; bool pd_ds_dark=false; }
+extern "C" { int pd_ds_ui_size=1; int pd_ds_wing_room=1; int pd_ds_theme=0; bool pd_ds_dark=false;
+  // ASPECT on EXPAND and AUTO ZOOM IN, from the host's settings.
+  bool pd_ds_expand=false; bool pd_ds_auto_zoom=true; }
 // The host's HOTKEYS (main.c's HA_* bits: 1 GAME MENU, 2 COMPANION, 4 SAVE STATE, 5 LOAD STATE, 8 / 9 DS LAYOUT
 // NEXT / BACK, 10 SWAP SCREENS), read and cleared once a frame; and its screenshot, taken before a present.
 extern "C" { unsigned (*pd_ds_host_actions)(void)=nullptr; }
@@ -448,6 +452,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // Platinum rev 0 runs on rev 1's field addresses (its party, field and battle structs sit at the same places).
   // HeartGold and SoulSilver (USA) run on the app's HeartGold field read too: BATTLE, auto battles, touch moments.
   const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):johto?pk_nds_field_game(code,0):nullptr;
+  // EXPAND (ASPECT on EXPAND, melonDS, a game with field rules): the world drawn past the top screen's edges, with the
+  // GBA's camera (wide_camera.h): ZOOM IN / OUT step it on the overworld; battles, menus and (AUTO ZOOM IN) text boxes
+  // pull in to the closest view.
+  const bool expand=pd_ds_expand && field && nds->wideAvailable();
+  if(expand)nds->wideEnable(true);
+  std::fprintf(stderr,"DS EXPAND %s\n",expand?"on":"off");
+  struct wide_camera wideCam{};float wideLevels[WIDE_CAMERA_LEVELS];int wideLevelCount=1;
+  Texture wideTex;int wideTexW=0,wideTexH=0;std::vector<uint32_t> widePixels;bool wideMargins=false;
   bool& bottom=prefs.bottom;
   bool done=false,showCompanion=false,showQuick=false,paused=false,failed=false;
   int quickSelected=0;uint32_t blocked=0;
@@ -600,6 +612,15 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     if(auto value=std::getenv("POCKET_DS_QUICK_AT"))if(frame==std::atoi(value))showQuick=true;
     int fieldBits=field?pk_nds_field_state(field,read32,write32,0):0;
     bool inBattle=(fieldBits&PK_NDS_FIELD_BATTLE)!=0;
+    if(expand){
+      // The margins: the overworld with nothing over it (a text box keeps it), or a battle's (its background; Gen 5's
+      // all 3D, as the overworld).
+      bool overworld=((fieldBits&PK_NDS_FIELD_SCREEN) && !(fieldBits&(PK_NDS_FIELD_MENU|PK_NDS_FIELD_BATTLE))) ||
+        (inBattle && pk_nds_battle_3d(field));
+      bool battleMargins=inBattle && pk_nds_battle_margins(field);
+      wideMargins=overworld || battleMargins;
+      nds->wideState(overworld,battleMargins);
+    }
     bool choosing=inBattle && pk_nds_battle_command(field,read32)==pk_nds_battle_selecting(field);
     int phase=inBattle?(choosing?2:1):0;
     if(phase!=lastPhase){overrideScreen=-1;lastPhase=phase;std::fprintf(stderr,"DS battle phase %d at core frame %llu\n",phase,(unsigned long long)nds->frameCount());}
@@ -765,7 +786,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     else{
       auto placeIn=[&](int room){return ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom,
                                                              prefs.wingLeft,room);};
-      if(zoomStep){
+      if(zoomStep && !(expand && !view.bottom && !paused)){  // EXPAND: the camera takes ZOOM (below)
         // Larger game = less wing room: WINGS FIRST, BALANCED, GAME FIRST (AUTO starts from BALANCED).
         int room=zoomRoom>=0?zoomRoom:pd_ds_wing_room;if(room<0||room>2)room=DS_WING_ROOM_BALANCED;
         if(placeIn(DS_WING_ROOM_GAME_FIRST).top.w==placeIn(DS_WING_ROOM_WINGS_FIRST).top.w)showToast("ZOOM: NO WINGS IN THIS LAYOUT");
@@ -776,14 +797,57 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         zoomStep=0;
       }
       DsPlacement place=placeIn(zoomRoom>=0?zoomRoom:pd_ds_wing_room);
+      // EXPAND's room: the window, less the side the touch screen sits on when it's beside the game.
+      bool wideShown=false;
+      if(expand && !view.bottom && !paused){
+        SDL_Rect area{0,0,ow,oh};
+        const DsBox &g=place.top,&t=place.touch;
+        if(t.shown() && !place.touchFloats && !place.inset){
+          if(t.x>=g.x+g.w)area.w=t.x;
+          else if(t.x+t.w<=g.x){area.x=t.x+t.w;area.w=ow-area.x;}
+          else if(t.y>=g.y+g.h)area.h=t.y;
+          else if(t.y+t.h<=g.y){area.y=t.y+t.h;area.h=oh-area.y;}
+        }
+        wideLevelCount=wide_camera_levels(area.w,area.h,256,192,PK_NDS_WIDE_MAX_W,PK_NDS_WIDE_MAX_H,wideLevels);
+        if(zoomStep){
+          // ZOOM IN / OUT step the camera (closest first), as in a GBA game.
+          int was=wideCam.level;
+          wideCam.level=std::clamp(wideCam.level-zoomStep,0,wideLevelCount-1);
+          char text[32];std::snprintf(text,sizeof text,"ZOOM %d OF %d",wideCam.level+1,wideLevelCount);
+          showToast(wideCam.level==was?(zoomStep>0?"ZOOM: CLOSEST":"ZOOM: FARTHEST"):text);
+          zoomStep=0;
+        }
+        int scene=inBattle?WIDE_SCENE_OFF:nds->topFadedOut()?WIDE_SCENE_FADE:(fieldBits&PK_NDS_FIELD_MENU)?WIDE_SCENE_MENU:
+          !(fieldBits&PK_NDS_FIELD_SCREEN)?WIDE_SCENE_OFF:(fieldBits&PK_NDS_FIELD_TEXT)?WIDE_SCENE_TEXT:WIDE_SCENE_FIELD;
+        float s=wide_camera_frame(&wideCam,scene,pd_ds_auto_zoom,wideLevels,wideLevelCount,SDL_GetTicks()|1);
+        unsigned ww=256,wh=192;wide_camera_window(area.w,area.h,256,192,PK_NDS_WIDE_MAX_W,PK_NDS_WIDE_MAX_H,s,&ww,&wh);
+        int wx=-(int(ww)-256)/2,wy=-(int(wh)-192)/2;
+        widePixels.resize(size_t(ww)*wh);
+        if(wideMargins && nds->wideView(widePixels.data(),wx,wy,int(ww),int(wh))){
+          if(int(ww)!=wideTexW || int(wh)!=wideTexH){
+            if(wideTex.p)SDL_DestroyTexture(wideTex.p);
+            wideTex.p=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,int(ww),int(wh));
+            wideTexW=int(ww);wideTexH=int(wh);
+          }
+          int dw=int(std::lround(ww*s)),dh=int(std::lround(wh*s));
+          SDL_Rect dst{area.x+(area.w-dw)/2,area.y+(area.h-dh)/2,dw,dh};
+          SDL_RenderSetClipRect(renderer,&area);
+          if(!(pocket_shader_active() && pocket_shader_draw(renderer,widePixels.data(),int(ww),int(ww),int(wh),true,&dst)) && wideTex.p){
+            SDL_UpdateTexture(wideTex.p,nullptr,widePixels.data(),int(ww)*4);SDL_RenderCopy(renderer,wideTex.p,nullptr,&dst);
+          }
+          SDL_RenderSetClipRect(renderer,nullptr);
+          wideShown=true;
+        }
+        nds->wideWindow(wx,wy,int(ww),int(wh));
+      }
       DsPieceLayout lay;
       if(place.pieces){int sc=ds_pieces_detect(*pieceGame,nds->framebuffer(1));if(sc>=0)lay=ds_pieces_arrange(*pieceGame,sc,place.wing);}
       if(lay.shown()!=pieceLay.shown() || lay.screen!=pieceLay.screen)pointerDown=false;  // the screen changed under a press
       bool topInset=place.inset && view.bottom;  // PICTURE IN PICTURE swapped: the top screen is the small one
       if(topInset)draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
-      draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
+      if(!wideShown)draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       // TOUCH IN WING / WINGS: the companion's panels in the wings (under a floating touch screen's dim).
-      if(place.panel[0].shown() || place.panel[1].shown() || place.split())gutter_screen(renderer,topInset?place.touch:place.top,look);
+      if(!wideShown && (place.panel[0].shown() || place.panel[1].shown() || place.split()))gutter_screen(renderer,topInset?place.touch:place.top,look);
       for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,supported||johto,shellIcons,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
       wingPanels=place.panel[0].shown();
       if(place.touchFloats){SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer,0,0,0,150);SDL_RenderFillRect(renderer,nullptr);SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_NONE);}
