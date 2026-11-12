@@ -593,7 +593,8 @@ own battle engine: your creature and the foe, their moves and types, and a
 trainer's team. Its `GUIDE` has two pages, read from its cart: `HERE` lists the
 wild creatures where you stand by time of day, and `NEXT BOSS` shows the next
 gym leader or League member with the hack's own team, the Kanto leaders first
-since the hack sends you there first.
+since the hack sends you there first. `HERE` also lists the items lying or
+hidden where you stand, ticked once you have picked them up.
 HeartFelt Gold gets `PARTY`, `BAG`, `MAP`, `DEX` and `BATTLE`, with its own creatures,
 moves, items, types and icons read from its cart. `DEX` lists the whole
 National Dex in order, with each creature's picture, stats, size, entry text,

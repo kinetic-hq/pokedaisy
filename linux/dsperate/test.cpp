@@ -290,6 +290,19 @@ int main(int argc,char** argv){
         assert(titles.size()==22 && titles[1]=="LEADER MISTY" && titles.back()=="CHAMPION LANCE");
         assert(std::find(titles.begin(),titles.end(),"RED")!=titles.end());
       }
+      // HERE's items from its events and scripts: map 9's item ball (its own script: item 494, flag 1395) and map 60's
+      // hidden item (script 8000: item 17, flag 800, as retail's guide has it), listed under ITEMS where you stand.
+      {
+        const auto has=[&](int map,int item,int flag,bool hidden){
+          return std::any_of(cartTables.fieldItems.begin(),cartTables.fieldItems.end(),[&](const DsOrigin::FieldItem& f){
+            return f.map==map && f.item==item && f.flag==flag && f.qty==1 && f.hidden==hidden;});
+        };
+        assert(cartTables.fieldItems.size()>200 && has(9,494,1395,false) && has(60,17,800,true));
+        DsCompanion s{};s.game=DsGame::Johto;s.eventFlags.assign(512,0);s.map=60;
+        const auto rows=ds_guide_rows(s,GuidePage::Here,false);
+        const auto items=std::find_if(rows.begin(),rows.end(),[](const GuideRow& row){return row.heading && row.title=="ITEMS";});
+        assert(items!=rows.end() && std::any_of(items,rows.end(),[](const GuideRow& row){return row.title=="HIDDEN ITEM";}));
+      }
       assert(!std::strcmp(ds_species(1028,DsGame::Johto),"Charizard") && !std::strcmp(ds_move(52,DsGame::Johto),"Ember"));
       assert(ds_species_type(700,0,DsGame::Johto)==9);
       auto icons=ds_party_icons(rom,DsGame::Johto);

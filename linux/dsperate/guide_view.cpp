@@ -276,6 +276,25 @@ void append_items(std::vector<GuideRow>& rows,const DsCompanion& s,
     }
   }
 }
+// Origin HeartGold's item balls and hidden items from its cart, for every map with the same place name as yours (its
+// buildings included), each once.
+void append_cart_items(std::vector<GuideRow>& rows,const DsCompanion& s,const DsOrigin& o){
+  const char* here=ds_place(s.map,s.game);
+  std::vector<std::pair<int,int>> listed;
+  for(bool done:{false,true}){
+    for(const auto& item:o.fieldItems){
+      if(item.map!=s.map && (*here=='?' || std::strcmp(here,ds_place(item.map,s.game))!=0))continue;
+      if(ds_event_flag(s,item.flag)!=done)continue;
+      if(std::find(listed.begin(),listed.end(),std::pair<int,int>{item.flag,item.item})!=listed.end())continue;
+      listed.push_back({item.flag,item.item});
+      std::string name=ds_item(item.item,s.game);
+      if(item.qty>1)name+=" x"+std::to_string(item.qty);
+      const std::string where=std::string("around ")+here;
+      if(item.hidden && !done)rows.push_back({"HIDDEN ITEM","ITEMS","Buried "+where+".",name,false});
+      else rows.push_back({name,"ITEMS",{},(item.hidden?"Hidden ":"Lying ")+where+".",done});
+    }
+  }
+}
 std::string area_key(const char* place){
   std::string key;
   for(;*place;++place){
@@ -449,8 +468,8 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
     }
   }
   std::vector<GuideRow> rows;
-  // Origin HeartGold and Renegade Platinum: HERE's wild encounters from the cart only (their items and tips are their
-  // own, unmapped; Renegade's and Origin's bosses come from their carts above).
+  // Origin HeartGold and Renegade Platinum: HERE's wild encounters from the cart only (their tips are their own,
+  // unmapped; their bosses come from their carts above, and Origin's items from its cart below).
   const bool origin=origin_wild(s.game)!=nullptr;
   if(page!=GuidePage::Here){
     if(!origin)authored_rows(rows,s,page,soulSilver);
@@ -479,7 +498,8 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
     rows.push_back({seen?name:"???",levels,{},seen?"":name,caught});
   }
   const size_t itemsBegin=rows.size();
-  if(!origin)switch(s.game){
+  if(origin && s.game==DsGame::Johto && ds_origin())append_cart_items(rows,s,*ds_origin());
+  else if(!origin)switch(s.game){
     case DsGame::Platinum:append_items(rows,s,ptPlaces,ptItems);break;
     case DsGame::Johto:append_items(rows,s,hgPlaces,hgItems);break;
     case DsGame::Black:append_items(rows,s,blackPlaces,blackItems);break;

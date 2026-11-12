@@ -37,6 +37,8 @@ struct DsOrigin {
   std::vector<uint16_t> mapWild;                     // Origin HeartGold, Renegade Platinum: each map header's encounter set
   std::vector<std::vector<uint8_t>> wildSets;        // its encounter sets: HeartGold's 196-byte or Platinum's 424-byte records
   std::vector<std::vector<uint8_t>> trainers,trainerParties;  // Renegade Platinum: trdata / trpoke, by trainer id
+  struct FieldItem {uint16_t map,item,flag;uint8_t qty;bool hidden;};
+  std::vector<FieldItem> fieldItems;                 // Origin HeartGold: the item balls and hidden items, by map
   int formSpecies(int species,int form) const;       // a form's own id (species when form 0 or unknown)
   int baseSpecies(int id) const;                     // the National Dex species of a form id
 };
