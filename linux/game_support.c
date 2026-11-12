@@ -61,7 +61,7 @@ static int ds_support(const char *path, char *detail, size_t size) {
   // HeartFelt Gold (ds_heartfelt_cart): HeartGold's header with its ARM9 grown to 0x111EF8 bytes.
   if (!memcmp(head + 12, "IPKE", 4) && !head[30] &&
       (head[0x2C] | head[0x2D] << 8 | head[0x2E] << 16 | (uint32_t)head[0x2F] << 24) == 0x111EF8u) {
-    snprintf(detail, size, "PARTY, BAG, MAP, DEX and GUIDE's wild creatures: no BATTLE yet");
+    snprintf(detail, size, "Every companion tab; GUIDE has its wild creatures only");
     return GAME_SUPPORT_PARTLY;
   }
   if ((!memcmp(head + 12, "IPKE", 4) || !memcmp(head + 12, "IPGE", 4)) && !head[30]) {

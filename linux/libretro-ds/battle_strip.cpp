@@ -193,12 +193,14 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
     foeParty=read32(system+0x6c);
     for(unsigned i=0;i<mons.size();++i)mons[i]=ctx+battle_offBattleMons+i*0xc0;
   }
+  // HeartFelt Gold keeps retail's BattleSystem and battle mons with its own species ids (to 1534) and Fairy at 9.
+  const bool heartfelt=!gen5 && !managed && ds_heartfelt();
   for(unsigned i=0;i<mons.size() && !managed;++i){
     const auto* b=at(mons[i],gen5?0x140:0xc0);
     if(!b)continue;
     auto& m=out.battlers[i];
     const int speciesId=u16(b+(gen5?0x0c:0));
-    if(speciesId<1 || speciesId>(gen5?649:493))continue;
+    if(speciesId<1 || speciesId>(gen5?649:heartfelt?dsHeartfeltLastSpecies:493))continue;
     m.level=b[gen5?0x18:0x34];
     if(m.level<1 || m.level>100)continue;
     m.maxHp=gen5?u16(b+0x0e):int(read32(mons[i]+0x50));
@@ -208,7 +210,7 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
     const unsigned types=gen5?0xf8:0x24;
     auto battle_type=[&](int type) {
       if(gen5 && type>=9)++type; // The portable chart keeps the Gen 4 gap at 9.
-      return type<=17 && type!=9?type:PD_TYPE_NONE;
+      return type<=17 && (type!=9 || heartfelt)?type:PD_TYPE_NONE;
     };
     m.type1=battle_type(b[types]);
     m.type2=battle_type(b[types+1]);

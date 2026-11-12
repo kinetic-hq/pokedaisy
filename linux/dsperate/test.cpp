@@ -148,6 +148,22 @@ int main(int argc,char** argv){
     auto pocket=[&](int id){for(auto& i:t.bag)if(i.id==id)return i.pocket;return -1;};
     assert(pocket(79)==0 && pocket(450)==1 && pocket(328)==2 && pocket(17)==4 && pocket(155)==5 && pocket(4)==6);
     assert(ds_egg_icon(DsGame::Johto)==494);
+    // BATTLE on HeartGold's battle structs (heartfelt_gold_trainer: the first gym leader's fight): the player's creature
+    // and the foe's (id 570, past 493), its moves past retail's 467, and the leader's six.
+    {
+      const auto saved=battleRam;
+      battleRam=read_file_bytes((std::filesystem::path(argv[1]).parent_path().parent_path()/"heartfelt_gold_trainer"/"mainram.bin").string());
+      assert(battleRam.size()==4*1024*1024);
+      const auto bsave=ds_read_companion(battleRam.data(),battleRam.size(),DsGame::Johto);
+      pd_snapshot fight{};
+      ds_read_battle_companion(pk_nds_field_game("IPKE",0),battle_read32,battleRam.data(),battleRam.size(),bsave,fight);
+      assert(fight.valid && fight.inBattle && fight.isTrainer);
+      const auto& mine=fight.battlers[PD_POS_PLAYER_LEFT];const auto& foe=fight.battlers[PD_POS_OPPONENT_LEFT];
+      assert(mine.species==155 && mine.level==12 && mine.hp==32 && mine.maxHp==32 && mine.moves[0]==33 && mine.pp[3]==25);
+      assert(foe.species==570 && foe.level==14 && foe.maxHp==45 && foe.moves[1]==817);
+      assert(fight.foeCount==6 && fight.foes[0].species==570 && fight.foeActive==0);
+      battleRam=saved;
+    }
     ds_set_heartfelt(nullptr);
     std::puts("PASS HeartFelt Gold's save: party past 493, its bigger bag, its shifted location");
     if(const char* path=std::getenv("PD_HEARTFELT_ROM")){
