@@ -40,6 +40,12 @@ int pd_text(struct pd_canvas* c, int x, int y, const char* utf8, uint32_t color,
 // Each font pixel `scale` canvas pixels square, the shadow one font pixel down and right.
 int pd_text_scaled(struct pd_canvas* c, int x, int y, const char* utf8, uint32_t color, uint32_t shadow, int scale);
 int pd_text_width(const char* utf8);
+// Headings and numbers in the wings' faces (pd_font.h): the same as pd_text / pd_text_width / pd_text_right.
+int pd_heading(struct pd_canvas* c, int x, int y, const char* utf8, uint32_t color, uint32_t shadow);
+int pd_heading_fit(struct pd_canvas* c, int x, int y, int max_w, const char* utf8, uint32_t color, uint32_t shadow);
+int pd_number(struct pd_canvas* c, int x, int y, const char* utf8, uint32_t color, uint32_t shadow);
+int pd_number_width(const char* utf8);
+void pd_number_right(struct pd_canvas* c, int right, int y, const char* utf8, uint32_t color, uint32_t shadow);
 // Like pd_text, cut with "..." to fit max_w.
 int pd_text_fit(struct pd_canvas* c, int x, int y, int max_w, const char* utf8, uint32_t color, uint32_t shadow);
 // Right-aligned at right.

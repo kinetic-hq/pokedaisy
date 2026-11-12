@@ -19,7 +19,7 @@ DEVKITARM_IMAGE := devkitpro/devkitarm:latest
 
 $(BUILD)/pd_font_test: core/pd_canvas.c core/pd_canvas.h core/pd_font.h core/pd_font_gen.c test/font_test.c
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) -o $@ core/pd_canvas.c core/pd_font_gen.c test/font_test.c -lm
+	$(CC) $(CFLAGS) -o $@ core/pd_canvas.c core/pd_font_gen.c core/pd_font_faces_gen.c test/font_test.c -lm
 
 test-font: $(BUILD)/pd_font_test
 	$(BUILD)/pd_font_test

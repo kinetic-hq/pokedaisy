@@ -78,7 +78,7 @@ static void char_bitmap(struct pd_canvas* c, const char* const* rows, int n, int
 }
 
 // Our own mark for a held item (the game's is its art): a little satchel at the icon's lower right.
-static void held_mark(struct pd_canvas* c, int x, int y) {
+void ui_held_mark(struct pd_canvas* c, int x, int y) {
     static const char* const MARK[7] = { "..KKK..", ".K...K.", "KKKKKKK", "KWWWWWK", "KWYYYWK", "KWWWWWK", "KKKKKKK" };
     static const uint32_t COLORS[3] = { 0x303030, 0xF8F8F8, 0xF8C030 };
     for (int r = 0; r < 7; r++)
@@ -537,7 +537,7 @@ static void art_sprites(struct pd_canvas* c, const struct art_geometry* a, const
     if (!m->heldItem) return;
     int hx = st->iconX + 16, hy = st->iconY + 22 + a->top;
     if (art->hold) art_image(c, a, x, y, art->hold, 8, 0, m->heldItem >= 121 && m->heldItem <= 132 ? 8 : 0, hx, hy, 8, 8);
-    else held_mark(c, x + a->ox + hx * a->scale, y + a->oy + hy * a->scale);
+    else ui_held_mark(c, x + a->ox + hx * a->scale, y + a->oy + hy * a->scale);
 }
 
 static void art_slot_at(struct pd_canvas* c, const struct pd_game* g, const struct pd_party_art* art, const struct art_geometry* a, int x, int y,
@@ -758,7 +758,7 @@ static void party_slot(struct pd_ui* ui, struct pd_canvas* c, const struct pd_ga
     // The Poke Ball, then the icon over it, resting 4 px up.
     if(!p || !p->hideBall)char_bitmap(c, BALL, 20, x + geo.fx - 6 * u, y + geo.fy - 4 * u, u, "KRHW", p ? p->ball : PP->ball);
     party_icon(ui, c, g, m, x + geo.fx - 8 * u, y + geo.fy - 4 * u, u, false);
-    if (m->heldItem) held_mark(c, x + geo.fx + 13 * u, y + geo.fy + 15 * u);
+    if (m->heldItem) ui_held_mark(c, x + geo.fx + 13 * u, y + geo.fy + 15 * u);
 
     int textW = geo.fx + geo.fw - 4 * u - geo.textX;
     pd_text_fit(c, x + geo.textX, y + geo.nameMid - 8, textW, mon_display_name(ui, g, m, buf, sizeof(buf)), text,

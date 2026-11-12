@@ -128,6 +128,7 @@ struct pd_settings {
     int shader;        // hosts with hasShaders: the game picture's SHADER (OFF / SHARP / xBRZ)
     int colors;        // ... and COLORS (ORIGINAL / HANDHELD / OLED)
     bool dimCompanion; // ... and DIM COMPANION (its panels drawn darker, against OLED burn-in)
+    bool reduceMotion; // ... and REDUCE MOTION (no easing HP bars or sliding cards in the wings)
     bool savesBeside;  // hosts with hasSavesBeside: SAVES BESIDE GAMES (on), an added folder's game saves next to it
     int fullscreen;    // hosts with hasFullscreen: FULLSCREEN, 1 / 0, -1 = not chosen yet (the host picks by screen size)
     int buttonLayout;  // hosts with hasButtonLayout: BUTTON LAYOUT, enum pd_button_layout
@@ -613,6 +614,11 @@ bool pd_ui_tick(struct pd_ui* ui, unsigned ms);
 // down a column, the battle's matchup (the foe, its types, your moves with their verdicts), the map round the player,
 // and a strip of up to three texts (left, centre, right) for above and below the game.
 void pd_ui_party_panel(struct pd_canvas*, const struct pd_game*, const struct pd_snapshot*);
+// The wings' motion: the host sets the clock (ms) and REDUCE MOTION before a draw; a panel that is still easing (an HP
+// bar moving, a card sliding in) sets pd_ui_panel_moving, and the host draws it again next frame.
+extern uint32_t pd_ui_now_ms;
+extern bool pd_ui_reduce_motion;
+extern bool pd_ui_panel_moving;
 // The same, each slot's icon drawn by ICON (false: a Poke Ball stands in) for a host whose species aren't the GBA's
 // (the DS games); the game may be NULL, then the names are the snapshot's nicknames.
 typedef bool (*pd_ui_icon_fn)(struct pd_canvas*, void* ctx, int slot, int x, int y, bool fainted);

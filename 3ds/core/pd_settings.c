@@ -45,6 +45,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->shader = 0;
     s->colors = 0;
     s->dimCompanion = false;
+    s->reduceMotion = false;
     s->savesBeside = true;
     s->fullscreen = -1;
     s->buttonLayout = PD_LAYOUT_NINTENDO;
@@ -176,7 +177,8 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
                     : !strcmp(key, "runindoors") ? &s->runIndoors : !strcmp(key, "nohints") ? &s->hideHints
                     : !strcmp(key, "onetap") ? &s->oneTapMoves : !strcmp(key, "mute") ? &s->gameMuted
                     : !strcmp(key, "autorun") ? &s->autoRun : !strcmp(key, "updatecheck") ? &s->updateCheck
-                    : !strcmp(key, "dim") ? &s->dimCompanion : !strcmp(key, "savesbeside") ? &s->savesBeside : NULL;
+                    : !strcmp(key, "dim") ? &s->dimCompanion : !strcmp(key, "savesbeside") ? &s->savesBeside
+                    : !strcmp(key, "reducemotion") ? &s->reduceMotion : NULL;
             if (b && int_in(value, 0, 1, &on)) *b = on;
         }
     }
@@ -203,7 +205,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);
     fprintf(f, "updatecheck=%d\nshader=%d\ncolors=%d\ndim=%d\nsavesbeside=%d\n", s->updateCheck ? 1 : 0, s->shader,
             s->colors, s->dimCompanion ? 1 : 0, s->savesBeside ? 1 : 0);
-    fprintf(f, "fullscreen=%d\n", s->fullscreen);
+    fprintf(f, "fullscreen=%d\nreducemotion=%d\n", s->fullscreen, s->reduceMotion ? 1 : 0);
     fprintf(f, "buttons=%d\nhotkeys=", s->buttonLayout);
     for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) fprintf(f, i ? ",%d" : "%d", s->hotkeys[i]);
     fprintf(f, "\norientation=%d\ngametouch=%d\nbackground=%d\nbrightness=%d\n", s->orientation, s->gameTouch,

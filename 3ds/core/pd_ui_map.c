@@ -512,8 +512,9 @@ static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct
         snprintf(rows[n++][1], sizeof(rows[n][1]), "$%ld", s->money);
     }
     for (int i = 0; i < n && y + 2 * 16 <= bottom; i++, y += 2 * 16 + 4) {
-        pd_text_fit(c, x, y, w, rows[i][0], PD_MUTED, PD_MUTED_SHADOW);
-        pd_text_fit(c, x + 4, y + 16, w - 4, rows[i][1], PD_LABEL, PD_LABEL_SHADOW);
+        pd_heading_fit(c, x, y, w, rows[i][0], PD_MUTED, PD_MUTED_SHADOW);
+        if (pd_number_width(rows[i][1]) <= w - 4) pd_number(c, x + 4, y + 16, rows[i][1], PD_LABEL, PD_LABEL_SHADOW);
+        else pd_text_fit(c, x + 4, y + 16, w - 4, rows[i][1], PD_LABEL, PD_LABEL_SHADOW);
     }
 }
 
