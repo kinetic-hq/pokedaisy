@@ -65,6 +65,9 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->brightness = 110;
     s->bezelStyle = -1;
     s->wingLook = 1;
+    s->uiSize = 1;
+    s->wingRoom = 1;
+    s->stretch = false;
     // linux/bezel.h's BEZEL_DEFAULT_SLOTS: LOCATION, CLOCK AND BATTERY, BADGES AND PLAY TIME, LEAD POKEMON,
     // NEXT BOSS AND CAP, REPEL OR MONEY.
     static const int BEZEL_SLOTS[6] = {1, 2, 5, 14, 12, 10};
@@ -153,6 +156,12 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "gametouch")) int_in(value, 0, PD_GAME_TOUCHES - 1, &s->gameTouch);
         else if (!strcmp(key, "background")) int_in(value, -1, 3, &s->background);
         else if (!strcmp(key, "winglook")) int_in(value, 0, 2, &s->wingLook);
+        else if (!strcmp(key, "uisize")) int_in(value, 0, 2, &s->uiSize);
+        else if (!strcmp(key, "wingroom")) int_in(value, 0, 2, &s->wingRoom);
+        else if (!strcmp(key, "stretch")) {
+            int on;
+            if (int_in(value, 0, 1, &on)) s->stretch = on;
+        }
         else if (!strcmp(key, "brightness")) int_in(value, 80, 150, &s->brightness);
         else if (!strcmp(key, "bezel")) int_in(value, -1, 2, &s->bezelStyle);
         else if (!strcmp(key, "bezelslots")) {
@@ -222,7 +231,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) fprintf(f, i ? ",%d" : "%d", s->hotkeys[i]);
     fprintf(f, "\norientation=%d\ngametouch=%d\nbackground=%d\nbrightness=%d\n", s->orientation, s->gameTouch,
             s->background, s->brightness);
-    fprintf(f, "winglook=%d\n", s->wingLook);
+    fprintf(f, "winglook=%d\nuisize=%d\nwingroom=%d\nstretch=%d\n", s->wingLook, s->uiSize, s->wingRoom,
+            s->stretch ? 1 : 0);
     fprintf(f, "bezel=%d\nbezelslots=%d,%d,%d,%d,%d,%d\n", s->bezelStyle, s->bezelSlots[0], s->bezelSlots[1],
             s->bezelSlots[2], s->bezelSlots[3], s->bezelSlots[4], s->bezelSlots[5]);
     if (fclose(f) != 0) return false;

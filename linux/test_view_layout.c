@@ -13,7 +13,7 @@ static int failures;
   } while (0)
 
 static struct view_state gba(int w, int h) {
-  struct view_state s = {w, h, 240, 160, false, false, false};
+  struct view_state s = {w, h, 240, 160, false, false, false, VIEW_WING_ROOM_GAME_FIRST, false};
   return s;
 }
 
@@ -116,6 +116,29 @@ static void animation(void) {
 }
 
 int main(void) {
+  // WING ROOM: BALANCED keeps GBA 6x with 240 px wings on 1080p and 1200p, WINGS FIRST gives the wings 320+.
+  {
+    static const int sizes[][3] = {{1920, 1080, 6}, {1920, 1200, 6}, {2560, 1600, 8}};
+    for (int i = 0; i < 3; i++) {
+      struct view_state s = gba(sizes[i][0], sizes[i][1]);
+      s.battle = true;
+      struct view_layout l;
+      s.wingRoom = VIEW_WING_ROOM_BALANCED;
+      view_layout(POCKET_VIEW_BATTLE_WINGS, &s, &l);
+      CHECK(l.scale == sizes[i][2] && l.left.w >= sizes[i][0] / 8 && l.right.w >= sizes[i][0] / 8);
+      s.wingRoom = VIEW_WING_ROOM_WINGS_FIRST;
+      view_layout(POCKET_VIEW_BATTLE_WINGS, &s, &l);
+      CHECK(l.left.w * 6 >= sizes[i][0] && l.right.w * 6 >= sizes[i][0] && l.scale < sizes[i][2]);
+      // STRETCH: never more than VIEW_STRETCH_PERCENT past the game's shape, and inside the room.
+      s.stretch = true;
+      view_layout(POCKET_VIEW_BATTLE_WINGS, &s, &l);
+      CHECK(l.game.w * 100 <= 240 * l.scale * (100 + VIEW_STRETCH_PERCENT));
+      CHECK(l.game.h * 100 <= 160 * l.scale * (100 + VIEW_STRETCH_PERCENT));
+      CHECK(l.game.h <= sizes[i][1] && centred(l.game, sizes[i][0], sizes[i][1]));
+    }
+    puts("PASS wing room and stretch");
+  }
+
   battle_wings(1920, 1080, 6, true);  // ROG Ally: 1440x960, 60 rows over and under (VIEW_STRIP_MIN_PX 48)
   battle_wings(1280, 720, 4, false);  // 960x640, 40 rows: too little for a bar
   battle_wings(1920, 1200, 6, true);  // Legion Go 2, OneXPlayer: 120 rows each side

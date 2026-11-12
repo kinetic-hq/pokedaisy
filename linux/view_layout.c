@@ -20,6 +20,22 @@ static struct view_rect rect(int x, int y, int w, int h) {
   return r;
 }
 
+int view_wing_room_permille(int room) {
+  return room == VIEW_WING_ROOM_WINGS_FIRST ? 167 : room == VIEW_WING_ROOM_BALANCED ? 125 : VIEW_WING_MIN_PERCENT * 10;
+}
+
+// The game's least room on each side, in pixels, for a screen SW wide.
+static int wing_min(int sw, int room) { return (sw * view_wing_room_permille(room) + 999) / 1000; }
+
+// STRETCH: the placed game grown, each way on its own, by up to VIEW_STRETCH_PERCENT into the room it has.
+static void stretch_game(struct view_layout *out, int x0, int y0, int w0, int h0) {
+  struct view_rect g = out->game;
+  int w = g.w * (100 + VIEW_STRETCH_PERCENT) / 100, h = g.h * (100 + VIEW_STRETCH_PERCENT) / 100;
+  w = w > w0 ? w0 : w;
+  h = h > h0 ? h0 : h;
+  out->game = rect(x0 + (w0 - w) / 2, y0 + (h0 - h) / 2, w, h);
+}
+
 // The game at SCALE, centred in the area x0..x0+w0 by y0..y0+h0.
 static void place_game(struct view_layout *out, int scale, int x0, int y0, int w0, int h0, int fw, int fh) {
   out->scale = scale;
@@ -52,14 +68,19 @@ static void wings_around(struct view_layout *out, int sw, int sh) {
 }
 
 static void wings(struct view_layout *out, const struct view_state *s) {
-  place_game(out, view_wing_scale(s->screenW, s->screenH, s->frameW, s->frameH, VIEW_WING_MIN_PERCENT), 0, 0,
-             s->screenW, s->screenH, s->frameW, s->frameH);
+  int side = wing_min(s->screenW, s->wingRoom), room = s->screenW - 2 * side;
+  place_game(out, view_fit_scale(room, s->screenH, s->frameW, s->frameH), 0, 0, s->screenW, s->screenH, s->frameW,
+             s->frameH);
+  if (s->stretch)
+    stretch_game(out, side, 0, room, s->screenH);
   wings_around(out, s->screenW, s->screenH);
 }
 
 static void full(struct view_layout *out, const struct view_state *s) {
   place_game(out, view_fit_scale(s->screenW, s->screenH, s->frameW, s->frameH), 0, 0, s->screenW, s->screenH,
              s->frameW, s->frameH);
+  if (s->stretch)
+    stretch_game(out, 0, 0, s->screenW, s->screenH);
   out->expand = true;
   out->hud = true;
 }
