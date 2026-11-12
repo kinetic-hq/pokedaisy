@@ -315,6 +315,8 @@ static int check_thread(void *unused) {
   (void)unused;
   size_t size;
   char *json = fetch(UPDATER_API, &size);
+  if (!json)
+    json = fetch(UPDATER_API_OLD, &size);
   char version[32], skip[32];
   bool newer = json && updater_parse(json, version, sizeof version, zipUrl, sizeof zipUrl, sumsUrl, sizeof sumsUrl,
                                      pageUrl, sizeof pageUrl) &&
