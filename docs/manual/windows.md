@@ -297,7 +297,8 @@ stays in the middle of the screen in every view but a locked side panel.
   with the HUD, and the companion opens as a window over the dimmed game. When a
   battle starts, the game shrinks to the largest whole size that leaves room on
   both sides: your party on the left, the matchup on the right (the foe, its
-  types and how each of your moves does against it). On a 16:10 screen a strip
+  types, the types it's weak to, how each of your moves does against it and,
+  at the foot, the Pokemon in your party that would do better against it). On a 16:10 screen a strip
   above the game shows where you are, the time and your badges, and one below
   it the buttons and the steps left on the spray.
 - **`WINDOW`**: the companion as a window in the middle, over the dimmed game.

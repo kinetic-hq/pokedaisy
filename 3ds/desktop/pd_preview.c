@@ -386,6 +386,20 @@ int main(int argc, char** argv) {
         shot(out, name, "battle-suggest", px);
         tap(&p, HIT_BATTLE_INFO, 0);
     }
+    // The desktop host's battle wing (pd_ui_battle_panel), at a wing's size: PD_PREVIEW_WING=WxH.
+    const char* wing = getenv("PD_PREVIEW_WING");
+    int wingW, wingH;
+    if (snap.inBattle && wing && sscanf(wing, "%dx%d", &wingW, &wingH) == 2 && wingW >= 80 && wingH >= 80 &&
+        wingW * wingH <= (int) (sizeof(px) / sizeof(px[0]))) {
+        static uint32_t wpx[1024 * 768];
+        struct pd_canvas wc;
+        pd_canvas_init(&wc, wingW, wingH, wpx);
+        pd_ui_battle_panel(&wc, &game, &snap, NULL);
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/%s-battle-wing.png", out, name);
+        if (pd_png_write(path, wingW, wingH, wpx)) printf("%s\n", path);
+        draw(&p);
+    }
 
     // BAG: a tapped item shows its description; a drag scrolls the list; the
     // arrow opens the next pocket.

@@ -83,6 +83,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Redesigned wing cards** on the desktop host: rounded cards with a soft gradient and a type colour stripe,
   shiny star and held item marks, pixel headings (Silkscreen) and clear numbers (Atkinson Hyperlegible), HP
   bars that glide and cards that slide in when the party changes (`REDUCE MOTION` turns both off).
+- **Battle wing**: the matchup wing lists the types the foe is weak to and, at its foot, the party Pokemon to switch to
 - **Fuller wings** on the desktop host: an EXP bar under each HP bar, an outlined card with a ball for each free
   party place (seen on dark wings too), long names given the level's room before they're cut, badges as eight
   dots, the next boss and this area's catches under the map, nothing the bars already show said again, and bar

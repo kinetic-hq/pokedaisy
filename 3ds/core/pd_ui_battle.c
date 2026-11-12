@@ -490,6 +490,35 @@ static int narrow_card(struct pd_canvas* c, const struct battle_data* d, int x, 
     return ty + LINE - y;
 }
 
+// What hits the foe hard: a WEAK label and the types doing 4x, then 2x, as many chips as fit on one line.
+static int weak_row(struct pd_canvas* c, const struct pd_game* g, int x, int y, int w, const struct mon_view* foe) {
+    if (foe->type1 == PD_TYPE_NONE) return 0;
+    int n = pd_type_count(g), right = x + w;
+    int cx = x + pd_text(c, x, y + 1, "WEAK", PD_VALUE, PD_VALUE_SHADOW) + 5;
+    bool any = false;
+    for (int want = 400; want >= 200; want /= 2)
+        for (int t = 0; t < n; t++) {
+            int pct = pd_type_multiplier_pct(g, t, foe->type1, foe->type2);
+            if (want == 400 ? pct < 400 : (pct < 200 || pct >= 400)) continue;
+            const char* name = pd_type_name(g, t);
+            if (!name || !*name) continue;
+            if (cx + pd_text_width(name) + 6 > right) continue;
+            cx += ui_type_badge(c, cx, y + 3, t) + 3;
+            any = true;
+        }
+    if (!any) pd_text(c, cx, y + 1, "NOTHING", PD_MUTED, PD_MUTED_SHADOW);
+    return LINE + 4;
+}
+
+// SUGGESTIONS' top pick when it isn't the one out already.
+static const struct pd_mon* better_switch(const struct battle_data* d, const struct pd_snapshot* s,
+                                          const struct mon_view* foe) {
+    struct pick picks[PD_PARTY_SIZE];
+    int n = rank(d, s, foe, picks);
+    if (!n || is_out(picks[0].mon, s)) return NULL;
+    return picks[0].mon;
+}
+
 void pd_ui_battle_panel(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s,
                         const struct pd_battle_source* source) {
     ui_game = g;
@@ -508,8 +537,10 @@ void pd_ui_battle_panel(struct pd_canvas* c, const struct pd_game* g, const stru
         foe = &foeView;
     }
     int y = iy;
-    if (foe) y += narrow_card(c, &data, ix, y, iw, foe, s->isTrainer ? "FOE" : "WILD");
-    else {
+    if (foe) {
+        y += narrow_card(c, &data, ix, y, iw, foe, s->isTrainer ? "FOE" : "WILD");
+        y += weak_row(c, g, ix, y, iw, foe);
+    } else {
         pd_text_wrap(c, ix, y, iw, LINE, 2, "NO FOE ON THE FIELD", PD_MUTED, PD_MUTED_SHADOW);
         y += 2 * LINE;
     }
@@ -518,6 +549,19 @@ void pd_ui_battle_panel(struct pd_canvas* c, const struct pd_game* g, const stru
     y += narrow_card(c, &data, ix, y, iw, &you, "YOU");
     rule(c, ix, y, iw);
     y += RULE;
+    // The one to switch to, at the foot, while it fits with every move above it.
+    int switchH = LINE + RULE + 4;
+    const struct pd_mon* better = foe ? better_switch(&data, s, foe) : NULL;
+    if (better && (bottom - switchH - y - 3 * 3) / PD_NUM_MOVES < 2 * LINE) better = NULL;
+    if (better) {
+        bottom -= switchH;
+        rule(c, ix, bottom + 2, iw);
+        int sy = bottom + 2 + RULE + 1;
+        char buf[40];
+        int nx = ix + pd_text(c, ix, sy, "SWITCH TO", PD_VALUE, PD_VALUE_SHADOW) + 5;
+        pd_text_fit(c, nx, sy, ix + iw - nx, species_name(&data, better->species, buf, sizeof(buf)), PD_LABEL,
+                    PD_LABEL_SHADOW);
+    }
     // The moves, one under another, each with its verdict on the foe.
     int gap = 3, cellH = 2 * LINE + 6;
     int room = (bottom - y - 3 * gap) / PD_NUM_MOVES;
