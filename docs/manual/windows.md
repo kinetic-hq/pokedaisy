@@ -279,7 +279,8 @@ Three rows in the companion's `SETTINGS` change how the game looks:
 - **`BACKGROUND`**: `BLACK` makes everything round the game true black and
   draws the panels beside it as near black cards with a faint edge. `DARK` is
   the same a shade lighter. `THEME` keeps the theme's own colours. With
-  `COLORS` `OLED` it starts on `BLACK`. Panels that stay still for a minute dim
+  `COLORS` `OLED` it starts on `BLACK`, and in DS games it always starts
+  on `BLACK`: most of the window is room round the screens there. Panels that stay still for a minute dim
   a little more, and move by a pixel every few minutes, so nothing burns in.
 - **`REDUCE MOTION`**: the party cards beside the game slide in when your team
   changes, and their HP bars glide to the new value. Turn this on and they
