@@ -10,7 +10,8 @@ The Windows version is the [Linux host](linux.md) built for Windows: the same
 emulator, quick menu, HUD and companion, on a Windows handheld (an ROG Ally, a
 Legion Go, a OneXPlayer) or any PC. It plays Game Boy, Game Boy Color and Game
 Boy Advance games you own, and Nintendo DS games (below), all from one download. It is early, like the Linux version, so keep a copy
-of your saves.
+of your saves. [Desktop and Android compared](android-parity.md) lists what it
+shares with the Android app and what it doesn't have yet.
 
 ## Install it
 

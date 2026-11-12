@@ -31,7 +31,8 @@ Updates come by themselves: each start looks for a newer release and offers `UPD
 VERSION`, and an update only replaces the program, never your `DATA` folder (settings, saves, states). Desktop builds
 are a beta, so every release is marked pre-release. Turn the check off with `SETTINGS` > `CHECK FOR UPDATES`.
 
-The full guide is in [docs/manual/windows.md](docs/manual/windows.md) (and [linux.md](docs/manual/linux.md)). When
+The full guide is in [docs/manual/windows.md](docs/manual/windows.md) (and [linux.md](docs/manual/linux.md)), and
+[android-parity.md](docs/manual/android-parity.md) compares it with the Android app. When
 something goes wrong, `DATA\pokedaisy.log` is what to attach to a report.
 
 ## OLED handhelds (OneXPlayer 3, Legion Go 2)
