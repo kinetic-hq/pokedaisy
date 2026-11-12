@@ -119,6 +119,7 @@ object GameTitles {
         "8745ddbdbfadf6abaf66de4e9055923b62eb4668" to "Pokémon Odyssey",
         "00e70c0384a5f1698588034201fd5b849d3542e2" to "Pokémon Amethyst",
         "91291aade04b4b111cd03ae7b6e2ff460e1edd8a" to "Pokémon Amethyst",
+        "411e9023cefae108e6cc28be493e3fd91e9aba6e" to "Pokémon Amethyst",
         "3cbd5a2e72ce60cfae1e0c28d83e01f855c51537" to "Pokémon Celia's Stupid Romhack",
         "79ee6df0869c1773c8c6a5f764afc1f8d833d8bb" to "Pokémon Heart & Soul",
         "7dcdc7e280bc4631487e13dd37e6e0cea04adea6" to "Pokémon Lazarus",

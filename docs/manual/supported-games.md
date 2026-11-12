@@ -55,7 +55,7 @@ The companion reads their party, bag, map, Pokédex and guide, with pictures, Po
 | Pokémon Gaia | 3.2 |
 | Pokémon Odyssey | 4.1.1 |
 | Pokémon Heart and Soul | 2.0.6 |
-| Pokémon Amethyst | 1.3.0 and 1.4.1 |
+| Pokémon Amethyst | 1.3.0, 1.4.1 and 1.4.3 |
 | Celia's Stupid Romhack | 1.1.4 |
 | Pokémon Orange Islands | Beta 5.7, and an older beta |
 | Pokémon Ultra Violet | 1.22 |

@@ -331,7 +331,7 @@ class TelemetrySampler {
             val base = baseCfg ?: unmarkedCfg
             soulGoldV12 = base === NATIVE_SOULGOLD_V1_2 || base === NATIVE_SOULGOLD_V1_2B || base === NATIVE_SOULGOLD_V1_2C ||
                 base === NATIVE_SOULGOLD_V1_2_1
-            amethystV141 = base === NATIVE_AMETHYST_V1_4_1
+            amethystV141 = base === NATIVE_AMETHYST_V1_4_1 || base === NATIVE_AMETHYST_V1_4_3
             eliteRedux265_3 = base === NATIVE_ELITE_REDUX_V2_65_3B
             teamRocketV3 = base === NATIVE_TEAM_ROCKET_V3
             originHeartGold = dsOrigin
@@ -518,6 +518,7 @@ class TelemetrySampler {
                 ODYSSEY_V4_1_1_SHA1 -> { kind = GameKind.ODYSSEY; nativeCfg = NATIVE_ODYSSEY }
                 AMETHYST_V1_3_0_SHA1 -> { kind = GameKind.AMETHYST; nativeCfg = NATIVE_AMETHYST }
                 AMETHYST_V1_4_1_SHA1 -> { kind = GameKind.AMETHYST; nativeCfg = NATIVE_AMETHYST_V1_4_1 }
+                AMETHYST_V1_4_3_SHA1 -> { kind = GameKind.AMETHYST; nativeCfg = NATIVE_AMETHYST_V1_4_3 }
                 CELIA_V1_1_4_SHA1 -> { kind = GameKind.CELIA; nativeCfg = NATIVE_CELIA }
                 SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_SHA1,
                 SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_PERFORMANCE_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_PERFORMANCE_SHA1,
@@ -952,6 +953,7 @@ class TelemetrySampler {
         const val AMETHYST_V1_3_0_SHA1 = "00e70c0384a5f1698588034201fd5b849d3542e2"
         // Pokemon Amethyst v1.4.1 - host-side masked hash (GPIO bytes zero, so a plain `shasum`).
         const val AMETHYST_V1_4_1_SHA1 = "91291aade04b4b111cd03ae7b6e2ff460e1edd8a"
+        const val AMETHYST_V1_4_3_SHA1 = "411e9023cefae108e6cc28be493e3fd91e9aba6e"
         // Retail FireRed rev 0 / rev 1 and Emerald (USA, Europe): pret's sha1s, which equal the
         // masked hash (their GPIO bytes are zero).
         val RETAIL_SHA1S = setOf(
@@ -1249,7 +1251,7 @@ class TelemetrySampler {
          * hashes, plus Seaglass, Emerald Kaizo, Emerald Legacy, Orange Islands, Recharged Yellow / Emerald and Ultra Violet (16 MB). [CompanionSupport] checks imports against it. */
         val SUPPORTED_HACK_SHA1S = setOf(
             UNBOUND_V2_1_1_1_SHA1, GAIA_V3_2_SHA1, RADICAL_RED_V4_1_SHA1, ODYSSEY_V4_1_1_SHA1,
-            AMETHYST_V1_3_0_SHA1, AMETHYST_V1_4_1_SHA1, CELIA_V1_1_4_SHA1, HEART_AND_SOUL_V2_0_6_SHA1, LAZARUS_V2_0_SHA1,
+            AMETHYST_V1_3_0_SHA1, AMETHYST_V1_4_1_SHA1, AMETHYST_V1_4_3_SHA1, CELIA_V1_1_4_SHA1, HEART_AND_SOUL_V2_0_6_SHA1, LAZARUS_V2_0_SHA1,
             ROWE_V2_1_9_1_SHA1, EMERALD_ROGUE_V2_2_1_EX_SHA1, TMT2_V1_5_2_SHA1, EMERALD_SEAGLASS_V3_0_SHA1, EMERALD_KAIZO_V2_0_SHA1, EMERALD_LEGACY_V1_1_4_SHA1,
             SOULGOLD_V1_1_4_SHA1, SOULGOLD_V1_2_SHA1, SOULGOLD_V1_2B_SHA1, SOULGOLD_V1_2C_SHA1, GLAZED_V9_2_0_SHA1, IMPERIUM_V1_3_1_SHA1,
             SOULGOLD_V1_2_1_SHA1, SOULGOLD_V1_2_1B_SHA1,

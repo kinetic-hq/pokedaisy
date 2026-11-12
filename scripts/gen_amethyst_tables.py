@@ -46,6 +46,11 @@ VERSIONS = {
     "v1.4.1": dict(suffix="AmethystV141", val="AmethystV141", sha1="91291aade04b4b111cd03ae7b6e2ff460e1edd8a",
                    species_names=0x09864F38, species=1294, items=0x0872DB0C, item_slots=723,
                    move_names=0x08958398, battle_moves=0x089FFCA8, moves=828, moves_suffix="Amethyst"),
+    # v1.4.3: v1.4.1's species and items where they were; the move names moved 0x100C and gBattleMoves 0x130C
+    # (each from retail's literal pools: 32 and 430 words). Its tables are v1.4.1's (--check against them).
+    "v1.4.3": dict(suffix="AmethystV141", val="AmethystV141", sha1="411e9023cefae108e6cc28be493e3fd91e9aba6e",
+                   species_names=0x09864F38, species=1294, items=0x0872DB0C, item_slots=723,
+                   move_names=0x089593A4, battle_moves=0x08A00FB4, moves=828, moves_suffix="Amethyst"),
 }
 
 CHARS = {0x00: " ", 0x1B: "é", 0xAB: "!", 0xAC: "?", 0xAD: ".", 0xAE: "-", 0xB0: "…", 0xB4: "'",

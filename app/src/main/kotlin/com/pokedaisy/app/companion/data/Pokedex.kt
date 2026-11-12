@@ -466,6 +466,9 @@ val POKEDEX_AMETHYST_V1_4_1 = POKEDEX_AMETHYST.copy(
     evoLayout = EvoLayout(EvoScheme.CFRU, table = 0x09AAB2FCL, perMon = 16),
 )
 
+/** Amethyst v1.4.3: v1.4.1's dex, its ability names 0x100C later. */
+val POKEDEX_AMETHYST_V1_4_3 = POKEDEX_AMETHYST_V1_4_1.copy(abilityNames = 0x0894ED28L)
+
 /**
  * Pokémon Gaia v3.2: one dex, national 1-721. Its flags live outside the save
  * blocks, at fixed EWRAM addresses: poking bits there made BULBASAUR (seen)

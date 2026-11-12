@@ -114,6 +114,7 @@ object ShinyOdds {
         "25f8840ecb58e584edf18ffde35f845e94f3f17c" to 8, // GS Chronicles v2.7.6 (CFRU)
         "00e70c0384a5f1698588034201fd5b849d3542e2" to 8, // Amethyst v1.3.0 (CFRU)
         "91291aade04b4b111cd03ae7b6e2ff460e1edd8a" to 16, // Amethyst v1.4.1 (CFRU, its own 1 in 4096)
+        "411e9023cefae108e6cc28be493e3fd91e9aba6e" to 16, // Amethyst v1.4.3 (v1.4.1's check: cmp r0, #15 at 0x08044120)
         "b4776b82a4c7915d0fadeaa27e013523f99dfd94" to 16, // Unbound v2.1.1.1 (CFRU, its own 1 in 4096)
         "0ce2a880aa097f1dce4e1db8ee513d0e82d15859" to 16, // Unbound v2.1.1.1 FR (CFRU, its own 1 in 4096)
         "7dcdc7e280bc4631487e13dd37e6e0cea04adea6" to 16, // Lazarus v2.0 (its colours shift with the personality: 15 drew nearest the shiny, 16 the normal) (expansion)
@@ -287,6 +288,7 @@ object ShinyOdds {
         "932323d1fa3732d8673d1319fa86ed4df41087b9", // Sword and Shield Ultimate Plus, Casual and Performance Patch
         "00e70c0384a5f1698588034201fd5b849d3542e2", // Amethyst v1.3.0
         "91291aade04b4b111cd03ae7b6e2ff460e1edd8a", // Amethyst v1.4.1
+        "411e9023cefae108e6cc28be493e3fd91e9aba6e", // Amethyst v1.4.3
         "b4776b82a4c7915d0fadeaa27e013523f99dfd94", // Unbound v2.1.1.1
         "0ce2a880aa097f1dce4e1db8ee513d0e82d15859", // Unbound v2.1.1.1 FR
         "25f8840ecb58e584edf18ffde35f845e94f3f17c", // GS Chronicles v2.7.6

@@ -652,6 +652,12 @@ val GUIDE_TABLES_AMETHYST_V1_4_1 = GUIDE_TABLES_AMETHYST.copy(
     altTrainers = listOf(0x08A1861CL, 0x08A02384L, 0x08A0FD08L),
 )
 
+/** Amethyst v1.4.3: v1.4.1's, its four trainer tables 0x130C later (the loader's literal pool). */
+val GUIDE_TABLES_AMETHYST_V1_4_3 = GUIDE_TABLES_AMETHYST_V1_4_1.copy(
+    trainers = 0x08A26D20L,
+    altTrainers = listOf(0x08A19928L, 0x08A03690L, 0x08A11014L),
+)
+
 /**
  * Celia's Stupid Romhack v1.1.4 (a full pokefirered recompile): everything
  * moved, SaveBlock1's flags 16 bytes later (found by setting the POKéDEX flag

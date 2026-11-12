@@ -476,6 +476,8 @@ static const struct known_rom KNOWN_ROMS[] = {
      PD_GUIDE_AMETHYST},
     {"91291aade04b4b111cd03ae7b6e2ff460e1edd8a", &PD_CONFIG_AMETHYST_V1_4_1, PD_GAME_FIRERED, "Pokémon Amethyst",
      PD_GUIDE_AMETHYST_V141},
+    {"411e9023cefae108e6cc28be493e3fd91e9aba6e", &PD_CONFIG_AMETHYST_V1_4_3, PD_GAME_FIRERED, "Pokémon Amethyst",
+     PD_GUIDE_AMETHYST_V141},
     {"25f8840ecb58e584edf18ffde35f845e94f3f17c", &PD_CONFIG_GS_CHRONICLES, PD_GAME_FIRERED, "Pokémon GS Chronicles",
      PD_GUIDE_GS_CHRONICLES},
     {"20dfaea1d5317cf95fe0b493208edce7d50b865f", &PD_CONFIG_GHOST_GREY, PD_GAME_FIRERED, "Pokémon Ghost Grey",
@@ -591,8 +593,6 @@ static const struct known_rom KNOWN_ROMS[] = {
     {"5b38a681b6924ef3e0bb9f6cfbf22426c4c4e523", &PD_CONFIG_ELITE_REDUX_V2_65_3B, PD_GAME_EMERALD,
      "Pokémon Elite Redux", PD_GUIDE_ELITE_REDUX},
     // Guessed: builds the app doesn't list, matched to the neighbour whose addresses they most plausibly share.
-    {"411e9023cefae108e6cc28be493e3fd91e9aba6e", &PD_CONFIG_AMETHYST_V1_4_1, PD_GAME_FIRERED,
-     "Pokémon Amethyst 1.4.3 (unverified)", PD_GUIDE_AMETHYST_V141},
     {"95a91a0863ed43dd17d6f4a99f70d592725dd6cc", &PD_CONFIG_EMERALD_ROGUE, PD_GAME_EMERALD,
      "Pokémon Emerald Rogue 2.2.1 Vanilla (unverified)", PD_GUIDE_NONE},
     {"5b93702f0e464df37b01500d4716d59f05c0425e", &PD_CONFIG_QUETZAL_V9_1, PD_GAME_EMERALD,
