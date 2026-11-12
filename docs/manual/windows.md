@@ -134,6 +134,13 @@ a card, then `SAVE` or `LOAD` under it. The `SAVE STATE` and `LOAD STATE`
 hotkeys use the card you picked last. Slot 0 is the one state file from earlier
 versions, so a state you already had is still there.
 
+`RESUME GAMES` (in `SETTINGS`, `APP`, on at first) keeps your place when you
+leave a GBA or Game Boy game. The next time you open it you're asked
+`Continue where you left off?`: `Continue` puts you back where you were,
+`Start from save` (or B) starts from your save as usual. Your save file is never
+changed by this. If the save was played somewhere else since, the question is
+skipped and the game starts from the save.
+
 ## Full screen and controllers
 
 Press F11 or Alt+Enter to switch between full screen and a window, any time: in
@@ -272,7 +279,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |
 | `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
-| `APP` | | `CHECK FOR UPDATES` |
+| `APP` | | `RESUME GAMES`, `CHECK FOR UPDATES` |
 
 Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close
 with B. DS games keep their own `SET` tab, which has `DS LAYOUT` and
