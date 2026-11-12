@@ -111,7 +111,7 @@ if a.melonds:
                                                         'SHA-1 by Steve Reid: public domain.\n')
 sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()
 core = subprocess.check_output(['git', 'rev-parse', 'HEAD:third_party/mgba'], cwd=repo, text=True).strip()
-(top / 'SOURCE.txt').write_text(f'Source: https://github.com/kinetic-hq/pokedaisy\nCommit: {sha}\nmGBA: {core}\n'
+(top / 'SOURCE.txt').write_text(f'Source: https://github.com/kinetic-hq/pokedaisy-desktop\nCommit: {sha}\nmGBA: {core}\n'
                                 'Build: linux/windows/README.md at this commit\n')
 if a.melonds:
     melon = subprocess.check_output(['git', 'rev-parse', 'HEAD:third_party/melonds'], cwd=repo, text=True).strip()

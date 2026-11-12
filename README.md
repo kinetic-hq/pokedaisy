@@ -15,7 +15,7 @@ the companion beside the game on one screen.
 
 ### Download, install and update
 
-1. Open this fork's [Releases](https://github.com/kinetic-hq/pokedaisy/releases/latest) page and download
+1. Open this fork's [Releases](https://github.com/kinetic-hq/pokedaisy-desktop/releases/latest) page and download
    `pokedaisy-windows-x86_64.zip` (Windows) or `pokedaisy-linux-x86_64.zip` (Linux). `SHA256SUMS.txt` lists their
    checksums.
 2. Unzip it anywhere you can write to (your Documents folder, not `Program Files`). Keep `pokedaisy.exe` and

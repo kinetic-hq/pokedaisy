@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
         assert b'"label": "PokeDaisy"' in z.read(name+'/config.json') and z.read(name+'/icon.png')[:4]==b'\x89PNG'
         assert z.read(name+'/pokedaisy-linux')==binary.read_bytes()
         assert z.getinfo(name+'/launch.sh').external_attr>>16 & 0o111
-        assert z.read(name+'/SOURCE.txt').startswith(b'Source: https://github.com/kinetic-hq/pokedaisy')
+        assert z.read(name+'/SOURCE.txt').startswith(b'Source: https://github.com/kinetic-hq/pokedaisy-desktop')
         assert not any(n.lower().endswith(('.gb','.gbc','.gba','.sav','.ss','.srm','.bin')) for n in names)
     before=archive.read_bytes()
     result=subprocess.run([sys.executable,str(script),*options,str(binary),d],capture_output=True,text=True)
