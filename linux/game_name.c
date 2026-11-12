@@ -1,5 +1,6 @@
 /* GPL-3.0, see ../NOTICE. */
 #include "game_name.h"
+#include "pocket_os.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -200,4 +201,139 @@ bool game_header_is_pokemon(const char *path) {
         return true;
   }
   return false;
+}
+
+/* --- the grid's version line and tags --- */
+
+static bool version_word(const char *w, size_t n) {
+  char buf[64];
+  if (n >= sizeof buf)
+    return false;
+  memcpy(buf, w, n);
+  buf[n] = 0;
+  return is_version(buf);
+}
+
+void game_version(const char *file, char *out, size_t size) {
+  if (!size)
+    return;
+  out[0] = 0;
+  char buf[512];
+  snprintf(buf, sizeof buf, "%s", file);
+  char *dot = strrchr(buf, '.');
+  if (dot && dot != buf && strlen(dot) <= 5)
+    *dot = 0;
+  // "(Rev 1)" / "(Rev A)": a revision.
+  const char *rev = strstr(buf, "(Rev ");
+  if (rev) {
+    const char *end = strchr(rev, ')');
+    if (end && end - rev - 1 < 16) {
+      snprintf(out, size, "%.*s", (int)(end - rev - 1), rev + 1);
+      return;
+    }
+  }
+  // The first word that is a version, inside (tags) or not: "v4.5.3", "1.2.6" -> shown with a "v".
+  for (const char *p = buf; *p;) {
+    while (*p && (*p == ' ' || *p == '(' || *p == ')' || *p == '[' || *p == ']' || *p == '_' || *p == '-'))
+      p++;
+    const char *s = p;
+    while (*p && *p != ' ' && *p != '(' && *p != ')' && *p != '[' && *p != ']' && *p != '_')
+      p++;
+    size_t n = (size_t)(p - s);
+    if (n && version_word(s, n)) {
+      snprintf(out, size, "%s%.*s", (*s == 'v' || *s == 'V') ? "" : "v", (int)n, s);
+      if (out[0] == 'V')
+        out[0] = 'v';
+      return;
+    }
+  }
+}
+
+bool game_is_original(const char *file) {
+  static const char *const REGIONS[] = {"(USA",    "(Europe", "(Japan",   "(World",  "(France", "(Germany",
+                                        "(Spain",  "(Italy",  "(Korea",   "(Australia", "(Netherlands", "(Sweden",
+                                        "(UK",     "(Canada", "(Brazil"};
+  char low[512];
+  size_t n = 0;
+  for (const char *p = file; *p && n + 1 < sizeof low; p++)
+    low[n++] = (char)tolower((unsigned char)*p);
+  low[n] = 0;
+  if (strstr(low, "hack") || strstr(low, "[h") || strstr(low, "patched") || strstr(low, "randomizer") ||
+      strstr(low, "nuzlocke"))
+    return false;
+  for (size_t i = 0; i < sizeof REGIONS / sizeof *REGIONS; i++)
+    if (strstr(file, REGIONS[i]))
+      return true;
+  // No tag, no version: a plain retail title ("pokemon firered.gba").
+  static const char *const RETAIL[] = {"FireRed", "LeafGreen", "Emerald", "Ruby", "Sapphire", "Red", "Blue",
+                                       "Yellow", "Gold", "Silver", "Crystal", "Diamond", "Pearl", "Platinum",
+                                       "HeartGold", "SoulSilver", "Black", "White", "Black 2", "White 2"};
+  char version[64], name[256];
+  game_version(file, version, sizeof version);
+  if (*version)
+    return false;
+  game_display_name(file, true, name, sizeof name);
+  const char *rest = strncmp(name, POKEMON " ", 9) ? name : name + 9;
+  for (size_t i = 0; i < sizeof RETAIL / sizeof *RETAIL; i++)
+    if (!strcmp(rest, RETAIL[i]))
+      return true;
+  return false;
+}
+
+/* --- RENAME: DATA/names.txt, "file<TAB>name" a line --- */
+
+bool game_custom_name(const char *root, const char *file, char *out, size_t size) {
+  char path[1100];
+  snprintf(path, sizeof path, "%s/names.txt", root);
+  FILE *f = fopen(path, "r");
+  if (!f)
+    return false;
+  char line[1200];
+  bool found = false;
+  size_t flen = strlen(file);
+  while (!found && fgets(line, sizeof line, f)) {
+    size_t n = strlen(line);
+    while (n && (line[n - 1] == '\n' || line[n - 1] == '\r'))
+      line[--n] = 0;
+    if (n > flen + 1 && !strncmp(line, file, flen) && line[flen] == '\t') {
+      snprintf(out, size, "%s", line + flen + 1);
+      found = out[0] != 0;
+    }
+  }
+  fclose(f);
+  return found;
+}
+
+bool game_custom_name_set(const char *root, const char *file, const char *name) {
+  char path[1100], tmp[1200];
+  snprintf(path, sizeof path, "%s/names.txt", root);
+  snprintf(tmp, sizeof tmp, "%s.tmp", path);
+  if (strchr(file, '\t') || strchr(file, '\n') || (name && (strchr(name, '\t') || strchr(name, '\n'))))
+    return false;
+  FILE *in = fopen(path, "r"), *out = fopen(tmp, "w");
+  if (!out) {
+    if (in)
+      fclose(in);
+    return false;
+  }
+  size_t flen = strlen(file);
+  char line[1200];
+  while (in && fgets(line, sizeof line, in)) {
+    if (!strncmp(line, file, flen) && line[flen] == '\t')
+      continue;
+    fputs(line, out);
+    size_t n = strlen(line);
+    if (n && line[n - 1] != '\n')
+      fputc('\n', out);
+  }
+  if (in)
+    fclose(in);
+  if (name && *name)
+    fprintf(out, "%s\t%s\n", file, name);
+  bool ok = fclose(out) == 0;
+  if (ok)
+    ok = pocket_replace(tmp, path);
+  else
+    pocket_remove(tmp);
+  return ok;
 }

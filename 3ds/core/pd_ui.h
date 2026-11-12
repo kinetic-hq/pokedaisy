@@ -129,6 +129,7 @@ struct pd_settings {
     int colors;        // ... and COLORS (ORIGINAL / HANDHELD / OLED)
     bool dimCompanion; // ... and DIM COMPANION (its panels drawn darker, against OLED burn-in)
     bool reduceMotion; // ... and REDUCE MOTION (no easing HP bars or sliding cards in the wings)
+    bool boxartAuto;   // ... and BOX ART DOWNLOAD (the game list looks for box art by itself)
     bool savesBeside;  // hosts with hasSavesBeside: SAVES BESIDE GAMES (on), an added folder's game saves next to it
     int fullscreen;    // hosts with hasFullscreen: FULLSCREEN, 1 / 0, -1 = not chosen yet (the host picks by screen size)
     int buttonLayout;  // hosts with hasButtonLayout: BUTTON LAYOUT, enum pd_button_layout

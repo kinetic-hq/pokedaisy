@@ -13,5 +13,13 @@
 void game_display_name(const char *file, bool pokemon, char *out, size_t size);
 /* The cart at PATH is a Pokémon game, by its header: a GBA game code, a Game Boy title, a DS game code. */
 bool game_header_is_pokemon(const char *path);
+/* The grid's version line from FILE: "(Rev 1)" as "Rev 1", else the first version word ("v4.5.3", "1.2.6" as
+ * "v1.2.6"); "" when it has none. */
+void game_version(const char *file, char *out, size_t size);
+/* FILE looks like a retail dump (a No-Intro region tag, no hack / patch words): ORIGINAL, else ROM HACK. */
+bool game_is_original(const char *file);
+/* RENAME: the player's own name for FILE (DATA/names.txt), and setting one (NULL or "": back to the file's). */
+bool game_custom_name(const char *root, const char *file, char *out, size_t size);
+bool game_custom_name_set(const char *root, const char *file, const char *name);
 
 #endif

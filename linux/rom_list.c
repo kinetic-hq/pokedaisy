@@ -195,6 +195,17 @@ void rom_list_load(struct rom_list *l, const char *root, bool nds) {
   int n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
   for (int i = 0; i < n; i++)
     rom_list_scan(l, folders[i], nds);
+  // RENAME: the player's own names (DATA/names.txt) over the made-up ones.
+  for (int i = 0; i < l->count; i++) {
+    char own[256];
+    if (game_custom_name(root, l->labels[i], own, sizeof own)) {
+      char *copy = strdup(own);
+      if (copy) {
+        free(l->names[i]);
+        l->names[i] = copy;
+      }
+    }
+  }
   // Sorted as triples (name, label, path), so the arrays keep in step.
   char **pairs = malloc(3 * (size_t)l->count * sizeof *pairs);
   if (!pairs)

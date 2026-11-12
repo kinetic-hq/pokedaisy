@@ -1,5 +1,6 @@
 /* GPL-3.0. The update check (updater.h). */
 #include "updater.h"
+#include "http.h"
 #include <SDL.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -237,106 +238,11 @@ void updater_sha256(const uint8_t *data, size_t size, char hex[65]) {
 
 #define MAX_DOWNLOAD (128u << 20)
 
-// GET url into a malloc'd, NUL-ended buffer (size without the NUL); NULL on any failure.
+// GET url into a malloc'd, NUL-ended buffer (size without the NUL); NULL on any failure (http.c).
 static char *fetch(const char *url, size_t *size) {
   if (!safe_url(url))
     return NULL;
-  char *buf = NULL;
-  size_t len = 0;
-#ifdef _WIN32
-  wchar_t wurl[1024];
-  if (!MultiByteToWideChar(CP_UTF8, 0, url, -1, wurl, 1024))
-    return NULL;
-  URL_COMPONENTS u;
-  memset(&u, 0, sizeof u);
-  u.dwStructSize = sizeof u;
-  wchar_t host[256], path[1024];
-  u.lpszHostName = host, u.dwHostNameLength = 256;
-  u.lpszUrlPath = path, u.dwUrlPathLength = 1024;
-  if (!WinHttpCrackUrl(wurl, 0, 0, &u))
-    return NULL;
-  HINTERNET s = WinHttpOpen(L"PokeDaisy-updater", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
-                            WINHTTP_NO_PROXY_BYPASS, 0);
-  HINTERNET c = s ? WinHttpConnect(s, host, u.nPort, 0) : NULL;
-  HINTERNET r = c ? WinHttpOpenRequest(c, L"GET", path, NULL, WINHTTP_NO_REFERER,
-                                       WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE)
-                  : NULL;
-  bool ok = false;
-  if (r) {
-    WinHttpSetTimeouts(r, 5000, 5000, 10000, 30000);
-    DWORD status = 0, statusSize = sizeof status;
-    if (WinHttpSendRequest(r, L"Accept: application/vnd.github+json\r\n", (DWORD)-1L, NULL, 0, 0, 0) &&
-        WinHttpReceiveResponse(r, NULL) &&
-        WinHttpQueryHeaders(r, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, NULL, &status, &statusSize,
-                            NULL) &&
-        status == 200) {
-      ok = true;
-      for (;;) {
-        DWORD avail = 0, got = 0;
-        if (!WinHttpQueryDataAvailable(r, &avail)) {
-          ok = false;
-          break;
-        }
-        if (!avail)
-          break;
-        if (len + avail > MAX_DOWNLOAD) {
-          ok = false;
-          break;
-        }
-        char *grown = realloc(buf, len + avail + 1);
-        if (!grown) {
-          ok = false;
-          break;
-        }
-        buf = grown;
-        if (!WinHttpReadData(r, buf + len, avail, &got)) {
-          ok = false;
-          break;
-        }
-        len += got;
-      }
-    }
-    WinHttpCloseHandle(r);
-  }
-  if (c)
-    WinHttpCloseHandle(c);
-  if (s)
-    WinHttpCloseHandle(s);
-  if (!ok) {
-    free(buf);
-    return NULL;
-  }
-#else
-  // Linux: curl, if there is one (the URL was checked above: no quotes or spaces in it).
-  char cmd[1200];
-  snprintf(cmd, sizeof cmd,
-           "curl -fsSL -m 10 -A PokeDaisy-updater -H 'Accept: application/vnd.github+json' '%s' 2>/dev/null", url);
-  FILE *p = popen(cmd, "r");
-  if (!p)
-    return NULL;
-  char chunk[4096];
-  size_t got;
-  while ((got = fread(chunk, 1, sizeof chunk, p)) > 0) {
-    if (len + got > MAX_DOWNLOAD)
-      break;
-    char *grown = realloc(buf, len + got + 1);
-    if (!grown)
-      break;
-    buf = grown;
-    memcpy(buf + len, chunk, got);
-    len += got;
-  }
-  if (pclose(p) != 0) {
-    free(buf);
-    return NULL;
-  }
-#endif
-  if (!buf)
-    buf = calloc(1, 1);
-  if (buf)
-    buf[len] = 0;
-  *size = len;
-  return buf;
+  return http_get(url, "Accept: application/vnd.github+json", MAX_DOWNLOAD, size);
 }
 
 /* --- update.ini: the release the player skipped --- */
