@@ -55,6 +55,7 @@ void pd_menu_init(struct pd_menu* m, const char* title, const char* const* items
     m->navPicked = m->actionPicked = -1;
     m->pressedNav = m->pressedAction = -1;
     m->hint = NULL;
+    m->overlay = false;
     m->drawnW = m->drawnH = 0;
     // Start on a row that can be picked.
     if (!pd_menu_pickable(m, 0)) pd_menu_move(m, 1);
