@@ -148,7 +148,7 @@ struct pd_settings {
     int bezelSlots[6]; // ... and what each of their six places shows (BEZEL_* items)
     int wingLook;      // ... and WING LOOK (linux/backdrop.h): 0 COMPACT, 1 COMFY, 2 BIG
     int uiSize;        // ... and UI SIZE: 0 SMALL, 1 MEDIUM, 2 LARGE (the menus, HUD, wings and companion)
-    int wingRoom;      // ... and WING ROOM (linux/view_layout.h): 0 GAME FIRST, 1 BALANCED, 2 WINGS FIRST
+    int wingRoom;      // ... and WING ROOM (linux/view_layout.h): 0 GAME FIRST, 1 BALANCED, 2 WINGS FIRST, 3 AUTO
     bool stretch;      // ... and STRETCH: the game a little past its shape (at most VIEW_STRETCH_PERCENT) to fill
 };
 

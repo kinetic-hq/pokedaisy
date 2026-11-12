@@ -87,7 +87,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Battle wing**: the matchup wing lists the types the foe is weak to and, at its foot, the party Pokemon to switch to
 - **UI SIZE, WING ROOM and STRETCH** on the desktop host: the menus, HUD, wings and companion are drawn a size
   smaller by default (`UI SIZE` `MEDIUM`; `LARGE` is the old size, `SMALL` smaller still), `WING ROOM` shares the
-  width between the game and the wings (`BALANCED` by default, `GAME FIRST`, `WINGS FIRST`), `STRETCH` (off) lets
+  width between the game and the wings (`AUTO` by default: `WINGS FIRST` while the game still fills 80% of the height, else
+  `BALANCED`; or `GAME FIRST`, `BALANCED`, `WINGS FIRST`), `STRETCH` (off) lets
   the game lose up to 5% of its shape to fill the screen, and the zoom buttons turn `EXPAND` on themselves. The DS
   layouts with wings and the DS companion follow `WING ROOM` and `UI SIZE` too
 - **Tap the HUD and zoom in WINGS** on the desktop host: the HUD's party slots, minimap, balls, `PC`, `BAG`, `WILD`

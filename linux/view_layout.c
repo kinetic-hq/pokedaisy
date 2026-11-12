@@ -27,6 +27,13 @@ int view_wing_room_permille(int room) {
 // The game's least room on each side, in pixels, for a screen SW wide.
 static int wing_min(int sw, int room) { return (sw * view_wing_room_permille(room) + 999) / 1000; }
 
+int view_wing_room_pick(int room, int sw, int sh, int fw, int fh) {
+  if (room != VIEW_WING_ROOM_AUTO)
+    return room >= 0 && room < VIEW_WING_ROOM_AUTO ? room : VIEW_WING_ROOM_BALANCED;
+  int scale = view_fit_scale(sw - 2 * wing_min(sw, VIEW_WING_ROOM_WINGS_FIRST), sh, fw, fh);
+  return fh * scale * 100 >= sh * VIEW_WING_ROOM_AUTO_PERCENT ? VIEW_WING_ROOM_WINGS_FIRST : VIEW_WING_ROOM_BALANCED;
+}
+
 // STRETCH: the placed game grown, each way on its own, by up to VIEW_STRETCH_PERCENT into the room it has.
 static void stretch_game(struct view_layout *out, int x0, int y0, int w0, int h0) {
   struct view_rect g = out->game;
@@ -68,7 +75,8 @@ static void wings_around(struct view_layout *out, int sw, int sh) {
 }
 
 static void wings(struct view_layout *out, const struct view_state *s) {
-  int side = wing_min(s->screenW, s->wingRoom), room = s->screenW - 2 * side;
+  int pick = view_wing_room_pick(s->wingRoom, s->screenW, s->screenH, s->frameW, s->frameH);
+  int side = wing_min(s->screenW, pick), room = s->screenW - 2 * side;
   place_game(out, view_fit_scale(room, s->screenH, s->frameW, s->frameH), 0, 0, s->screenW, s->screenH, s->frameW,
              s->frameH);
   if (s->stretch)

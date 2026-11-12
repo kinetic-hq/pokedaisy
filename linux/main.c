@@ -4414,7 +4414,7 @@ static int settings_page(bool *foldersChanged) {
   static const char *const SHADERS[PD_SHADERS] = {"OFF", "SHARP", "xBRZ"};
   static const char *const COLORS[PD_COLORS] = {"ORIGINAL", "HANDHELD", "OLED"};
   static const char *const UI_SIZES[3] = {"SMALL", "MEDIUM", "LARGE"};
-  static const char *const WING_ROOMS[3] = {"GAME FIRST", "BALANCED", "WINGS FIRST"};
+  static const char *const WING_ROOMS[4] = {"GAME FIRST", "BALANCED", "WINGS FIRST", "AUTO"};
   static const char *const TITLES[] = {"SETTINGS", "DISPLAY OPTIONS", "GAME BUTTONS", "HOTKEYS", "BEZEL BARS"};
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
@@ -4480,7 +4480,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_BACKGROUND, "BACKGROUND\t%s",
           pocket_background_name(pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED, st.darkMode)));
       ROW(ROW_UI_SIZE, "UI SIZE\t%s", UI_SIZES[st.uiSize >= 0 && st.uiSize < 3 ? st.uiSize : 1]);
-      ROW(ROW_WING_ROOM, "WING ROOM\t%s", WING_ROOMS[st.wingRoom >= 0 && st.wingRoom < 3 ? st.wingRoom : 1]);
+      ROW(ROW_WING_ROOM, "WING ROOM\t%s", WING_ROOMS[st.wingRoom >= 0 && st.wingRoom < 4 ? st.wingRoom : 3]);
       ROW(ROW_WING_LOOK, "WING LOOK\t%s", pocket_wing_look_name(st.wingLook));
       ROW(ROW_STRETCH, "STRETCH\t%s", st.stretch ? "ON" : "OFF");
       ROW(ROW_BEZEL_STYLE, "BEZEL STYLE\t%s",
@@ -4719,14 +4719,16 @@ static int settings_page(bool *foldersChanged) {
       break;
     }
     case ROW_WING_ROOM: {
-      static const char *const rows[3] = {"GAME FIRST\tTHE GAME AS LARGE AS IT GOES",
+      // AUTO first in the list; its value is 3 (the three fixed rooms keep 0 to 2).
+      static const char *const rows[4] = {"AUTO\tWIDE WINGS WHEN THE GAME STAYS LARGE",
+                                          "GAME FIRST\tTHE GAME AS LARGE AS IT GOES",
                                           "BALANCED\tROOMY WINGS, THE GAME STILL LARGE",
                                           "WINGS FIRST\tWIDE WINGS, A SMALLER GAME"};
-      int l = menu_pick("WING ROOM", rows, 3, st.wingRoom);
+      int l = menu_pick("WING ROOM", rows, 4, st.wingRoom == 3 ? 0 : st.wingRoom + 1);
       if (l < 0)
         save = false;
       else
-        st.wingRoom = l;
+        st.wingRoom = l == 0 ? 3 : l - 1;
       break;
     }
     case ROW_STRETCH:
