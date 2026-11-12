@@ -84,7 +84,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
   game menu or `SETTINGS`, remembered, and on by default the first time on a handheld's screen.
 - **Button layout and hotkeys** on the desktop host: `BUTTON LAYOUT` `NINTENDO` / `XBOX` picks which face button is
   A; LT / RT zoom out / in and L3 toggles fast forward by default (L2 / R2 stay the DS controls in a DS game);
-  a tap on R3 switches between your view and the game alone, a hold picks a view; the triggers, sticks and extra
+  a tap on R3 switches WINGS / BATTLE WINGS (in a DS game it steps the DS layouts, skipping any that look the same
+  on your screen), a hold picks a view; the triggers, sticks and extra
   buttons (GUIDE, SHARE, back paddles) can each be given a job in `HOTKEYS`: game menu, companion, fast forward,
   states, screenshot, full screen, DS layout, swap screens, zoom in / out. EXPAND's camera eases in for text,
   menus and battles and back out after, like the Android app's.

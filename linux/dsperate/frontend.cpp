@@ -106,7 +106,7 @@ int pad(int b){
   case SDL_CONTROLLER_BUTTON_DPAD_UP:return 6;case SDL_CONTROLLER_BUTTON_DPAD_DOWN:return 7;
   case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:return 8;case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:return 9;
   case SDL_CONTROLLER_BUTTON_Y:return 10;case SDL_CONTROLLER_BUTTON_X:return 11;
-  case SDL_CONTROLLER_BUTTON_GUIDE:return 15;default:return -1;}}
+  case SDL_CONTROLLER_BUTTON_GUIDE:return 15;case SDL_CONTROLLER_BUTTON_RIGHTSTICK:return 14;default:return -1;}}
 // DS LAYOUT's drawings for the picker: each layout placed by ds_place() on a 16:9 screen. ONE SCREEN and WINGS are drawn
 // with the touch screen floated in over the dimmed game, as they show when the game wants it. All but TOUCH IN WING,
 // WINGS and SPLIT TOUCH are the app's.
@@ -388,6 +388,10 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   bool done=false,showCompanion=false,showQuick=false,paused=false,summary=false,failed=false;
   int quickSelected=0;uint32_t blocked=0;
   bool layoutPick=false;int layoutSel=0,layoutScroll=0,layoutTiles[DSL_COUNT][4]={};
+  // R3: a tap steps DS LAYOUT (skipping layouts drawn the same on this window), a hold opens the picker; the
+  // layout's name shows a moment either way (toast). r3Chord: L3 + R3 went to FULLSCREEN, no step.
+  uint32_t r3Since=0;bool r3Held=false,r3Chord=false;std::string toast;uint32_t toastUntil=0;
+  auto showToast=[&](const char* text){toast=text;toastUntil=SDL_GetTicks()+1500;std::fprintf(stderr,"DS LAYOUT %s\n",text);};
   int mapX=-1,mapY=-1,setting=0,page=0,tab=0,selected=0,scroll=0,touchX=128,touchY=96;uint32_t keys=0,lastActivityKeys=0,wingActivity=SDL_GetTicks(),wingSign=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
   const int raw[]={1,0,11,10,9,8,2,3,15,-1,12,13};const bool rawTrimui=std::getenv("POCKET_RAW_TRIMUI")!=nullptr;
   struct Press{int at,n;uint32_t mask;};std::vector<Press> script,hostScript;
@@ -431,6 +435,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         if(e.type==SDL_CONTROLLERDEVICEREMOVED)keys=0;  // nothing stays pressed on a pad that's gone
         continue;
       }
+      if(e.type==SDL_CONTROLLERBUTTONDOWN && e.cbutton.button==SDL_CONTROLLER_BUTTON_LEFTSTICK && (keys&(1u<<14)))r3Chord=true;
       if(pd_ds_host_event && pd_ds_host_event(&e))continue;
       int k=-1;bool down=false;
       if(e.type==SDL_KEYDOWN || e.type==SDL_KEYUP){if(e.key.repeat)continue;k=keyboard(e.key.keysym.sym);down=e.type==SDL_KEYDOWN;}
@@ -471,7 +476,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(act&(1u<<2)){showCompanion=!showCompanion;showQuick=false;}  // COMPANION
       if(act&((1u<<8)|(1u<<9))){
         prefs.layout=(prefs.layout+((act&(1u<<8))?1:DSL_COUNT-1))%DSL_COUNT;
-        std::fprintf(stderr,"DS LAYOUT %s\n",ds_layout_name(prefs.layout));
+        showToast(ds_layout_name(prefs.layout));
       }
       if(act&(1u<<10))pressed|=1u<<13;                                // SWAP SCREENS: R2's own
       if(act&((1u<<4)|(1u<<5))){paused=true;pressed=(act&(1u<<4))?1u:1u<<10;}  // SAVE / LOAD STATE, as the quick menu's
@@ -480,9 +485,25 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     // SELECT + R2 / L2 step DS LAYOUT forward / back (the app's R2 hotkey); SELECT is then kept from the game.
     if((keys&(1u<<2)) && (pressed&((1u<<12)|(1u<<13))) && !showCompanion && !paused){
       prefs.layout=(prefs.layout+((pressed&(1u<<13))?1:DSL_COUNT-1))%DSL_COUNT;
-      std::fprintf(stderr,"DS LAYOUT %s\n",ds_layout_name(prefs.layout));
+      showToast(ds_layout_name(prefs.layout));
       blocked|=keys&4095u;pressed&=~((1u<<12)|(1u<<13));nds->setButtons(0);nds->setTouch(0,0,false);
     }
+    if(pressed&(1u<<14)){r3Since=SDL_GetTicks();r3Held=false;r3Chord=false;}
+    if(r3Since && !showCompanion && !showQuick && !paused){
+      bool r3=(keys&(1u<<14))!=0;
+      if(r3 && !r3Held && !r3Chord && SDL_GetTicks()-r3Since>=450){
+        // Held: the picker with every layout drawn (in the companion, where its SET row opens it too).
+        r3Held=true;showCompanion=true;layoutPick=true;layoutSel=prefs.layout;layoutScroll=0;
+        blocked|=keys&4095u;nds->setButtons(0);nds->setTouch(0,0,false);
+      }else if(!r3){
+        if(!r3Held && !r3Chord){
+          int ow=1024,oh=768;SDL_GetRendererOutputSize(renderer,&ow,&oh);
+          prefs.layout=ds_layout_cycle(prefs.layout,ow,oh,prefs.wingLeft,field!=nullptr);
+          showToast(ds_layout_name(prefs.layout));
+        }
+        r3Since=0;
+      }
+    }else if(!(keys&(1u<<14)))r3Since=0;
     if(pressed&(1u<<12)){
       if(showCompanion)showCompanion=false;else showQuick=!showQuick;
       paused=false;blocked|=keys&4095u;nds->setButtons(0);nds->setTouch(0,0,false);
@@ -541,8 +562,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         if(pressed&(1u<<5))layoutSel=std::max(0,layoutSel-1);
         if(pressed&(1u<<6))layoutSel=std::max(0,layoutSel-cols);
         if(pressed&(1u<<7))layoutSel=std::min(DSL_COUNT-1,layoutSel+cols);
-        if(pressed&1){prefs.layout=layoutSel;layoutPick=false;std::fprintf(stderr,"DS LAYOUT %s\n",ds_layout_name(prefs.layout));}
-        if(pressed&(1u<<1))layoutPick=false;
+        if(pressed&1){prefs.layout=layoutSel;layoutPick=false;showToast(ds_layout_name(prefs.layout));if(r3Held)showCompanion=false;}
+        if(pressed&(1u<<1)){layoutPick=false;if(r3Held)showCompanion=false;}
+        if(!layoutPick)r3Held=false;
         pressed=0;
       }
       if(tab==0 && summary && (pressed&((1u<<4)|(1u<<5))))page=1-page;
@@ -620,9 +642,13 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       touchPlace=paused?DsPlacement{}:place;
     }
     if(showCompanion)touchPlace={};
-    if(!showCompanion && !paused && (showQuick || (prefs.hud && !wingPanels && snap.valid && !view.bottom && !inBattle && (fieldBits&PK_NDS_FIELD_SCREEN) && !(fieldBits&(PK_NDS_FIELD_LOCKED|PK_NDS_FIELD_MENU))))){
+    bool hudShown=!showCompanion && !paused && (showQuick || (prefs.hud && !wingPanels && snap.valid && !view.bottom && !inBattle && (fieldBits&PK_NDS_FIELD_SCREEN) && !(fieldBits&(PK_NDS_FIELD_LOCKED|PK_NDS_FIELD_MENU))));
+    bool toastShown=!showCompanion && !paused && !toast.empty() && int(toastUntil-SDL_GetTicks())>0;
+    if(hudShown || toastShown){
       for(auto& p:uiPixels)p=QUICK_CLEAR;
-      if(showQuick)quick_draw(&canvas,nullptr,quickItems,4,quickSelected);
+      if(toastShown){int tw=pd_text_width(toast.c_str())+20;pd_title_box(&canvas,(341-tw)/2,8,tw,22,0xffffff);pd_text(&canvas,(341-tw)/2+10,12,toast.c_str(),0x303030,PD_NO_SHADOW);}
+      if(!hudShown){}
+      else if(showQuick)quick_draw(&canvas,nullptr,quickItems,4,quickSelected);
       else {
         pd_snapshot hs=ds_party_snapshot(snap);hs.valid=true;
         struct HudArt {const DsCompanion* snap;const pd_snapshot* view;const std::vector<std::vector<uint32_t>>* art;} context{&snap,&hs,&partyArt};
