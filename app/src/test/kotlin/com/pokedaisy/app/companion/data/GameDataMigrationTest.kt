@@ -28,7 +28,7 @@ class GameDataMigrationTest {
 
     /** Games added since the move, written in gamedata/ from the start: they have no hand-written config. */
     private val bornInGamedata = setOf("WISHES", "DREAMSTONE", "SOULGOLD_V1_2_1", "MONOMYTH", "MONOMYTH_V1_1", "TEAM_ROCKET_V3", "LETS_GO_PIKACHU", "LETS_GO_EEVEE",
-        "MODERN_EMERALD", "PETALBURG")
+        "MODERN_EMERALD", "PETALBURG", "AMETHYST_V1_4_3", "FIRERED_REV0_RETAIL", "LEAFGREEN_REV0_RETAIL")
 
     @Test
     fun `every hand-written config has a generated one and no more`() {
