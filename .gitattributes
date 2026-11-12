@@ -1,2 +1,4 @@
 *.sh text eol=lf
 *.patch text eol=lf
+# This fork's CLAUDE.md always wins an upstream merge (upstream-sync.yml appends upstream's change to docs/notes/upstream-claude-md.md)
+CLAUDE.md merge=ours

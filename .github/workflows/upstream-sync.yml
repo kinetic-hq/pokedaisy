@@ -6,6 +6,9 @@ name: Upstream sync
 #   squash-merged (the title is chore:, so no release is cut for it);
 # - a conflict: the branch is upstream main as it is, and the PR lists the
 #   conflicting files to resolve by hand (GitHub shows the same list).
+# CLAUDE.md is this fork's own (a short rules file; the notes live in docs/notes/), so it
+# always merges as ours (.gitattributes' merge=ours) and whatever upstream changed in it is
+# appended as a diff to docs/notes/upstream-claude-md.md, for a person to fold into the notes.
 # Needs the SYNC_TOKEN secret: a fine-grained token on this repo with Contents,
 # Pull requests and Workflows read / write. GITHUB_TOKEN can't do it here: it may
 # not push upstream's workflow changes or open PRs, and PRs it opens run no CI.
@@ -53,8 +56,27 @@ jobs:
             echo "state=current" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          git config merge.ours.driver true
+          base=$(git merge-base HEAD "$up")
+          claude=0
+          git diff --quiet "$base" "$up" -- CLAUDE.md || claude=1
+          echo "claude=$claude" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
           git checkout -B "$BRANCH"
           if git merge --no-ff --no-edit -m "chore: sync upstream lidor30/pokedaisy@${up:0:12}" "$up"; then
+            if [ "$claude" = 1 ]; then
+              git checkout HEAD^1 -- CLAUDE.md
+              {
+                echo
+                echo "## lidor30/pokedaisy@${up:0:12} ($(date -u +%Y-%m-%d))"
+                echo
+                echo '```diff'
+                git diff "$base" "$up" -- CLAUDE.md
+                echo '```'
+              } >> docs/notes/upstream-claude-md.md
+              git add CLAUDE.md docs/notes/upstream-claude-md.md
+              git commit --amend --no-edit
+            fi
             echo "state=clean" >> "$GITHUB_OUTPUT"
           else
             { echo 'conflicts<<EOF'; git diff --name-only --diff-filter=U; echo EOF; } >> "$GITHUB_OUTPUT"
@@ -71,6 +93,8 @@ jobs:
           STATE: ${{ steps.merge.outputs.state }}
           UP: ${{ steps.merge.outputs.upstream }}
           CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+          CLAUDE: ${{ steps.merge.outputs.claude }}
+          BASE: ${{ steps.merge.outputs.base }}
         run: |
           {
             echo "Brings in lidor30/pokedaisy main up to lidor30/pokedaisy@$UP."
@@ -81,6 +105,14 @@ jobs:
               printf '%s\n' "$CONFLICTS" | sed 's/^/- `/; s/$/`/'
             else
               echo "Merged cleanly. It is squash-merged once its checks pass."
+            fi
+            if [ "$CLAUDE" = 1 ]; then
+              echo
+              if [ "$STATE" = conflict ]; then
+                echo "Upstream also changed CLAUDE.md. Keep this fork's CLAUDE.md and append \`git diff ${BASE:0:12} ${UP:0:12} -- CLAUDE.md\` to docs/notes/upstream-claude-md.md."
+              else
+                echo "Upstream changed CLAUDE.md: this fork's is kept and the change is appended to docs/notes/upstream-claude-md.md. Fold it into the matching note in docs/notes/ when convenient."
+              fi
             fi
             echo
             echo "Check \"How this fork differs from PokeDaisy\" in README.md still holds after this. PokeDaisy's own README lives in docs/pokedaisy-readme.md here: carry its changes there."
