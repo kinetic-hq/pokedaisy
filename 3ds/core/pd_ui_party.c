@@ -1190,7 +1190,7 @@ void pd_ui_summary_page(struct pd_canvas* c, const struct pd_summary_view* v, en
         if (move->power == 1) snprintf(power, sizeof power, "VAR");
         else if (move->power > 1) snprintf(power, sizeof power, "%d", move->power);
         snprintf(line, sizeof line, "PWR %s PP %d", power, move->pp);
-        pd_text_right(c, rx + rw - 3, top + 15, line, PD_VALUE, PD_VALUE_SHADOW);
+        pd_text_right(c, rx + rw - 3, top + 15, line, pd_pp_color(move->lowPp, PD_VALUE), PD_VALUE_SHADOW);
         const char* label = pd_type_name(v->game, move->type);
         int chip = rw - pd_text_width(line) - 8, need = pd_text_width(label) + 6;
         if (*label) summary_chip(c, rx, top + 15, chip < need ? chip : need, move->type, label);
@@ -1354,6 +1354,7 @@ static void native_summary_view(struct pd_ui* ui, struct pd_canvas* c, const str
             view.moves[i] = (struct pd_summary_move){
                 pd_move_name(g, m->moves[i], moveNames[i], sizeof moveNames[i]),
                 pd_move_type(g, m->moves[i]), pd_move_power(g, m->moves[i]), m->pp[i],
+                pd_move_low_pp(g, m->moves[i], m->pp[i]),
             };
     if (ui->summaryInfo && !view.egg) {
         pd_title_box(c, 4, 4, c->w - 8, c->h - 32, PD_TITLE_FILL);
@@ -1381,7 +1382,8 @@ static void summary_moves(const struct pd_ui* ui, struct pd_canvas* c, const str
         char line[12];
         snprintf(line, sizeof(line), "%d", m->pp[i]);
         int px = x + w - pd_text_width(line);
-        pd_text(c, px, ry + 18, line, PD_VALUE, PD_VALUE_SHADOW);
+        pd_text(c, px, ry + 18, line, pd_pp_color(src ? pd_move_low_pp(NULL, move, m->pp[i]) : pd_move_low_pp(g, move, m->pp[i]), PD_VALUE),
+                PD_VALUE_SHADOW);
         px -= pd_text_width("PP") + 3;
         pd_text(c, px, ry + 18, "PP", PD_LABEL, PD_LABEL_SHADOW);
         if (power > 0) snprintf(line, sizeof(line), "%d", power);

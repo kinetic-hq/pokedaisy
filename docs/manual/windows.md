@@ -238,6 +238,11 @@ stays in the middle of the screen in every view but a locked side panel.
 
 The game moves into its new place smoothly when a view changes.
 
+A move running low on PP shows its PP in orange (a quarter of its PP left, or 2
+in games where the full amount isn't known) and in red once it's out, in a
+Pokemon's summary and in the battle's move list, so you know to heal before the
+next fight.
+
 ## Where the settings are
 
 The companion's `SETTINGS` has the same groups in the same order as the app on

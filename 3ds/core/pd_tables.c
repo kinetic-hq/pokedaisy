@@ -102,6 +102,18 @@ int pd_move_power(const struct pd_game* g, int move) {
     return m ? m->power : 0;
 }
 
+int pd_move_low_pp(const struct pd_game* g, int move, int pp) {
+    if (move <= 0) return 0;
+    if (pp <= 0) return 2;
+    int type, power, base = 0;
+    const struct pd_text* t = hack_text(g);
+    if (g && g->kind != PD_GAME_GB && !(t && t->moves) && !pd_randomized_move(g, move, &type, &power) &&
+        move < pd_move_pp_count)
+        base = pd_move_pp[move];
+    int low = base > 0 ? (base / 4 > 1 ? base / 4 : 1) : 2;
+    return pp <= low ? 1 : 0;
+}
+
 static int single_pct(const struct pd_game* g, int atk, int def) {
     int pct;
     if (pd_randomized_pct(g, atk, def, &pct)) return pct;

@@ -49,6 +49,8 @@ extern const char* const pd_species_names[];
 extern const int pd_species_names_count;
 extern const struct pd_move_info pd_moves[];
 extern const int pd_moves_count;
+extern const uint8_t pd_move_pp[];   // vanilla gBattleMoves' base PP by move id
+extern const int pd_move_pp_count;
 extern const char* const pd_type_names[];
 extern const int pd_type_names_count;
 extern const struct pd_type_pair pd_type_chart[];
@@ -90,6 +92,9 @@ const char* pd_move_name(const struct pd_game* g, int move, char* buf, size_t le
 const char* pd_type_name(const struct pd_game* g, int type);
 int pd_move_type(const struct pd_game* g, int move);
 int pd_move_power(const struct pd_game* g, int move);
+// The low PP warning: 2 when a move has no PP left, 1 when it is down to a quarter of its base PP (where the base is
+// known: Gen 3 games on vanilla moves) or to 2 (elsewhere), else 0. PP Ups only raise the top, so it never warns early.
+int pd_move_low_pp(const struct pd_game* g, int move, int pp);
 
 // One attacking type against a (possibly dual-typed) defender, in percent
 // (100 = 1x) - the app's typeMultiplierPct().

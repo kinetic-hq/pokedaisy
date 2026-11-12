@@ -27,6 +27,7 @@ SOURCES = {
     "items": "ItemTextGame.kt",
     "gender": "GenderRatiosFireRed.kt",
     "species_types": "SpeciesTypes.kt",
+    "move_stats": "MoveStatsGen.kt",
 }
 
 
@@ -113,6 +114,10 @@ def main():
             out.append("    { NULL, 0, 0 },")
     out.append("};")
     out.append(f"const int pd_moves_count = {top + 1};")
+    # Each vanilla move's base PP (gBattleMoves' pp, the app's MoveStatsGen.kt), for the low PP warning.
+    pps = [int(v) for v in re.findall(r"MoveStats\(\"\w+\", -?\d+, (\d+),", read("move_stats"))]
+    out.append(f"const uint8_t pd_move_pp[{len(pps)}] = {{" + ", ".join(str(v) for v in pps) + "};")
+    out.append(f"const int pd_move_pp_count = {len(pps)};")
     out.append("")
     out.append(name_array("pd_type_names", types))
     out.append("")

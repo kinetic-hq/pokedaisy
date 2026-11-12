@@ -105,6 +105,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
   the other; `WINGS` is `ONE SCREEN` with party and trainer panels in both wings and the touch screen floating in;
   `TOUCH PIECES` takes the touch screen apart into its buttons, each on a card in the wings, balanced between them
   (HeartGold / SoulSilver's battle menu, moves, bag and party; other screens and games get the screen's two halves).
+- **Low PP warning** on the desktop host: a move's PP turns orange at a quarter left (2 where the full PP isn't known)
+  and red at 0, in the summary, the party's move list and the battle's moves.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change. Desktop builds are a beta: every one goes up as a GitHub pre-release until one is called stable, and the

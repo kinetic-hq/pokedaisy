@@ -168,7 +168,8 @@ static void move_cell(struct pd_canvas* c, const struct battle_data* d, int x, i
     snprintf(ppText, sizeof(ppText), "PP %d", pp);
     int ppW = pd_text_width(ppText);
     pd_text_fit(c, ix, ty, iw - ppW - 6, move_name(d, move, buf, sizeof(buf)), PD_LABEL, PD_LABEL_SHADOW);
-    pd_text_right(c, ix + iw, ty, ppText, PD_MUTED, PD_MUTED_SHADOW);
+    pd_text_right(c, ix + iw, ty, ppText, pd_pp_color(pd_move_low_pp(d->source ? NULL : d->game, move, pp), PD_MUTED),
+                  PD_MUTED_SHADOW);
     const char* text = "";
     uint32_t color = PD_LABEL, shadow = PD_LABEL_SHADOW;
     if (move_power(d, move) == 0) {
