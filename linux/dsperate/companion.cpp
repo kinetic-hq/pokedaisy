@@ -46,6 +46,29 @@ const char* ds_canonical_sha1(const char* digest){
   if(!std::strcmp(digest,"d94d02ec44c8e2dfc9b744bb888cb64c49678dc2"))return black2Sha1;     // Black 2 (IREO rev 0)
   return digest;
 }
+bool ds_platinum_cart(const uint8_t* rom,size_t size){
+  return size>=0x200 && !std::memcmp(rom+0x0C,"CPUE",4) && rom[0x1E]==1;
+}
+bool ds_renegade_platinum(const uint8_t* rom,size_t size){
+  return ds_platinum_cart(rom,size) && size>=0x221064 && u32(rom+0x221060)==0x021E9F81u;
+}
+std::string ds_cart_label(const uint8_t* rom,size_t size){
+  if(size<0x200)return "an unknown cart";
+  static const struct { const char* code; const char* name; } games[]={
+    {"CPU","Platinum"},{"IPK","HeartGold"},{"IPG","SoulSilver"},{"ADA","Diamond"},{"APA","Pearl"},
+    {"IRB","Black"},{"IRA","White"},{"IRE","Black 2"},{"IRD","White 2"}};
+  static const struct { char letter; const char* name; } regions[]={
+    {'E',"USA"},{'O',"USA / Europe"},{'P',"Europe"},{'F',"France"},{'D',"Germany"},{'S',"Spain"},{'I',"Italy"},
+    {'J',"Japan"},{'K',"Korea"}};
+  char code[5]={};std::memcpy(code,rom+0x0C,4);
+  for(char& ch:code)if(ch && (ch<0x20||ch>0x7e))ch='?';
+  std::string name;
+  for(auto& g:games)if(!std::strncmp(code,g.code,3))name=g.name;
+  if(name.empty())return std::string("a cart coded ")+code;
+  if(ds_renegade_platinum(rom,size))return "Renegade Platinum";
+  for(auto& r:regions)if(code[3]==r.letter){name+=std::string(" (")+r.name+")";break;}
+  return name+" rev "+std::to_string(int(rom[0x1E]))+" ("+code+")";
+}
 DsGame ds_companion_game(const char* digest){
   using namespace pd_ds_data;
   if(!std::strcmp(digest,sha1))return DsGame::Platinum;

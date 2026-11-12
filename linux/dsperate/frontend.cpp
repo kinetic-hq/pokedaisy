@@ -191,6 +191,7 @@ void frame_screen(SDL_Renderer* r,const DsBox& box){
   SDL_Rect sides[4]={{box.x-t,box.y-t,box.w+2*t,t},{box.x-t,box.y+box.h,box.w+2*t,t},{box.x-t,box.y,t,box.h},{box.x+box.w,box.y,t,box.h}};
   SDL_RenderFillRects(r,sides,4);
 }
+std::string ds_unsupported_label; // the cart, when the companion can't read it (ds_cart_label)
 void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int selected,bool summary,int scroll,int page,const DsPrefs& prefs,int setting,const DsMapArt& art,int mapX,int mapY){
   pd_fill(&c,0,0,c.w,c.h,0x50a8a8);pd_title_box(&c,5,5,c.w-10,25,0xffffff);
   pd_text(&c,12,10,"PokeDaisy DS",0x303030,PD_NO_SHADOW);
@@ -202,7 +203,13 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
     const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("DS LAYOUT: ")+ds_layout_name(prefs.layout),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF"),std::string("SHADER: ")+pocket_shader_name(prefs.shader),std::string("COLORS: ")+pocket_colors_name(prefs.colors),std::string("DIM COMPANION: ")+(prefs.dim?"ON":"OFF"),std::string("DS WING SIDE: TOUCH ")+(prefs.wingLeft?"LEFT":"RIGHT"),std::string("BACKGROUND: ")+pocket_background_name(prefs.look())};
     for(int i=0;i<DS_SETTINGS;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,18,0xffe4a0);pd_text_fit(&c,13,y,c.w-26,rows[i].c_str(),0x303030,PD_NO_SHADOW);y+=17;}
   }
-  else if(!supported)line("Companion: Platinum USA Rev 1 only");
+  else if(!supported){
+    // What this cart is and what the companion reads, so a player knows which dump to look for.
+    line("No companion for this game yet.");
+    line("This is "+ds_unsupported_label+".");
+    line("Full companion: Platinum (USA) rev 1 (CPUE).");
+    line("TRAINER facts: HeartGold, SoulSilver (USA).");
+  }
   else if(!s.valid){line("Waiting for the game's save data");line("Return to the game to finish booting");}
   else if(tab==5){
     if(art.background.empty())line("Map art unavailable");
@@ -419,7 +426,10 @@ extern "C" { bool (*pd_ds_rewind_held)(void)=nullptr; int pd_ds_rewind_on=0; }
 extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* shot,SDL_Renderer* renderer,bool (*keepRunning)()) {
   auto bytes=read_file(rom);if(bytes.size()<512 || bytes.size()>512u*1024*1024){std::fprintf(stderr,"DS: invalid ROM size\n");return 1;}
   char hex[41];{pd_sha1 h;pd_sha1_init(&h);pd_sha1_update(&h,bytes.data(),bytes.size());pd_sha1_hex(&h,hex);}
-  bool supported=!std::strcmp(hex,pd_ds_data::sha1);
+  // Platinum (USA) rev 1: the retail dump, or any cart with its header (a trimmed or decrypted dump, Renegade
+  // Platinum), as the Android app reads it; map art and icons come through the cart's file system, so they follow.
+  bool supported=!std::strcmp(hex,pd_ds_data::sha1)||ds_platinum_cart(bytes.data(),bytes.size());
+  ds_unsupported_label=ds_cart_label(bytes.data(),bytes.size());
   // HeartGold / SoulSilver: the TRAINER wing's facts only (time of day, Berry Pots, money, place) for now.
   // It only reads RAM, so a US cart's other dumps (by its header) count too.
   const bool johto=!supported&&(ds_companion_game(ds_canonical_sha1(hex))==DsGame::Johto||

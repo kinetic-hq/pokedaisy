@@ -14,6 +14,13 @@ DsGame ds_companion_game(const char* sha1);
 // is the same ROM as, so every digest check downstream sees one id per game.
 const char* ds_canonical_sha1(const char* sha1);
 int ds_egg_icon(DsGame game);
+// Platinum (USA) rev 1 by its header (CPUE, 0x1E = 1), as the Android app tells it: any dump of it (trimmed, decrypted,
+// re-signed) and Renegade Platinum, which keeps the retail RAM layout. Rev 0 isn't mapped.
+bool ds_platinum_cart(const uint8_t* rom,size_t size);
+// Renegade Platinum (v1.2.0 / v1.3.0 / Classic): overlay 16 points its type chart into overlay 21 (RenegadePlatinum.kt).
+bool ds_renegade_platinum(const uint8_t* rom,size_t size);
+// What the cart is, by its header, for messages: "Platinum (USA) rev 0", "Black 2 (USA / Europe)"...
+std::string ds_cart_label(const uint8_t* rom,size_t size);
 struct DsMon {
   int species=0, level=0, hp=0, maxHp=0, heldItem=0;
   uint32_t personality=0, experience=0, status=0;

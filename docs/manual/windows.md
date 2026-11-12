@@ -511,8 +511,8 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   companion's panels don't show here, since the wings hold the touch screen. A
   window too narrow for that gets `TOUCH IN WING`.
 
-The companion's panels in the wings read Platinum (USA, revision 1) for now; in
-other DS games they say so. While they show, the HUD leaves out its party row.
+The companion's panels in the wings read Platinum (USA, revision 1) and
+Renegade Platinum for now; in other DS games they say so. While they show, the HUD leaves out its party row.
 
 R2 (Space on a keyboard) swaps the two screens: in `ONE SCREEN` you see the
 touch screen alone, in `PICTURE IN PICTURE`, `LARGE + SMALL` and
@@ -524,7 +524,12 @@ pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
 and A. Escape pauses the game.
 
 The companion reads one DS game so far, Platinum (USA, revision 1): its party,
-bag, dex and Town Map. For other DS games you get the game alone.
+bag, dex and Town Map. It goes by the game code inside the file (`CPUE`,
+revision 1), so a trimmed or re-dumped copy works too, and so does Renegade
+Platinum (its party, bag and map; types and stats still come from the original
+game). HeartGold and SoulSilver (USA) get the `TRAINER` facts. For other DS
+games you get the game alone, and the companion tells you which game and
+revision it found, and which one it needs.
 
 ## When something goes wrong
 
