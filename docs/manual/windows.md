@@ -27,6 +27,11 @@ Put your `.gba`, `.gbc`, `.gb` and `.nds` files in `DATA\roms`, then open
 Everything the program writes stays in that `DATA` folder, so you can move the
 whole folder to another PC or a memory card.
 
+The game list shows each game by its own name, the way the Android app's
+library does: a file's region and dump tags, version numbers, underscores and
+dashes are left out, the game's own spelling is used, and "Pokémon" goes first.
+Your files keep their names.
+
 ## Games in other folders
 
 Your games can stay where they are, in a folder another emulator or a sync app
