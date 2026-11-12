@@ -132,6 +132,9 @@ val LEGACY_NATIVE_UNBOUND = LEGACY_NATIVE_FIRERED_REV0.copy(
 // Unbound's own POKéDEX tables (SHA1-pinned, see POKEDEX_UNBOUND) - kept off
 // LEGACY_NATIVE_UNBOUND itself, which the other CFRU configs reuse as LEGACY_NATIVE_FIRERED_REV0.
 val LEGACY_NATIVE_UNBOUND_WITH_DEX = LEGACY_NATIVE_UNBOUND.copy(
+    // The foe's team in battle (#80 / #82, gamedata/): FireRed rev 1's battle globals.
+    enemyParty = LEGACY_NATIVE_FIRERED_REV1.enemyParty, battlerPartyIndexes = LEGACY_NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = LEGACY_NATIVE_FIRERED_REV1.battleStructPtr, monToSwitchIntoOff = LEGACY_NATIVE_FIRERED_REV1.monToSwitchIntoOff,
     // CFRU repointed gItems (FireRed 1.0's literal pools load it from here).
     itemDescs = vanillaItems(0x08876200L),
     pokedex = POKEDEX_UNBOUND, guideTables = GUIDE_TABLES_UNBOUND, trainerCard = TRAINER_CARD_UNBOUND,
@@ -205,6 +208,9 @@ val LEGACY_NATIVE_UNBOUND_FR = LEGACY_NATIVE_UNBOUND_WITH_DEX.copy(
 // independently since a future hack could easily have this asymmetry the
 // other way around.
 val LEGACY_NATIVE_GAIA_V3_2 = LEGACY_NATIVE_FIRERED_REV0.copy(
+    // The foe's team in battle (#80 / #82, gamedata/): FireRed rev 1's battle globals.
+    enemyParty = LEGACY_NATIVE_FIRERED_REV1.enemyParty, battlerPartyIndexes = LEGACY_NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = LEGACY_NATIVE_FIRERED_REV1.battleStructPtr, monToSwitchIntoOff = LEGACY_NATIVE_FIRERED_REV1.monToSwitchIntoOff,
     pokemonStoragePtr = 0x03005010L, pcStorage = PLAIN_PC_STORAGE,
     itemDescs = vanillaItems(0x083DB028L), // retail's address, its own text
     monIconTable = 0x0872A86CL,
@@ -244,6 +250,9 @@ val LEGACY_NATIVE_GAIA_V3_2 = LEGACY_NATIVE_FIRERED_REV0.copy(
 // still vanilla's. Inheriting rev 0's read species past 411 off the end of
 // vanilla's tables - the broken party / bag sprites.
 val LEGACY_NATIVE_RADICAL_RED_V4_1 = LEGACY_NATIVE_FIRERED_REV0.copy(
+    // The foe's team in battle (#80 / #82, gamedata/): FireRed rev 1's battle globals.
+    enemyParty = LEGACY_NATIVE_FIRERED_REV1.enemyParty, battlerPartyIndexes = LEGACY_NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = LEGACY_NATIVE_FIRERED_REV1.battleStructPtr, monToSwitchIntoOff = LEGACY_NATIVE_FIRERED_REV1.monToSwitchIntoOff,
     pokemonStoragePtr = 0x03005010L, pcStorage = RADICAL_RED_PC_STORAGE,
     // Repointed by CFRU; indexed by slot, as the game's ItemId_GetDescription does.
     itemDescs = vanillaItems(0x093C0000L),
@@ -269,6 +278,9 @@ val LEGACY_NATIVE_RADICAL_RED_V4_1 = LEGACY_NATIVE_FIRERED_REV0.copy(
 // tables were (find a still-byte-identical helper function, read its literal
 // pool) rather than guessing again.
 val LEGACY_NATIVE_ODYSSEY = LEGACY_NATIVE_FIRERED_REV0.copy(
+    // The foe's team in battle (#80 / #82, gamedata/): FireRed rev 1's battle globals.
+    enemyParty = LEGACY_NATIVE_FIRERED_REV1.enemyParty, battlerPartyIndexes = LEGACY_NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = LEGACY_NATIVE_FIRERED_REV1.battleStructPtr, monToSwitchIntoOff = LEGACY_NATIVE_FIRERED_REV1.monToSwitchIntoOff,
     pokemonStoragePtr = 0x03005010L, pcStorage = PLAIN_PC_STORAGE,
     pokedex = POKEDEX_ODYSSEY, guideTables = GUIDE_TABLES_ODYSSEY, itemDescs = vanillaItems(0x083DB028L),
     // FireRed's battle menu cursors (CFRU), checked headless like Unbound's (odyssey_battle's README).
@@ -552,6 +564,7 @@ val LEGACY_NATIVE_SAPPHIRE = LEGACY_NATIVE_RUBY.copy(
 // Types use newer expansion ids (Fire = 11), so HnS has its own tables
 // (*Hns.kt, scripts/gen_expansion_tables.py). Touch battle input: not derived.
 val LEGACY_NATIVE_HEART_AND_SOUL = LEGACY_NATIVE_EMERALD.copy(
+    enemyParty = 0x020342B4L, battlerPartyIndexes = 0x02000230L, // the foe's team in battle (#80, gamedata/)
     // gItemsInfo: 0x2C-byte entries, the description pointer 8 bytes before the name's.
     itemDescs = ItemDescTable(0x0878EFD4L, 0x2C, -8),
     playerParty = 0x02034764L,
@@ -1024,6 +1037,7 @@ val LEGACY_NATIVE_EMERALD_SEAGLASS = LEGACY_NATIVE_EMERALD.copy(
 //     user's ETHER, render as the right Pokemon/items.
 // Touch battle control disabled (addresses not derived).
 val LEGACY_NATIVE_CELIA = LEGACY_NATIVE_FIRERED_REV0.copy(
+    enemyParty = 0x020240E4L, battleStructPtr = 0x0202409CL, monToSwitchIntoOff = 0x60, // the foe's team (#82, gamedata/)
     itemDescs = vanillaItems(0x08C1D0BCL), // relocated (15 references)
     playerParty = 0x0202433CL,
     playerPartyCount = 0x020240E1L,
