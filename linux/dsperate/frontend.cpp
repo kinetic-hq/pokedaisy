@@ -488,12 +488,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   DsPieceLayout pieceLay;int pointerPiece=-1;  // TOUCH PIECES as last drawn; the piece a press began on
   // Platinum rev 0 runs on rev 1's field addresses (its party, field and battle structs sit at the same places).
   // HeartGold and SoulSilver (USA) run on the app's HeartGold field read too: BATTLE, auto battles, touch moments;
-  // Black, White and their sequels on the app's Gen 5 field reads. HeartFelt Gold has no field read (its overlays and
-  // field structs are unchecked: no auto battles or EXPAND), but keeps retail's FieldSystem pointer, battle template,
-  // BattleSystem and battle mons (checked on a headless trainer fight), so BATTLE reads it on HeartGold's.
+  // Black, White and their sequels on the app's Gen 5 field reads. HeartFelt Gold runs on HeartGold's too: its ARM9 is
+  // retail's decompressed (the same size, its functions and literal pools where HeartGold's are: every pk_nds_call and
+  // touch-app function's bytes match US SoulSilver's) and overlay 1 the same where the field map's template and the
+  // menus sit; it keeps retail's FieldSystem pointer, battle template, BattleSystem and battle mons (a headless
+  // trainer fight). So BATTLE, auto battles, touch moments and EXPAND work as HeartGold's.
   const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):
-    origin?originField:heartfelt?nullptr:other?pk_nds_field_game(code,0):nullptr;
-  const auto* battleField=heartfelt?pk_nds_field_game("IPKE",0):field;
+    origin?originField:heartfelt?pk_nds_field_game("IPKE",0):other?pk_nds_field_game(code,0):nullptr;
+  const auto* battleField=field;
   // EXPAND (ASPECT on EXPAND, melonDS, a game with field rules): the world drawn past the top screen's edges, with the
   // GBA's camera (wide_camera.h): ZOOM IN / OUT step it on the overworld; battles, menus and (AUTO ZOOM IN) text boxes
   // pull in to the closest view.

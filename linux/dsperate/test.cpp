@@ -162,6 +162,10 @@ int main(int argc,char** argv){
       assert(mine.species==155 && mine.level==12 && mine.hp==32 && mine.maxHp==32 && mine.moves[0]==33 && mine.pp[3]==25);
       assert(foe.species==570 && foe.level==14 && foe.maxHp==45 && foe.moves[1]==817);
       assert(fight.foeCount==6 && fight.foes[0].species==570 && fight.foeActive==0);
+      // Auto battles on HeartGold's field read: the battle is up and waits at the command menu (5), as the screen showed.
+      const auto* heartGold=pk_nds_field_game("IPKE",0);
+      assert(pk_nds_field_state(heartGold,battle_read32,nullptr,0)&PK_NDS_FIELD_BATTLE);
+      assert(pk_nds_battle_command(heartGold,battle_read32)==pk_nds_battle_selecting(heartGold));
       battleRam=saved;
     }
     ds_set_heartfelt(nullptr);
