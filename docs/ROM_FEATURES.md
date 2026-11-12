@@ -80,6 +80,7 @@ change to any of the places listed under "Where it's decided" updates its rows h
 | Monomyth | 1.0, 1.1 | ✅ ²³ | ✅ | ✅ | ✅ | — | — | — | ✅ ²³ | — | — ²³ | ✅ ²³ | — | — | — | — | — |
 | Odyssey | 4.1.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | ✅ ¹⁹ | ✅ | ✅ ³³ |
 | Orange Islands | Beta 5.7, an older beta | ◐ ³ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ ¹⁵ | — | ✅ ¹⁹ ²⁰ | ✅ | ✅ ³³ |
+| Petalburg Dynasty | 1.12.2 | — | ✅ ³⁵ | ✅ ³⁵ | ✅ ³⁵ | — | — | — | — | — | — ³⁵ | — | — | — | — | — | — |
 | Quetzal | English / Spanish Alpha 9 v0 | ◐ ³ | ✅ | ✅ | ✅ | — | — | — | ◐ ⁶ | — | — | — | — | — | — | — | — |
 | Quetzal | English / Spanish Alpha 9 v1 | — | ✅ | ✅ | ✅ | — | — | — | — | — | — | — | — | — | — | — | — |
 | Quetzal, Moemon Quetzal | English / Spanish Alpha 0.8.4 (+ Hotfix) | — | ✅ | ✅ | ✅ | — | — | — | — | — | — | — | — | — | — | — | — |
@@ -467,6 +468,12 @@ change to any of the places listed under "Where it's decided" updates its rows h
 34. Amethyst 1.4.3: the companion reads it (PARTY, BAG, BATTLE with the foe's team, DEX, GUIDE, the PC) with its
    own tables, each found from the code that reads it and checked in the ROM (`gamedata/gen3/hacks/amethyst.toml`).
    With no save of it yet, the features that write to the game stay off until each is tried on it.
+35. Petalburg Dynasty 1.12.2 (pokeemerald-expansion 1.16.4, `NATIVE_PETALBURG`, its sha1 648c88a4... only), checked
+    headless on a new game played in it (no save of it was on file): the five controller handlers read live (the
+    target screen's in a double battle), RIGHT walked the action cursor 0 -> 1 and DOWN the move cursor 0 -> 2, a
+    written move cell + A spent that move's PP, and the switch (Emerald's list at its own gPartyMenu) went written
+    POKéMON cell + A, slotId 1 written, A, SHIFT: party slot 1 out. Nothing reads its field yet (no EXPAND row, no
+    field reads), so WILD ENCOUNTERS, field items, FLY and the PC stay off; no shiny value or player look is mapped.
 
 ## What each column is
 
@@ -619,7 +626,7 @@ against the app's recorded cards (`make -C 3ds test-card`), the GUIDE's boss tea
 | Odyssey, Sword and Shield Ultimate Plus, Gaia, Recharged Emerald ²⁸ | ✅ | — | ✅ |
 | Kaizo | ✅ | ✅ ³¹ | ✅ ²⁹ |
 | Amethyst, Heart and Soul, Seaglass, Too Many Types 2, Super Mariomon, Dreamstone Mysteries, Ultra Violet | ✅ | — | ✅ ²⁹ |
-| Wishes of Tomorrow, Team Rocket Edition, Elite Redux | ✅ | — | ◐ ³⁰ |
+| Wishes of Tomorrow, Petalburg Dynasty, Team Rocket Edition, Elite Redux | ✅ | — | ◐ ³⁰ |
 | R.O.W.E., Emerald Rogue (EX) | ✅ | — | — |
 | Celia's Stupid Romhack | ◐ ²⁵ | — | ✅ |
 | Ghost Grey | ✅ | — | ✅ ²⁷ |
@@ -662,7 +669,7 @@ the checked hacks, each with its own shiny value); icons recoloured from the shi
 FireRed 1.0 hacks (Unbound, Radical Red, Odyssey, Gaia, Amethyst, GS Chronicles, Sword and Shield Ultimate Plus, Orange Islands,
 Ash Gray, Ghost Grey, Celia) read their own names from the ROM's region map code, where it keeps them (Celia's doesn't: FireRed's names);
 the others use the app's tables for them (Glazed, Imperium, Lazarus, SoulGold, Heart and Soul, Quetzal in English and Spanish,
-R.O.W.E., Emerald Rogue, Elite Redux, Team Rocket, Wishes, Dreamstone, Super Mariomon, Recharged Yellow, Rocket Edition, Ultra
+R.O.W.E., Emerald Rogue, Elite Redux, Team Rocket, Wishes, Petalburg Dynasty, Dreamstone, Super Mariomon, Recharged Yellow, Rocket Edition, Ultra
 Violet) or their engine's retail names (Kaizo, Seaglass, Too Many Types 2, Recharged Emerald, Emerald Legacy). The
 other-language retail carts use their own language's names. `make -C 3ds test-roms` checks every ROM names at least 20 sections.
 

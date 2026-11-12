@@ -31,13 +31,13 @@ HACK_GUIDES = [
     ("recharged_emerald", "RechargedEmerald", "RECHARGED_EMERALD"), ("recharged_yellow", "RechargedYellow", "RECHARGED_YELLOW"),
     ("tmt2", "Tmt2", "TMT2"), ("seaglass", "Seaglass", "SEAGLASS"), ("lazarus", "Lazarus", "LAZARUS"),
     ("heart_and_soul", "HeartAndSoul", "HEART_AND_SOUL"), ("glazed", "Glazed", "GLAZED"), ("mariomon", "Mariomon", "MARIOMON"),
-    ("dreamstone", "Dreamstone", "DREAMSTONE"), ("wishes", "Wishes", "WISHES"), ("team_rocket", "TeamRocket", "TEAM_ROCKET"),
+    ("dreamstone", "Dreamstone", "DREAMSTONE"), ("wishes", "Wishes", "WISHES"), ("petalburg", "Petalburg", "PETALBURG"), ("team_rocket", "TeamRocket", "TEAM_ROCKET"),
     ("elite_redux", "EliteRedux", "ELITE_REDUX"), ("ultra_violet", "UltraViolet", "ULTRA_VIOLET"),
     ("lets_go", "LetsGo", "LETS_GO"), ("monomyth", "Monomyth", "MONOMYTH"),
 ]
 # Hacks whose guide has no area file in the app (their WHERE IS is empty here).
 AREAS_OPTIONAL = {"soulgold", "imperium", "quetzal", "recharged_emerald", "tmt2", "seaglass", "lazarus", "glazed", "mariomon",
-                  "dreamstone", "wishes", "team_rocket", "elite_redux", "monomyth"}
+                  "dreamstone", "wishes", "petalburg", "team_rocket", "elite_redux", "monomyth"}
 AREA_KINDS = ["ITEM", "HIDDEN", "GIFT", "KEY", "MON", "EGG", "TRADE"]
 
 

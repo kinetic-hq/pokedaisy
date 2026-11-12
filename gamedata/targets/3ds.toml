@@ -28,6 +28,7 @@ EXPANSION_BATTLE_MON = '&pd_battle_layout_expansion'
 TMT2_BATTLE_MON = '&pd_battle_layout_tmt2'
 TEAM_ROCKET_BATTLE_MON = '&pd_battle_layout_team_rocket'
 WISHES_BATTLE_MON = '&pd_battle_layout_wishes'
+PETALBURG_BATTLE_MON = '&pd_battle_layout_petalburg'
 ROWE_BATTLE_MON = '&pd_battle_layout_rowe'
 SOULGOLD_BATTLE_MON = '&pd_battle_layout_soulgold'
 ELITE_REDUX_BATTLE_MON = '&pd_battle_layout_elite_redux'
@@ -520,6 +521,11 @@ name = 'WISHES'
 parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
 values = { partyMenu = 0x02031BB0 }
 
+[config.petalburg]
+name = 'PETALBURG'
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
+values = { partyMenu = 0x02036D80 }
+
 [config.mariomon_v1_5_2]
 name = 'MARIOMON_V1_5_2'
 parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
@@ -983,6 +989,16 @@ typeChart = 'typeEffectivenessWishes'
 speciesTypes = 'speciesTypeDataWishes'
 genderRatios = 'genderRatiosWishes'
 mapsecs = 'mapSecDataWishes'
+
+[text.petalburg]
+species = 'speciesNamesPetalburg'
+items = 'itemNamesPetalburg'
+moves = 'moveDataPetalburg'
+typeNames = 'typeNamesPetalburg'
+typeChart = 'typeEffectivenessPetalburg'
+speciesTypes = 'speciesTypeDataPetalburg'
+genderRatios = 'genderRatiosPetalburg'
+mapsecs = 'mapSecDataPetalburg'
 
 [text.mariomon_v1_5_2]
 species = 'speciesNamesMariomon'

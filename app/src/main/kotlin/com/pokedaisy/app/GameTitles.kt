@@ -160,6 +160,7 @@ object GameTitles {
         "ae1c4be9be8d706bb989602bc05731203d42860d" to "Pokémon Monomyth",
         "eb660caffbc26e1f09f86714d03af4c3eccd9e4d" to "Pokémon Monomyth",
         "60182b934d2e8eb3eef226a9bbc25e5df6becd4f" to "Pokémon Wishes of Tomorrow",
+        "648c88a4fd099e6bcb4fcca79b06878b7fb28d06" to "Pokémon Petalburg Dynasty",
         "20e91aecb3243eea7cd610659846f37062f5d709" to "Pokémon Dreamstone Mysteries",
         "20dfaea1d5317cf95fe0b493208edce7d50b865f" to "Pokémon Ghost Grey",
         "74337272566a74625d6dedefe47d2d153eb48ec1" to "Pokémon Ghost Grey",

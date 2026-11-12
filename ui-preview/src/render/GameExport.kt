@@ -80,6 +80,7 @@ private fun genderRatios(): IntArray? = when (activeGame) {
     GameKind.ELITE_REDUX -> internalTable("EliteReduxGenKt", "getGenderRatiosEliteRedux")
     GameKind.TEAM_ROCKET -> if (teamRocketV3) genderRatiosTeamRocketV3 else internalTable("TeamRocketGenKt", "getGenderRatiosTeamRocket")
     GameKind.WISHES -> genderRatiosWishes
+    GameKind.PETALBURG -> genderRatiosPetalburg
     GameKind.MONOMYTH -> internalTable("MonomythGenKt", "getGenderRatiosMonomyth")
     GameKind.DREAMSTONE -> genderRatiosDreamstone
     else -> null

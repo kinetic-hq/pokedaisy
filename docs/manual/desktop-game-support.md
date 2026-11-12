@@ -37,24 +37,24 @@ foe team is listed as a gap even then.
 
 ## The count
 
-Of the 71 rows:
+Of the 72 rows:
 
 - **54** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **10** get a companion that falls short of Android's somewhere.
+- **11** get a companion that falls short of Android's somewhere.
 - **7** get no companion at all yet.
 
 By tab:
 
 | Area | works | partly | no |
 | --- | --- | --- | --- |
-| `PARTY` | 64 | 0 | 7 |
-| `BAG` | 64 | 0 | 7 |
-| `BATTLE` | 5 | 58 | 8 |
-| `MAP` | 63 | 1 | 7 |
-| `DEX` | 50 | 2 | 19 |
-| `GUIDE` | 33 | 25 | 13 |
+| `PARTY` | 65 | 0 | 7 |
+| `BAG` | 65 | 0 | 7 |
+| `BATTLE` | 5 | 59 | 8 |
+| `MAP` | 63 | 2 | 7 |
+| `DEX` | 50 | 2 | 20 |
+| `GUIDE` | 33 | 26 | 13 |
 
 ## Game by game
 
@@ -126,6 +126,7 @@ By tab:
 | Team Rocket Dragonsden | 1.5; SHA-1 40780347 | works | works | partly | partly | no | partly | None (no `DEX` on Android either) |
 | Team Rocket Dragonsden | 2026 3.0.9 Spanish (BPEE, 32 MB, SHA-1 0d8bdaee) | no | no | no | no | no | no | No companion: the desktop doesn't know this build |
 | Wishes of Tomorrow | 1.2.6; SHA-1 60182b93 | works | works | partly | works | works | partly | None |
+| Petalburg Dynasty | 1.12.2; SHA-1 648c88a4 | works | works | partly | partly | no | partly | No `DEX` tab; `MAP` has place names but no map picture, as on Android |
 | Dreamstone Mysteries | The one release; SHA-1 20e91aec | works | works | partly | works | works | partly | None |
 | Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | works | partly | The `DEX` page has no evolutions or egg groups; the guide has no trainer or wild tables |
 | Emerald Rogue | 2.2.1 EX; SHA-1 7600af1f | works | works | works | works | no | no | No `DEX` tab (no guide on Android either) |

@@ -38,6 +38,11 @@ const struct pd_battle_layout pd_battle_layout_wishes = {
     .size = 136, .species = 0, .moves = 12, .type1 = 34, .type2 = 35, .pp = 37, .hp = 42, .level = 44,
     .maxHp = 46, .status = 80, .speciesMask = 0xFFFF, .personality = 0x4C, .otId = 0x58,
 };
+// Petalburg Dynasty's 0x8C-byte struct (PETALBURG_BATTLE_MON): expansion's fields, the otId at +0x84.
+const struct pd_battle_layout pd_battle_layout_petalburg = {
+    .size = 140, .species = 0, .moves = 12, .type1 = 34, .type2 = 35, .pp = 37, .hp = 42, .level = 44,
+    .maxHp = 46, .status = 80, .speciesMask = 0xFFFF, .personality = 0x4C, .otId = 0x84,
+};
 const struct pd_battle_layout pd_battle_layout_rowe = {
     .size = 96, .species = 0, .moves = 12, .type1 = 34, .type2 = 35, .pp = 37, .hp = 42, .level = 44,
     .maxHp = 46, .status = 80, .speciesMask = 0x7FF, .personality = 0x4C, .otId = 0x58,
@@ -520,6 +525,8 @@ static const struct known_rom KNOWN_ROMS[] = {
      PD_GUIDE_LAZARUS},
     {"60182b934d2e8eb3eef226a9bbc25e5df6becd4f", &PD_CONFIG_WISHES, PD_GAME_EMERALD, "Pokémon Wishes of Tomorrow",
      PD_GUIDE_WISHES},
+    {"648c88a4fd099e6bcb4fcca79b06878b7fb28d06", &PD_CONFIG_PETALBURG, PD_GAME_EMERALD, "Pokémon Petalburg Dynasty",
+     PD_GUIDE_PETALBURG},
     {"06e79d12afa578db97c23c1f7ba771fe2f8fe905", &PD_CONFIG_MARIOMON_V1_5_2, PD_GAME_EMERALD, "Super Mariomon",
      PD_GUIDE_MARIOMON},
     {"831fe0f97301f17b24a9cd4a64ef0520835c4dde", &PD_CONFIG_MARIOMON_V1_5_1, PD_GAME_EMERALD, "Super Mariomon",

@@ -754,7 +754,7 @@ private fun lightBagFor(game: GameKind, hgssPocket: Int = 0): BagPalette = when 
     // Dreamstone Mysteries' is Emerald's (headless: its bag screen in battle, seven pockets).
     GameKind.DREAMSTONE,
     GameKind.TMT2, GameKind.GLAZED, GameKind.IMPERIUM, GameKind.QUETZAL, GameKind.ELITE_REDUX, GameKind.TEAM_ROCKET,
-    GameKind.WISHES -> EmeraldBag
+    GameKind.WISHES, GameKind.PETALBURG -> EmeraldBag
     GameKind.FIRERED -> if (com.pokedaisy.app.companion.data.runningGhostGrey) GhostGreyBag else FireRedBag
     else -> FireRedBag
 }

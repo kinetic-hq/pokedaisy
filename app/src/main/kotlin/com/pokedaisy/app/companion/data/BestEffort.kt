@@ -172,6 +172,7 @@ object BestEffort {
             Candidate("TEAM_ROCKET", GameKind.TEAM_ROCKET, NATIVE_TEAM_ROCKET, EMERALD, "Pokémon Team Rocket Edition: Dragonsden"),
             Candidate("TEAM_ROCKET_V3", GameKind.TEAM_ROCKET, NATIVE_TEAM_ROCKET_V3, EMERALD, "Pokémon Team Rocket Edition 2026"),
             Candidate("WISHES", GameKind.WISHES, NATIVE_WISHES, EMERALD, "Pokémon Wishes of Tomorrow"),
+            Candidate("PETALBURG", GameKind.PETALBURG, NATIVE_PETALBURG, EMERALD, "Pokémon Petalburg Dynasty"),
             Candidate("DREAMSTONE", GameKind.DREAMSTONE, NATIVE_DREAMSTONE, EMERALD, "Pokémon Dreamstone Mysteries"),
             Candidate("MARIOMON_V1_5_2", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_2, EMERALD, "Super Mariomon v1.5.2"),
             Candidate("MARIOMON_V1_5_1", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_1, EMERALD, "Super Mariomon v1.5.1"),

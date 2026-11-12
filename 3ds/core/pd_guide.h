@@ -150,7 +150,7 @@ extern const struct pd_guide pd_guide_firered, pd_guide_leafgreen, pd_guide_emer
     pd_guide_emerald_legacy,
     pd_guide_rocket_edition, pd_guide_ash_gray, pd_guide_gs_chronicles, pd_guide_radical_red, pd_guide_orange_islands,
     pd_guide_odyssey, pd_guide_sword_shield, pd_guide_unbound, pd_guide_gaia, pd_guide_ghost_grey, pd_guide_celia, pd_guide_imperium, pd_guide_recharged_yellow, pd_guide_recharged_emerald,
-    pd_guide_amethyst, pd_guide_soulgold, pd_guide_quetzal_v084, pd_guide_quetzal, pd_guide_tmt2, pd_guide_seaglass, pd_guide_lazarus, pd_guide_heart_and_soul, pd_guide_glazed, pd_guide_mariomon, pd_guide_dreamstone, pd_guide_wishes, pd_guide_team_rocket, pd_guide_elite_redux, pd_guide_ultra_violet, pd_guide_lets_go, pd_guide_monomyth;
+    pd_guide_amethyst, pd_guide_soulgold, pd_guide_quetzal_v084, pd_guide_quetzal, pd_guide_tmt2, pd_guide_seaglass, pd_guide_lazarus, pd_guide_heart_and_soul, pd_guide_glazed, pd_guide_mariomon, pd_guide_dreamstone, pd_guide_wishes, pd_guide_petalburg, pd_guide_team_rocket, pd_guide_elite_redux, pd_guide_ultra_violet, pd_guide_lets_go, pd_guide_monomyth;
 
 enum pd_area_kind { PD_AREA_ITEM, PD_AREA_HIDDEN, PD_AREA_GIFT, PD_AREA_KEY, PD_AREA_MON, PD_AREA_EGG, PD_AREA_TRADE };
 
