@@ -171,7 +171,7 @@ know it works.
 a finger on the game) changes the game's save file while the game
 isn't running. It covers FireRed, LeafGreen, Emerald, Ruby and Sapphire in
 English and the other Western languages, the hacks that kept those games' save
-layout, and English HeartGold and SoulSilver. Any other game, or a save that
+layout, and English HeartGold, SoulSilver and Platinum. Any other game, or a save that
 doesn't check out, is refused and left alone.
 
 - `MONEY` and `COINS`: type a new amount, up to what the game allows.
