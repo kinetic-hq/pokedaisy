@@ -25,6 +25,7 @@
 #include "pocket_os.h"
 #include <SDL.h>
 #include <errno.h>
+#include <time.h>
 #include <fcntl.h>
 #ifdef __linux__
 #include <linux/input.h>
@@ -263,7 +264,51 @@ static int keyboard(SDL_Keycode k) {
     return -1;
   }
 }
+/* BUTTON LAYOUT and HOTKEYS (DATA/settings.ini): read at start, again when CONTROLS or the companion's SETTINGS change
+ * them. SDL reports every pad's face buttons by position (the hint at start), so NINTENDO is "the right one is A" and
+ * XBOX "the bottom one is A". */
+static int buttonLayout;
+static unsigned char hotkeyMap[PD_HOTKEY_BUTTONS];
+static const int HOTKEY_BUTTONS[PD_HOTKEY_BUTTONS] = {
+    SDL_CONTROLLER_BUTTON_GUIDE,   SDL_CONTROLLER_BUTTON_MISC1,   SDL_CONTROLLER_BUTTON_PADDLE1,
+    SDL_CONTROLLER_BUTTON_PADDLE2, SDL_CONTROLLER_BUTTON_PADDLE3, SDL_CONTROLLER_BUTTON_PADDLE4,
+    SDL_CONTROLLER_BUTTON_LEFTSTICK, SDL_CONTROLLER_BUTTON_RIGHTSTICK};
+static const char *const HOTKEY_BUTTON_NAMES[PD_HOTKEY_BUTTONS] = {"GUIDE / HOME", "SHARE", "PADDLE 1", "PADDLE 2",
+                                                                   "PADDLE 3",     "PADDLE 4", "L3", "R3"};
+enum {
+  HA_USUAL, HA_MENU, HA_COMPANION, HA_FF, HA_SAVE_STATE, HA_LOAD_STATE, HA_SCREENSHOT, HA_FULLSCREEN,
+  HA_DS_LAYOUT_NEXT, HA_DS_LAYOUT_BACK, HA_SWAP_SCREENS,
+};
+static const char *const HOTKEY_ACTIONS[PD_HOTKEY_ACTIONS] = {
+    "USUAL USE",  "GAME MENU",  "COMPANION",      "FAST FORWARD",   "SAVE STATE",  "LOAD STATE",
+    "SCREENSHOT", "FULLSCREEN", "DS LAYOUT NEXT", "DS LAYOUT BACK", "SWAP SCREENS"};
+static unsigned hostActions;  // HA_* bits pressed since the game loop last looked
+static bool screenshotWanted; // the next present writes DATA/screenshots/...
+static void controls_load(void) {
+  char path[1100];
+  snprintf(path, sizeof path, "%s/settings.ini", root);
+  struct pd_settings st;
+  pd_settings_load(&st, path);
+  buttonLayout = st.buttonLayout;
+  memcpy(hotkeyMap, st.hotkeys, sizeof hotkeyMap);
+}
+static bool host_action(int action) {
+  bool on = hostActions & (1u << action);
+  hostActions &= ~(1u << action);
+  return on;
+}
 static int controller_button(int button) {
+  if (buttonLayout == PD_LAYOUT_XBOX)
+    switch (button) {
+    case SDL_CONTROLLER_BUTTON_A:
+      return A;
+    case SDL_CONTROLLER_BUTTON_B:
+      return B;
+    case SDL_CONTROLLER_BUTTON_X:
+      return X;
+    case SDL_CONTROLLER_BUTTON_Y:
+      return Y;
+    }
   switch(button) {
     case SDL_CONTROLLER_BUTTON_A:return B;
     case SDL_CONTROLLER_BUTTON_B:return A;
@@ -427,6 +472,26 @@ static bool handheld_screen(void) {
   float w = mode.w / hdpi, h = mode.h / vdpi;
   return w * w + h * h < 100.0f;
 }
+/* A HOTKEYS button with an action: FULLSCREEN and SCREENSHOT happen here, the rest wait in hostActions for the game
+ * loop (or the DS loop, through pd_ds_host_actions). True = the button was the hotkey's, the game doesn't see it. */
+static bool hotkey_event(const SDL_Event *e) {
+  if (e->type != SDL_CONTROLLERBUTTONDOWN && e->type != SDL_CONTROLLERBUTTONUP)
+    return false;
+  for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) {
+    if (e->cbutton.button != HOTKEY_BUTTONS[i] || !hotkeyMap[i])
+      continue;
+    if (e->type == SDL_CONTROLLERBUTTONDOWN) {
+      if (hotkeyMap[i] == HA_FULLSCREEN)
+        fullscreen_toggle();
+      else if (hotkeyMap[i] == HA_SCREENSHOT)
+        screenshotWanted = true;
+      else
+        hostActions |= 1u << hotkeyMap[i];
+    }
+    return true;
+  }
+  return false;
+}
 static void events(void) {
   pressed = 0;
   SDL_Event e;
@@ -443,6 +508,8 @@ static void events(void) {
       if (!e.key.repeat)
         key(keyboard(e.key.keysym.sym), e.type == SDL_KEYDOWN);
     }
+    if (hotkey_event(&e))
+      continue;
     if(e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_CONTROLLERBUTTONUP)
       key(controller_button(e.cbutton.button),e.type == SDL_CONTROLLERBUTTONDOWN);
     if(e.type == SDL_CONTROLLERAXISMOTION) {
@@ -675,9 +742,25 @@ static void render_lcd(void) {
   SDL_RenderSetLogicalSize(renderer, lw, lh);
   SDL_RenderSetIntegerScale(renderer, integer);
 }
+static char shotName[256] = "pokedaisy"; // the game's file name (screenshots are named after it)
+static bool capture_frame(const char *path, unsigned *lit);
+/* SCREENSHOT: DATA/screenshots/<game>-<date>-<time>.png, of the frame about to be shown. */
+static void screenshot_now(void) {
+  if (!screenshotWanted)
+    return;
+  screenshotWanted = false;
+  char dir[1100], path[1500], when[32];
+  snprintf(dir, sizeof dir, "%s/screenshots", root);
+  pocket_mkdir(dir);
+  time_t now = time(NULL);
+  strftime(when, sizeof when, "%Y%m%d-%H%M%S", localtime(&now));
+  snprintf(path, sizeof path, "%s/%s-%s.png", dir, shotName, when);
+  notice(capture_frame(path, NULL) ? "Screenshot saved" : "Screenshot failed");
+}
 static void timed_present(void) {
   uint64_t t = SDL_GetPerformanceCounter();
   render_lcd();
+  screenshot_now();
   SDL_RenderPresent(renderer);
   presentMs += (double)(SDL_GetPerformanceCounter() - t) * 1000.0 / SDL_GetPerformanceFrequency();
 }
@@ -1603,15 +1686,39 @@ static int ff_frames(const struct pd_settings *s, double hz, double frameMs) {
 extern int pd_ds_run(const char*, const char*, int, const char*, SDL_Renderer*, bool (*)(void));
 extern void (*pd_ds_device_event)(const SDL_Event*);
 extern bool (*pd_ds_host_event)(const SDL_Event*);
+extern int pd_ds_xbox_layout;
+extern unsigned (*pd_ds_host_actions)(void);
+extern void (*pd_ds_before_present)(void);
 static bool ds_running(void) { return running != 0; }
 #endif
+#ifdef POCKET_DS
+/* The DS loop's share of the HOTKEYS: its bits, cleared once read (pd_ds_host_actions). */
+static unsigned ds_host_actions(void) {
+  unsigned bits = hostActions;
+  hostActions = 0;
+  return bits;
+}
+#endif
 static void run_game(const char *path, int maxFrames, const char *shot) {
+  {
+    const char *file = path + strlen(path);
+    while (file > path && file[-1] != '/' && file[-1] != '\\')
+      file--;
+    snprintf(shotName, sizeof shotName, "%s", file);
+    char *dot = strrchr(shotName, '.');
+    if (dot && dot != shotName)
+      *dot = 0;
+  }
+  hostActions = 0;
 #ifdef POCKET_DS
   const char *ext = strrchr(path, '.');
   if (ext && !strcasecmp(ext, ".nds")) {
     if (audio) { SDL_CloseAudioDevice(audio); audio = 0; }
     pd_ds_device_event = controller_device_event;
     pd_ds_host_event = fullscreen_event;
+    pd_ds_xbox_layout = buttonLayout == PD_LAYOUT_XBOX;
+    pd_ds_host_actions = ds_host_actions;
+    pd_ds_before_present = screenshot_now;
     appError = pd_ds_run(path, root, maxFrames, shot, renderer, ds_running);
     // The DS backend owns its device while running. Restore the normal host's
     // device for the next GB/GBA game selected without restarting the app.
@@ -1789,7 +1896,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
-                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .hasFullscreen = true, .count = 1, .labels = {"HOST"}};
+                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .hasFullscreen = true, .hasButtonLayout = true, .count = 1, .labels = {"HOST"}};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
@@ -1843,6 +1950,15 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     hotkeyMask = 0;
     if (!companion && !quickOpen)
       hkOn = hotkeys_held(&hkFired);
+    if (host_action(HA_SAVE_STATE))
+      hkFired |= 1u << HK_SAVE;
+    if (host_action(HA_LOAD_STATE))
+      hkFired |= 1u << HK_LOAD;
+    if (host_action(HA_FF)) {
+      ff = !ff;
+      notice(ff ? "Fast-forward on" : "Fast-forward off");
+    }
+    hostActions &= ~((1u << HA_DS_LAYOUT_NEXT) | (1u << HA_DS_LAYOUT_BACK) | (1u << HA_SWAP_SCREENS)); // DS only
     if (hkFired & (1u << HK_SAVE))
       notice(state(c, ss, true) ? "State saved" : "State save failed");
     if (hkFired & (1u << HK_LOAD))
@@ -1853,14 +1969,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       notice(pd_companion_view_name(settings.companionView));
       pd_settings_save(&settings, config);
     }
-    if (down(X)) {
+    if (down(X) || host_action(HA_COMPANION)) {
       menuOpen = 0;
       companion = !companion;
       c->setKeys(c, 0);
       if (audio)
         SDL_ClearQueuedAudio(audio);
     }
-    if ((!hostMenu && down(MENU)) || ((down(START) || down(SELECT)) &&
+    if ((!hostMenu && down(MENU)) || host_action(HA_MENU) || ((down(START) || down(SELECT)) &&
                        (held & (1u << START)) && (held & (1u << SELECT)))) {
       // A second press closes the menu back to the game, like B and RESUME GAME do (it used to leave the
       // companion open behind it).
@@ -2170,6 +2286,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           if ((settings.fullscreen == 1) != fullscreenOn)
             fullscreen_set(settings.fullscreen == 1);
           settings.fullscreen = fullscreenOn ? 1 : 0;
+          buttonLayout = settings.buttonLayout;
           pd_settings_save(&settings, config);
           break;
         default:
@@ -2583,6 +2700,37 @@ static bool folders_screen(void) {
   }
   return changed;
 }
+/* CONTROLS: BUTTON LAYOUT and what each extra pad button does (HOTKEYS), saved to DATA/settings.ini at once. */
+static void controls_screen(void) {
+  char path[1100];
+  snprintf(path, sizeof path, "%s/settings.ini", root);
+  int selected = 0;
+  while (running) {
+    struct pd_settings st;
+    pd_settings_load(&st, path);
+    static char rows[PD_HOTKEY_BUTTONS + 1][64];
+    const char *items[PD_HOTKEY_BUTTONS + 1];
+    snprintf(rows[0], sizeof rows[0], "BUTTON LAYOUT: %s", st.buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
+    for (int i = 0; i < PD_HOTKEY_BUTTONS; i++)
+      snprintf(rows[i + 1], sizeof rows[i + 1], "%s: %s", HOTKEY_BUTTON_NAMES[i], HOTKEY_ACTIONS[st.hotkeys[i]]);
+    for (int i = 0; i <= PD_HOTKEY_BUTTONS; i++)
+      items[i] = rows[i];
+    int pick = menu_pick("CONTROLS", items, PD_HOTKEY_BUTTONS + 1, selected);
+    if (pick < 0)
+      return;
+    selected = pick;
+    if (pick == 0)
+      st.buttonLayout = (st.buttonLayout + 1) % PD_BUTTON_LAYOUTS;
+    else {
+      int action = menu_pick(HOTKEY_BUTTON_NAMES[pick - 1], HOTKEY_ACTIONS, PD_HOTKEY_ACTIONS, st.hotkeys[pick - 1]);
+      if (action < 0)
+        continue;
+      st.hotkeys[pick - 1] = (unsigned char)action;
+    }
+    pd_settings_save(&st, path);
+    controls_load();
+  }
+}
 static bool update_prompt(void) {
   enum updater_state st = updater_state();
   if (st != UPDATER_AVAILABLE && st != UPDATER_DOWNLOADING &&
@@ -2706,6 +2854,10 @@ int main(int argc, char **argv) {
     return 1;
   }
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+  // Every pad's face buttons by position (SDL would otherwise swap a Nintendo pad's by its labels): BUTTON LAYOUT
+  // says which one is A.
+  SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
+  controls_load();
   SDL_DisplayMode display = {0};
   bool fullscreen = getenv("POCKET_FULLSCREEN") != NULL;
   if (!fullscreen && !frames) {
@@ -2784,7 +2936,7 @@ int main(int argc, char **argv) {
     run_game(rom, frames, shot);
   else {
     // DATA/roms and the GAME FOLDERS (DATA/roms-folders.txt), each with its subfolders (rom_list.c); the list's last
-    // row opens GAME FOLDERS.
+    // rows open GAME FOLDERS and CONTROLS.
     struct rom_list games = {0};
     const char **items = NULL;
     int count = 0;
@@ -2797,13 +2949,15 @@ int main(int argc, char **argv) {
     rom_list_free(&games);                                                                                             \
     rom_list_load(&games, root, LIST_NDS);                                                                             \
     free(items);                                                                                                       \
-    items = malloc(sizeof *items * (size_t)(games.count + 1));                                                         \
+    items = malloc(sizeof *items * (size_t)(games.count + 2));                                                         \
     count = items ? games.count : 0;                                                                                   \
     for (int i = 0; i < count; i++)                                                                                    \
       items[i] = games.labels[i];                                                                                      \
-    if (items)                                                                                                         \
+    if (items) {                                                                                                       \
       items[count] = "GAME FOLDERS";                                                                                   \
-    pd_menu_init(&menu, POCKET_HOST_NAME, items, items ? count + 1 : 0);                                               \
+      items[count + 1] = "CONTROLS";                                                                                   \
+    }                                                                                                                  \
+    pd_menu_init(&menu, POCKET_HOST_NAME, items, items ? count + 2 : 0);                                               \
   } while (0)
 #ifdef POCKET_DS
 #define LIST_NDS true
@@ -2834,6 +2988,8 @@ int main(int argc, char **argv) {
             LOAD_GAMES();
             menu.selected = count; // stays on GAME FOLDERS
           }
+        } else if (menu.selected == count + 1) {
+          controls_screen();
         } else {
           snprintf(path, sizeof path, "%s", games.paths[menu.selected]);
           run_game(path, 0, NULL);

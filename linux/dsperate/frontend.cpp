@@ -87,7 +87,11 @@ int keyboard(SDL_Keycode k){switch(k){
   case SDLK_RIGHT:return 4;case SDLK_LEFT:return 5;case SDLK_UP:return 6;case SDLK_DOWN:return 7;
   case SDLK_e:return 8;case SDLK_q:return 9;case SDLK_s:return 10;case SDLK_a:return 11;
   case SDLK_TAB:return 12;case SDLK_SPACE:return 13;case SDLK_ESCAPE:return 15;default:return -1;}}
-int pad(int b){switch(b){
+extern "C" int pd_ds_xbox_layout;
+int pad(int b){
+  if(pd_ds_xbox_layout)switch(b){case SDL_CONTROLLER_BUTTON_A:return 0;case SDL_CONTROLLER_BUTTON_B:return 1;
+    case SDL_CONTROLLER_BUTTON_X:return 11;case SDL_CONTROLLER_BUTTON_Y:return 10;default:break;}
+  switch(b){
   case SDL_CONTROLLER_BUTTON_B:return 0;case SDL_CONTROLLER_BUTTON_A:return 1;
   case SDL_CONTROLLER_BUTTON_BACK:return 2;case SDL_CONTROLLER_BUTTON_START:return 3;
   case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:return 4;case SDL_CONTROLLER_BUTTON_DPAD_LEFT:return 5;
@@ -186,6 +190,11 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
 extern "C" { void (*pd_ds_device_event)(const SDL_Event*)=nullptr; }
 // The host's own keys (main.c's FULLSCREEN: F11, Alt+Enter, L3 + R3): true = taken, the game doesn't get it.
 extern "C" { bool (*pd_ds_host_event)(const SDL_Event*)=nullptr; }
+// BUTTON LAYOUT XBOX: the bottom face button is A (SDL reports pads by position); else the right one, as before.
+extern "C" { int pd_ds_xbox_layout=0; }
+// The host's HOTKEYS (main.c's HA_* bits: 1 GAME MENU, 2 COMPANION, 4 SAVE STATE, 5 LOAD STATE, 8 / 9 DS LAYOUT
+// NEXT / BACK, 10 SWAP SCREENS), read and cleared once a frame; and its screenshot, taken before a present.
+extern "C" { unsigned (*pd_ds_host_actions)(void)=nullptr; void (*pd_ds_before_present)(void)=nullptr; }
 extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* shot,SDL_Renderer* renderer,bool (*keepRunning)()) {
   auto bytes=read_file(rom);if(bytes.size()<512 || bytes.size()>512u*1024*1024){std::fprintf(stderr,"DS: invalid ROM size\n");return 1;}
   char hex[41];{pd_sha1 h;pd_sha1_init(&h);pd_sha1_update(&h,bytes.data(),bytes.size());pd_sha1_hex(&h,hex);}
@@ -320,6 +329,16 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     }
     unsigned now=SDL_GetTicks();for(int k=4;k<8;k++){if(pressed&(1u<<k))repeat[k]=now+400;else if((keys&(1u<<k)) && int(now-repeat[k])>=0){pressed|=1u<<k;repeat[k]=now+90;}}
     if(companionAt>=0 && frame==companionAt)showCompanion=true;
+    if(unsigned act=pd_ds_host_actions?pd_ds_host_actions():0u){
+      if(act&(1u<<1))pressed|=1u<<15;                                 // GAME MENU: the pause menu
+      if(act&(1u<<2)){showCompanion=!showCompanion;showQuick=false;}  // COMPANION
+      if(act&((1u<<8)|(1u<<9))){
+        prefs.layout=(prefs.layout+((act&(1u<<8))?1:DSL_COUNT-1))%DSL_COUNT;
+        std::fprintf(stderr,"DS LAYOUT %s\n",ds_layout_name(prefs.layout));
+      }
+      if(act&(1u<<10))pressed|=1u<<13;                                // SWAP SCREENS: R2's own
+      if(act&((1u<<4)|(1u<<5))){paused=true;pressed=(act&(1u<<4))?1u:1u<<10;}  // SAVE / LOAD STATE, as the quick menu's
+    }
     blocked &= keys;
     // SELECT + R2 / L2 step DS LAYOUT forward / back (the app's R2 hotkey); SELECT is then kept from the game.
     if((keys&(1u<<2)) && (pressed&((1u<<12)|(1u<<13))) && !showCompanion && !paused){
@@ -476,6 +495,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     }
     if(paused){pd_fill(&canvas,0,0,341,256,0x303838);pd_title_box(&canvas,15,40,311,170,0xffffff);pd_text(&canvas,28,55,"PokeDaisy DS / PAUSED",0x303030,PD_NO_SHADOW);pd_text(&canvas,28,90,"B resume   A save state",0x303030,PD_NO_SHADOW);pd_text(&canvas,28,120,"X load state   START quit",0x303030,PD_NO_SHADOW);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);}
     if(shot && limit && frame==limit-1){std::vector<uint32_t> pixels(size_t(ow)*oh);if(!SDL_RenderReadPixels(renderer,nullptr,SDL_PIXELFORMAT_ARGB8888,pixels.data(),ow*4))pd_png_write(shot,ow,oh,pixels.data());}
+    if(pd_ds_before_present)pd_ds_before_present();
     SDL_RenderPresent(renderer);frame++;
     if(!limit){double ms=1000.0*(SDL_GetPerformanceCounter()-tick)/SDL_GetPerformanceFrequency();if(ms<1000.0/nds->fps())SDL_Delay(unsigned(1000.0/nds->fps()-ms));}
   }

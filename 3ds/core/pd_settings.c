@@ -47,6 +47,8 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->dimCompanion = false;
     s->savesBeside = true;
     s->fullscreen = -1;
+    s->buttonLayout = PD_LAYOUT_NINTENDO;
+    for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) s->hotkeys[i] = 0;
 }
 
 const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};
@@ -125,6 +127,18 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "shader")) int_in(value, 0, PD_SHADERS - 1, &s->shader);
         else if (!strcmp(key, "colors")) int_in(value, 0, PD_COLORS - 1, &s->colors);
         else if (!strcmp(key, "fullscreen")) int_in(value, -1, 1, &s->fullscreen);
+        else if (!strcmp(key, "buttons")) int_in(value, 0, PD_BUTTON_LAYOUTS - 1, &s->buttonLayout);
+        else if (!strcmp(key, "hotkeys")) {
+            // One action a button, comma-separated; an unknown one is the button's usual use.
+            const char* p = value;
+            for (int i = 0; i < PD_HOTKEY_BUTTONS && *p && *p != '\n'; i++) {
+                char* end;
+                long n = strtol(p, &end, 10);
+                if (end == p) break;
+                s->hotkeys[i] = n >= 0 && n < PD_HOTKEY_ACTIONS ? (unsigned char) n : 0;
+                p = *end == ',' ? end + 1 : end;
+            }
+        }
         else {
             int on;
             bool* b = !strcmp(key, "ffaudio") ? &s->ffAudio : !strcmp(key, "rewind") ? &s->rewind
@@ -159,6 +173,9 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "updatecheck=%d\nshader=%d\ncolors=%d\ndim=%d\nsavesbeside=%d\n", s->updateCheck ? 1 : 0, s->shader,
             s->colors, s->dimCompanion ? 1 : 0, s->savesBeside ? 1 : 0);
     fprintf(f, "fullscreen=%d\n", s->fullscreen);
+    fprintf(f, "buttons=%d\nhotkeys=", s->buttonLayout);
+    for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) fprintf(f, i ? ",%d" : "%d", s->hotkeys[i]);
+    fprintf(f, "\n");
     if (fclose(f) != 0) return false;
 #ifdef _WIN32
     // rename() won't replace a file on Windows; MoveFileEx does, in one step (paths are UTF-8: the host's manifest).

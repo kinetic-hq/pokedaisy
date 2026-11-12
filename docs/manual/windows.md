@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
+keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -98,7 +98,7 @@ resized. `POCKET_FULLSCREEN=1` still starts it full screen whatever you chose,
 for a frontend or a shortcut, and `POCKET_WINDOW=1920x1080` opens the window at
 a size you choose, to try a handheld's layout on a desktop.
 
-Built in handheld controls and Xbox style controllers work as they come. A
+Built in handheld controls and any SDL controller work as they come. A
 controller can be plugged in, switched on or pulled out while you play, and on a
 handheld its own controls and an Xbox controller both work at once. For a controller it
 doesn't know, put a line for it in `DATA\gamecontrollerdb.txt` (the community
@@ -106,6 +106,24 @@ file's format). On a keyboard: the arrow keys, Z for A, X for B, Enter for
 START, Backspace for SELECT, Q and E for L and R, Tab for the companion, F for
 the quick menu, V for the next companion view, K to lock the side panel and
 Escape for the game menu.
+
+### Button layout and hotkeys
+
+`CONTROLS` at the bottom of the game list sets up your controller.
+`BUTTON LAYOUT` says which face button is the game's A. Pick the one printed on
+your controller: `NINTENDO` (the default) makes the right button A and the
+bottom one B, as on a Nintendo style controller or a handheld with the A on the
+right; `XBOX` makes the button labelled A, the bottom one, the game's A. The
+companion's `SETTINGS` has the same `BUTTON LAYOUT` row.
+
+Below it, each extra button your controller may have gets a job: `GUIDE / HOME`,
+`SHARE`, the four back `PADDLE` buttons, and `L3` and `R3` (the sticks pressed
+down). Pick one and choose `GAME MENU`, `COMPANION`, `FAST FORWARD`,
+`SAVE STATE`, `LOAD STATE`, `SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT NEXT`,
+`DS LAYOUT BACK` or `SWAP SCREENS`, or `USUAL USE` to give it back. A button with
+a job no longer reaches the game. Screenshots go to `DATA\screenshots`, named
+after the game. Fast forward has no effect in DS games, and the DS LAYOUT and
+SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
 
 To start a game straight away, for a frontend or a shortcut, give its file:
 `pokedaisy.exe "D:\Games\My Game.gba"`. `--data FOLDER` uses another data
