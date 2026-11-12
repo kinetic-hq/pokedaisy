@@ -511,7 +511,8 @@ static void act(struct pd_ui* ui, int id) {
             if (ui->overlay == PD_OVERLAY_PICK_ASPECT && i < PD_ASPECTS) ui->settings->aspect = i;
             if (ui->overlay == PD_OVERLAY_PICK_SPEED) ui->settings->gameSpeed = i;
             if (ui->overlay == PD_OVERLAY_PICK_VOLUME) ui->settings->gameVolume = (i + 1) * 20;
-            if (ui->overlay == PD_OVERLAY_PICK_VIEW && i < PD_COMPANION_VIEWS) ui->settings->companionView = i;
+            if ((ui->overlay == PD_OVERLAY_PICK_VIEW || ui->overlay == PD_OVERLAY_LAYOUT) && i < PD_COMPANION_VIEWS)
+                ui->settings->companionView = i;
             close_overlay(ui, PD_ACTION_SETTINGS_CHANGED);
         } else if (id == HIT_YES) {
             enum pd_action a = ui->overlay == PD_OVERLAY_CONFIRM_SAVE ? PD_ACTION_SAVE_STATE
@@ -599,7 +600,19 @@ static void act(struct pd_ui* ui, int id) {
         cycle_button(ui->settings, id - HIT_SETTING);
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_VIEW) {
-        ui->overlay = PD_OVERLAY_PICK_VIEW;
+        ui->overlay = ui->layoutHost && ui->layoutHostCount ? PD_OVERLAY_LAYOUT : PD_OVERLAY_PICK_VIEW;
+    } else if (id >= HIT_SETTING + SETTING_PAGE_SPEED && id <= HIT_SETTING + SETTING_PAGE_QUICK) {
+        // A sub-page: its rows in the tab, BACK returns to the row that opened it.
+        ui->settingsPage = id - (HIT_SETTING + SETTING_PAGE_SPEED) + PAGE_SPEED;
+        ui->settingsNavId = -1;
+        ui->settingsScroll = 0;
+        ui->focusId = -1;
+    } else if (id == HIT_SETTING + SETTING_REWIND) {
+        ui->settings->rewind = !ui->settings->rewind;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_FF_MUSIC) {
+        ui->settings->ffAudio = !ui->settings->ffAudio;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_UPDATES) {
         ui->settings->updateCheck = !ui->settings->updateCheck;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
@@ -813,6 +826,12 @@ bool pd_ui_back(struct pd_ui* ui) {
     if (ui->overlay == PD_OVERLAY_GUIDE_NOTICE) return ui_guide_act(ui, HIT_NOTICE_BACK);
     if (ui->overlay != PD_OVERLAY_NONE) {
         ui->overlay = PD_OVERLAY_NONE;
+        return true;
+    }
+    if (ui->tab == PD_TAB_SETTINGS && ui->settingsPage != PAGE_HOME) {
+        ui->settingsNavId = HIT_SETTING + SETTING_PAGE_SPEED + ui->settingsPage - PAGE_SPEED;
+        ui->focusId = ui->settingsNavId;
+        ui->settingsPage = PAGE_HOME;
         return true;
     }
     if (*ui->boxMessage) {

@@ -28,6 +28,7 @@ extern "C" {
 #include "pd_sha1.h"
 #include "pd_canvas.h"
 #include "pd_style.h"
+#include "pd_layout_pick.h"
 #include "pd_png.h"
 #include "pd_tables.h"
 #include "../quick_menu.h"
@@ -99,6 +100,30 @@ int pad(int b){
   case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:return 8;case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:return 9;
   case SDL_CONTROLLER_BUTTON_Y:return 10;case SDL_CONTROLLER_BUTTON_X:return 11;
   case SDL_CONTROLLER_BUTTON_GUIDE:return 15;default:return -1;}}
+// DS LAYOUT's drawings for the picker: each layout placed by ds_place() on a 16:9 screen. ONE SCREEN is drawn with the
+// touch screen floated in over the dimmed game, as it shows when the game wants it. All but TOUCH IN WING are the app's.
+const pd_layout_option* ds_layout_options(){
+  static pd_layout_option options[DSL_COUNT];static bool made=false;
+  if(made)return options;
+  made=true;
+  const int ow=1280,oh=720;
+  auto box=[&](const DsBox& b,int part){pd_layout_box r;r.x=short(b.x*1000/ow);r.y=short(b.y*1000/oh);r.w=short(b.w*1000/ow);r.h=short(b.h*1000/oh);r.part=(unsigned char)part;return r;};
+  for(int l=0;l<DSL_COUNT;l++){
+    DsPlacement pl=ds_place(l,ow,oh,false,l==DSL_ONE);
+    pd_layout_option& o=options[l];
+    o.name=ds_layout_name(l);o.original=l!=DSL_WING;o.boxCount=0;
+    if(pl.top.shown())o.box[o.boxCount++]=box(pl.top,pl.touchFloats?PD_PART_DIM:PD_PART_GAME);
+    if(pl.touch.shown())o.box[o.boxCount++]=box(pl.touch,PD_PART_TOUCH);
+  }
+  return options;
+}
+// For the host's Settings (main.c): DS LAYOUT's drawings, and the pick in DATA/ds-settings.ini.
+extern "C" const pd_layout_option* pd_ds_layouts(int* count){*count=DSL_COUNT;return ds_layout_options();}
+extern "C" int pd_ds_layout_load(const char* root){return load_prefs((std::filesystem::u8path(root)/"ds-settings.ini").string()).layout;}
+extern "C" bool pd_ds_layout_save(const char* root,int layout){
+  std::string path=(std::filesystem::u8path(root)/"ds-settings.ini").string();
+  DsPrefs p=load_prefs(path);p.layout=std::clamp(layout,0,DSL_COUNT-1);return save_prefs(path,p);
+}
 // The SET tab's rows: SCREEN, DS LAYOUT, AUTO-RESUME, BATTLES, HUD, SHADER, COLORS, DIM COMPANION.
 constexpr int DS_SETTINGS=8;
 struct Texture {SDL_Texture* p;~Texture(){SDL_DestroyTexture(p);}};
@@ -261,6 +286,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   bool& bottom=prefs.bottom;
   bool done=false,showCompanion=false,showQuick=false,paused=false,summary=false,failed=false;
   int quickSelected=0;uint32_t blocked=0;
+  bool layoutPick=false;int layoutSel=0,layoutScroll=0,layoutTiles[DSL_COUNT][4]={};
   int mapX=-1,mapY=-1,setting=0,page=0,tab=0,selected=0,scroll=0,touchX=128,touchY=96;uint32_t keys=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
   const int raw[]={1,0,11,10,9,8,2,3,15,-1,12,13};const bool rawTrimui=std::getenv("POCKET_RAW_TRIMUI")!=nullptr;
   struct Press{int at,n;uint32_t mask;};std::vector<Press> script,hostScript;
@@ -407,6 +433,17 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       nds->setButtons(0);nds->setTouch(0,0,false);
     }else if(showCompanion){
       blocked|=keys&4095u;
+      // DS LAYOUT's picker (A on its SET row): the D-pad walks the tiles, A wears one, B leaves it as it was.
+      if(layoutPick){
+        int cols=pd_layout_picker_columns(341);
+        if(pressed&(1u<<4))layoutSel=std::min(DSL_COUNT-1,layoutSel+1);
+        if(pressed&(1u<<5))layoutSel=std::max(0,layoutSel-1);
+        if(pressed&(1u<<6))layoutSel=std::max(0,layoutSel-cols);
+        if(pressed&(1u<<7))layoutSel=std::min(DSL_COUNT-1,layoutSel+cols);
+        if(pressed&1){prefs.layout=layoutSel;layoutPick=false;std::fprintf(stderr,"DS LAYOUT %s\n",ds_layout_name(prefs.layout));}
+        if(pressed&(1u<<1))layoutPick=false;
+        pressed=0;
+      }
       if(tab==0 && summary && (pressed&((1u<<4)|(1u<<5))))page=1-page;
       if(pressed&(1u<<8)){tab=(tab+1)%6;summary=false;scroll=0;}
       if(pressed&(1u<<9)){tab=(tab+5)%6;summary=false;scroll=0;}
@@ -423,7 +460,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(tab==4){
         if(pressed&(1u<<6))setting=(setting+DS_SETTINGS-1)%DS_SETTINGS;
         if(pressed&(1u<<7))setting=(setting+1)%DS_SETTINGS;
-        if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1)prefs.layout=(prefs.layout+1)%DSL_COUNT;else if(setting==2)prefs.resume=!prefs.resume;else if(setting==3)prefs.battle=1-prefs.battle;else if(setting==4)prefs.hud=!prefs.hud;
+        if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1){layoutPick=true;layoutSel=prefs.layout;}else if(setting==2)prefs.resume=!prefs.resume;else if(setting==3)prefs.battle=1-prefs.battle;else if(setting==4)prefs.hud=!prefs.hud;
           else if(setting==5)prefs.shader=(prefs.shader+1)%POCKET_SHADERS;else if(setting==6)prefs.colors=(prefs.colors+1)%POCKET_COLORS_COUNT;else prefs.dim=!prefs.dim;}
       }
       if(tab!=4 && tab!=5 && (pressed&(1u<<6))){if(tab==1 || tab==2)scroll=std::max(0,scroll-1);else selected=std::max(0,selected-1);}
@@ -457,6 +494,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_RenderClear(renderer);
     pocket_shader_set(prefs.shader,prefs.colors,true);
     if(showCompanion){companion(canvas,snap,supported,tab,selected,summary,scroll,page,prefs,setting,mapArt,mapX,mapY);
+      if(layoutPick)pd_layout_picker_draw(&canvas,"DS LAYOUT",ds_layout_options(),DSL_COUNT,prefs.layout,layoutSel,-1,&layoutScroll,layoutTiles);
       uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
     else{
       DsPlacement place=ds_place(layout,ow,oh,view.bottom,touchWanted && !view.bottom);

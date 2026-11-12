@@ -1,6 +1,8 @@
 /* Native single-screen host for PokeDaisy. GPL-3.0, see ../NOTICE. */
 #include "../3ds/desktop/pd_png.h"
 #include "pd_menu.h"
+#include "pd_layout_pick.h"
+#include "view_layout.h"
 #include "pd_romart.h"
 #include "pd_settings.h"
 #include "pd_ui.h"
@@ -580,6 +582,41 @@ static void tap_script(void) {
   }
 }
 /* The row a tap picked on a pick-list drawn as the canvas (or -1). */
+/* COMPANION VIEW's drawings for LAYOUT: each view worked out by view_layout() on a 16:9 screen, in the state that
+ * shows it best (the companion open, BATTLE WINGS and WINGS in a battle). WINDOW and SIDE PANEL are the app's. */
+static const struct pd_layout_option *companion_layouts(void) {
+  static struct pd_layout_option options[POCKET_VIEWS];
+  static bool made;
+  if (made)
+    return options;
+  made = true;
+  const int sw = 1280, sh = 720;
+  for (int v = 0; v < POCKET_VIEWS; v++) {
+    struct view_state st = {.screenW = sw, .screenH = sh, .frameW = 240, .frameH = 160,
+                            .companionOpen = v != POCKET_VIEW_BATTLE_WINGS && v != POCKET_VIEW_WINGS,
+                            .battle = v == POCKET_VIEW_BATTLE_WINGS || v == POCKET_VIEW_WINGS,
+                            .panelLocked = v == POCKET_VIEW_SIDE_PANEL};
+    struct view_layout l;
+    view_layout(v, &st, &l);
+    struct pd_layout_option *o = &options[v];
+    o->name = pd_companion_view_name(v);
+    o->original = v == POCKET_VIEW_WINDOW || v == POCKET_VIEW_SIDE_PANEL;
+#define BOX(r, p)                                                                                                      \
+  do {                                                                                                                 \
+    if ((r).w > 0 && (r).h > 0 && o->boxCount < PD_LAYOUT_BOXES)                                                       \
+      o->box[o->boxCount++] = (struct pd_layout_box){(short)((r).x * 1000 / sw), (short)((r).y * 1000 / sh),          \
+                                                     (short)((r).w * 1000 / sw), (short)((r).h * 1000 / sh), (p)};    \
+  } while (0)
+    BOX(l.game, l.dim ? PD_PART_DIM : PD_PART_GAME);
+    BOX(l.left, PD_PART_PANEL);
+    BOX(l.right, PD_PART_PANEL);
+    BOX(l.top, PD_PART_PANEL);
+    BOX(l.bottom, PD_PART_PANEL);
+    BOX(l.companion, l.companionGlass ? PD_PART_GLASS : PD_PART_COMPANION);
+#undef BOX
+  }
+  return options;
+}
 static int menu_taps(struct pd_menu *m) {
   int row = -1;
   for (int i = 0; i < tapCount; i++) {
@@ -2099,7 +2136,9 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
   struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
-                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .hasFullscreen = true, .hasButtonLayout = true, .hasOrientation = true, .hasGameTouch = true, .count = 1, .labels = {"HOST"}};
+                              .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .hasFullscreen = true, .hasButtonLayout = true, .hasOrientation = true, .hasGameTouch = true, .count = 1, .labels = {"HOST"},
+                              .fullSettings = true, .androidMenus = true, .hasRewind = true, .hasFfMusic = true,
+                              .batteryPct = -1, .layouts = companion_layouts(), .layoutCount = POCKET_VIEWS};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   const char *opts[] = {"Resume game",
                         "Party",
@@ -2493,7 +2532,12 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         case PD_ACTION_LOAD_STATE:
           notice(state(c, ss, false) ? "State loaded" : "State load failed");
           break;
+        case PD_ACTION_RESTART_GAME:
+          c->reset(c);
+          notice("Game restarted");
+          break;
         case PD_ACTION_SETTINGS_CHANGED:
+          rewind_follow(settings.rewind || rewindBound);
           if ((settings.fullscreen == 1) != fullscreenOn)
             fullscreen_set(settings.fullscreen == 1);
           settings.fullscreen = fullscreenOn ? 1 : 0;
@@ -2758,7 +2802,7 @@ cleanup:
 static int updateSel;
 static bool updateDone; // READY / FAILED read and closed
 /* The game list's own screens (GAME FOLDERS, the folder browser) run their frames here. A headless run (--frames)
- * ends inside them too and takes its shot there; POCKET_MENU_KEYS ("D D A B": A, B, U(p), D(own), one every 12
+ * ends inside them too and takes its shot there; POCKET_MENU_KEYS ("D D A B": A, B, U(p), D(own), L(eft), R(ight), one every 12
  * frames, a space skips a turn) presses keys for it, so the screens can be pictured without a person. */
 static int menuFrames, menuTicks;
 static const char *menuShot, *menuKeys;
@@ -2782,7 +2826,7 @@ static void menu_script(void) {
     return;
   last = menuTicks;
   char c = *menuKeys++;
-  int k = c == 'A' ? A : c == 'B' ? B : c == 'U' ? UP : c == 'D' ? DOWN : -1;
+  int k = c == 'A' ? A : c == 'B' ? B : c == 'U' ? UP : c == 'D' ? DOWN : c == 'L' ? LEFT : c == 'R' ? RIGHT : -1;
   if (k >= 0)
     pressed |= 1u << k;
 }
@@ -2825,6 +2869,50 @@ static int menu_pick(const char *title, const char *const *items, int count, int
       return tapped;
     companion_canvas();
     pd_menu_draw(&m, &canvas);
+    if (menu_frame())
+      return -1;
+  }
+  return -1;
+}
+#ifdef POCKET_DS
+extern const struct pd_layout_option *pd_ds_layouts(int *count);
+extern int pd_ds_layout_load(const char *root);
+extern bool pd_ds_layout_save(const char *root, int layout);
+#endif
+/* LAYOUT's picker from the game list's Settings: the layouts as drawn tiles (pd_layout_pick.h). The D-pad walks
+ * them, A or a tap picks one, B leaves. The picked index, or -1. */
+static int layout_pick(const char *title, const struct pd_layout_option *options, int count, int current) {
+  int selected = current >= 0 && current < count ? current : 0, scroll = 0, pressedTile = -1;
+  int tiles[PD_LAYOUT_OPTIONS][4] = {{0}};
+  int cols = pd_layout_picker_columns(canvas.w);
+  while (running) {
+    events();
+    repeat_directions();
+    menu_script();
+    if (down(B) || down(MENU))
+      return -1;
+    if (down(LEFT) && selected > 0)
+      selected--;
+    if (down(RIGHT) && selected < count - 1)
+      selected++;
+    if (down(UP) && selected >= cols)
+      selected -= cols;
+    if (down(DOWN) && selected + cols < count)
+      selected += cols;
+    if (down(A))
+      return selected;
+    for (int i = 0; i < tapCount; i++) {
+      int hit = pd_layout_picker_hit((const int (*)[4])tiles, count, taps[i].x, taps[i].y);
+      if (taps[i].down)
+        pressedTile = hit;
+      else if (hit >= 0 && hit == pressedTile)
+        return hit;
+      else
+        pressedTile = -1;
+    }
+    tapCount = 0;
+    companion_canvas();
+    pd_layout_picker_draw(&canvas, title, options, count, current, selected, pressedTile, &scroll, tiles);
     if (menu_frame())
       return -1;
   }
@@ -2947,7 +3035,8 @@ static void controls_screen(void) {
     controls_load();
   }
 }
-/* SCREEN: FULLSCREEN, ORIENTATION and GAME TOUCH from the game list, saved to DATA/settings.ini at once. */
+/* SCREEN: COMPANION VIEW, DS LAYOUT (each a LAYOUT picker of drawn tiles), FULLSCREEN, ORIENTATION and GAME TOUCH from
+ * the game list, saved to DATA/settings.ini (DS LAYOUT: DATA/ds-settings.ini) at once. */
 static void screen_screen(void) {
   static const char *const ORIENTATIONS[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED",
                                                             "PORTRAIT FLIPPED"};
@@ -2957,20 +3046,55 @@ static void screen_screen(void) {
   while (running) {
     struct pd_settings st;
     pd_settings_load(&st, path);
-    char rows[3][64];
-    snprintf(rows[0], sizeof rows[0], "FULLSCREEN: %s", fullscreenOn ? "ON" : "OFF");
-    snprintf(rows[1], sizeof rows[1], "ORIENTATION: %s", ORIENTATIONS[st.orientation]);
-    snprintf(rows[2], sizeof rows[2], "GAME TOUCH: %s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
-    const char *items[3] = {rows[0], rows[1], rows[2]};
-    int pick = menu_pick("SCREEN", items, 3, selected);
-    if (pick < 0)
+    const struct pd_layout_option *views = companion_layouts();
+    int dsCount = 0;
+    const struct pd_layout_option *dsLayouts = NULL;
+    int dsLayout = 0;
+#ifdef POCKET_DS
+    dsLayouts = pd_ds_layouts(&dsCount);
+    dsLayout = pd_ds_layout_load(root);
+#else
+    (void)dsCount;
+#endif
+    char rows[5][64];
+    const char *items[5];
+    int n = 0, ids[5];
+    snprintf(rows[n], sizeof rows[n], "COMPANION VIEW: %s", views[st.companionView].name);
+    ids[n++] = 3;
+    if (dsLayouts) {
+      snprintf(rows[n], sizeof rows[n], "DS LAYOUT: %s", dsLayouts[dsLayout].name);
+      ids[n++] = 4;
+    }
+    snprintf(rows[n], sizeof rows[n], "FULLSCREEN: %s", fullscreenOn ? "ON" : "OFF");
+    ids[n++] = 0;
+    snprintf(rows[n], sizeof rows[n], "ORIENTATION: %s", ORIENTATIONS[st.orientation]);
+    ids[n++] = 1;
+    snprintf(rows[n], sizeof rows[n], "GAME TOUCH: %s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
+    ids[n++] = 2;
+    for (int i = 0; i < n; i++)
+      items[i] = rows[i];
+    int row = menu_pick("SCREEN", items, n, selected);
+    if (row < 0)
       return;
-    selected = pick;
-    if (pick == 0) {
+    selected = row;
+    int pick = ids[row];
+    if (pick == 3) {
+      int v = layout_pick("COMPANION VIEW", views, POCKET_VIEWS, st.companionView);
+      if (v < 0)
+        continue;
+      st.companionView = v;
+    } else if (pick == 4) {
+#ifdef POCKET_DS
+      int l = layout_pick("DS LAYOUT", dsLayouts, dsCount, dsLayout);
+      if (l >= 0 && !pd_ds_layout_save(root, l))
+        notice("Couldn't save DS LAYOUT");
+#endif
+      continue;
+    } else if (pick == 0) {
       fullscreen_toggle(); // saves FULLSCREEN itself
       continue;
     }
-    if (pick == 1) {
+    else if (pick == 1) {
       int o = menu_pick("ORIENTATION", ORIENTATIONS, PD_ORIENTATIONS, st.orientation);
       if (o < 0)
         continue;

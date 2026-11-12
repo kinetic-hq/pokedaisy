@@ -127,8 +127,9 @@ SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
 
 ### Screen, touch and orientation
 
-`SCREEN` at the bottom of the game list has `FULLSCREEN`, `ORIENTATION` and
-`GAME TOUCH`; the companion's `SETTINGS` has the same rows.
+`SCREEN` at the bottom of the game list has `COMPANION VIEW`, `DS LAYOUT`,
+`FULLSCREEN`, `ORIENTATION` and `GAME TOUCH`; the companion's `SETTINGS` has the
+same rows (see "Where the settings are" below).
 
 `ORIENTATION` turns the whole picture for a screen that is mounted another way:
 `LANDSCAPE` (the usual), `PORTRAIT` (a quarter turn clockwise),
@@ -151,8 +152,13 @@ folder than the one beside the program.
 ## Companion views
 
 On a wide screen the companion doesn't have to cover the game. Pick how it
-shares the screen in the companion's `SETTINGS` > `COMPANION VIEW`, or press the
-right stick (V on a keyboard) to step to the next one as you play. The game
+shares the screen in the companion's `SETTINGS` > `SCREEN` > `COMPANION VIEW`,
+in `SCREEN` at the bottom of the game list, or press the right stick (V on a
+keyboard) to step to the next one as you play. The picker draws every view as a
+small picture of the screen, so you can see where the game and the companion go
+before you choose; the new one takes over at once. A filled red mark is a view
+the app has on its phones and handhelds too, a hollow one a view added for wide
+screens. The game
 stays in the middle of the screen in every view but a locked side panel.
 
 - **`BATTLE WINGS`** (the first choice): on the field the game fills the screen
@@ -173,6 +179,27 @@ stays in the middle of the screen in every view but a locked side panel.
   it.
 
 The game moves into its new place smoothly when a view changes.
+
+## Where the settings are
+
+The companion's `SETTINGS` has the same groups in the same order as the app on
+a phone or handheld, so a page you know there is where you expect it here. Rows
+only this version has sit in the group they fit best, and rows that only make
+sense on a phone (touch controls, the second screen, sign ins) are left out.
+
+| Group | Rows | Added for Windows and Linux |
+| --- | --- | --- |
+| `FF / SPEED` | `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `SPEED OPTIONS` (`FF MODE`, `FF MUSIC`) | |
+| `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
+| `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `CHEATS` | |
+| `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
+| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
+| `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |
+| `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
+| `APP` | | `CHECK FOR UPDATES` |
+
+Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close
+with B. DS games keep their own `SET` tab, which has `DS LAYOUT`.
 
 ## Shaders and colours
 
@@ -206,8 +233,10 @@ Each time a DS game starts its save is first copied to `DATA\backups`. DS save
 states go to `DATA\states` and never hold the save.
 
 `DS LAYOUT` picks where the two DS screens go in the window. Change it in the
-companion's `SETTINGS`, or hold SELECT (Backspace) and press R2 (Space) for the
-next one or L2 (Tab) for the one before:
+companion's `SET` tab, in `SCREEN` at the bottom of the game list, or hold
+SELECT (Backspace) and press R2 (Space) for the next one or L2 (Tab) for the one
+before. The picker shows each layout as a small picture of the window, marked
+the same way as the companion views (`TOUCH IN WING` is the one added here):
 
 - **`ONE SCREEN`** (the first choice): the top screen fills the window. In
   Platinum (USA, revision 1) the touch screen floats in over the dimmed game

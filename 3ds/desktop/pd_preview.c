@@ -20,6 +20,7 @@
 #include "../core/pd_snapshot.h"
 #include "../core/pd_ui.h"
 #include "../core/pd_ui_internal.h"
+#include "../core/pd_layout_pick.h"
 #include "../core/pd_map.h"
 #include "pd_png.h"
 
@@ -213,6 +214,55 @@ static void drag(struct preview* p, int id, int dy) {
 }
 
 // The library with a few games, as the 3DS's two screens.
+// Stand-in drawings for LAYOUT (the host works its own out from its layout code).
+static const struct pd_layout_option PREVIEW_LAYOUTS[] = {
+    {"BATTLE WINGS", false, 3, {{120, 0, 760, 1000, PD_PART_GAME}, {0, 0, 120, 1000, PD_PART_PANEL}, {880, 0, 120, 1000, PD_PART_PANEL}}},
+    {"WINDOW", true, 2, {{0, 0, 1000, 1000, PD_PART_DIM}, {150, 100, 700, 800, PD_PART_COMPANION}}},
+    {"SIDE PANEL", true, 2, {{0, 170, 500, 660, PD_PART_GAME}, {500, 0, 500, 1000, PD_PART_COMPANION}}},
+    {"WINGS", false, 3, {{120, 0, 760, 1000, PD_PART_GAME}, {0, 0, 120, 1000, PD_PART_PANEL}, {880, 0, 120, 1000, PD_PART_PANEL}}},
+    {"GLASS DRAWER", false, 2, {{120, 0, 760, 1000, PD_PART_GAME}, {0, 600, 1000, 400, PD_PART_GLASS}}},
+    {"STEP BACK", false, 2, {{0, 0, 1000, 1000, PD_PART_COMPANION}, {250, 200, 500, 600, PD_PART_GAME}}},
+};
+
+static void desktop_settings(struct preview* p, struct pd_host_info* host, struct pd_settings* settings) {
+    struct pd_host_info saved = *host;
+    host->fullSettings = host->androidMenus = true;
+    host->hasExpand = host->hasHud = host->hasCompanionView = host->hasUpdateCheck = host->hasShaders = true;
+    host->hasFullscreen = host->hasButtonLayout = host->hasOrientation = host->hasGameTouch = true;
+    host->hasDisplayFilter = host->hasQuickMenu = host->hasButtonRows = host->hasPerf = true;
+    host->hasRewind = host->hasFfMusic = true;
+    host->batteryPct = -1;
+    host->layouts = PREVIEW_LAYOUTS;
+    host->layoutCount = (int)(sizeof PREVIEW_LAYOUTS / sizeof PREVIEW_LAYOUTS[0]);
+    settings->companionView = PD_VIEW_SIDE_PANEL;
+    p->ui->settingsPage = PAGE_HOME;
+    p->ui->settingsScroll = 0;
+    tap(p, HIT_TAB + PD_TAB_PARTY, 0);
+    tap(p, HIT_TAB + PD_TAB_SETTINGS, 0);
+    shot(p->out, p->name, "desktop-settings", p->c->px);
+    drag(p, HIT_SETTINGS_LIST, -120);
+    shot(p->out, p->name, "desktop-settings-scrolled", p->c->px);
+    drag(p, HIT_SETTINGS_LIST, -400);
+    shot(p->out, p->name, "desktop-settings-end", p->c->px);
+    if (has_hit(p, HIT_SETTING + SETTING_PAGE_DISPLAY)) {
+        tap(p, HIT_SETTING + SETTING_PAGE_DISPLAY, 0);
+        shot(p->out, p->name, "desktop-display-options", p->c->px);
+        pd_ui_back(p->ui);
+        draw(p);
+    }
+    drag(p, HIT_SETTINGS_LIST, 1000);
+    drag(p, HIT_SETTINGS_LIST, -200);
+    if (has_hit(p, HIT_SETTING + SETTING_VIEW)) {
+        tap(p, HIT_SETTING + SETTING_VIEW, 0);
+        shot(p->out, p->name, "desktop-layout", p->c->px);
+        tap(p, HIT_OPTION + PD_VIEW_GLASS_DRAWER, 0);
+        printf("companion view %d\n", settings->companionView);
+    } else {
+        printf("desktop: no COMPANION VIEW row on screen\n");
+    }
+    *host = saved;
+}
+
 static void library_shot(const char* dir, const char* name) {
     static struct pd_library l;
     static uint32_t bottom[PD_UI_WIDTH * PD_UI_HEIGHT], top[TOP_W * TOP_H], all[TOP_W * 2 * TOP_H];
@@ -363,6 +413,9 @@ int main(int argc, char** argv) {
     tap(&p, HIT_YES, 0);
     printf("action %d\n", pd_ui_take_action(&ui));
     host.ffOn = false;
+
+    // PD_PREVIEW_DESKTOP=1: the Windows / Linux host's SETTINGS (Android's order and sub-pages) and its LAYOUT picker.
+    if (getenv("PD_PREVIEW_DESKTOP")) desktop_settings(&p, &host, &settings);
 
     // PD_PREVIEW_DEX_ONLY=1: just the POKéDEX shots (a hack's ROM has no MAP / GUIDE tables here yet).
     if (getenv("PD_PREVIEW_DEX_ONLY")) goto dex_only;

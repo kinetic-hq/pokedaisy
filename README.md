@@ -81,6 +81,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
 - **Touch and orientation** on the desktop host: touch and the mouse on the game list, menus and companion,
   `GAME TOUCH` (`DS SCREEN ONLY` / `OFF`) for the game itself, and `ORIENTATION` turning the whole picture and touch
   for a screen mounted upright or upside down.
+- **Android's settings menus** on the desktop host: the companion's `SETTINGS` in the app's groups and order, and
+  a picker for `COMPANION VIEW` and `DS LAYOUT` that draws every choice, from the companion or the game list.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change.
