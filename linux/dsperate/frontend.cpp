@@ -213,7 +213,7 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
     // What this cart is and what the companion reads, so a player knows which dump to look for.
     line("No companion for this game yet.");
     line("This is "+ds_unsupported_label+".");
-    line("Full companion: Platinum (USA) rev 1 (CPUE).");
+    line("Full companion: Platinum (USA) (CPUE).");
     line("TRAINER facts: HeartGold, SoulSilver (USA).");
   }
   else if(!s.valid){line("Waiting for the game's save data");line("Return to the game to finish booting");}
@@ -502,7 +502,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   if(pieceTex.p)SDL_SetTextureBlendMode(pieceTex.p,SDL_BLENDMODE_BLEND);
   const DsPieceGame* pieceGame=ds_pieces_game(code);
   DsPieceLayout pieceLay;int pointerPiece=-1;  // TOUCH PIECES as last drawn; the piece a press began on
-  const auto* field=supported?pk_nds_field_game(code,revision):nullptr;
+  // Platinum rev 0 runs on rev 1's field addresses (its party, field and battle structs sit at the same places).
+  const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):nullptr;
   bool& bottom=prefs.bottom;
   bool done=false,showCompanion=false,showQuick=false,paused=false,summary=false,failed=false;
   int quickSelected=0;uint32_t blocked=0;

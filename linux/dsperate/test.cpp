@@ -31,7 +31,8 @@ int main(int argc,char** argv){
     assert(ds_cart_label(rom.data(),rom.size())=="Platinum (USA) rev 1 (CPUE)");
     const uint8_t sig[4]={0x81,0x9F,0x1E,0x02};std::memcpy(rom.data()+0x221060,sig,4);
     assert(ds_renegade_platinum(rom.data(),rom.size()));assert(ds_cart_label(rom.data(),rom.size())=="Renegade Platinum");
-    code("CPUE",0);assert(!ds_platinum_cart(rom.data(),rom.size()));
+    code("CPUE",0);assert(ds_platinum_cart(rom.data(),rom.size()));
+    code("CPUE",2);assert(!ds_platinum_cart(rom.data(),rom.size()));code("CPUE",0);
     assert(ds_cart_label(rom.data(),rom.size())=="Platinum (USA) rev 0 (CPUE)");
     code("IRDO",0);assert(ds_cart_label(rom.data(),rom.size())=="White 2 (USA / Europe) rev 0 (IRDO)");
     code("CPUF",0);assert(!ds_platinum_cart(rom.data(),rom.size()));
