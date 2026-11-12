@@ -111,6 +111,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
   cap, named under GUIDE > NEXT BOSS, and party levels past it show orange.
 - **Save state slots** on the desktop host (GBA and Game Boy): ten per game in the companion's STATES tab, each with a
   picture and the time it was saved; the save / load hotkeys follow the picked slot, and slot 0 is the old single state.
+- **Resume games** on the desktop host (GBA and Game Boy, like DS's AUTO-RESUME): leaving a game keeps a state, and
+  the next start asks CONTINUE or START FROM SAVE (SETTINGS > APP > RESUME GAMES, on); the save file is never touched.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change. Desktop builds are a beta: every one goes up as a GitHub pre-release until one is called stable, and the

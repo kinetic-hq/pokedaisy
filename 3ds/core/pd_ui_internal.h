@@ -151,6 +151,7 @@ enum setting_row {
     SETTING_REWIND,    // androidMenus with hasRewind: flips in place
     SETTING_FF_MUSIC,  // androidMenus with hasFfMusic: SPED-UP / OFF
     SETTING_LEVEL_CAP, // flips in place
+    SETTING_RESUME,    // hosts with hasResume: flips in place
 };
 // SETTINGS' pages (ui->settingsPage): HOME, then one per SETTING_PAGE_* row in their order.
 enum settings_page { PAGE_HOME, PAGE_SPEED, PAGE_DISPLAY, PAGE_BUTTONS, PAGE_HOTKEYS, PAGE_QUICK };

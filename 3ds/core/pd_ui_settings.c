@@ -231,9 +231,11 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
         if (host->hasButtonRows) page_row(ui, c, ix, &y, iw, SETTING_PAGE_HOTKEYS, "HOTKEYS");
         if (host->hasQuickMenu) page_row(ui, c, ix, &y, iw, SETTING_PAGE_QUICK, "QUICK MENU");
     }
-    if (host->hasUpdateCheck) {
+    if (host->hasUpdateCheck || host->hasResume) {
         group(c, ix, &y, "APP");
-        setting(ui, c, ix, &y, iw, SETTING_UPDATES, "CHECK FOR UPDATES", on_off(st->updateCheck));
+        if (host->hasResume) setting(ui, c, ix, &y, iw, SETTING_RESUME, "RESUME GAMES", on_off(st->resumeGames));
+        if (host->hasUpdateCheck)
+            setting(ui, c, ix, &y, iw, SETTING_UPDATES, "CHECK FOR UPDATES", on_off(st->updateCheck));
     }
 
     y += 3;

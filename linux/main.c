@@ -2599,7 +2599,19 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                               .batteryPct = -1, .layouts = companion_layouts(), .layoutCount = POCKET_VIEWS};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   host.hasStates = true; // STATES: slot 0 (the old one state file) is picked to begin with
+  host.hasResume = true;
   slotsStale = true;
+  /* RESUME GAMES: leaving a game leaves states/<rom>.resume.ss; the next start asks CONTINUE or START FROM SAVE.
+   * States never carry the save, so the save file is never touched; a save newer than the state (played elsewhere
+   * since, beyond the few seconds the save's own last write can trail the state) skips the question. */
+  char resumePath[1100];
+  snprintf(resumePath, sizeof resumePath, "%s/states/%s.resume.ss", root, name);
+  bool resumeOffer = false;
+  {
+    struct stat rs, vs;
+    if (settings.resumeGames && !stat(resumePath, &rs) && rs.st_size > 0)
+      resumeOffer = stat(sav, &vs) || vs.st_mtime <= rs.st_mtime + 10;
+  }
   const char *opts[] = {"Resume game",
                         "Party",
                         "Save state",
@@ -2609,11 +2621,17 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                         "Quit to game list",
                         "About"};
   const char *confirmOpts[] = {"Cancel", "Confirm"};
-  struct pd_menu gameMenu, confirmMenu;
+  const char *resumeOpts[] = {"Continue", "Start from save"};
+  struct pd_menu gameMenu, confirmMenu, resumeMenu;
   pd_menu_init(&gameMenu, "GAME", opts, 8);
   pd_menu_init(&confirmMenu, "CONFIRM", confirmOpts, 2);
-  int menuOpen = 0;
+  pd_menu_init(&resumeMenu, "Continue where you left off?", resumeOpts, 2);
+  int menuOpen = 0; // 1 the game menu, 2 / 3 / 5 its confirms, 4 About, 6 RESUME GAMES' question
   bool companion = false, ff = false, leave = false;
+  if (resumeOffer) {
+    menuOpen = 6;
+    companion = true;
+  }
   int frames = 0;
   bool companionWas = false;
   focusId = -1;
@@ -2945,7 +2963,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           if (down(B) || down(A))
             menuOpen = 1;
         } else {
-          struct pd_menu *pm = menuOpen == 1 ? &gameMenu : &confirmMenu;
+          struct pd_menu *pm = menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : &confirmMenu;
           int tapped = menu_taps(pm);
           if (tapped >= 0 && tapped < pm->count) {
             pm->selected = tapped;
@@ -2955,7 +2973,13 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
             pd_menu_move(pm, -1);
           if (down(DOWN))
             pd_menu_move(pm, 1);
-          if (down(B)) {
+          if (menuOpen == 6 && (down(A) || down(B))) {
+            // CONTINUE loads the state left last time; B or START FROM SAVE plays on from the save's boot.
+            if (down(A) && resumeMenu.selected == 0)
+              notice(state(c, resumePath, false) ? "Continued where you left off" : "Couldn't continue; started from the save");
+            menuOpen = 0;
+            companion = false;
+          } else if (down(B)) {
             if (menuOpen == 1) {
               menuOpen = 0;
               companion = false;
@@ -3220,7 +3244,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                     flyList ? flyT.count : repelKindCount,
                     flyList ? flySel : repelSel, gw, gh);
     } else if (companion && menuOpen && menuOpen != 4) {
-      present_menu(menuOpen == 1 ? &gameMenu : &confirmMenu, gw, gh);
+      present_menu(menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : &confirmMenu, gw, gh);
     } else if (companion) {
       {
         struct view_rect cr = view_companion(&viewTo);
@@ -3233,7 +3257,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                          "https://github.com/lidor30/pokedaisy",
                          "GPL-3.0 | mGBA MPL-2.0 | B: Back");
         } else
-          pd_menu_draw(menuOpen == 1 ? &gameMenu : &confirmMenu, &canvas);
+          pd_menu_draw(menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : &confirmMenu, &canvas);
       } else {
         pd_ui_update(&ui, &snap);
         // The companion draws the focused hit as its own cursor where it has one.
@@ -3314,6 +3338,12 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       due = now;
   }
   pk_finish_save(c, PK_FINISH_SAVE_FRAMES, NULL); // a save the game is writing finishes before the core stops
+  // RESUME GAMES: where the game was left, for CONTINUE next time (with RESUME GAMES off, a stale one goes).
+  if (settings.resumeGames && menuOpen != 6) {
+    if (!state(c, resumePath, true))
+      fprintf(stderr, "pokedaisy: resume state not written\n");
+  } else if (!settings.resumeGames)
+    pocket_remove(resumePath);
   if (audio)
     SDL_ClearQueuedAudio(audio);
 cleanup:
