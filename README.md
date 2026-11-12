@@ -150,6 +150,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   zoom (the game against the wings), L3 fast forwards (new on DS: three frames a turn, muted), R3 steps / picks the
   DS layout, `GUIDE / HOME` opens the quick menu and SELECT + R3 swaps the screens; `USUAL USE` on LT / RT gives
   back the DS's own L2 quick menu and R2 swap.
+- **DS companion in the app's look** on the desktop host: the DS companion, pause screen and toasts use the theme's
+  backdrop, windows and tab colours (and `DARK MODE`) like the GBA companion, and fill the window at `UI SIZE`'s
+  scale instead of a small fixed box.
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 1 cart gets the Platinum companion, as on
   Android (a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
   (game, region, revision, code) and the one it needs.
