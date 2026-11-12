@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
+keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -124,6 +124,25 @@ down). Pick one and choose `GAME MENU`, `COMPANION`, `FAST FORWARD`,
 a job no longer reaches the game. Screenshots go to `DATA\screenshots`, named
 after the game. Fast forward has no effect in DS games, and the DS LAYOUT and
 SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
+
+### Screen, touch and orientation
+
+`SCREEN` at the bottom of the game list has `FULLSCREEN`, `ORIENTATION` and
+`GAME TOUCH`; the companion's `SETTINGS` has the same rows.
+
+`ORIENTATION` turns the whole picture for a screen that is mounted another way:
+`LANDSCAPE` (the usual), `PORTRAIT` (a quarter turn clockwise),
+`LANDSCAPE FLIPPED` (upside down) or `PORTRAIT FLIPPED` (a quarter turn the
+other way). The game list, the games and the companion all lay themselves out
+for the turned screen, and touch follows the turn.
+
+Touch and the mouse work on the game list, its screens, the game menu and the
+companion: tap a row or a tab as you would press A on it. `GAME TOUCH` says what
+touch does on a game itself. `DS SCREEN ONLY` (the default) presses a DS game's
+touch screen wherever it is drawn and leaves the rest alone, so a stray finger
+never moves your character; `OFF` leaves the touch screen to the D-pad
+(SELECT + D-pad + A). A DS game's own companion and menus are still worked with
+the controller.
 
 To start a game straight away, for a frontend or a shortcut, give its file:
 `pokedaisy.exe "D:\Games\My Game.gba"`. `--data FOLDER` uses another data

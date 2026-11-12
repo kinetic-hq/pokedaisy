@@ -615,6 +615,12 @@ static void act(struct pd_ui* ui, int id) {
     } else if (id == HIT_SETTING + SETTING_FULLSCREEN) {
         ui->settings->fullscreen = ui->settings->fullscreen == 1 ? 0 : 1;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_ORIENTATION) {
+        ui->settings->orientation = (ui->settings->orientation + 1) % PD_ORIENTATIONS;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_GAME_TOUCH) {
+        ui->settings->gameTouch = (ui->settings->gameTouch + 1) % PD_GAME_TOUCHES;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_BUTTON_LAYOUT) {
         ui->settings->buttonLayout = (ui->settings->buttonLayout + 1) % PD_BUTTON_LAYOUTS;
         ui->action = PD_ACTION_SETTINGS_CHANGED;

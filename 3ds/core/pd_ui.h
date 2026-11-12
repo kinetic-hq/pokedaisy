@@ -72,6 +72,12 @@ enum pd_button_layout {
     PD_LAYOUT_XBOX,     // by label: the button printed A is A (the bottom one on an Xbox-style pad)
     PD_BUTTON_LAYOUTS,
 };
+// DISPLAY ORIENTATION: the whole picture turned for a screen mounted another way (clockwise, a quarter each).
+enum pd_orientation { PD_ORIENT_LANDSCAPE, PD_ORIENT_PORTRAIT, PD_ORIENT_LANDSCAPE_FLIPPED, PD_ORIENT_PORTRAIT_FLIPPED,
+                      PD_ORIENTATIONS };
+// GAME TOUCH: what a finger or the mouse does on the game itself (menus, the game list and the companion always
+// take it): press a DS game's touch screen, or nothing.
+enum pd_game_touch { PD_GAME_TOUCH_DS_SCREEN, PD_GAME_TOUCH_OFF, PD_GAME_TOUCHES };
 #define PD_HOTKEY_BUTTONS 8
 #define PD_HOTKEY_ACTIONS 11
 struct pd_settings {
@@ -122,6 +128,8 @@ struct pd_settings {
     // The desktop host's extra pad buttons (GUIDE, SHARE, the four back paddles, L3, R3): an action each, 0 = their
     // usual use (linux/main.c's HOTKEY_ACTIONS).
     unsigned char hotkeys[PD_HOTKEY_BUTTONS];
+    int orientation;   // hosts with hasOrientation: DISPLAY ORIENTATION, enum pd_orientation
+    int gameTouch;     // hosts with hasGameTouch: GAME TOUCH, enum pd_game_touch
 };
 
 // COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.
@@ -216,6 +224,8 @@ struct pd_host_info {
     bool hasSavesBeside;   // Optional: SAVES BESIDE GAMES' row (settings.savesBeside)
     bool hasFullscreen;    // Optional: FULLSCREEN's row (settings.fullscreen)
     bool hasButtonLayout;  // Optional: BUTTON LAYOUT's row (settings.buttonLayout)
+    bool hasOrientation;   // Optional: ORIENTATION's row (settings.orientation)
+    bool hasGameTouch;     // Optional: GAME TOUCH's row (settings.gameTouch)
     bool hasDisplayFilter; // host implements OFF / LCD
     bool hasQuickMenu;   // host implements the selectable RING / GRID quick menu
     bool hasButtonRows;  // Optional: QUICK MENU / COMPANION / HUD CURSOR button rows (the host reads settings.*Btn)
