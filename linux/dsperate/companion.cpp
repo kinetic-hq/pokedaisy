@@ -54,6 +54,13 @@ JohtoLayout johto_layout(){
 }
 void ds_set_origin(const DsOrigin* data){originData=data;}
 const DsOrigin* ds_origin(){return originData;}
+namespace { const DsOrigin* renegadeData=nullptr; }
+void ds_set_renegade(const DsOrigin* data){renegadeData=data;}
+const DsOrigin* ds_renegade(){return renegadeData;}
+namespace {
+// The tables a cart brings of its own: Origin HeartGold's on Johto's reader, Renegade Platinum's on Platinum's.
+const DsOrigin* tables_for(DsGame game){return game==DsGame::Platinum?renegadeData:origin_for(game);}
+}
 int DsOrigin::formSpecies(int id,int form) const{
   if(!form)return id;
   for(const auto& f:forms)if(f[0]==id&&f[2]==form)return f[1];
@@ -382,16 +389,16 @@ const char* cart_name(const std::vector<std::string>& names,int id){
 }
 }
 const char* ds_species(int id,DsGame game){
-  if(const auto* o=origin_for(game))return cart_name(o->species,o->baseSpecies(id));
+  if(const auto* o=tables_for(game))return cart_name(o->species,o->baseSpecies(id));
   return ds_unova(game)?name(pd_ds_data::unovaSpecies,id):name(pd_ds_data::species,id);
 }
 const char* ds_move(int id,DsGame game){
-  if(const auto* o=origin_for(game))return cart_name(o->moves,id);
+  if(const auto* o=tables_for(game))return cart_name(o->moves,id);
   return ds_unova(game)?name(pd_ds_data::unovaMoves,id):name(pd_ds_data::moves,id);
 }
 const char* ds_item(int id,DsGame game){
   using namespace pd_ds_data;
-  if(const auto* o=origin_for(game))return cart_name(o->items,id);
+  if(const auto* o=tables_for(game))return cart_name(o->items,id);
   if(game==DsGame::Johto)return name(johtoItems,id);
   if(ds_unova_sequel(game)&&id>=0&&size_t(id)<std::size(sequelItems)&&*sequelItems[id])return sequelItems[id];
   return ds_unova(game)?name(unovaItems,id):name(items,id);
@@ -416,20 +423,20 @@ const char* ds_status(const DsMon& m){
 
 int ds_move_type(int id,DsGame game){
   using namespace pd_ds_data;
-  if(const auto* o=origin_for(game))return id>0&&size_t(id)<o->moveMeta.size()?o->moveMeta[id][0]:-1;
+  if(const auto* o=tables_for(game))return id>0&&size_t(id)<o->moveMeta.size()?o->moveMeta[id][0]:-1;
   if(ds_unova(game))return id>0&&size_t(id)<std::size(unovaTypes)?unovaTypes[id]:-1;
   return id>0&&size_t(id)<std::size(moveMeta)?moveMeta[id][0]:-1;
 }
 int ds_move_power(int id,DsGame game){
   using namespace pd_ds_data;
-  if(const auto* o=origin_for(game))return id>0&&size_t(id)<o->moveMeta.size()?o->moveMeta[id][1]:0;
+  if(const auto* o=tables_for(game))return id>0&&size_t(id)<o->moveMeta.size()?o->moveMeta[id][1]:0;
   if(ds_unova(game))return id>0 && size_t(id)<std::size(unovaPower)?unovaPower[id]:0;
   return id>0 && size_t(id)<std::size(moveMeta)?moveMeta[id][1]:0;
 }
 int ds_species_type(int id,int slot,DsGame game){
   using namespace pd_ds_data;
   if(id<1||slot<0||slot>1)return -1;
-  if(const auto* o=origin_for(game))return size_t(id)<o->speciesTypes.size()?o->speciesTypes[id][slot]:-1;
+  if(const auto* o=tables_for(game))return size_t(id)<o->speciesTypes.size()?o->speciesTypes[id][slot]:-1;
   if(ds_unova(game))return size_t(id)<std::size(unovaSpeciesTypes)?unovaSpeciesTypes[id][slot]:-1;
   return size_t(id)<std::size(speciesTypes)?speciesTypes[id][slot]:-1;
 }

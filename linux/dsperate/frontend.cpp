@@ -379,7 +379,15 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   static struct pd_ds_types originTypes;originTypes={"Fairy",originTables.chart.data()};
   pd_ds_types=origin?&originTypes:nullptr;
   const auto* originField=origin?pk_nds_field_game_rom(bytes.data(),uint32_t(bytes.size())):nullptr;
-  struct OriginReset{~OriginReset(){ds_set_origin(nullptr);pd_ds_types=nullptr;}} originReset;
+  // Renegade Platinum: Platinum's reader, with the names, types, moves, Fairy's chart, TMs and icon palettes its cart
+  // holds (RenegadePlatinum.kt).
+  static DsOrigin renegadeTables;
+  bool renegade=supported && ds_renegade_platinum(bytes.data(),bytes.size());
+  if(renegade){renegadeTables=ds_read_renegade(bytes);renegade=!renegadeTables.species.empty();}
+  ds_set_renegade(renegade?&renegadeTables:nullptr);
+  static struct pd_ds_types renegadeTypes;renegadeTypes={"Fairy",renegadeTables.chart.data()};
+  if(renegade)pd_ds_types=&renegadeTypes;
+  struct OriginReset{~OriginReset(){ds_set_origin(nullptr);ds_set_renegade(nullptr);pd_ds_types=nullptr;}} originReset;
   // HeartGold / SoulSilver: the TRAINER wing's facts only (time of day, Berry Pots, money, place) for now.
   // It only reads RAM, so a US cart's other dumps (by its header) count too.
   const bool johto=!supported&&(origin||ds_companion_game(ds_canonical_sha1(hex))==DsGame::Johto||
@@ -412,7 +420,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   if(shellGame!=DsGame::Unsupported)shell->dexArt=ds_dex_art(bytes,shellGame);
   DsCompanion shellSnap,lastGood;bool shellOpen=false;
   auto nds=ds_core_create();active=nds.get();
-  std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,supported?"Platinum":origin?"Origin HeartGold":johto?"HeartGold / SoulSilver":other?"Black / White":"unsupported");
+  std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,renegade?"Renegade Platinum":supported?"Platinum":origin?"Origin HeartGold":johto?"HeartGold / SoulSilver":other?"Black / White":"unsupported");
   std::deque<std::vector<uint8_t>> rewindRing;int rewindTick=0,rewindStep=0;
   std::string err;if(!nds->boot(rom,bytes,err)){std::fprintf(stderr,"DS boot failed: %s\n",err.c_str());return 1;}
   std::filesystem::path dir=std::filesystem::u8path(root);auto romPath=std::filesystem::u8path(rom);auto filename=romPath.filename().u8string();

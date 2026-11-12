@@ -347,6 +347,40 @@ DsOrigin ds_read_origin(const std::vector<uint8_t>& rom){
   return o;
 }
 
+DsOrigin ds_read_renegade(const std::vector<uint8_t>& rom){
+  DsOrigin o;
+  try{
+    // Its own text (NdsArt.readNames' NAMES_PLATINUM): new moves in old slots, renamed items, mixed-case species.
+    const auto messages=file(rom,"/msgdata/pl_msg.narc");
+    o.species=dex_text(member(messages,412),false,4000);
+    o.moves=dex_text(member(messages,647),false,4000);
+    o.items=dex_text(member(messages,392),false,4000);
+    // NdsArt.readRenegade: pl_personal.narc's types at 6 / 7 (Fairy is 9), pl_waza_tbl.narc's power at 3, type at 4.
+    const auto personal=file(rom,"/poketool/personal/pl_personal.narc");
+    const size_t speciesCount=u16(personal,24);
+    o.speciesTypes.assign(speciesCount,{255,255});
+    for(size_t id=1;id<speciesCount;++id){
+      try{const auto p=member(personal,unsigned(id));if(p.size()>=8)o.speciesTypes[id]={p[6],p[7]};}catch(const std::exception&){}
+    }
+    const auto moves=file(rom,"/poketool/waza/pl_waza_tbl.narc");
+    o.moveMeta.assign(std::max<size_t>(o.moves.size(),u16(moves,24)),{255,0});
+    for(size_t id=1;id<o.moveMeta.size();++id){
+      try{const auto m=member(moves,unsigned(id));if(m.size()>=5)o.moveMeta[id]={m[4],m[3]};}catch(const std::exception&){}
+    }
+    // The chart in overlay 21 (RenegadePlatinum.TYPE_CHART_OFFSET; the build is pinned by its signature): { attacker,
+    // defender, x10 } triples, 0xFE before the foresight pair, 0xFF at the end. In quarters as the core keeps it.
+    o.chart.fill(4);
+    for(size_t at=0x2AFC00;at+3<=rom.size() && at<0x2AFC00+0x400 && rom[at]!=0xFF;at+=3){
+      const uint8_t atk=rom[at],def=rom[at+1],x10=rom[at+2];
+      if(atk<18 && def<18)o.chart[atk*18+def]=uint8_t(x10*4/10);
+    }
+    // sTMHMMoves (TM01..TM92, HM01..HM08) and sPokemonIconPaletteIndex from the uncompressed ARM9.
+    for(int i=0;i<100;++i)o.machines[i]=u16(rom,0x4000+0xF0BFC+i*2);
+    o.iconPalettes.assign(rom.begin()+0x4000+0xF0780,rom.begin()+0x4000+0xF0780+0x21C);
+  }catch(const std::exception& e){std::fprintf(stderr,"Renegade Platinum tables: %s\n",e.what());o.species.clear();}
+  return o;
+}
+
 DsDexArt ds_dex_art(const std::vector<uint8_t>& rom,DsGame game){
   DsDexArt art;
   if(game==DsGame::Unsupported)return art;
@@ -545,8 +579,9 @@ DsDexPage ds_dex_page(const DsDexArt& art,DsGame game,int species){
   if(species<=0 || species>(unova?649:493))return page;
   if(size_t(species)<art.details.size() && art.details[species].hasMachines){
     const auto& bits=art.details[species].machineBits;
+    const auto* renegade=game==DsGame::Platinum?ds_renegade():nullptr;
     const int* moves=unova?pd_ds_data::tmMovesBlack:
-      game==DsGame::Johto?pd_ds_data::tmMovesHeartGold:pd_ds_data::tmMovesPlatinum;
+      game==DsGame::Johto?pd_ds_data::tmMovesHeartGold:renegade?renegade->machines.data():pd_ds_data::tmMovesPlatinum;
     const int total=unova?101:100,tmCount=unova?95:92;
     for(int i=0;i<total;++i){
       if(!(bits[i/8]&(1u<<(i%8))))continue;
@@ -640,7 +675,8 @@ std::vector<std::vector<uint32_t>> ds_party_icons(const std::vector<uint8_t>& ro
         if(!johto&&!unova)throw;
         continue;
       }
-      const unsigned bank=banks[species];
+      const auto* renegade=game==DsGame::Platinum?ds_renegade():nullptr;
+      const unsigned bank=renegade && size_t(species)<renegade->iconPalettes.size()?renegade->iconPalettes[species]:banks[species];
       if((bank+1)*16>pal.size())continue;
       auto& icon=icons[species];icon.resize(32*32,0);
       for(int y=0;y<32;y++)for(int x=0;x<32;x++){

@@ -32,12 +32,17 @@ struct DsOrigin {
   std::array<uint8_t,18*18> chart{};                 // attacker by defender, in quarters (4 = 1x)
   std::vector<std::array<uint16_t,3>> forms;         // species, its form's own species id, form
   std::array<int,138> machines{};                    // TM01..TM92, HM01..HM08, TM93..TM130
+  std::vector<uint8_t> iconPalettes;                 // Renegade Platinum: each species' icon palette (empty: the game's own)
   int formSpecies(int species,int form) const;       // a form's own id (species when form 0 or unknown)
   int baseSpecies(int id) const;                     // the National Dex species of a form id
 };
 // The running Origin HeartGold's tables, or nullptr (any other game). The data outlives the companion.
 void ds_set_origin(const DsOrigin* data);
 const DsOrigin* ds_origin();
+// The running Renegade Platinum's tables (RenegadePlatinum.kt: names, types, moves, Fairy's chart, TMs, icon palettes
+// from its cart), or nullptr. Platinum's reader and RAM layout stay as they are.
+void ds_set_renegade(const DsOrigin* data);
+const DsOrigin* ds_renegade();
 // What the cart is, by its header, for messages: "Platinum (USA) rev 0", "Black 2 (USA / Europe)"...
 std::string ds_cart_label(const uint8_t* rom,size_t size);
 struct DsMon {
