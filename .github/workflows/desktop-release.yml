@@ -152,5 +152,5 @@ jobs:
           ls -R dist
           (cd dist && sha256sum windows/*.zip linux/*.zip | sed 's#  [a-z]*/#  #' > SHA256SUMS.txt)
           gh release create "desktop-v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "PokeDaisy for Windows and Linux $VERSION" --notes-file dist/notes/notes.md --latest \
+            --title "PokeDaisy for Windows and Linux $VERSION" --notes-file dist/notes/notes.md --prerelease \
             dist/windows/*.zip dist/linux/*.zip dist/SHA256SUMS.txt

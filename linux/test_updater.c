@@ -37,6 +37,30 @@ int main(void) {
   assert(!updater_parse("{\"tag_name\":\"desktop-v1.0.0\",\"html_url\":\"https://github.com/a b\"}", version,
                         sizeof version, zip, sizeof zip, sums, sizeof sums, page, sizeof page));
 
+  // The releases list: the highest desktop-v* wins, pre-releases included, out of order; the Android app's v* tags,
+  // drafts and a body with braces in it don't get in the way.
+  const char *releases =
+      "[{\"html_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/tag/v9.9.9\",\"tag_name\":\"v9.9.9\","
+      "\"prerelease\":false,\"assets\":[]},"
+      "{\"html_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/tag/desktop-v1.9.0\","
+      "\"tag_name\":\"desktop-v1.9.0\",\"draft\":false,\"prerelease\":true,\"body\":\"a } and a { \\\" in it\","
+      "\"assets\":[{\"browser_download_url\":"
+      "\"https://github.com/kinetic-hq/pokedaisy/releases/download/desktop-v1.9.0/pokedaisy-windows-x86_64.zip\"}]},"
+      "{\"html_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/tag/desktop-v1.10.0\","
+      "\"tag_name\":\"desktop-v1.10.0\",\"draft\":true,\"prerelease\":true,\"assets\":[]},"
+      "{\"html_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/tag/desktop-v1.8.0\","
+      "\"tag_name\":\"desktop-v1.8.0\",\"prerelease\":false,\"assets\":[]}]";
+  assert(updater_parse_list(releases, version, sizeof version, zip, sizeof zip, sums, sizeof sums, page, sizeof page));
+  assert(!strcmp(version, "1.9.0"));
+  assert(strstr(zip, "desktop-v1.9.0/pokedaisy-windows-x86_64.zip") && !sums[0]);
+  assert(!strcmp(page, "https://github.com/kinetic-hq/pokedaisy/releases/tag/desktop-v1.9.0"));
+  assert(!updater_parse_list("[]", version, sizeof version, zip, sizeof zip, sums, sizeof sums, page, sizeof page));
+  assert(!updater_parse_list("[{\"tag_name\":\"v1.0.0\",\"html_url\":\"https://github.com/x\"}]", version,
+                             sizeof version, zip, sizeof zip, sums, sizeof sums, page, sizeof page));
+  // A single release object (the old /releases/latest answer) still reads.
+  assert(updater_parse_list(json, version, sizeof version, zip, sizeof zip, sums, sizeof sums, page, sizeof page) &&
+         !strcmp(version, "1.2.3"));
+
   char hex[65];
   const char *list = "0000000000000000000000000000000000000000000000000000000000000000  pokedaisy-linux-x86_64.zip\n"
                      "ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789  pokedaisy-windows-x86_64.zip\n";

@@ -107,6 +107,66 @@ bool updater_parse(const char *json, char *version, size_t versionSize, char *zi
   return true;
 }
 
+/* The end of the JSON object starting at p ('{'), past its '}', strings (and their escapes) skipped. NULL if cut. */
+static const char *object_end(const char *p) {
+  int depth = 0;
+  bool inString = false;
+  for (; *p; p++) {
+    if (inString) {
+      if (*p == '\\' && p[1])
+        p++;
+      else if (*p == '"')
+        inString = false;
+    } else if (*p == '"')
+      inString = true;
+    else if (*p == '{')
+      depth++;
+    else if (*p == '}' && --depth == 0)
+      return p + 1;
+  }
+  return NULL;
+}
+
+bool updater_parse_list(const char *json, char *version, size_t versionSize, char *zip, size_t zipSize,
+                        char *sums, size_t sumsSize, char *page, size_t pageSize) {
+  const char *p = json;
+  while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
+    p++;
+  if (*p != '[')
+    return updater_parse(json, version, versionSize, zip, zipSize, sums, sumsSize, page, pageSize); // one release
+  bool found = false;
+  while (*++p) {
+    if (*p == ']')
+      break;
+    if (*p != '{')
+      continue;
+    const char *end = object_end(p);
+    if (!end)
+      break;
+    size_t n = (size_t)(end - p);
+    char *release = malloc(n + 1);
+    if (!release)
+      break;
+    memcpy(release, p, n);
+    release[n] = 0;
+    // A draft never reaches an unsigned-in request, but leave one out anyway.
+    char v[32], z[1024], s[1024], g[1024];
+    bool draft = strstr(release, "\"draft\":true") || strstr(release, "\"draft\": true");
+    if (!draft && updater_parse(release, v, sizeof v, z, sizeof z, s, sizeof s, g, sizeof g) &&
+        strlen(v) < versionSize && strlen(z) < zipSize && strlen(s) < sumsSize && strlen(g) < pageSize &&
+        (!found || updater_compare(v, version) > 0)) {
+      strcpy(version, v);
+      strcpy(zip, z);
+      strcpy(sums, s);
+      strcpy(page, g);
+      found = true;
+    }
+    free(release);
+    p = end - 1;
+  }
+  return found;
+}
+
 bool updater_sum_for(const char *sums, const char *file, char hex[65]) {
   for (const char *line = sums; line && *line; line = strchr(line, '\n') ? strchr(line, '\n') + 1 : NULL) {
     const char *name = line + 64;
@@ -318,8 +378,8 @@ static int check_thread(void *unused) {
   if (!json)
     json = fetch(UPDATER_API_OLD, &size);
   char version[32], skip[32];
-  bool newer = json && updater_parse(json, version, sizeof version, zipUrl, sizeof zipUrl, sumsUrl, sizeof sumsUrl,
-                                     pageUrl, sizeof pageUrl) &&
+  bool newer = json && updater_parse_list(json, version, sizeof version, zipUrl, sizeof zipUrl, sumsUrl, sizeof sumsUrl,
+                                          pageUrl, sizeof pageUrl) &&
                updater_compare(version, currentVersion) > 0;
   free(json);
   if (newer) {

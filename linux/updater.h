@@ -1,5 +1,6 @@
 /* GPL-3.0. The update check: once per launch, in the background, the newest
- * desktop release of kinetic-hq/pokedaisy-desktop against the version built in. On
+ * desktop release of kinetic-hq/pokedaisy-desktop against the version built in (pre-releases count: every desktop
+ * build is one until it's called stable, and GitHub's /releases/latest skips them, so the list is read). On
  * Windows UPDATE NOW downloads the release zip, checks it against the release's
  * SHA256SUMS.txt and installs it when PokeDaisy closes (a helper copies the new
  * files over the program's, never DATA: settings, saves, states, ROMs). On Linux
@@ -20,10 +21,10 @@ enum updater_state {
   UPDATER_FAILED,      // the download or its check failed
 };
 
-#define UPDATER_API "https://api.github.com/repos/kinetic-hq/pokedaisy-desktop/releases/latest"
+#define UPDATER_API "https://api.github.com/repos/kinetic-hq/pokedaisy-desktop/releases?per_page=50"
 /* The repo's name before it was renamed: asked when the new name doesn't answer (before the rename, or if GitHub's
  * redirect from the old name ever stops). Both fetches follow redirects. */
-#define UPDATER_API_OLD "https://api.github.com/repos/kinetic-hq/pokedaisy/releases/latest"
+#define UPDATER_API_OLD "https://api.github.com/repos/kinetic-hq/pokedaisy/releases?per_page=50"
 #define UPDATER_TAG_PREFIX "desktop-v"
 #define UPDATER_WINDOWS_ZIP "pokedaisy-windows-x86_64.zip"
 #define UPDATER_SUMS "SHA256SUMS.txt"
@@ -46,6 +47,10 @@ void updater_finish(void);
 int updater_compare(const char *a, const char *b); // <0, 0, >0 by semver x.y.z
 bool updater_parse(const char *json, char *version, size_t versionSize, char *zip, size_t zipSize,
                    char *sums, size_t sumsSize, char *page, size_t pageSize);
+/* The releases list (a JSON array): the highest desktop-v* release, pre-releases included, drafts and the Android
+ * app's v* tags left out. False when there is none. */
+bool updater_parse_list(const char *json, char *version, size_t versionSize, char *zip, size_t zipSize,
+                        char *sums, size_t sumsSize, char *page, size_t pageSize);
 bool updater_sum_for(const char *sums, const char *file, char hex[65]);
 void updater_sha256(const uint8_t *data, size_t size, char hex[65]);
 #endif
