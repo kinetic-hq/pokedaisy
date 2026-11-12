@@ -160,6 +160,11 @@ int main(int argc,char** argv){
       assert(icons.size()==size_t(dsHeartfeltLastSpecies+1));
       for(int id:{1,494,750,937,1534})assert(icons[id].size()==1024);
       assert(!std::strcmp(ds_species(750,DsGame::Johto),c.species[750].c_str()));
+      // GUIDE's HERE from the cart: map header 9's set 111 by day, its own species (584 and 68 at 20% each, Lv79).
+      assert(c.mapWild.size()==540 && c.wildSets.size()==147 && c.mapWild[9]==111);
+      const auto day=ds_guide_here(DsGame::Johto,9,12,6);
+      assert(day.count>=2 && day.entries[0].species==584 && day.entries[0].chance==20 && day.entries[0].low==79);
+      assert(day.entries[1].species==68 && ds_guide_page_count(DsGame::Johto)==1 && !ds_guide_spots(DsGame::Johto,584).empty());
       ds_set_heartfelt(nullptr);
       std::puts("PASS HeartFelt Gold's cart: names, types, moves, chart and icons");
     }

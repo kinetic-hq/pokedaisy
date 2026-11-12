@@ -137,10 +137,10 @@ void DsCompanionUi::set_game(DsGame value,bool soulSilverVersion){
     frame.availableTabs&=~(1<<PD_TAB_GUIDE);
     if(frame.tab==PD_TAB_GUIDE)frame.tab=PD_TAB_PARTY;
   }
-  // HeartFelt Gold: its Pokédex block and its own trainers are unmapped, so no DEX or GUIDE.
+  // HeartFelt Gold: its Pokédex block is unmapped, so no DEX; its GUIDE is HERE's wild encounters from the cart.
   if(game==DsGame::Johto && ds_heartfelt()){
-    frame.availableTabs&=~((1<<PD_TAB_GUIDE)|(1<<PD_TAB_DEX));
-    if(frame.tab==PD_TAB_GUIDE||frame.tab==PD_TAB_DEX)frame.tab=PD_TAB_PARTY;
+    frame.availableTabs&=~((ds_heartfelt()->mapWild.empty()?1<<PD_TAB_GUIDE:0)|(1<<PD_TAB_DEX));
+    if(!(frame.availableTabs&(1<<frame.tab)))frame.tab=PD_TAB_PARTY;
   }
   if(game==DsGame::Unsupported){
     frame.availableTabs=1<<PD_TAB_PARTY;
