@@ -37,6 +37,7 @@ extern "C" {
 #include "../hud.h"
 bool pocket_save_backup(const char*,time_t);
 extern const char* pocket_backup_dir;
+extern int pd_ds_xbox_layout;  // BUTTON LAYOUT XBOX, set by the host (outside the unnamed namespace, so it links)
 }
 namespace {
 DsCore* active=nullptr;
@@ -95,7 +96,6 @@ int keyboard(SDL_Keycode k){switch(k){
   case SDLK_RIGHT:return 4;case SDLK_LEFT:return 5;case SDLK_UP:return 6;case SDLK_DOWN:return 7;
   case SDLK_e:return 8;case SDLK_q:return 9;case SDLK_s:return 10;case SDLK_a:return 11;
   case SDLK_TAB:return 12;case SDLK_SPACE:return 13;case SDLK_ESCAPE:return 15;default:return -1;}}
-extern "C" int pd_ds_xbox_layout;
 int pad(int b){
   if(pd_ds_xbox_layout)switch(b){case SDL_CONTROLLER_BUTTON_A:return 0;case SDL_CONTROLLER_BUTTON_B:return 1;
     case SDL_CONTROLLER_BUTTON_X:return 11;case SDL_CONTROLLER_BUTTON_Y:return 10;default:break;}
