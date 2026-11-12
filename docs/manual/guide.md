@@ -86,7 +86,8 @@ The pages a game gets depend on how much of it has been mapped. The [supported g
 | Team Rocket Edition: Dragonsden Version | The wild Pokémon in HERE. Its story takes you around in its own order, so there's no NEXT BOSS yet |
 | Petalburg Dynasty | The wild Pokémon in HERE. Its story is its own, so there's no NEXT BOSS yet |
 | Wishes of Tomorrow | The wild Pokémon in HERE, swapped the way your save swaps them when you play with its randomizer on. Its story takes you around its own region in its own order, so there's no NEXT BOSS yet |
-| Emerald Rogue, R.O.W.E., PureRed, PureBlue, Gold, Silver, Crystal Clear, Prism | No guide yet |
+| R.O.W.E. | The wild Pokémon in HERE, at the levels the game's tables hold (the game raises them as you earn badges). You can take its gyms in any order, so there's no NEXT BOSS |
+| Emerald Rogue, PureRed, PureBlue, Gold, Silver, Crystal Clear, Prism | No guide yet |
 
 The original games' hand-written pages follow the app's language when you play a French, German, Italian, Spanish or Japanese copy. Most hacks' pages are in English.
 

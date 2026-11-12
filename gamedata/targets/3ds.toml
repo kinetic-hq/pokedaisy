@@ -553,7 +553,7 @@ values = { partyMenuGrid = true }
 
 [config.rowe]
 name = 'ROWE'
-parts = ['ram', 'foes', 'icons', 'dex', 'battle', 'engine', 'boxes']
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
 values = { partyMenu = 0x0203E774, partyMenuGrid = true }
 
 [config.team_rocket]

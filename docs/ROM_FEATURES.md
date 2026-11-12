@@ -639,8 +639,8 @@ against the app's recorded cards (`make -C 3ds test-card`), the GUIDE's boss tea
 | Odyssey, Sword and Shield Ultimate Plus, Gaia, Recharged Emerald ²⁸ | ✅ | — | ✅ |
 | Kaizo | ✅ | ✅ ³¹ | ✅ ²⁹ |
 | Amethyst, Heart and Soul, Seaglass, Too Many Types 2, Super Mariomon, Dreamstone Mysteries, Ultra Violet | ✅ | — | ✅ ²⁹ |
-| Wishes of Tomorrow, Petalburg Dynasty, Team Rocket Edition, Elite Redux | ✅ | — | ◐ ³⁰ |
-| R.O.W.E., Emerald Rogue (EX) | ✅ | — | — |
+| Wishes of Tomorrow, Petalburg Dynasty, Team Rocket Edition, Elite Redux, R.O.W.E. | ✅ | — | ◐ ³⁰ |
+| Emerald Rogue (EX) | ✅ | — | — |
 | Celia's Stupid Romhack | ◐ ²⁵ | — | ✅ |
 | Ghost Grey | ✅ | — | ✅ ²⁷ |
 

@@ -341,7 +341,7 @@
       {"game": "Monomyth", "version": "1.0, 1.1", "cells": ["yes", "yes", "part", "yes", "yes", "part"]},
       {"game": "Emerald Rogue", "version": "2.2.1-EX", "cells": ["yes", "yes", "yes", "yes", "yes", "no"]},
       {"game": "SoulGold", "version": "1.1.4, 1.2 (3), 1.2.1 (2)", "cells": ["yes", "yes", "part", "yes", "yes", "part"]},
-      {"game": "R.O.W.E.", "version": "2.1.9.1 Experimental", "cells": ["yes", "yes", "part", "yes", "part", "no"]}
+      {"game": "R.O.W.E.", "version": "2.1.9.1 Experimental", "cells": ["yes", "yes", "part", "yes", "part", "part"]}
     ]
   }
 }

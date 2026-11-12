@@ -22,7 +22,8 @@
 # - Icons: vanilla-shaped tables (gMonIconTable 0x08F6F910, 2301 entries - the egg is 2300 -,
 # indices 0x08F72778, palettes 0x08F73314); gItemIconTable 0x0904D9A0 {LZ tiles, LZ palette}.
 # Tables: scripts/gen_rowe_tables.py. Not found: its renumbered system flags (no 0x800-0x8FF flag is
-# set in this save), so no TRAINER CARD (its card is Emerald's, modified) or GUIDE yet.
+# set in this save), so no TRAINER CARD (its card is Emerald's, modified) and no NEXT BOSS. GUIDE has HERE: the wild
+# tables are vanilla-shaped behind a wider header (GUIDE_TABLES_ROWE).
 #
 [config.rowe]
 base = 'emerald'
@@ -67,3 +68,4 @@ monIconPaletteIndices = 0x08F72778
 monIconPaletteTable = 0x08F73314
 itemIconTable = 0x0904D9A0
 pokedex = 'POKEDEX_ROWE'
+guideTables = 'GUIDE_TABLES_ROWE'

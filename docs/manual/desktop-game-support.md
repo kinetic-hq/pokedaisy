@@ -131,7 +131,7 @@ By tab:
 | Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | works | partly | The `DEX` page has no evolutions or egg groups; the guide has no trainer or wild tables |
 | Emerald Rogue | 2.2.1 EX; SHA-1 7600af1f | works | works | works | works | no | no | No `DEX` tab (no guide on Android either) |
 | SoulGold | 1.1.4, 1.2 (3 builds), 1.2.1 (2 builds) | works | works | partly | works | no | partly | No `DEX` tab |
-| R.O.W.E. | 2.1.9.1 Experimental; SHA-1 81bd0f4b | works | works | partly | works | partly | no | None (no guide on Android either) |
+| R.O.W.E. | 2.1.9.1 Experimental; SHA-1 81bd0f4b | works | works | partly | works | partly | partly | GUIDE has HERE but no NEXT BOSS (its gyms come in any order), as on Android |
 
 ## What the gaps come from
 

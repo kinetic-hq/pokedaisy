@@ -64,6 +64,7 @@ const struct pd_guide* pd_guide_for(const struct pd_game* g) {
     case PD_GUIDE_DREAMSTONE: return &pd_guide_dreamstone;
     case PD_GUIDE_WISHES: return &pd_guide_wishes;
     case PD_GUIDE_PETALBURG: return &pd_guide_petalburg;
+    case PD_GUIDE_ROWE: return &pd_guide_rowe;
     case PD_GUIDE_TEAM_ROCKET: return &pd_guide_team_rocket;
     case PD_GUIDE_ELITE_REDUX: return &pd_guide_elite_redux;
     case PD_GUIDE_ULTRA_VIOLET: return &pd_guide_ultra_violet;

@@ -197,7 +197,7 @@ shows a "not supported" notice).
 | Monomyth                       | 1.0, 1.1                   |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
 | Emerald Rogue                  | 2.2.1-EX                   |  ✅   | ✅  |   ✅   | ✅  |   ✅    |   —   |
 | SoulGold                       | 1.1.4, 1.2 (3), 1.2.1 (2)  |  ✅   | ✅  |   ◐    | ✅  |   ✅    |   ◐   |
-| R.O.W.E.                       | 2.1.9.1 Experimental       |  ✅   | ✅  |   ◐    | ✅  |    ◐    |   —   |
+| R.O.W.E.                       | 2.1.9.1 Experimental       |  ✅   | ✅  |   ◐    | ✅  |    ◐    |   ◐   |
 
 <details>
 <summary><strong>Notes on the table</strong></summary>
