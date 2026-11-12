@@ -540,7 +540,7 @@ static const struct known_rom KNOWN_ROMS[] = {
     {"43dd208b23eade69aa3384301e934ecafbf6c2b3", &PD_CONFIG_MARIOMON_V1_2_1, PD_GAME_EMERALD, "Super Mariomon",
      PD_GUIDE_MARIOMON},
     {"81bd0f4bfa1c04ab2c6faab1bddd10e8a390ea77", &PD_CONFIG_ROWE, PD_GAME_EMERALD, "Pokémon R.O.W.E.",
-     PD_GUIDE_NONE},
+     PD_GUIDE_ROWE},
     {"40780347d0b4df6bf491eaf12603e5422caee677", &PD_CONFIG_TEAM_ROCKET, PD_GAME_EMERALD, "Pokémon Team Rocket Edition",
      PD_GUIDE_TEAM_ROCKET},
     {"20e91aecb3243eea7cd610659846f37062f5d709", &PD_CONFIG_DREAMSTONE, PD_GAME_EMERALD, "Pokémon Dreamstone Mysteries",

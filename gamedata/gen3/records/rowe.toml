@@ -1,0 +1,20 @@
+# R.O.W.E. 2.1.9.1 Experimental's guide tables (HERE only). gWildMonHeaders 0x08F27970: 32-byte headers (group, num,
+# pad, then land, land at night, water, rock smash, fishing, hidden, headbutt pointers: RoweSource's
+# include/wild_encounter.h), 193 of them ending at group 0xFF; ROUTE 101's land set reads ZIGZAGOON, WURMPLE,
+# POOCHYENA at Lv2-3 (the game scales them up). gTrainers 0x08407200: 0x40-byte records, the name at +0x28 in title
+# case (265 Roxanne, 266 Brawly, 267 Wattson).
+#
+# From app/src/main/kotlin/com/pokedaisy/app/companion/data/GuideRom.kt.
+[record.GUIDE_TABLES_ROWE]
+schema = 'gen3_guide'
+kotlin = false
+trainers = 0x08407200
+learnsets = 0
+wildHeaders = 0x08F27970
+probeTrainer = 265
+probeName = 'Roxanne'
+guide = 'GuideId.ROWE'
+trainerStride = 0x40
+trainerNameOff = 0x28
+trainerNameLen = 12
+wildLayout = { kotlin = 'WildLayout(stride = 32, land = 0, water = 2, rockSmash = 3, fishing = 4)' }

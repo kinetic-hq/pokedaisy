@@ -169,6 +169,7 @@ enum class GuideId {
     MARIOMON,
     ULTRA_VIOLET, SWORD_SHIELD, ROCKET_EDITION, ASH_GRAY, GHOST_GREY, ELITE_REDUX, TEAM_ROCKET, WISHES, DREAMSTONE, MONOMYTH,
     PETALBURG,
+    ROWE,
     // Let's Go Pikachu and Eevee share their text and maps, not their wild Pokémon.
     LETS_GO,
     // Quetzal Alpha 0.8.4: Hoenn alone (Alpha 9 added Johto and Kanto).
@@ -251,6 +252,7 @@ private fun wholeGuide(id: GuideId?): GameGuide? = when (id) {
     GuideId.TEAM_ROCKET -> GUIDE_TEAM_ROCKET
     GuideId.WISHES -> GUIDE_WISHES
     GuideId.PETALBURG -> GUIDE_PETALBURG
+    GuideId.ROWE -> GUIDE_ROWE
     GuideId.DREAMSTONE -> GUIDE_DREAMSTONE
     GuideId.MONOMYTH -> GUIDE_MONOMYTH
     GuideId.SWORD_SHIELD -> GUIDE_SWORD_SHIELD

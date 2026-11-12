@@ -4744,7 +4744,8 @@ val NATIVE_RECHARGED_YELLOW_V1_9_7 = NATIVE_RECHARGED_YELLOW_V1_9_4.copy(
 // - Icons: vanilla-shaped tables (gMonIconTable 0x08F6F910, 2301 entries - the egg is 2300 -,
 // indices 0x08F72778, palettes 0x08F73314); gItemIconTable 0x0904D9A0 {LZ tiles, LZ palette}.
 // Tables: scripts/gen_rowe_tables.py. Not found: its renumbered system flags (no 0x800-0x8FF flag is
-// set in this save), so no TRAINER CARD (its card is Emerald's, modified) or GUIDE yet.
+// set in this save), so no TRAINER CARD (its card is Emerald's, modified) and no NEXT BOSS. GUIDE has HERE: the wild
+// tables are vanilla-shaped behind a wider header (GUIDE_TABLES_ROWE).
 //
 val NATIVE_ROWE = NATIVE_EMERALD.copy(
     // gItems: 0x38-byte entries, description pointer at +0x1C.
@@ -4788,6 +4789,7 @@ val NATIVE_ROWE = NATIVE_EMERALD.copy(
     monIconPaletteTable = 0x08F73314L,
     itemIconTable = 0x0904D9A0L,
     pokedex = POKEDEX_ROWE,
+    guideTables = GUIDE_TABLES_ROWE,
 )
 
 // ---- gamedata/gen3/hacks/seaglass.toml ----

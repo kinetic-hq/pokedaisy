@@ -240,6 +240,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Petalburg Dynasty 1.12.2**: a new supported hack (pokeemerald-expansion 1.16.4, its sha1 only): PARTY, BAG, BATTLE
   with the foe's team and the battle buttons, MAP place names and the GUIDE's wild Pokemon on the desktop, the 3DS port
   and Android, and its DEX on all three.
+- **R.O.W.E.'s GUIDE**: HERE lists the wild Pokémon of the place you're in, read from the game's own tables (a wider
+  header than Emerald's, with day and night sets), on Android, the desktop host and the 3DS port. Its gyms come in any
+  order, so there's no NEXT BOSS.
 - **Petalburg Dynasty's MAP picture** on the desktop host, the 3DS port and Android: the game keeps Emerald's own map,
   stored in the newer smol compression, and now shows it with each of its places where the game puts them. On the desktop
   and the 3DS port, Wishes of Tomorrow's map shows too: its pictures were too large for the smol reader before.

@@ -1048,6 +1048,26 @@ val GUIDE_TABLES_WISHES = GuideTables(
  * time-of-day sets with only the first filled), gMapGroups 0x08F184B8. SaveBlock1's flags / vars at +0x1270 / +0x139C.
  * gamedata/gen3/records/petalburg.toml mirrors it.
  */
+/**
+ * Pokémon R.O.W.E. 2.1.9.1 Experimental: HERE only. gWildMonHeaders 0x08F27970 (32 bytes: group, num, pad, then land,
+ * land at night, water, rock smash, fishing, hidden and headbutt pointers - the public RoweSource's
+ * include/wild_encounter.h; 193 headers; ROUTE 101's land set reads ZIGZAGOON, WURMPLE, POOCHYENA... at Lv2-5, which
+ * the game scales up as you go). gTrainers 0x08407200: 0x40-byte records, the name at +0x28 in title case (265
+ * Roxanne, 266 Brawly, 267 Wattson). No NEXT BOSS: its gyms come in any order and its badge flags are renumbered.
+ */
+val GUIDE_TABLES_ROWE = GuideTables(
+    trainers = 0x08407200L,
+    learnsets = 0,
+    wildHeaders = 0x08F27970L,
+    probeTrainer = 265,
+    probeName = "Roxanne",
+    guide = GuideId.ROWE,
+    trainerStride = 0x40,
+    trainerNameOff = 0x28,
+    trainerNameLen = 12,
+    wildLayout = WildLayout(stride = 32, land = 0, water = 2, rockSmash = 3, fishing = 4),
+)
+
 val GUIDE_TABLES_PETALBURG = GuideTables(
     trainers = 0x0847E2D4L,
     learnsets = 0x08750648L, // gSpeciesInfo[0].levelUpLearnset

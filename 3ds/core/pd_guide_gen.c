@@ -8891,6 +8891,23 @@ const struct pd_guide pd_guide_petalburg = {
     pd_guide_petalburg_pages, 1, pd_guide_petalburg_bosses, 0, false, 0, 0, .regionOf = NULL,
 };
 
+static const struct pd_guide_entry pd_guide_rowe_p0_s0[] = {
+    { "Where does this guide come from?", "HERE lists the wild POKéMON of the place you're in, read from the game itself.", NULL, PD_HAVE_NONE, { 0, 0, 0 }, NULL, 0 },
+    { "Why are the levels so low?", "HERE shows the levels the game's tables hold. The game raises wild levels as you earn badges.", NULL, PD_HAVE_NONE, { 0, 0, 0 }, NULL, 0 },
+    { "Why is there no NEXT BOSS page?", "You can take the gyms in any order, so there's no one boss to show next.", NULL, PD_HAVE_NONE, { 0, 0, 0 }, NULL, 0 },
+};
+static const struct pd_guide_section pd_guide_rowe_p0[] = {
+    { "THIS GUIDE", NULL, pd_guide_rowe_p0_s0, 3, 0 },
+};
+static const struct pd_guide_page pd_guide_rowe_pages[] = {
+    { "TIPS", pd_guide_rowe_p0, 1 },
+};
+static const struct pd_boss pd_guide_rowe_bosses[] = {
+};
+const struct pd_guide pd_guide_rowe = {
+    pd_guide_rowe_pages, 1, pd_guide_rowe_bosses, 0, false, 0, 0, .regionOf = NULL,
+};
+
 static const struct pd_guide_entry pd_guide_team_rocket_p0_s0[] = {
     { "Where does this guide come from?", "HERE lists the wild POKéMON of the place you're in, read from the game itself.", NULL, PD_HAVE_NONE, { 0, 0, 0 }, NULL, 0 },
     { "Why is there no NEXT BOSS page?", "In this game you play for Team Rocket and its story takes you around in its own order, so there's no one boss to show next yet.", NULL, PD_HAVE_NONE, { 0, 0, 0 }, NULL, 0 },

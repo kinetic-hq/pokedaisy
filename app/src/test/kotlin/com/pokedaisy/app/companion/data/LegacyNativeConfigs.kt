@@ -838,6 +838,7 @@ val LEGACY_NATIVE_ROWE = LEGACY_NATIVE_EMERALD.copy(
     monIconPaletteTable = 0x08F73314L,
     itemIconTable = 0x0904D9A0L,
     pokedex = POKEDEX_ROWE,
+    guideTables = GUIDE_TABLES_ROWE,
 )
 
 val LEGACY_NATIVE_EMERALD_ROGUE = LEGACY_NATIVE_EMERALD.copy(
