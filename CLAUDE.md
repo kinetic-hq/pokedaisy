@@ -41,6 +41,34 @@ blacks out only when no Pokémon in the whole party can fight; PLAYER LOOK / TEX
 both (every save, also on the team-pick screen) and any other battle ends for both with no prize, the trainer not beaten, what was earned kept, no evolution from it. A stop
 always puts the game back before any resume / suspend state is written (a stop that can't be confirmed writes none). Its manual text is the "Battling together" part of the draft.
 
+## Fork working rules (kinetic-hq/pokedaisy)
+
+This fork adds a desktop host (Windows / Linux, `linux/`). Its rules come first where they differ from the above:
+
+- **Branches** `tanjid/<change-type>/<short-name>` (`feat`, `fix`, `docs`, `perf`, `refactor`, `test`, `chore`);
+  **commits** `<change-type>: <what changed>`. No AI attribution anywhere (no `Co-Authored-By`, no "Generated with",
+  no model names); the `commit-msg` hook rejects them, never bypass it.
+- **Auto PR and merge**: once the local build and tests pass, push, open the PR against `main` of
+  kinetic-hq/pokedaisy (never lidor30/pokedaisy), then `gh pr merge --squash --delete-branch`. Never force-push `main`.
+- **README's "How this fork differs from PokeDaisy"** gets a line for every behaviour change, in the same PR; the
+  manual (`docs/manual/windows.md` for the desktop host) as above.
+- **Windows build** (MSYS2 / WinLibs MinGW-w64, Ninja, SDL2 2.32 MinGW dev package):
+  `cmake -S linux -B build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=<SDL2>/x86_64-w64-mingw32
+  -DPOCKET_MELONDS=ON`, `cmake --build build-win`, then
+  `ctest --test-dir build-win -E "package-smoke|linux-runtime-test"`. Re-run the configure after adding files.
+  SDL2.dll must be on PATH to run the exe or tests.
+- **Linux / WSL**: `cmake -S linux -B linux/build && cmake --build linux/build && ctest --test-dir linux/build`.
+- **Known local-only failures**: `package-smoke` (needs SDL2.dll next to the packaged exe) and
+  `linux-runtime-test` (needs a real ROM and save, and misreads with a real controller plugged in). CI runs both.
+- **Headless looks**: `SDL_VIDEODRIVER=dummy POCKET_WINDOW=1920x1080 pokedaisy.exe --data <dir> --frames N --shot
+  out.png [rom]` (`POCKET_MENU_KEYS`, `POCKET_DS_HOST_TAPS` / `POCKET_DS_KEYS` script input). Read the PNG.
+- **Releases**: `desktop-release.yml` cuts `desktop-vX.Y.Z` pre-releases from `main` by itself (feat / fix / perf
+  commits). By hand: `python linux/windows/package.py` (Windows zip) and `linux/package.py` (Linux, under WSL), a
+  `SHA256SUMS`, then `gh release create desktop-vX.Y.Z --repo kinetic-hq/pokedaisy --target <full SHA> --prerelease`.
+- **Your files**: never create, move, rename or delete anything in the emulation folders (ROMs, saves, states), and
+  never run a game from there: copy what a test needs into a scratch folder and work on the copy. Never commit
+  ROMs, saves, game frames or secrets (keys come from the user at runtime or from CI secrets).
+
 ## The user manual (`docs/manual/`): keep it current
 
 **Every change a player can notice updates the manual in the same change**: a new feature, setting, tab,
