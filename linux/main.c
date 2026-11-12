@@ -5236,7 +5236,7 @@ static void library_load(struct library *l) {
   l->grid.selected = keep >= 0 && keep < count ? keep : 0;
   l->grid.focus = count ? focus : GAME_GRID_TILES;
   l->grid.scrollY = scroll;
-  l->grid.title = POCKET_HOST_NAME;
+  l->grid.title = "PokeDaisy"; // the platform stays in the window title and SETTINGS' HOST row
   l->grid.bar = LIBRARY_BAR;
   l->grid.barCount = 3;
   l->grid.hint = "A PLAY   X OPTIONS   Y SETTINGS   B QUIT";

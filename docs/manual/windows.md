@@ -61,7 +61,9 @@ and how much of the companion it gets:
 Move with
 the D-pad, the mouse or a finger; `A` or a tap plays, the mouse wheel or a drag
 scrolls, and `Y` opens `SETTINGS`. `SYNC BOX ART`, `GAME FOLDERS` and `SETTINGS`
-sit in the bar along the top: press UP from the first row to reach them.
+sit in the bar along the top: press UP from the first row to reach them. The
+bar's left end shows the PokeDaisy daisy and name; the window's title and
+`SETTINGS` > `HOST` still say whether it's the Windows or the Linux build.
 
 Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 `BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
