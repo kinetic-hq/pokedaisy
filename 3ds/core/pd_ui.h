@@ -132,6 +132,7 @@ struct pd_settings {
     unsigned char hotkeys[PD_HOTKEY_BUTTONS];
     int orientation;   // hosts with hasOrientation: DISPLAY ORIENTATION, enum pd_orientation
     int gameTouch;     // hosts with hasGameTouch: GAME TOUCH, enum pd_game_touch
+    int background;    // the desktop host: BACKGROUND, linux/backdrop.h's enum, -1 = by COLORS (OLED = BLACK)
 };
 
 // COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.

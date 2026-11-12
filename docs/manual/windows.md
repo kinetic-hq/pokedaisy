@@ -214,7 +214,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
 | `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `CHEATS` | |
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
-| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
+| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |
 | `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
 | `APP` | | `CHECK FOR UPDATES` |
@@ -237,8 +237,13 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   black, which an OLED doesn't light at all.
 - **`DIM COMPANION`**: the companion and the panels beside the game are drawn
   a little darker, so the game stands out.
+- **`BACKGROUND`**: `BLACK` makes everything round the game true black and
+  draws the panels beside it as near black cards with a faint edge. `DARK` is
+  the same a shade lighter. `THEME` keeps the theme's own colours. With
+  `COLORS` `OLED` it starts on `BLACK`. Panels that stay still for a minute dim
+  a little more, and move by a pixel every few minutes, so nothing burns in.
 
-DS games have the same three rows in the companion's `SET` tab.
+DS games have the same rows in the companion's `SET` tab.
 
 ## Nintendo DS games
 

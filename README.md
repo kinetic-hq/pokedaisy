@@ -38,7 +38,7 @@ UPDATES`.
 | Start a game directly | `pokedaisy.exe "D:\Games\My Game.gba"`; `--data FOLDER` uses another data folder. |
 | COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
 | DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE`, `LARGE + SMALL`, `WINGS` or `SPLIT TOUCH` (`TOUCH IN WING` and `WINGS` put the companion's party and trainer panels beside the top screen; `SPLIT TOUCH` puts half the touch screen in each wing; `DS WING SIDE` picks the side). R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
-| Shaders | `SETTINGS` > `SHADER` (`OFF`, `SHARP`, `xBRZ`), `COLORS` (`ORIGINAL`, `HANDHELD`, `OLED`: true black panels, less glare) and `DIM COMPANION`. DS games have them in the `SET` tab. |
+| Shaders | `SETTINGS` > `SHADER` (`OFF`, `SHARP`, `xBRZ`), `COLORS` (`ORIGINAL`, `HANDHELD`, `OLED`: true black panels, less glare), `DIM COMPANION` and `BACKGROUND` (`BLACK`, `DARK`, `THEME`: what's round the game and the wing cards). DS games have them in the `SET` tab. |
 | Get started | The first start with no games opens `GET STARTED`: game folders, button layout, full screen, companion view, DS layout and colours (`OLED` too), one page each, then the game list. `SETTINGS` > `APP` > `RUN SETUP` brings it back. |
 | Games in other folders | `+ ADD GAMES` at the top of the game list (or `SETTINGS` > `GAME FOLDERS`): `ADD A FOLDER` browses your drives with a controller (e.g. `D:\Emulation\roms`); each folder and the folders right inside it are listed (kept in `DATA\roms-folders.txt`). |
 | Save folders | GBA / Game Boy saves in `DATA\saves` for games in `DATA\roms`, and beside the game as `<name>.sav` for games in your own folders (`SETTINGS` > `SAVES BESIDE GAMES` turns that off); backed up to a `pokedaisy-backups` folder next to the save at each start. A DS save sits beside its game as `<name>.sav` (backups in `DATA\backups`). States go to `DATA\states` and never hold the save. |
@@ -70,7 +70,9 @@ Keep this list current: a pull request that changes what the fork adds updates i
   `STEP BACK`.
 - **Controllers**: hot plugging, several at once (a handheld's own controls and an Xbox pad together).
 - **Shaders and colours** on the desktop host: `SHARP` and `xBRZ` scaling, `HANDHELD` and `OLED` colours,
-  `DIM COMPANION`.
+  `DIM COMPANION`, and `BACKGROUND` (`BLACK` by default with `OLED`): true black round the game, the wings as
+  near black cards with a faint edge, a thin grey gutter at the game's border, still wings dimmed after a minute
+  and moved a pixel every few minutes against burn in.
 - **Game folders and saves beside games** on the desktop host: folders picked in the app (`GAME FOLDERS`,
   a folder browser that works with a controller) are listed with one level inside them, and their GBA / Game
   Boy saves sit next to the game (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.
