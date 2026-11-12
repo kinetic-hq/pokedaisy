@@ -276,7 +276,7 @@ void append_items(std::vector<GuideRow>& rows,const DsCompanion& s,
     }
   }
 }
-// Origin HeartGold's item balls and hidden items from its cart, for every map with the same place name as yours (its
+// Origin HeartGold's and Renegade Platinum's item balls and hidden items from their carts, for every map with the same place name as yours (its
 // buildings included), each once.
 void append_cart_items(std::vector<GuideRow>& rows,const DsCompanion& s,const DsOrigin& o){
   const char* here=ds_place(s.map,s.game);
@@ -469,7 +469,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
   }
   std::vector<GuideRow> rows;
   // Origin HeartGold and Renegade Platinum: HERE's wild encounters from the cart only (their tips are their own,
-  // unmapped; their bosses come from their carts above, and Origin's items from its cart below).
+  // unmapped; their bosses come from their carts above, and their items from the carts below).
   const bool origin=origin_wild(s.game)!=nullptr;
   if(page!=GuidePage::Here){
     if(!origin)authored_rows(rows,s,page,soulSilver);
@@ -498,7 +498,7 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
     rows.push_back({seen?name:"???",levels,{},seen?"":name,caught});
   }
   const size_t itemsBegin=rows.size();
-  if(origin && s.game==DsGame::Johto && ds_origin())append_cart_items(rows,s,*ds_origin());
+  if(origin && !origin_wild(s.game)->fieldItems.empty())append_cart_items(rows,s,*origin_wild(s.game));
   else if(!origin)switch(s.game){
     case DsGame::Platinum:append_items(rows,s,ptPlaces,ptItems);break;
     case DsGame::Johto:append_items(rows,s,hgPlaces,hgItems);break;
