@@ -54,7 +54,7 @@ By tab:
 | `BATTLE` | 6 | 64 | 2 |
 | `MAP` | 69 | 1 | 2 |
 | `DEX` | 62 | 1 | 9 |
-| `GUIDE` | 37 | 25 | 10 |
+| `GUIDE` | 37 | 26 | 9 |
 
 ## Game by game
 
@@ -89,7 +89,7 @@ By tab:
 | White (DS) | USA/Europe (IRAO, SHA-1 bc696a0d) and every language | works | works | partly | works | works | works | Same as Black |
 | Black 2 (DS) | USA/Europe (IREO, SHA-1 e51e6dfb) and every language | works | works | partly | works | works | works | Same as Black |
 | White 2 (DS) | USA/Europe (IRDO, SHA-1 b5d7490b) and every language | works | works | partly | works | works | works | Same as Black |
-| Origin HeartGold (DS) | 4.0.3 English 1.0.0 (IPKJ rev 0) | works | works | partly | works | works | no | None (no guide on Android either) |
+| Origin HeartGold (DS) | 4.0.3 English 1.0.0 (IPKJ rev 0) | works | works | partly | works | works | partly | Its guide has `HERE` only: the wild creatures read from its cart (no guide on Android) |
 | Renegade Platinum (DS) | 1.2.0, 1.3.0 and 1.3.0 Classic (CPUE rev 1) | works | works | works | works | works | no | None (no guide on Android either) |
 | Unbound | 2.1.1.1; SHA-1 b4776b82 | works | works | partly | works | works | works | None |
 | Unbound | 2.1.1.1 French; SHA-1 0ce2a880 | works | works | partly | works | works | works | None |
@@ -140,7 +140,8 @@ By tab:
   Black, White, Black 2 and White 2 (USA / Europe). Renegade Platinum reads
   its own types, moves and type chart from its cart. Origin HeartGold has
   `PARTY`, `BAG`, `MAP`, `DEX` and `BATTLE` from its own cart and its own
-  battle engine.
+  battle engine, and a `GUIDE` with its wild creatures, which the app doesn't
+  have.
   The other languages and the French and Spanish Platinum carts get no
   companion yet.
 - **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow, Dreamstone

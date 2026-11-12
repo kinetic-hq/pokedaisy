@@ -130,9 +130,9 @@ void DsCompanionUi::set_game(DsGame value,bool soulSilverVersion){
     default:presentation.title=nullptr;break;
   }
   frame.availableTabs=dsTabs;
-  // Renegade Platinum and Origin HeartGold have trainers and wild sets of their own, so the original game's guide would
-  // be wrong: no GUIDE, as on Android.
-  if((game==DsGame::Platinum && ds_renegade()) || (game==DsGame::Johto && ds_origin())){
+  // Renegade Platinum has trainers and wild sets of its own, so the original game's guide would be wrong: no GUIDE, as
+  // on Android. Origin HeartGold's GUIDE is HERE's wild encounters, read from its cart (no GUIDE if they can't be).
+  if((game==DsGame::Platinum && ds_renegade()) || (game==DsGame::Johto && ds_origin() && ds_origin()->mapWild.empty())){
     frame.availableTabs&=~(1<<PD_TAB_GUIDE);
     if(frame.tab==PD_TAB_GUIDE)frame.tab=PD_TAB_PARTY;
   }

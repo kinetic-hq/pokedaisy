@@ -580,15 +580,16 @@ gear at the end opens `SETTINGS`: your trainer facts, then the DS rows (`SCREEN`
 It reads Platinum (USA) in full. It goes by the game code inside the file
 (`CPUE`, revision 0 or 1), so a trimmed or re-dumped copy works too, and so does
 Renegade Platinum, with its own creatures' types, moves, Fairy type, type
-chart and machines read from its cart. Renegade Platinum and Origin HeartGold
-have no `GUIDE` tab: their trainers and wild creatures are their own. HeartGold and SoulSilver (USA) are read in full
+chart and machines read from its cart. Renegade Platinum has no `GUIDE` tab:
+its trainers and wild creatures are its own. HeartGold and SoulSilver (USA) are read in full
 too, with the party's icons in the HUD and the wings. So are Black, White,
 Black 2 and White 2 (USA / Europe), with their own Town Map, Pokédex pages and
 guide; they go by the game code too, so another dump of the same cart works.
 Origin HeartGold gets `PARTY`, `BAG`, `MAP` and `DEX` with its own creatures,
 moves, items, types and pictures, read from its cart, and `BATTLE` from its
 own battle engine: your creature and the foe, their moves and types, and a
-trainer's team.
+trainer's team. Its `GUIDE` has one page, `HERE`: the wild creatures where you
+stand, by time of day, read from its cart.
 HeartFelt Gold gets `PARTY`, `BAG` and `MAP`, with its own creatures, moves,
 items, types and icons read from its cart. Its Pokédex, trainers and battles
 aren't read yet, so it has no `DEX`, `GUIDE` or `BATTLE`, and no EXPAND.

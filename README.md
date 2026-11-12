@@ -195,6 +195,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Renegade Platinum on the desktop host**: its own names, species types, moves, Fairy type, type chart, TMs and icon
   palettes come from the cart, so `PARTY`, `BATTLE` and `DEX` show the hack's data; its `GUIDE` tab is hidden (as on
   Android), and so is Origin HeartGold's.
+- **Origin HeartGold's `GUIDE` on the desktop host** (beyond Android, which has none for it): `HERE` lists the wild
+  creatures where you stand by time of day, read from the cart's own map headers and encounter tables, and the `DEX`
+  page's where-to-find uses them too.
 - **Origin HeartGold's `BATTLE` on the desktop host**: its own battle engine's objects are read (as on Android): your
   creature and the foe with their stats, types and moves, and a trainer's team.
 - **HeartFelt Gold on the desktop host** (an hg-engine build of HeartGold, not read on Android): `PARTY`, `BAG` and
