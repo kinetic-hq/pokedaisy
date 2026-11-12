@@ -9,6 +9,7 @@
 #include "pd_romart.h"
 #include "pd_settings.h"
 #include "pd_ui.h"
+#include "pd_experience.h"
 #include "pd_ui_internal.h"
 #include "pd_map.h"
 #include "host_io.h"
@@ -1290,6 +1291,8 @@ static void set_color(uint32_t c, uint8_t a) {
 static const struct view_layout *gameView; // COMPANION VIEW: where the game goes (NULL = the whole screen)
 static int hudRepelSteps; // the bottom strip's REPEL
 static uint32_t bezelSavedAt; // the last save (the game's, or a state): the bezel bars' SAVED
+static uint32_t gameSavedAt;  // the game's own last save this run, else when the game started: LAST SAVED
+static bool gameSavedYet;     // the game has saved since it started
 static int bezelFf;           // fast-forward's speed while it runs, else 0
 static int bezelStyle = BEZEL_STYLE_THEME, bezelSlots[BEZEL_SLOTS];
 static SDL_Texture *bezelGlow; // GLOW: the game's frame, tiny, stretched back up (a blur for free)
@@ -1590,8 +1593,44 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
     }
     return;
   }
-  struct bezel_facts f = {.place = NULL, .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = -1};
+  struct bezel_facts f = {.place = NULL, .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = -1,
+                          .leadToNext = -1, .savedMinutes = -1};
+  // The guide's facts (the next boss, this area's wild kinds) are worked out a few times a second, not every frame.
+  static char bossName[48];
+  static int bossCap, caughtHere, kindsHere;
+  static uint32_t guideAt;
+  static const struct pd_game *guideGame;
+  if (s->valid && (guideGame != g || SDL_GetTicks() - guideAt > 500)) {
+    guideGame = g;
+    guideAt = SDL_GetTicks();
+    bossCap = pd_ui_next_boss(g, s, bossName, sizeof bossName);
+    if (!pd_ui_caught_here(g, s, &caughtHere, &kindsHere))
+      caughtHere = kindsHere = 0;
+  }
   if (s->valid) {
+    f.boss = bossCap ? bossName : NULL;
+    f.cap = bossCap;
+    f.caughtHere = caughtHere;
+    f.kindsHere = kindsHere;
+    for (int i = 0; i < s->partyCount && i < PD_PARTY_SIZE; i++) {
+      const struct pd_mon *m = &s->party[i];
+      if (m->egg || m->species <= 0 || m->maxHp <= 0)
+        continue;
+      static char leadName[40];
+      if (m->nickname[0])
+        snprintf(leadName, sizeof leadName, "%s", m->nickname);
+      else
+        pd_species_name(g, m->species, leadName, sizeof leadName);
+      f.lead = leadName;
+      f.leadHp = m->hp;
+      f.leadMaxHp = m->maxHp;
+      struct pd_exp exp;
+      bool gb = g->cfg && g->cfg->gb;
+      if (m->hasExperience && !gb && !g->hackMaps &&
+          pd_retail_exp_progress(m->species, m->level, m->experience, 100, &exp))
+        f.leadToNext = exp.toNext;
+      break;
+    }
     f.place = pd_mapsec_name(g, s->mapsec);
     if (g->cfg && g->cfg->badgeFlag > 0) {
       f.badges = 0;
@@ -1621,10 +1660,19 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
   f.zoom = wideReady ? wideCam.level : 0;
   f.saved = bezelSavedAt && t - bezelSavedAt < BEZEL_SAVED_MS;
   f.repel = hudRepelSteps;
+  if (gameSavedAt) {
+    // Never saved this run: only the warning, once it's been a while.
+    int mins = (int)((t - gameSavedAt) / 60000u);
+    f.savedMinutes = gameSavedYet || mins >= BEZEL_SAVE_LATE_MIN ? mins : -1;
+  }
   int first = which == PANEL_TOP ? BEZEL_TOP_LEFT : BEZEL_BOTTOM_LEFT;
-  bezel_item_text(bezelSlots[first], &f, a, n);
-  bezel_item_text(bezelSlots[first + 1], &f, b, n);
-  bezel_item_text(bezelSlots[first + 2], &f, c, n);
+  char bar[3][64];
+  // The other bar's own items are its: a filler here never repeats them (the battle's bar has its own).
+  const int *other = which == PANEL_TOP ? &bezelSlots[BEZEL_BOTTOM_LEFT] : &bezelSlots[BEZEL_TOP_LEFT];
+  bezel_bar_text(&bezelSlots[first], battle ? NULL : other, &f, bar);
+  snprintf(a, n, "%s", bar[0]);
+  snprintf(b, n, "%s", bar[1]);
+  snprintf(c, n, "%s", bar[2]);
 }
 /* BLACK / GLOW's bar: off-white text on the bar (near-black, or the game's glow), the left and right ends at the
  * bar's edges, the middle only where it clears both. */
@@ -1642,8 +1690,9 @@ static void bezel_strip(struct pd_canvas *pc, const char *a, const char *b, cons
   if (*b) {
     int mw = pd_text_width(b), mx = (pc->w - mw) / 2;
     if (mx >= x + lw + 12 && mx + mw + 12 <= r - rw)
-      pd_text(pc, mx, y, b, muted, shadow);
+      pd_text(pc, mx, y, b, ink, shadow);
   }
+  (void)muted;
 }
 static void draw_panel(int which, struct view_rect r, const struct pd_game *g, const struct pd_snapshot *s,
                        bool battle) {
@@ -1652,7 +1701,7 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   int ow, oh;
   SDL_GetRendererOutputSize(renderer, &ow, &oh);
   int scale = ow / canvasW < oh / canvasH ? ow / canvasW : oh / canvasH;
-  int fit = which == PANEL_TOP || which == PANEL_BOTTOM ? r.h / 24 : r.w / 112;
+  int fit = which == PANEL_TOP || which == PANEL_BOTTOM ? r.h / 18 : r.w / 112;
   if (fit < scale)
     scale = fit;
   if (scale < 1)
@@ -3442,9 +3491,12 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       hudFieldFrames = field ? hudFieldFrames + 1 : 0;
       // The bezel bars' facts this frame.
       static unsigned savesSeen;
+      if (!gameSavedAt)
+        gameSavedAt = SDL_GetTicks();
       if (saveStatus.syncs != savesSeen) {
         savesSeen = saveStatus.syncs;
-        bezelSavedAt = SDL_GetTicks();
+        bezelSavedAt = gameSavedAt = SDL_GetTicks();
+        gameSavedYet = true;
       }
       bezelFf = ff ? settings.ffSpeed : 0;
       bezelStyle = bezel_style_resolve(settings.bezelStyle, pocket_backdrop_for(background).cards);

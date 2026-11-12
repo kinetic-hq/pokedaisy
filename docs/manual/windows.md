@@ -371,15 +371,23 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   changes, and their HP bars glide to the new value. Turn this on and they
   change at once instead.
 - **`BEZEL STYLE`** and **`BEZEL BARS`**: where the screen has room above and
-  below the game, a bar sits in each. `BLACK` is near black with light text (the
-  default with a `BLACK` background), `GLOW` is a soft, faint glow of the game's
-  own colours, `THEME` the theme's window. `BEZEL BARS` picks what each of the
-  six places shows, or `NONE`: the place, the clock and battery, badges and play
-  time, button hints (they fade when you leave the controls alone), fast
-  forward, zoom and a `SAVED` mark, and the keep-away spray's steps or your
-  money. In a battle the bottom bar shows the foe, how your moves do against
-  it, and for a wild one how likely a ball is to work. Anything your game
-  doesn't tell the app is left out.
+  below the game (a 16:9 screen with the wings has just enough), a bar sits in
+  each. `BLACK` is near black with light text (the default with a `BLACK` or
+  `DARK` background, so with `OLED` and `DARK MODE`), `GLOW` is a soft, faint
+  glow of the game's own colours, `THEME` the theme's window. `BEZEL BARS`
+  picks what each of the six places shows, or `NONE`: the place, the clock and
+  battery, badges and play time, button hints (they fade when you leave the
+  controls alone), fast forward, zoom and a `SAVED` mark, the keep-away spray's
+  steps or your money, `NEXT BOSS AND CAP` (the next leader to beat and their
+  top level), `CAUGHT HERE` (how many of this area's wild Pokemon you have),
+  `LEAD POKEMON` (its HP and the EXP to its next level) and `LAST SAVED` (it
+  warns you after half an hour without a save). The top bar starts on the
+  place, the clock and badges, the bottom one on your lead, the next boss and
+  your money. A place with nothing to say borrows something useful neither bar
+  shows yet, so a bar is never half empty; `NONE` stays empty. In a battle the
+  bottom bar shows the foe, how your moves do against it, and for a wild one
+  how likely a ball is to work. Anything your game doesn't tell the app is left
+  out.
 - **Wings**: the party fills the left wing top to bottom, a card a Pokemon with
   its level, status and HP (an empty card for each place still free); the right wing shows the map round you and, under
   it, your badges, play time, how many kinds you have caught and seen, and your

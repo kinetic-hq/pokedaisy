@@ -77,6 +77,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   the player with badges, play time and money under it. Bezel bars above and below the game where there's room
   (`BEZEL STYLE` `BLACK` / `GLOW` / `THEME`, each of six places picked in `BEZEL BARS`, the foe and matchups in a
   battle).
+- **More in the bezel bars** on the desktop host: `NEXT BOSS AND CAP`, `CAUGHT HERE`, `LEAD POKEMON` (HP and EXP to
+  go) and `LAST SAVED` (a warning after 30 minutes), the bottom bar starting on lead / next boss / money; an empty
+  place borrows something neither bar shows, larger text, and the bars now show on 16:9 screens with the wings.
 - **Redesigned wing cards** on the desktop host: rounded cards with a soft gradient and a type colour stripe,
   shiny star and held item marks, pixel headings (Silkscreen) and clear numbers (Atkinson Hyperlegible), HP
   bars that glide and cards that slide in when the party changes (`REDUCE MOTION` turns both off).

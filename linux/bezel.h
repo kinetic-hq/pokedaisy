@@ -26,6 +26,10 @@ enum {
   BEZEL_CHIPS,       // FF, the zoom, SAVED after a save
   BEZEL_REPEL_MONEY, // the repel's steps while one works, else the money
   BEZEL_MONEY,
+  BEZEL_NEXT_BOSS,   // the next unbeaten boss and the level cap (its team's top level)
+  BEZEL_CAUGHT_HERE, // how many of this area's wild kinds are caught
+  BEZEL_LEAD,        // the lead POKéMON: its HP, and the EXP to its next level where the game's curve is known
+  BEZEL_LAST_SAVED,  // how long since the game was last saved
   BEZEL_ITEMS
 };
 enum { BEZEL_TOP_LEFT, BEZEL_TOP_CENTRE, BEZEL_TOP_RIGHT, BEZEL_BOTTOM_LEFT, BEZEL_BOTTOM_CENTRE, BEZEL_BOTTOM_RIGHT,
@@ -36,12 +40,18 @@ enum { BEZEL_TOP_LEFT, BEZEL_TOP_CENTRE, BEZEL_TOP_RIGHT, BEZEL_BOTTOM_LEFT, BEZ
 
 static const char *const BEZEL_ITEM_NAMES[BEZEL_ITEMS] = {
     "NONE", "LOCATION", "CLOCK AND BATTERY", "CLOCK", "BATTERY", "BADGES AND PLAY TIME", "BADGES", "PLAY TIME",
-    "BUTTON HINTS", "STATUS CHIPS", "REPEL OR MONEY", "MONEY"};
+    "BUTTON HINTS", "STATUS CHIPS", "REPEL OR MONEY", "MONEY", "NEXT BOSS AND CAP", "CAUGHT HERE", "LEAD POKEMON",
+    "LAST SAVED"};
 static const char *const BEZEL_SLOT_NAMES[BEZEL_SLOTS] = {"TOP LEFT", "TOP CENTRE", "TOP RIGHT",
                                                           "BOTTOM LEFT", "BOTTOM CENTRE", "BOTTOM RIGHT"};
 static const char *const BEZEL_STYLE_NAMES[BEZEL_STYLES] = {"BLACK", "GLOW", "THEME"};
 static const int BEZEL_DEFAULT_SLOTS[BEZEL_SLOTS] = {BEZEL_LOCATION, BEZEL_CLOCK_BATTERY, BEZEL_BADGES_TIME,
-                                                     BEZEL_HINTS,    BEZEL_CHIPS,         BEZEL_REPEL_MONEY};
+                                                     BEZEL_LEAD,     BEZEL_NEXT_BOSS,     BEZEL_REPEL_MONEY};
+/* What fills a place whose own item has nothing to say (unknown, or BUTTON HINTS faded), in this order, each at most
+ * once a bar and never what the bar already shows: a bar is never half empty while the save has something useful. */
+static const int BEZEL_FILLERS[] = {BEZEL_HINTS,     BEZEL_NEXT_BOSS, BEZEL_CAUGHT_HERE, BEZEL_LEAD,
+                                    BEZEL_LAST_SAVED, BEZEL_CHIPS,     BEZEL_REPEL_MONEY, BEZEL_BADGES_TIME};
+#define BEZEL_SAVE_LATE_MIN 30 // LAST SAVED turns to a warning after this many minutes
 
 /* BEZEL STYLE in force: the setting, or by BACKGROUND (-1: BLACK on a black background, else THEME). */
 static inline int bezel_style_resolve(int setting, bool blackBackground) {
@@ -66,6 +76,13 @@ struct bezel_facts {
   bool saved;          // a save in the last BEZEL_SAVED_MS
   long money;
   int repel;           // steps left, 0 = none working
+  const char *boss;    // the next unbeaten boss, NULL = none known
+  int cap;             // its team's top level, 0 = unknown
+  int caughtHere, kindsHere; // kindsHere 0 = no wild list for this area
+  const char *lead;    // the lead's name, NULL = no party
+  int leadHp, leadMaxHp;
+  long leadToNext;     // EXP to its next level, -1 = unknown (0 at the top level)
+  int savedMinutes;    // since the game was last saved this run, -1 = not yet
 };
 
 static inline void bezel_item_text(int item, const struct bezel_facts *f, char *out, size_t n) {
@@ -119,8 +136,61 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
     if (f->money >= 0)
       snprintf(out, n, "$%ld", f->money);
     break;
+  case BEZEL_NEXT_BOSS:
+    if (f->boss && *f->boss && f->cap > 0)
+      snprintf(out, n, "NEXT %s  CAP Lv%d", f->boss, f->cap);
+    break;
+  case BEZEL_CAUGHT_HERE:
+    if (f->kindsHere > 0)
+      snprintf(out, n, "CAUGHT HERE %d/%d", f->caughtHere, f->kindsHere);
+    break;
+  case BEZEL_LEAD:
+    if (f->lead && *f->lead && f->leadMaxHp > 0) {
+      snprintf(a, sizeof a, "%.12s %d/%d", f->lead, f->leadHp, f->leadMaxHp);
+      if (f->leadToNext > 0)
+        snprintf(b, sizeof b, "%ld EXP TO GO", f->leadToNext);
+      snprintf(out, n, "%s%s%s", a, *b ? "  " : "", b);
+    }
+    break;
+  case BEZEL_LAST_SAVED:
+    if (f->savedMinutes >= BEZEL_SAVE_LATE_MIN)
+      snprintf(out, n, "NOT SAVED FOR %d MIN", f->savedMinutes);
+    else if (f->savedMinutes >= 1)
+      snprintf(out, n, "SAVED %d MIN AGO", f->savedMinutes);
+    else if (f->savedMinutes == 0)
+      snprintf(out, n, "SAVED JUST NOW");
+    break;
   default:
     break;
+  }
+}
+
+/* A bar's three places: each its own item's text, and an empty one given the first filler with something to say that
+ * neither this bar nor the other one (other: its three items, or NULL) shows yet. The battle's bar is its own. */
+static inline void bezel_bar_text(const int items[3], const int *other, const struct bezel_facts *f,
+                                  char out[3][64]) {
+  bool used[BEZEL_ITEMS] = {false};
+  for (int i = 0; other && i < 3; i++)
+    if (other[i] > BEZEL_NONE && other[i] < BEZEL_ITEMS)
+      used[other[i]] = true;
+  for (int i = 0; i < 3; i++) {
+    int item = items[i] >= 0 && items[i] < BEZEL_ITEMS ? items[i] : BEZEL_NONE;
+    bezel_item_text(item, f, out[i], 64);
+    used[item] = true;
+  }
+  for (int i = 0; i < 3; i++) {
+    if (out[i][0] || items[i] == BEZEL_NONE)
+      continue;
+    for (size_t k = 0; k < sizeof BEZEL_FILLERS / sizeof BEZEL_FILLERS[0]; k++) {
+      int item = BEZEL_FILLERS[k];
+      if (used[item])
+        continue;
+      bezel_item_text(item, f, out[i], 64);
+      if (out[i][0]) {
+        used[item] = true;
+        break;
+      }
+    }
   }
 }
 

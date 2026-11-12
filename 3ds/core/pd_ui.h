@@ -594,6 +594,10 @@ void pd_ui_guide_control(struct pd_ui*, int dx, int dy, bool confirm);
 void pd_ui_guide_boss_note(char*, size_t, const char* place, int count, int ace, int best);
 // The level cap: the next boss not beaten yet's top level (its first team), 0 with no boss data or none left.
 int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s);
+// The next unbeaten boss's name (into title) and its team's top level, 0 when none is known.
+int pd_ui_next_boss(const struct pd_game* g, const struct pd_snapshot* s, char* title, size_t len);
+// The wild POKéMON of the player's area: how many kinds, and how many of them are caught. False with none known.
+bool pd_ui_caught_here(const struct pd_game* g, const struct pd_snapshot* s, int* caught, int* total);
 void pd_ui_dex_view(struct pd_ui*,struct pd_canvas*,const struct pd_game*,const struct pd_snapshot*,int selected);
 void pd_ui_bag_cycle_sort(struct pd_ui*);
 // The tab bar's D-pad step: the key after / before `key` in `keys` (the tabs in the order they are drawn), the ends
