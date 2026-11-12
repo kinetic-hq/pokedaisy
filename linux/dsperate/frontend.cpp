@@ -103,8 +103,8 @@ int pad(int b){
   case SDL_CONTROLLER_BUTTON_Y:return 10;case SDL_CONTROLLER_BUTTON_X:return 11;
   case SDL_CONTROLLER_BUTTON_GUIDE:return 15;default:return -1;}}
 // DS LAYOUT's drawings for the picker: each layout placed by ds_place() on a 16:9 screen. ONE SCREEN and WINGS are drawn
-// with the touch screen floated in over the dimmed game, as they show when the game wants it. All but TOUCH IN WING and
-// WINGS are the app's.
+// with the touch screen floated in over the dimmed game, as they show when the game wants it. All but TOUCH IN WING,
+// WINGS and SPLIT TOUCH are the app's.
 const pd_layout_option* ds_layout_options(){
   static pd_layout_option options[DSL_COUNT];static bool made=false;
   if(made)return options;
@@ -114,10 +114,11 @@ const pd_layout_option* ds_layout_options(){
   for(int l=0;l<DSL_COUNT;l++){
     DsPlacement pl=ds_place(l,ow,oh,false,l==DSL_ONE || l==DSL_WINGS);
     pd_layout_option& o=options[l];
-    o.name=ds_layout_name(l);o.original=l!=DSL_WING && l!=DSL_WINGS;o.boxCount=0;
+    o.name=ds_layout_name(l);o.original=l!=DSL_WING && l!=DSL_WINGS && l!=DSL_SPLIT;o.boxCount=0;
     for(auto& panel:pl.panel)if(panel.shown())o.box[o.boxCount++]=box(panel,PD_PART_PANEL);
     if(pl.top.shown())o.box[o.boxCount++]=box(pl.top,pl.touchFloats?PD_PART_DIM:PD_PART_GAME);
     if(pl.touch.shown())o.box[o.boxCount++]=box(pl.touch,PD_PART_TOUCH);
+    for(auto& half:pl.half)if(half.shown())o.box[o.boxCount++]=box(half,PD_PART_TOUCH);
   }
   return options;
 }
@@ -147,6 +148,17 @@ void draw_screen(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,const DsBox& 
   SDL_Rect dst{box.x,box.y,box.w,box.h};
   if(pocket_shader_active() && pocket_shader_draw(r,px,256,256,192,true,&dst))return;  // SHADER / COLORS
   SDL_UpdateTexture(t,nullptr,px,256*4);SDL_RenderCopy(r,t,nullptr,&dst);
+}
+// SPLIT TOUCH: the touch screen's two halves, each into its wing.
+void draw_halves(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,const DsPlacement& p){
+  bool uploaded=false;
+  for(int i=0;i<2;i++){
+    const DsBox& box=p.half[i];if(!box.shown())continue;
+    SDL_Rect dst{box.x,box.y,box.w,box.h},src{i*128,0,128,192};
+    if(pocket_shader_active() && pocket_shader_draw(r,px+i*128,256,128,192,true,&dst))continue;
+    if(!uploaded){SDL_UpdateTexture(t,nullptr,px,256*4);uploaded=true;}
+    SDL_RenderCopy(r,t,&src,&dst);
+  }
 }
 // A thin dark frame round an inset or floating screen, so it reads as its own screen over the other.
 void frame_screen(SDL_Renderer* r,const DsBox& box){
@@ -368,13 +380,13 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   if(auto s=std::getenv("POCKET_DS_HOST_TAPS")){std::string text=s;size_t pos=0;while(pos<text.size()){Tap t{};int used=0;if(std::sscanf(text.c_str()+pos,"%d:%d:%d:%d%n",&t.at,&t.x,&t.y,&t.n,&used)!=4)break;hostTaps.push_back(t);pos+=used+1;}}
   // The mouse's left button and a finger on a touch display press the DS touch screen where it's drawn.
   bool pointerDown=false;const char* driver=SDL_GetCurrentVideoDriver();const bool headless=driver && !std::strcmp(driver,"dummy");int pointerX=0,pointerY=0;SDL_FingerID pointerFinger=-1;
-  DsBox touchBox;  // where the touch screen was last drawn, in output pixels (none = not shown)
+  DsPlacement touchPlace;  // where the touch screen was last drawn, in output pixels (none = not shown)
   // DS LAYOUT: ONE SCREEN floats the touch screen in when the game wants it (PK_NDS_FIELD_TOUCH, held a few frames
   // so a flicker doesn't flash it). A game without touch rules can't say so, so its ONE SCREEN is PICTURE IN PICTURE.
   int touchOn=0,touchOff=0;bool touchWanted=false;
   auto pointerAt=[&](float px,float py,bool start){
-    if(pd_ds_game_touch_off || !touchBox.shown() || showCompanion || showQuick || paused){pointerDown=false;return;}
-    int x,y;if(!ds_touch_at(touchBox,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return;}
+    if(pd_ds_game_touch_off || !ds_touch_shown(touchPlace) || showCompanion || showQuick || paused){pointerDown=false;return;}
+    int x,y;if(!ds_touch_at(touchPlace,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return;}
     pointerX=x;pointerY=y;if(start)pointerDown=true;
   };
   // Mouse events are in window coordinates; the picture is laid out in the renderer's output pixels.
@@ -544,9 +556,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(pressed&(1u<<1)){if(summary)summary=false;else showCompanion=false;}
     }else if(!done){
       uint32_t gameKeys=keys&~blocked;
-      bool touchMode=touchBox.shown() && (gameKeys&(1u<<2));
+      bool touchMode=ds_touch_shown(touchPlace) && (gameKeys&(1u<<2));
       if(touchMode){if(gameKeys&(1u<<4))touchX=std::min(255,touchX+3);if(gameKeys&(1u<<5))touchX=std::max(0,touchX-3);if(gameKeys&(1u<<6))touchY=std::max(0,touchY-3);if(gameKeys&(1u<<7))touchY=std::min(191,touchY+3);}
-      if(!touchBox.shown())pointerDown=false;
+      if(!ds_touch_shown(touchPlace))pointerDown=false;
       if(pointerDown)nds->setTouch(pointerX,pointerY,true);
       else nds->setTouch(touchX,touchY,touchMode && (gameKeys&1));
       uint32_t held=touchMode?0:gameKeys&4095u;for(auto p:script)if(frame>=p.at && frame<p.at+p.n)held|=p.mask;
@@ -579,9 +591,10 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(place.touchFloats || place.inset)frame_screen(renderer,topInset?place.top:place.touch);
       if(topInset)draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       else draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
-      touchBox=paused?DsBox{}:place.touch;
+      if(place.split())draw_halves(renderer,touchTex.p,nds->framebuffer(1),place);
+      touchPlace=paused?DsPlacement{}:place;
     }
-    if(showCompanion)touchBox={};
+    if(showCompanion)touchPlace={};
     if(!showCompanion && !paused && (showQuick || (prefs.hud && !wingPanels && snap.valid && !view.bottom && !inBattle && (fieldBits&PK_NDS_FIELD_SCREEN) && !(fieldBits&(PK_NDS_FIELD_LOCKED|PK_NDS_FIELD_MENU))))){
       for(auto& p:uiPixels)p=QUICK_CLEAR;
       if(showQuick)quick_draw(&canvas,nullptr,quickItems,4,quickSelected);
@@ -595,8 +608,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       }
       quick_finish(&canvas);blit(renderer,overlay.p,uiPixels.data(),341,256,ow,oh);
     }
-    if(touchBox.shown() && !showCompanion && !paused && !showQuick && (keys&(1u<<2))){
-      int x=touchBox.x+touchX*touchBox.w/256,y=touchBox.y+touchY*touchBox.h/192;
+    if(ds_touch_shown(touchPlace) && !showCompanion && !paused && !showQuick && (keys&(1u<<2))){
+      int x,y;ds_touch_to_window(touchPlace,touchX,touchY,x,y);
       SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_Rect outline{x-5,y-5,11,11};SDL_RenderDrawRect(renderer,&outline);
       SDL_SetRenderDrawColor(renderer,255,255,255,255);SDL_RenderDrawLine(renderer,x-4,y,x+4,y);SDL_RenderDrawLine(renderer,x,y-4,x,y+4);
     }

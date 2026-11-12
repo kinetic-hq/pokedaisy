@@ -37,7 +37,7 @@ UPDATES`.
 | Full screen | F11, Alt+Enter, L3 + R3 on a controller, the game menu or `SETTINGS` > `FULLSCREEN` switch it any time (borderless, remembered; on by default on a handheld's screen). `POCKET_FULLSCREEN=1` forces it; `POCKET_WINDOW=1920x1080` opens a window of that size. |
 | Start a game directly | `pokedaisy.exe "D:\Games\My Game.gba"`; `--data FOLDER` uses another data folder. |
 | COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
-| DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE`, `LARGE + SMALL` or `WINGS` (`TOUCH IN WING` and `WINGS` put the companion's party and trainer panels beside the top screen; `DS WING SIDE` picks the side). R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
+| DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE`, `LARGE + SMALL`, `WINGS` or `SPLIT TOUCH` (`TOUCH IN WING` and `WINGS` put the companion's party and trainer panels beside the top screen; `SPLIT TOUCH` puts half the touch screen in each wing; `DS WING SIDE` picks the side). R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
 | Shaders | `SETTINGS` > `SHADER` (`OFF`, `SHARP`, `xBRZ`), `COLORS` (`ORIGINAL`, `HANDHELD`, `OLED`: true black panels, less glare) and `DIM COMPANION`. DS games have them in the `SET` tab. |
 | Games in other folders | `+ ADD GAMES` at the top of the game list (or `SETTINGS` > `GAME FOLDERS`): `ADD A FOLDER` browses your drives with a controller (e.g. `D:\Emulation\roms`); each folder and the folders right inside it are listed (kept in `DATA\roms-folders.txt`). |
 | Save folders | GBA / Game Boy saves in `DATA\saves` for games in `DATA\roms`, and beside the game as `<name>.sav` for games in your own folders (`SETTINGS` > `SAVES BESIDE GAMES` turns that off); backed up to a `pokedaisy-backups` folder next to the save at each start. A DS save sits beside its game as `<name>.sav` (backups in `DATA\backups`). States go to `DATA\states` and never hold the save. |
@@ -86,7 +86,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
 - **Game list rail** on the desktop host: `GAMES` / `SETTINGS` down the left of the game list, as in the app's
   library, with `+ ADD GAMES` at the top and the app's settings groups.
 - **DS wings** on the desktop host: `TOUCH IN WING` puts the touch screen in one wing and the companion's party in
-  the other; `WINGS` is `ONE SCREEN` with party and trainer panels in both wings and the touch screen floating in.
+  the other; `WINGS` is `ONE SCREEN` with party and trainer panels in both wings and the touch screen floating in;
+  `SPLIT TOUCH` cuts the touch screen in two, a half in each wing.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change.

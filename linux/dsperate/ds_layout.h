@@ -4,9 +4,9 @@
 #include <algorithm>
 
 // Saved by number in ds-settings.ini (layout=N): append new layouts, never renumber.
-enum DsHostLayout { DSL_ONE=0, DSL_PIP=1, DSL_WING=2, DSL_STACKED=3, DSL_SIDE=4, DSL_LARGE=5, DSL_WINGS=6, DSL_COUNT=7 };
+enum DsHostLayout { DSL_ONE=0, DSL_PIP=1, DSL_WING=2, DSL_STACKED=3, DSL_SIDE=4, DSL_LARGE=5, DSL_WINGS=6, DSL_SPLIT=7, DSL_COUNT=8 };
 inline const char* ds_layout_name(int layout){
-  static const char* const names[]={"ONE SCREEN","PICTURE IN PICTURE","TOUCH IN WING","STACKED","SIDE BY SIDE","LARGE + SMALL","WINGS"};
+  static const char* const names[]={"ONE SCREEN","PICTURE IN PICTURE","TOUCH IN WING","STACKED","SIDE BY SIDE","LARGE + SMALL","WINGS","SPLIT TOUCH"};
   return names[std::clamp(layout,0,DSL_COUNT-1)];
 }
 
@@ -22,6 +22,10 @@ struct DsPlacement {
   int used=DSL_ONE;       // the layout drawn, after a fallback
   // The companion's panels in the wings (TOUCH IN WING, WINGS): panel[0] the party, panel[1] the trainer's facts.
   DsBox panel[2];
+  // SPLIT TOUCH: the touch screen cut in two, half[0] its left half (DS x 0-127) and half[1] its right (128-255),
+  // each in a wing; touch is then empty.
+  DsBox half[2];
+  bool split()const{return half[0].shown();}
 };
 
 // A w x h picture (in DS pixels) as large as fits in the box: whole multiples from 3x up, so pixels stay even
@@ -50,6 +54,21 @@ inline DsBox ds_winged_top(int ow,int oh,int minWing){
   return {(ow-w)/2,0,w,oh};
 }
 
+// SPLIT TOUCH: the top screen centred as WINGS places it, each half of the touch screen (128 x 192) filling a wing,
+// level with the top screen's bottom. Zero size: the wings are narrower than a half at 1x.
+inline bool ds_split_halves(int ow,int oh,DsBox& top,DsBox half[2],bool swapHalves){
+  top=ds_winged_top(ow,oh,1);
+  if(!top.shown())return false;
+  int wing=std::min(top.x,ow-top.x-top.w),bottom=top.y+top.h;
+  if(wing<128 || bottom<192)return false;
+  double scale=std::min(double(wing)/128,double(bottom)/192);
+  if(scale>=3.0)scale=int(scale);   // whole from 3x up, as ds_fit
+  int w=int(128*scale),h=int(192*scale);
+  DsBox left{top.x-w,bottom-h,w,h},right{top.x+top.w,bottom-h,w,h};
+  half[0]=swapHalves?right:left;half[1]=swapHalves?left:right;
+  return true;
+}
+
 // layout: the player's pick. swapped: R2's swap (ONE SCREEN shows the touch screen, PICTURE IN PICTURE and
 // LARGE + SMALL make it the large one; WINGS floats it in). touchWanted: the game wants the touch screen now (or the
 // player asked), which floats it over a ONE SCREEN or WINGS game. touchLeft: TOUCH IN WING's touch screen (and WINGS'
@@ -60,6 +79,8 @@ inline DsPlacement ds_place(int layout,int ow,int oh,bool swapped,bool touchWant
   // Fallbacks: TOUCH IN WING needs a wing a quarter of the top screen's width on each side, WINGS an eighth (else
   // PICTURE IN PICTURE / ONE SCREEN); SIDE BY SIDE on a window taller than wide is STACKED.
   DsBox winged;
+  DsBox halves[2];
+  if(p.used==DSL_SPLIT && !ds_split_halves(ow,oh,winged,halves,touchLeft))p.used=DSL_WING;
   if(p.used==DSL_WING && !(winged=ds_winged_top(ow,oh,2)).shown())p.used=DSL_PIP;
   if(p.used==DSL_WINGS && !(winged=ds_winged_top(ow,oh,1)).shown())p.used=DSL_ONE;
   if(p.used==DSL_SIDE && oh>ow)p.used=DSL_STACKED;
@@ -107,6 +128,14 @@ inline DsPlacement ds_place(int layout,int ow,int oh,bool swapped,bool touchWant
       p.touchFloats=true;
     }
     break;}
+  case DSL_SPLIT:
+    // The touch screen's halves in the wings, the top screen between them; R2 shows the touch screen whole in the
+    // middle (the top screen in the right wing). The companion's panels don't show: the wings are the touch screen's.
+    if(swapped){
+      p.touch=winged;int tw=ow-winged.x-winged.w,th=tw*3/4;
+      p.top={winged.x+winged.w,winged.y+winged.h-th,tw,th};
+    }else{p.top=winged;p.half[0]=halves[0];p.half[1]=halves[1];}
+    break;
   case DSL_STACKED:{
     DsBox both=ds_fit(0,0,ow,oh,256,384);
     p.top={both.x,both.y,both.w,both.h/2};p.touch={both.x,both.y+both.h/2,both.w,both.h-both.h/2};
@@ -131,4 +160,31 @@ inline bool ds_touch_at(const DsBox& touch,int px,int py,bool clamp,int& x,int& 
   if(!touch.shown() || (!clamp && !touch.contains(px,py)))return false;
   x=std::clamp((px-touch.x)*256/touch.w,0,255);y=std::clamp((py-touch.y)*192/touch.h,0,191);
   return true;
+}
+
+// The touch screen is drawn somewhere (whole or in halves).
+inline bool ds_touch_shown(const DsPlacement& p){return p.touch.shown() || p.split();}
+
+// The same over a placement: SPLIT TOUCH's halves map back to their side of the DS screen, and with clamp a drag
+// over the top screen between them stays on the nearer half's edge, so a stroke crossing from wing to wing goes on.
+inline bool ds_touch_at(const DsPlacement& p,int px,int py,bool clamp,int& x,int& y){
+  if(!p.split())return ds_touch_at(p.touch,px,py,clamp,x,y);
+  int pick=-1;
+  for(int i=0;i<2;i++)if(p.half[i].contains(px,py))pick=i;
+  if(pick<0){
+    if(!clamp)return false;
+    auto gap=[&](const DsBox& b){return px<b.x?b.x-px:px>=b.x+b.w?px-(b.x+b.w-1):0;};
+    pick=gap(p.half[0])<=gap(p.half[1])?0:1;
+  }
+  const DsBox& b=p.half[pick];
+  x=pick*128+std::clamp((px-b.x)*128/b.w,0,127);y=std::clamp((py-b.y)*192/b.h,0,191);
+  return true;
+}
+
+// A DS touch point back in the window (the stylus marker).
+inline void ds_touch_to_window(const DsPlacement& p,int x,int y,int& wx,int& wy){
+  if(p.split()){
+    const DsBox& b=p.half[x>=128];
+    wx=b.x+(x%128)*b.w/128;wy=b.y+y*b.h/192;
+  }else{wx=p.touch.x+x*p.touch.w/256;wy=p.touch.y+y*p.touch.h/192;}
 }
