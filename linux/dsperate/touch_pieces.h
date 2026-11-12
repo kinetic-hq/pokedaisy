@@ -85,9 +85,55 @@ inline constexpr DsPieceScreen SCREENS[]={
 inline constexpr DsPieceGame GAME={SCREENS,4,ds_pieces_hgss_edge};
 }
 
-// The game's pieces by its header's code (IPKx HeartGold, IPGx SoulSilver), else none (halves only).
+// ---- Platinum: HeartGold's buttons a pixel or so up, with a larger FIGHT and taller moves; the same dark outline ----
+namespace ds_pieces_platinum {
+constexpr unsigned char ALL=15,TOP=3;
+inline constexpr DsPiece COMMAND[]={
+  {20,34,216,93,0,0,nullptr,false,0,0,ALL},
+  {1,144,78,47,1,0,nullptr,false,0,0,ALL},
+  {177,144,78,47,1,0,nullptr,false,0,0,ALL},
+  {89,152,78,40,1,1,nullptr,false,0,0,TOP},
+};
+inline constexpr DsPieceCheck COMMAND_CHECK[]={{20,34,216,93},{1,144,78,47},{177,144,78,47}};
+inline constexpr DsPiece MOVES[]={
+  {2,24,124,55,0,0,nullptr,false,0,0,ALL},
+  {130,24,124,55,1,0,nullptr,false,0,0,ALL},
+  {2,88,124,55,0,1,nullptr,false,0,0,ALL},
+  {130,88,124,55,1,1,nullptr,false,0,0,ALL},
+  {9,152,238,40,1,2,"CANCEL",true,124,24,0},
+};
+inline constexpr DsPieceCheck MOVES_CHECK[]={{2,24,124,55},{130,24,124,55},{2,88,124,55},{130,88,124,55}};
+inline constexpr DsPiece BAG[]={
+  {1,8,126,71,0,0,nullptr,false,0,0,ALL},
+  {129,8,126,71,1,0,nullptr,false,0,0,ALL},
+  {1,80,126,71,0,1,nullptr,false,0,0,ALL},
+  {129,80,126,71,1,1,nullptr,false,0,0,ALL},
+  {217,152,38,39,1,2,"BACK",true,126,24,0},
+};
+inline constexpr DsPieceCheck BAG_CHECK[]={{1,8,126,71},{129,8,126,71},{1,80,126,71},{129,80,126,71},{217,152,38,39}};
+inline constexpr DsPiece PARTY[]={
+  {1,1,126,46,0,0,nullptr,false,0,0,ALL},
+  {129,9,126,46,1,0,nullptr,false,0,0,ALL},
+  {1,49,126,46,0,1,nullptr,false,0,0,ALL},
+  {129,57,126,46,1,1,nullptr,false,0,0,ALL},
+  {1,97,126,46,0,2,nullptr,false,0,0,ALL},
+  {129,105,126,46,1,2,nullptr,false,0,0,ALL},
+  {217,152,38,39,1,3,"BACK",true,126,24,0},
+};
+inline constexpr DsPieceCheck PARTY_CHECK[]={{1,1,126,46},{129,9,126,46},{1,49,126,46},{129,57,126,46},{217,152,38,39}};
+inline constexpr DsPieceScreen SCREENS[]={
+  {"COMMAND",COMMAND,4,COMMAND_CHECK,3},
+  {"MOVES",MOVES,5,MOVES_CHECK,4},
+  {"BAG",BAG,5,BAG_CHECK,5},
+  {"PARTY",PARTY,7,PARTY_CHECK,5},
+};
+inline constexpr DsPieceGame GAME={SCREENS,4,ds_pieces_hgss_edge};
+}
+
+// The game's pieces by its header's code (IPKx HeartGold, IPGx SoulSilver, CPUx Platinum), else none (halves only).
 inline const DsPieceGame* ds_pieces_game(const char* code){
   if(code && (!std::strncmp(code,"IPK",3) || !std::strncmp(code,"IPG",3)))return &ds_pieces_hgss::GAME;
+  if(code && !std::strncmp(code,"CPU",3))return &ds_pieces_platinum::GAME;
   return nullptr;
 }
 
