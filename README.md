@@ -190,6 +190,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Black, White, Black 2 and White 2 on the desktop host**: the USA / Europe carts (any dump with their header) get the
   whole DS companion (`PARTY`, `BAG`, `DEX`, their own Town Map in `MAP`, `GUIDE`, `BATTLE`), the party and facts wings,
   the HUD and EXPAND, on the app's Gen 5 reader and field reads.
+- **Origin HeartGold's type chart on Android** is found inside the game's own code, so other dumps of the same build
+  read the right matchups instead of stray bytes.
 - **Origin HeartGold on the desktop host**: `PARTY`, `BAG`, `MAP` and `DEX` (Pokédex pages, pictures, learnsets,
   machines, evolutions) on its own save offsets, with its species, moves, items, Fairy type and type chart read from
   the cart. No `BATTLE` panes yet.

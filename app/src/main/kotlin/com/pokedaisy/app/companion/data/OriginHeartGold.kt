@@ -24,7 +24,10 @@ object OriginHeartGold {
     const val SIG = 0x021D11B0L
 
     /** Cart offsets of what [NdsArt.readOrigin] reads past the file system (the build is pinned by [matches]). */
-    /** Its overlay 14's type chart: 18 x 18 bytes, attacker by defender, 4 = 1x. */
+    /**
+     * Its overlay 14's type chart in the mapped build: 18 x 18 bytes, attacker by defender, 4 = 1x. Other dumps keep
+     * the overlay elsewhere, so [NdsArt.readOrigin] finds the chart inside overlay 14 rather than reading it here.
+     */
     const val TYPE_CHART_OFFSET = 0x228860L
     /** The ARM9's icon palette index per species / form id (GetMonIconPaletteEx's table, 0x020FF7FC). */
     const val ICON_PALETTES_OFFSET = 0x4000L + 0xFF7FC
