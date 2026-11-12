@@ -429,6 +429,39 @@ static void build_world_bosses(const struct pd_game* g, const struct pd_snapshot
     if (!shown) add_section("ALL DONE", "Every boss is beaten.");
 }
 
+static bool ui_level_cap_on;  // LEVEL CAP is on: NEXT BOSS names the cap
+
+static int team_top(const struct pd_team_mon* team, int n) {
+    int top = 0;
+    for (int i = 0; i < n; i++) top = team[i].level > top ? team[i].level : top;
+    return top;
+}
+
+int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s) {
+    if (!g || !s) return 0;
+    struct pd_team_mon team[PD_TEAM_MAX];
+    if (pd_gbw_boss_count(g)) {
+        for (int b = 0; b < pd_gbw_boss_count(g); b++) {
+            const struct pd_gbw_boss* boss = pd_gbw_boss_at(g, b);
+            if (pd_gbw_boss_done(s, boss)) continue;
+            return team_top(team, pd_gbw_boss_team(g, s, boss, 0, team));
+        }
+        return 0;
+    }
+    const struct pd_guide* gd = pd_guide_for(g);
+    if (!gd) return 0;
+    int order[256];
+    int count = pd_boss_order(gd, s, order, 256);
+    for (int oi = 0; oi < count; oi++) {
+        const struct pd_boss* boss = &gd->bosses[order[oi]];
+        if (pd_boss_done(boss, s)) continue;
+        const struct pd_variant* var = pd_boss_variants(gd, boss, s);
+        int top = team_top(team, pd_trainer_team(g, var ? (int) var->trainer : pd_boss_trainer(gd, boss, s), team));
+        if (top) return top;
+    }
+    return 0;
+}
+
 static void build_bosses(const struct pd_game* g, const struct pd_snapshot* s, const struct pd_guide* gd) {
     int best = 0;
     for (int i = 0; i < s->partyCount; i++) {
@@ -468,6 +501,10 @@ static void build_bosses(const struct pd_game* g, const struct pd_snapshot* s, c
             else snprintf(heading + hl, sizeof(heading) - hl, " (WITH %s)", pd_species_name(g, aceSpecies, with, sizeof(with)));
         }
         pd_ui_guide_boss_note(note, sizeof note, boss->where, n, ace, best);
+        if (!shown && !vi && ui_level_cap_on) {
+            size_t nl = strlen(note);
+            snprintf(note + nl, sizeof note - nl, " - LEVEL CAP LV%d", ace);
+        }
         add_section(heading, note);
         team_entries(g, team, n);
         }
@@ -682,6 +719,7 @@ void ui_guide_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g
         return;
     }
     const struct page_ref* p = &pages[ui->guidePage];
+    ui_level_cap_on = ui->settings && ui->settings->levelCap;
     if (p->kind == PAGE_HERE) build_here(g, s, gd);
     else if (p->kind == PAGE_BOSS) build_bosses(g, s, gd);
     else if (p->kind == PAGE_WHERE) build_where(g, s);

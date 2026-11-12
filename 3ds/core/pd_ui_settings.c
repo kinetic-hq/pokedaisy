@@ -194,6 +194,7 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
         if (host->hasAutoRun) muted_row(c, ix, &y, iw, "AUTO-RUN", "N/A");
         muted_row(c, ix, &y, iw, "RUN INDOORS", "N/A");
     }
+    setting(ui, c, ix, &y, iw, SETTING_LEVEL_CAP, "LEVEL CAP", on_off(st->levelCap));
     if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", on_off(st->cheats));
 
     group(c, ix, &y, "SCREEN");
@@ -381,6 +382,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
             muted_row(c, ix, &y, iw, "AUTO-RUN", "N/A");
             muted_row(c, ix, &y, iw, "RUN INDOORS", "N/A");
         }
+        setting(ui, c, ix, &y, iw, SETTING_LEVEL_CAP, "LEVEL CAP", st->levelCap ? "ON" : "OFF");
         if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", st->cheats ? "ON" : "OFF");
         else muted_row(c, ix, &y, iw, "CHEATS", "N/A");
         group(c, ix, &y, "SCREEN");
