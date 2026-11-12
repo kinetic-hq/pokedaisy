@@ -37,6 +37,19 @@ int main(void) {
       uint32_t r = pocket_shader_color(xbgr(255, 0, 0));
       assert(red(r) > green(r) && red(r) > blue(r));
     }
+  // BRIGHTNESS: black and white stay, a mid grey goes up (110 and 150) or down (80), and only away from 100.
+  pocket_shader_set(POCKET_SHADER_OFF, POCKET_COLORS_ORIGINAL, false);
+  int last = -1;
+  for (int pct = POCKET_BRIGHTNESS_MIN; pct <= POCKET_BRIGHTNESS_MAX; pct += POCKET_BRIGHTNESS_STEP) {
+    pocket_shader_brightness(pct);
+    assert(pocket_shader_active() == (pct != 100));
+    assert(pocket_shader_color(xbgr(0, 0, 0)) == 0);
+    assert(red(pocket_shader_color(xbgr(255, 255, 255))) == 255);
+    int grey = red(pocket_shader_color(xbgr(132, 132, 132)));
+    assert(grey > last);
+    last = grey;
+  }
+  pocket_shader_brightness(100);
   pocket_shader_set(POCKET_SHADER_XBRZ, POCKET_COLORS_ORIGINAL, false);
   assert(pocket_shader_active());
   puts("PASS shader colours and names");

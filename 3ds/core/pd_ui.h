@@ -80,8 +80,12 @@ enum pd_orientation { PD_ORIENT_LANDSCAPE, PD_ORIENT_PORTRAIT, PD_ORIENT_LANDSCA
 // GAME TOUCH: what a finger or the mouse does on the game itself (menus, the game list and the companion always
 // take it): press a DS game's touch screen, or nothing.
 enum pd_game_touch { PD_GAME_TOUCH_DS_SCREEN, PD_GAME_TOUCH_OFF, PD_GAME_TOUCHES };
-#define PD_HOTKEY_BUTTONS 8
-#define PD_HOTKEY_ACTIONS 11
+// The desktop host's HOTKEYS buttons, stored in this order (GUIDE, SHARE, PADDLE 1-4, L3, R3, then the triggers L2,
+// R2: a file from before 1.11 has the first eight) and its actions (linux/main.c's HOTKEY_ACTIONS).
+#define PD_HOTKEY_BUTTONS 10
+#define PD_HOTKEY_ACTIONS 13
+enum { PD_HOTKEY_L3 = 6, PD_HOTKEY_R3 = 7, PD_HOTKEY_L2 = 8, PD_HOTKEY_R2 = 9 };
+enum { PD_HOTKEY_DO_FF = 3, PD_HOTKEY_DO_ZOOM_IN = 11, PD_HOTKEY_DO_ZOOM_OUT = 12 };
 struct pd_settings {
     int screenMode; // enum pd_screen_mode
     int ffSpeed;    // PD_FF_MIN..PD_FF_MAX
@@ -133,6 +137,9 @@ struct pd_settings {
     int orientation;   // hosts with hasOrientation: DISPLAY ORIENTATION, enum pd_orientation
     int gameTouch;     // hosts with hasGameTouch: GAME TOUCH, enum pd_game_touch
     int background;    // the desktop host: BACKGROUND, linux/backdrop.h's enum, -1 = by COLORS (OLED = BLACK)
+    int brightness;    // ... and BRIGHTNESS, a percent (80 ... 150, linux/shader.h)
+    int bezelStyle;    // ... and the bezel bars (linux/bezel.h): BEZEL STYLE, -1 = by BACKGROUND
+    int bezelSlots[6]; // ... and what each of their six places shows (BEZEL_* items)
 };
 
 // COMPANION VIEW (SETTINGS > SCREEN on the Linux / Windows host): where the companion goes on a 16:9 / 16:10 screen.

@@ -18,10 +18,17 @@ enum pocket_shader { POCKET_SHADER_OFF, POCKET_SHADER_SHARP, POCKET_SHADER_XBRZ,
 enum pocket_colors { POCKET_COLORS_ORIGINAL, POCKET_COLORS_HANDHELD, POCKET_COLORS_OLED, POCKET_COLORS_COUNT };
 const char *pocket_shader_name(int shader);
 const char *pocket_colors_name(int colors);
+/* BRIGHTNESS (SETTINGS > SCREEN): a percent, 100 = the game's own colours. Above 100 the mid-tones are lifted (a gamma
+ * curve: black stays black, white stays white, nothing clips), below they go down. */
+#define POCKET_BRIGHTNESS_DEFAULT 110
+#define POCKET_BRIGHTNESS_MIN 80
+#define POCKET_BRIGHTNESS_MAX 150
+#define POCKET_BRIGHTNESS_STEP 10
+void pocket_shader_brightness(int percent);
 
 /* What to draw with; ds picks nds-color over gba-color for HANDHELD. */
 void pocket_shader_set(int shader, int colors, bool ds);
-/* True when the picture goes through here (anything but OFF + ORIGINAL). */
+/* True when the picture goes through here (anything but OFF + ORIGINAL at 100% brightness). */
 bool pocket_shader_active(void);
 /* Draws the w x h picture at px (pitch in pixels) into dst: XBGR words (mGBA's, SDL's BGR888), or XRGB ones
  * (melonDS's, SDL's RGB888 / ARGB8888) with xrgb. */

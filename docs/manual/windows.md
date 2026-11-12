@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
+keywords: [windows, pc, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -132,11 +132,19 @@ bottom one B, as on a Nintendo style controller or a handheld with the A on the
 right; `XBOX` makes the button labelled A, the bottom one, the game's A. The
 companion's `SETTINGS` has the same `BUTTON LAYOUT` row.
 
-In `HOTKEYS`, each extra button your controller may have gets a job: `GUIDE / HOME`,
-`SHARE`, the four back `PADDLE` buttons, and `L3` and `R3` (the sticks pressed
-down). Pick one and choose `GAME MENU`, `COMPANION`, `FAST FORWARD`,
-`SAVE STATE`, `LOAD STATE`, `SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT NEXT`,
-`DS LAYOUT BACK` or `SWAP SCREENS`, or `USUAL USE` to give it back. A button with
+In `HOTKEYS`, the triggers and sticks come first (`L2 / LT`, `R2 / RT`, `L3`,
+`R3`), then each extra button your controller may have: `GUIDE / HOME`, `SHARE`
+and the four back `PADDLE` buttons. Out of the box LT zooms out, RT zooms in
+(with `ASPECT` `EXPAND`) and L3 turns fast forward on and off; in a DS game L2
+and R2 stay the touch screen and the DS layout. Pick one and choose
+`GAME MENU`, `COMPANION`, `FF TOGGLE`, `SAVE STATE`, `LOAD STATE`,
+`SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT`, `DS LAYOUT BACK`, `SWAP SCREENS`,
+`ZOOM IN` or `ZOOM OUT`, or `USUAL USE` to give it back.
+
+R3's usual use is the view: a tap switches between the `COMPANION VIEW` you
+picked and the game alone, and holding it opens every view as a small picture
+to pick from (A takes one, B leaves it as it was). The view's name shows for a
+moment when it changes. A button with
 a job no longer reaches the game. Screenshots go to `DATA\screenshots`, named
 after the game. Fast forward has no effect in DS games, and the DS LAYOUT and
 SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
@@ -235,6 +243,8 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   `HANDHELD` gives the softer colours of the handheld's own screen. `OLED` takes
   a little glare off on an OLED screen, and the panels around the game go true
   black, which an OLED doesn't light at all.
+- **`BRIGHTNESS`**: lifts the game's darker colours, 80% to 150%. `110%` is the
+  default; `100%` is the game's own picture.
 - **`DIM COMPANION`**: the companion and the panels beside the game are drawn
   a little darker, so the game stands out.
 - **`BACKGROUND`**: `BLACK` makes everything round the game true black and
@@ -242,6 +252,19 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   the same a shade lighter. `THEME` keeps the theme's own colours. With
   `COLORS` `OLED` it starts on `BLACK`. Panels that stay still for a minute dim
   a little more, and move by a pixel every few minutes, so nothing burns in.
+- **`BEZEL STYLE`** and **`BEZEL BARS`**: where the screen has room above and
+  below the game, a bar sits in each. `BLACK` is near black with light text (the
+  default with a `BLACK` background), `GLOW` is a soft, faint glow of the game's
+  own colours, `THEME` the theme's window. `BEZEL BARS` picks what each of the
+  six places shows, or `NONE`: the place, the clock and battery, badges and play
+  time, button hints (they fade when you leave the controls alone), fast
+  forward, zoom and a `SAVED` mark, and the keep-away spray's steps or your
+  money. In a battle the bottom bar shows the foe, how your moves do against
+  it, and for a wild one how likely a ball is to work. Anything your game
+  doesn't tell the app is left out.
+- **Wings**: the party fills the left wing top to bottom, a card a Pokemon with
+  its level, status and HP; the right wing shows the map round you and, under
+  it, your badges, play time and money.
 
 DS games have the same rows in the companion's `SET` tab.
 

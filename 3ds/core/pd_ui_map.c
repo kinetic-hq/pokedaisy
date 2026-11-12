@@ -481,6 +481,33 @@ struct pd_map_viewport pd_ui_map_view(struct pd_canvas* c, const struct pd_map_s
     return (struct pd_map_viewport){view.x, view.y, view.w, view.h};
 }
 
+// Under a wing's map: the badges, the play time and the money, each a label over its value; what the save
+// doesn't give is left out.
+static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, int x, int y, int w,
+                      int bottom) {
+    if (!s->valid) return;
+    char rows[3][2][24];
+    int n = 0;
+    if (g && g->cfg && g->cfg->badgeFlag > 0) {
+        int badges = 0;
+        for (int i = 0; i < 8; i++) badges += pd_flag(s, g->cfg->badgeFlag + i);
+        snprintf(rows[n][0], sizeof(rows[n][0]), "BADGES");
+        snprintf(rows[n++][1], sizeof(rows[n][1]), "%d OF 8", badges);
+    }
+    if (s->playHours || s->playMinutes) {
+        snprintf(rows[n][0], sizeof(rows[n][0]), "PLAY TIME");
+        snprintf(rows[n++][1], sizeof(rows[n][1]), "%d:%02d", s->playHours, s->playMinutes);
+    }
+    if (s->money >= 0) {
+        snprintf(rows[n][0], sizeof(rows[n][0]), "MONEY");
+        snprintf(rows[n++][1], sizeof(rows[n][1]), "$%ld", s->money);
+    }
+    for (int i = 0; i < n && y + 2 * 16 <= bottom; i++, y += 2 * 16 + 4) {
+        pd_text_fit(c, x, y, w, rows[i][0], PD_MUTED, PD_MUTED_SHADOW);
+        pd_text_fit(c, x + 4, y + 16, w - 4, rows[i][1], PD_LABEL, PD_LABEL_SHADOW);
+    }
+}
+
 // COMPANION VIEW's map panel (the Linux / Windows host's right wing off a battle): the place's name over the map, as
 // wide as the panel, the player's head and the cursor on where they are. Nothing to tap.
 void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, bool blink) {
@@ -506,10 +533,29 @@ void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct 
     crop.t = cropped ? k[1] : 0;
     crop.r = cropped ? k[2] : art->w;
     crop.b = cropped ? k[3] : art->h;
-    // As wide as the panel, its own shape (a short panel: as tall as fits).
+    // As wide as the panel, its own shape (a short panel: as tall as fits). A tall, narrow wing (beside a game at
+    // full height) gets the map at its own size instead, a window round the player, and what the place is under it.
     int mw = crop.r - crop.l, mh = crop.b - crop.t;
     int vw = w - 2 * FRAME, vh = vw * mh / mw, room = c->h - f - 3 - y - 2 * FRAME;
-    if (vh > room) {
+    int factsH = 3 * (2 * 16 + 4);
+    bool window = vw < mw && room - factsH >= vw;
+    if (window) {
+        vh = room - factsH - 2 * FRAME;
+        if (vh > mh) vh = mh;
+        if (vh > vw * 2) vh = vw * 2;
+        int cx = crop.l + mw / 2, cy = crop.t + mh / 2;
+        if (hasPlayer && page == playerPage) {
+            cx = ptx * 8 + 4;
+            cy = pty * 8 + 4;
+        }
+        int l = cx - vw / 2, t = cy - vh / 2;
+        l = l < crop.l ? crop.l : l > crop.r - vw ? crop.r - vw : l;
+        t = t < crop.t ? crop.t : t > crop.b - vh ? crop.b - vh : t;
+        crop.l = l;
+        crop.t = t;
+        crop.r = l + vw;
+        crop.b = t + vh;
+    } else if (vh > room) {
         vh = room;
         vw = vh * mw / mh;
     }
@@ -520,6 +566,7 @@ void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct 
     view.y = y + FRAME;
     frame(c, view.x - FRAME, view.y - FRAME, view.w + 2 * FRAME, view.h + 2 * FRAME);
     draw_page(c, art->page[page]);
+    if (window) map_facts(c, g, s, x, view.y + view.h + FRAME + 6, w, c->h - f - 3);
     if (!hasPlayer || page != playerPage) return;
     int gender = s->gender == 1 ? 1 : 0;
     pd_clip(c, view.x, view.y, view.w, view.h);

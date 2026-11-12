@@ -16,6 +16,8 @@
 #include "updater.h"
 #include "backdrop.h"
 #include "wing_look.h"
+#include "wide_camera.h"
+#include "bezel.h"
 #include "shader.h"
 #include "hud.h"
 #include "pd_dex.h"
@@ -76,6 +78,10 @@ static SDL_Texture *wideTexture;
 static uint32_t wideSource[240 * 160], wideFrame[PK_WIDE_MAX_VIEW_W * PK_WIDE_MAX_VIEW_H];
 static bool wideSupported, wideReady;
 static unsigned wideW, wideH;
+static struct wide_camera wideCam; // EXPAND's zoom (wide_camera.h)
+static float wideScale = 1;        // screen pixels per game pixel of the window now
+static float wideLevels[WIDE_CAMERA_LEVELS];
+static int wideLevelCount = 1, wideCamAspect = -1;
 static SDL_AudioDeviceID audio;
 static volatile sig_atomic_t running = 1;
 static bool muted;
@@ -112,7 +118,7 @@ enum {
   SRIGHT,
   FN1,
   FN2,
-  R3, // COMPANION VIEW: the next view
+  R3, // COMPANION VIEW: a tap = the view picked <-> the game alone, a hold = the views to pick from
   NKEYS
 };
 static SDL_GameController *controller; // the first open pad (any open pad plays: pads[])
@@ -273,19 +279,25 @@ static int keyboard(SDL_Keycode k) {
  * XBOX "the bottom one is A". */
 static int buttonLayout;
 static unsigned char hotkeyMap[PD_HOTKEY_BUTTONS];
+/* The pad buttons HOTKEYS can give an action, in settings.ini's order. The sticks (L3, R3) and the triggers (L2, R2)
+ * aren't SDL buttons there (-1): the game loop reads them (stick_hotkeys), a stick's action on its release, so L3 + R3
+ * stays FULLSCREEN. */
 static const int HOTKEY_BUTTONS[PD_HOTKEY_BUTTONS] = {
     SDL_CONTROLLER_BUTTON_GUIDE,   SDL_CONTROLLER_BUTTON_MISC1,   SDL_CONTROLLER_BUTTON_PADDLE1,
-    SDL_CONTROLLER_BUTTON_PADDLE2, SDL_CONTROLLER_BUTTON_PADDLE3, SDL_CONTROLLER_BUTTON_PADDLE4,
-    SDL_CONTROLLER_BUTTON_LEFTSTICK, SDL_CONTROLLER_BUTTON_RIGHTSTICK};
-static const char *const HOTKEY_BUTTON_NAMES[PD_HOTKEY_BUTTONS] = {"GUIDE / HOME", "SHARE", "PADDLE 1", "PADDLE 2",
-                                                                   "PADDLE 3",     "PADDLE 4", "L3", "R3"};
+    SDL_CONTROLLER_BUTTON_PADDLE2, SDL_CONTROLLER_BUTTON_PADDLE3, SDL_CONTROLLER_BUTTON_PADDLE4, -1, -1, -1, -1};
+static const char *const HOTKEY_BUTTON_NAMES[PD_HOTKEY_BUTTONS] = {
+    "GUIDE / HOME", "SHARE", "PADDLE 1", "PADDLE 2", "PADDLE 3", "PADDLE 4", "L3", "R3", "L2 / LT", "R2 / RT"};
+// HOTKEYS' rows: the triggers and sticks first, then the extra buttons (indexes into the lists above).
+static const int HOTKEY_ROW_ORDER[PD_HOTKEY_BUTTONS] = {PD_HOTKEY_L2, PD_HOTKEY_R2, PD_HOTKEY_L3, PD_HOTKEY_R3, 0, 1, 2,
+                                                        3,            4,            5};
 enum {
   HA_USUAL, HA_MENU, HA_COMPANION, HA_FF, HA_SAVE_STATE, HA_LOAD_STATE, HA_SCREENSHOT, HA_FULLSCREEN,
-  HA_DS_LAYOUT_NEXT, HA_DS_LAYOUT_BACK, HA_SWAP_SCREENS,
+  HA_DS_LAYOUT_NEXT, HA_DS_LAYOUT_BACK, HA_SWAP_SCREENS, HA_ZOOM_IN, HA_ZOOM_OUT,
 };
+// The app's HOTKEYS words (Hotkeys.kt's Action titles) where it has the same action.
 static const char *const HOTKEY_ACTIONS[PD_HOTKEY_ACTIONS] = {
-    "USUAL USE",  "GAME MENU",  "COMPANION",      "FAST FORWARD",   "SAVE STATE",  "LOAD STATE",
-    "SCREENSHOT", "FULLSCREEN", "DS LAYOUT NEXT", "DS LAYOUT BACK", "SWAP SCREENS"};
+    "USUAL USE",  "GAME MENU",  "COMPANION", "FF TOGGLE",      "SAVE STATE",   "LOAD STATE", "SCREENSHOT",
+    "FULLSCREEN", "DS LAYOUT", "DS LAYOUT BACK", "SWAP SCREENS", "ZOOM IN",    "ZOOM OUT"};
 static unsigned hostActions;  // HA_* bits pressed since the game loop last looked
 static bool screenshotWanted; // the next present writes DATA/screenshots/...
 static int gameTouch; // GAME TOUCH, enum pd_game_touch
@@ -446,6 +458,9 @@ static void fullscreen_set(bool on) {
   }
 }
 static void fullscreen_toggle(void) { fullscreen_set(!fullscreenOn); }
+static bool stickChord; // L3 + R3 went to FULLSCREEN since both sticks were last up
+#define R3_HOLD_MS 450u // R3 held this long opens the views to pick from instead of flipping the view
+static int layout_pick(const char *title, const struct pd_layout_option *options, int count, int current);
 /* F11 / Alt+Enter on a keyboard, L3 + R3 on a pad (the second stick pressed while the first is held). True when the
  * event was the toggle's (the game doesn't get it). */
 static bool fullscreen_event(const SDL_Event *e) {
@@ -465,6 +480,7 @@ static bool fullscreen_event(const SDL_Event *e) {
     int other = e->cbutton.button == SDL_CONTROLLER_BUTTON_LEFTSTICK ? SDL_CONTROLLER_BUTTON_RIGHTSTICK
                                                                       : SDL_CONTROLLER_BUTTON_LEFTSTICK;
     if (pad && SDL_GameControllerGetButton(pad, other)) {
+      stickChord = true; // neither stick's HOTKEYS action when they're let go
       fullscreen_toggle();
       return true;
     }
@@ -482,11 +498,19 @@ static bool handheld_screen(void) {
 }
 /* A HOTKEYS button with an action: FULLSCREEN and SCREENSHOT happen here, the rest wait in hostActions for the game
  * loop (or the DS loop, through pd_ds_host_actions). True = the button was the hotkey's, the game doesn't see it. */
+static void hotkey_fire(int action) {
+  if (action == HA_FULLSCREEN)
+    fullscreen_toggle();
+  else if (action == HA_SCREENSHOT)
+    screenshotWanted = true;
+  else if (action)
+    hostActions |= 1u << action;
+}
 static bool hotkey_event(const SDL_Event *e) {
   if (e->type != SDL_CONTROLLERBUTTONDOWN && e->type != SDL_CONTROLLERBUTTONUP)
     return false;
   for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) {
-    if (e->cbutton.button != HOTKEY_BUTTONS[i] || !hotkeyMap[i])
+    if (HOTKEY_BUTTONS[i] < 0 || e->cbutton.button != HOTKEY_BUTTONS[i] || !hotkeyMap[i])
       continue;
     if (e->type == SDL_CONTROLLERBUTTONDOWN) {
       if (hotkeyMap[i] == HA_FULLSCREEN)
@@ -629,18 +653,41 @@ static int menu_taps(struct pd_menu *m) {
   tapCount = 0;
   return row;
 }
+/* POCKET_KEYS="N:K:LEN,..." (headless checks): button K (A 0, B 1, SELECT 2, START 3, RIGHT 4, LEFT 5, UP 6, DOWN 7,
+ * R 8, L 9, ...) held from events() call N for LEN calls. */
+static int keyScriptTick;
+static void key_script(void) {
+  const char *s = getenv("POCKET_KEYS");
+  if (!s)
+    return;
+  int tick = ++keyScriptTick;
+  while (*s) {
+    int n, k, len, used = 0;
+    if (sscanf(s, "%d:%d:%d%n", &n, &k, &len, &used) != 3 || !used)
+      break;
+    if (tick == n)
+      key(k, true);
+    if (tick == n + len)
+      key(k, false);
+    s += used;
+    if (*s == ',')
+      s++;
+  }
+}
 static uint32_t wingActivity; // the last input or wing change (draw_panel: the still wings dim)
+static uint32_t lastInputAt;  // the last input (the bezel bars' BUTTON HINTS)
 static void events(void) {
   pressed = 0;
   tapCount = 0;
   tap_script();
+  key_script();
   SDL_Event e;
   while (SDL_PollEvent(&e)) {
     if (e.type == SDL_QUIT)
       running = 0;
     if (e.type == SDL_KEYDOWN || e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_JOYBUTTONDOWN ||
         e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_FINGERDOWN || e.type == SDL_CONTROLLERAXISMOTION)
-      wingActivity = SDL_GetTicks();
+      wingActivity = lastInputAt = SDL_GetTicks();
     controller_device_event(&e);
     tap_event(&e);
     if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
@@ -790,6 +837,26 @@ static unsigned hotkeys_held(unsigned *fired) {
                            : hotkey[i].key == SLEFT ? LEFT : RIGHT);
   }
   return on;
+}
+/* HOTKEYS on the triggers and sticks, over the game only (the companion keeps them: L3 locks a SIDE PANEL): a
+ * trigger's action as it's pressed, a stick's as it's let go, unless it was half of L3 + R3 (FULLSCREEN). */
+static void stick_hotkeys(void) {
+  static const int keys[4] = {L2, R2, L3, R3}, slots[4] = {PD_HOTKEY_L2, PD_HOTKEY_R2, PD_HOTKEY_L3, PD_HOTKEY_R3};
+  static unsigned was;
+  for (int i = 0; i < 4; i++) {
+    unsigned bit = 1u << keys[i];
+    int action = hotkeyMap[slots[i]];
+    if (!action)
+      continue;
+    if (i < 2 ? (pressed & bit) != 0 : (was & bit) && !(held & bit) && !stickChord)
+      hotkey_fire(action);
+    hotkeyMask |= bit;
+  }
+  if ((held & (1u << L3)) && (held & (1u << R3)))
+    stickChord = true;
+  was = held;
+  if (!(held & ((1u << L3) | (1u << R3))))
+    stickChord = false;
 }
 /* The companion's canvas for an ow x oh screen: the largest whole scale that
  * keeps it at least 320x240 (the 3DS's, which every tab is laid out for), so
@@ -1021,22 +1088,14 @@ static void present(void) {
   }
   timed_present();
 }
-/* The EXPAND window for an ow x oh screen and a fw x fh game: the screen's
- * size over the game's whole scale (one less for ZOOM OUT), within pk_wide's
- * largest view, never smaller than the game, with even margins so the game's
- * own pixels sit exactly in the middle. */
-static void wide_window(int ow, int oh, unsigned fw, unsigned fh, int aspect,
-                        unsigned *w, unsigned *h) {
-  int scale = ow / (int)fw < oh / (int)fh ? ow / (int)fw : oh / (int)fh;
-  if (aspect == PD_ASPECT_ZOOM_OUT)
-    scale--;
-  if (scale < 1)
-    scale = 1;
-  unsigned x = (unsigned)ow / scale, y = (unsigned)oh / scale;
-  x = x > PK_WIDE_MAX_VIEW_W ? PK_WIDE_MAX_VIEW_W : x < fw ? fw : x;
-  y = y > PK_WIDE_MAX_VIEW_H ? PK_WIDE_MAX_VIEW_H : y < fh ? fh : y;
-  *w = x - ((x - fw) & 1);
-  *h = y - ((y - fh) & 1);
+/* The settled EXPAND window for an ow x oh screen and a fw x fh game: EXPAND at the camera's closest level, ZOOM OUT
+ * one step out (wide_camera.h's levels: at least 1.2 times more of the map). */
+static __attribute__((unused)) void wide_window(int ow, int oh, unsigned fw, unsigned fh, int aspect, unsigned *w,
+                                               unsigned *h) {
+  float levels[WIDE_CAMERA_LEVELS];
+  int n = wide_camera_levels(ow, oh, (int)fw, (int)fh, PK_WIDE_MAX_VIEW_W, PK_WIDE_MAX_VIEW_H, levels);
+  int level = aspect == PD_ASPECT_ZOOM_OUT && n > 1 ? 1 : 0;
+  wide_camera_window(ow, oh, (int)fw, (int)fh, PK_WIDE_MAX_VIEW_W, PK_WIDE_MAX_VIEW_H, levels[level], w, h);
 }
 /* After every frame while EXPAND can run: a frame nobody sees (fast-forward)
  * only keeps pk_wide's RAM history. wideReady = this frame shows the window:
@@ -1059,16 +1118,18 @@ static void wide_tick(struct mCore *c, bool skip, const struct pd_settings *s) {
     pk_wide_view(c, wideSource, &px, (struct PkWideView){0, 0, 1, 1}, NULL);
     return;
   }
-  // ZOOM OUT steps back in to EXPAND's window off the plain overworld (a text
-  // box, the START menu, a battle) with AUTO ZOOM IN on, as the app's camera
-  // does - by the last frame's scene, the one known before this one is drawn.
-  int last = pk_wide_scene();
-  int aspect = s->aspect == PD_ASPECT_ZOOM_OUT && s->autoZoom && last != PK_WIDE_SCENE_FIELD
-                   ? PD_ASPECT_EXPAND : s->aspect;
+  // The app's camera (wide_camera.h): the zoom picked on the plain overworld, 1x for battles, menus and (with AUTO
+  // ZOOM IN) text boxes, eased - by the last frame's scene, the one known before this one is drawn.
   int ow = W, oh = H;
   if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
     ow = W, oh = H;
-  wide_window(ow, oh, fw, fh, aspect, &wideW, &wideH);
+  wideLevelCount = wide_camera_levels(ow, oh, (int)fw, (int)fh, PK_WIDE_MAX_VIEW_W, PK_WIDE_MAX_VIEW_H, wideLevels);
+  if (wideCamAspect != s->aspect) {
+    wideCamAspect = s->aspect;
+    wideCam.level = s->aspect == PD_ASPECT_ZOOM_OUT ? 1 : 0;
+  }
+  wideScale = wide_camera_frame(&wideCam, pk_wide_scene(), s->autoZoom, wideLevels, wideLevelCount, SDL_GetTicks() | 1);
+  wide_camera_window(ow, oh, (int)fw, (int)fh, PK_WIDE_MAX_VIEW_W, PK_WIDE_MAX_VIEW_H, wideScale, &wideW, &wideH);
   struct PkWideView v = {((int)fw - (int)wideW) / 2, ((int)fh - (int)wideH) / 2,
                          (int)wideW, (int)wideH};
   // Like the app's EXPAND, the window shows whatever the scene: the map past
@@ -1101,6 +1162,12 @@ static void set_color(uint32_t c, uint8_t a) {
 }
 static const struct view_layout *gameView; // COMPANION VIEW: where the game goes (NULL = the whole screen)
 static int hudRepelSteps; // the bottom strip's REPEL
+static uint32_t bezelSavedAt; // the last save (the game's, or a state): the bezel bars' SAVED
+static int bezelFf;           // fast-forward's speed while it runs, else 0
+static int bezelStyle = BEZEL_STYLE_THEME, bezelSlots[BEZEL_SLOTS];
+static SDL_Texture *bezelGlow; // GLOW: the game's frame, tiny, stretched back up (a blur for free)
+static SDL_Texture *bezelGlowSource;
+static SDL_Rect bezelGlowSourceRect;
 static bool render_game(unsigned gw, unsigned gh) {
   canvasAt.w = 0; // only the game: nothing to tap until a canvas goes over it
   int ow, oh;
@@ -1140,11 +1207,10 @@ static bool render_game(unsigned gw, unsigned gh) {
     // The same scale: the window's middle lands on the game's own picture.
     gw = wideW;
     gh = wideH;
-    scale = ow / (int)gw < oh / (int)gh ? ow / (int)gw : oh / (int)gh;
-    if (scale < 1)
-      scale = 1;
-    lastGameRect = (SDL_Rect){(ow - (int)gw * scale) / 2, (oh - (int)gh * scale) / 2,
-                              (int)gw * scale, (int)gh * scale};
+    // The camera's scale (whole once it settles; between two while it eases), the window centred on the screen.
+    float fs = wideScale >= 1 ? wideScale : 1;
+    int dw = (int)lroundf((float)gw * fs), dh = (int)lroundf((float)gh * fs);
+    lastGameRect = (SDL_Rect){(ow - dw) / 2, (oh - dh) / 2, dw, dh};
     if (SDL_UpdateTexture(wideTexture, &(SDL_Rect){0, 0, (int)gw, (int)gh},
                           wideFrame, (int)gw * 4) < 0) {
       notice(SDL_GetError());
@@ -1158,6 +1224,8 @@ static bool render_game(unsigned gw, unsigned gh) {
   if (pocket_shader_active()) {
     // SHADER / COLORS: a filtered copy of the same pixels (shader.cpp), drawn into the same rectangle.
     bool wide = drawn == wideTexture;
+    bezelGlowSource = drawn;
+    bezelGlowSourceRect = (SDL_Rect){0, 0, (int)gw, (int)gh};
     if (!pocket_shader_draw(renderer, wide ? wideFrame : video, wide ? (int)gw : 256, (int)gw, (int)gh, false,
                             &lastGameRect)) {
       notice(SDL_GetError());
@@ -1166,16 +1234,13 @@ static bool render_game(unsigned gw, unsigned gh) {
     return true;
   }
   SDL_Rect src = {0, 0, (int)gw, (int)gh};
+  bezelGlowSource = drawn;
+  bezelGlowSourceRect = src;
   if (SDL_RenderCopy(renderer, drawn, &src, &lastGameRect) < 0) {
     notice(SDL_GetError());
     return false;
   }
   return true;
-}
-static void present_game(unsigned gw, unsigned gh) {
-  update_announce();
-  if (render_game(gw, gh))
-    timed_present();
 }
 /* WILD's badge: this map's wild species not caught yet (FieldHud's hudWild); -1 = the game has no wild tables. */
 static int hud_wild_uncaught(const struct pd_game *g, const struct pd_snapshot *s) {
@@ -1331,13 +1396,16 @@ static void present_menu(struct pd_menu *m, unsigned gw, unsigned gh) {
 static struct view_layout viewShown, viewFrom, viewTo;
 static uint32_t viewSince;
 static bool viewReady;
+static bool viewGameOnly; // R3's tap: the game alone (EXPAND full screen, no wings or bars) until the next tap
 static void view_update(const struct pd_settings *st, bool companionOpen, bool battle, unsigned fw, unsigned fh) {
   int ow = W, oh = H;
   if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
     ow = W, oh = H;
-  struct view_state vs = {ow, oh, (int)fw, (int)fh, companionOpen, battle, st->panelLocked};
+  bool alone = viewGameOnly && !companionOpen;
+  struct view_state vs = {ow, oh, (int)fw, (int)fh, companionOpen, battle && !alone, st->panelLocked};
   struct view_layout to;
-  view_layout(st->companionView, &vs, &to);
+  // The game alone: BATTLE WINGS while walking (EXPAND full screen, nothing beside it), in a battle too.
+  view_layout(alone ? POCKET_VIEW_BATTLE_WINGS : st->companionView, &vs, &to);
   uint32_t now = SDL_GetTicks();
   if (!viewReady) {
     viewShown = viewFrom = viewTo = to;
@@ -1371,27 +1439,86 @@ static uint32_t panelPixels[CANVAS_MAX_W * CANVAS_MAX_H];
 static SDL_Texture *panelTexture[PANELS];
 static uint32_t panelKey[PANELS], panelGen;
 static int panelW[PANELS], panelH[PANELS];
-static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int which, char *a, char *b, char *c,
-                       size_t n) {
+static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int which, bool battle, char *a,
+                       char *b, char *c, size_t n) {
   a[0] = b[0] = c[0] = 0;
-  if (which == PANEL_TOP) {
-    const char *place = s->valid ? pd_mapsec_name(g, s->mapsec) : NULL;
-    snprintf(a, n, "%s", place ? place : "");
-    time_t now = time(NULL);
-    struct tm *tm = localtime(&now);
-    if (tm)
-      strftime(b, n, "%H:%M", tm);
-    if (g->cfg && g->cfg->badgeFlag > 0 && s->valid) {
-      int badges = 0;
-      for (int i = 0; i < 8; i++)
-        badges += pd_flag(s, g->cfg->badgeFlag + i);
-      snprintf(c, n, "BADGES %d", badges);
+  const struct pd_battle_mon *foe = &s->battlers[PD_POS_OPPONENT_LEFT], *mine = &s->battlers[PD_POS_PLAYER_LEFT];
+  if (which == PANEL_BOTTOM && battle && s->valid && foe->species > 0) {
+    // The battle's bar: the foe, what the moves out do to it, a wild one's catch chance.
+    char name[40];
+    snprintf(a, n, "FOE %s Lv%d", pd_species_name(g, foe->species, name, sizeof name), foe->level);
+    int best = -1;
+    for (int i = 0; i < PD_NUM_MOVES && mine->species > 0; i++) {
+      if (!mine->moves[i])
+        continue;
+      int t = pd_move_type(g, mine->moves[i]);
+      if (t < 0)
+        continue;
+      int pct = pd_type_multiplier_pct(g, t, foe->type1, foe->type2 != foe->type1 ? foe->type2 : -1);
+      if (pct > best)
+        best = pct;
     }
-  } else {
-    snprintf(a, n, "X COMPANION");
-    snprintf(b, n, "R3 VIEW");
-    if (hudRepelSteps > 0)
-      snprintf(c, n, "REPEL %d", hudRepelSteps);
+    snprintf(b, n, "%s", bezel_matchup(best));
+    if (s->foeCount <= 0) {
+      const char *st = pd_status_label(foe->status);
+      bool deep = !strcmp(st, "SLP") || !strcmp(st, "FRZ");
+      snprintf(c, n, "%s", bezel_catch_hint(foe->hp, foe->maxHp, deep, *st && !deep));
+    }
+    return;
+  }
+  struct bezel_facts f = {.place = NULL, .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = -1};
+  if (s->valid) {
+    f.place = pd_mapsec_name(g, s->mapsec);
+    if (g->cfg && g->cfg->badgeFlag > 0) {
+      f.badges = 0;
+      for (int i = 0; i < 8; i++)
+        f.badges += pd_flag(s, g->cfg->badgeFlag + i);
+    }
+    f.playHours = s->playHours;
+    f.playMinutes = s->playMinutes;
+    f.money = s->money;
+  }
+  time_t now = time(NULL);
+  struct tm *tm = localtime(&now);
+  if (tm) {
+    f.hour = tm->tm_hour;
+    f.minute = tm->tm_min;
+  }
+  int secs, pct = -1;
+  SDL_PowerState power = SDL_GetPowerInfo(&secs, &pct);
+  if (power != SDL_POWERSTATE_UNKNOWN && power != SDL_POWERSTATE_NO_BATTERY && pct >= 0) {
+    f.battery = pct;
+    f.charging = power == SDL_POWERSTATE_CHARGING || power == SDL_POWERSTATE_CHARGED;
+  }
+  uint32_t t = SDL_GetTicks();
+  f.hints = lastInputAt && t - lastInputAt < BEZEL_HINT_MS;
+  f.companion = f.quickMenu = true;
+  f.ff = bezelFf;
+  f.zoom = wideReady ? wideCam.level : 0;
+  f.saved = bezelSavedAt && t - bezelSavedAt < BEZEL_SAVED_MS;
+  f.repel = hudRepelSteps;
+  int first = which == PANEL_TOP ? BEZEL_TOP_LEFT : BEZEL_BOTTOM_LEFT;
+  bezel_item_text(bezelSlots[first], &f, a, n);
+  bezel_item_text(bezelSlots[first + 1], &f, b, n);
+  bezel_item_text(bezelSlots[first + 2], &f, c, n);
+}
+/* BLACK / GLOW's bar: off-white text on the bar (near-black, or the game's glow), the left and right ends at the
+ * bar's edges, the middle only where it clears both. */
+static void bezel_strip(struct pd_canvas *pc, const char *a, const char *b, const char *c, uint32_t back) {
+  pd_fill(pc, 0, 0, pc->w, pc->h, back);
+  const uint32_t ink = 0xE8E6DE, muted = 0xA8A69E, shadow = 0x000000;
+  int y = pd_text_y(0, pc->h), x = 6, r = pc->w - 6;
+  int lw = *a ? pd_text_width(a) : 0, rw = *c ? pd_text_width(c) : 0;
+  if (lw)
+    pd_text_fit(pc, x, y, r - x, a, ink, shadow);
+  if (rw && x + lw + 12 + rw <= r)
+    pd_text_right(pc, r, y, c, ink, shadow);
+  else
+    rw = 0;
+  if (*b) {
+    int mw = pd_text_width(b), mx = (pc->w - mw) / 2;
+    if (mx >= x + lw + 12 && mx + mw + 12 <= r - rw)
+      pd_text(pc, mx, y, b, muted, shadow);
   }
 }
 static void draw_panel(int which, struct view_rect r, const struct pd_game *g, const struct pd_snapshot *s,
@@ -1401,11 +1528,14 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   int ow, oh;
   SDL_GetRendererOutputSize(renderer, &ow, &oh);
   int scale = ow / canvasW < oh / canvasH ? ow / canvasW : oh / canvasH;
-  int fit = which == PANEL_TOP || which == PANEL_BOTTOM ? r.h / 24 : r.w / 160;
+  int fit = which == PANEL_TOP || which == PANEL_BOTTOM ? r.h / 24 : r.w / 112;
   if (fit < scale)
     scale = fit;
   if (scale < 1)
     scale = 1;
+  // Never a canvas taller (or wider) than its texture: the card would stop short of the wing's height.
+  while (r.h / scale > CANVAS_MAX_H || r.w / scale > CANVAS_MAX_W)
+    scale++;
   // BLACK / DARK: the wing is a card inset in its room, on the background, its content moved a step now and then.
   struct pocket_backdrop look = pocket_backdrop_for(background);
   struct view_rect room = r;
@@ -1432,12 +1562,53 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   }
   char a[64], b[64], c[64];
   bool strip = which == PANEL_TOP || which == PANEL_BOTTOM;
+  bool bezel = strip && bezelStyle != BEZEL_STYLE_THEME;
   if (strip)
-    panel_text(g, s, which, a, b, c, sizeof a);
+    panel_text(g, s, which, battle, a, b, c, sizeof a);
+  uint32_t textKey = 2166136261u;
+  for (const char *t[3] = {a, b, c}, **p = t; p < t + 3; p++)
+    for (const char *q = *p; *q; q++)
+      textKey = (textKey ^ (uint8_t)*q) * 16777619u;
   uint32_t key = panelGen * 2654435761u ^ (uint32_t)(w * 65599 + h) ^ (battle ? 0x80000000u : 0) ^
-                 (uint32_t)background << 28 ^
-                 (strip ? (uint32_t)(a[0] * 31 + b[3] * 7 + b[4] + c[7] * 131) : 0);
-  if (key != panelKey[which] || w != panelW[which] || h != panelH[which]) {
+                 (uint32_t)background << 28 ^ (uint32_t)bezelStyle << 24 ^ (strip ? textKey : 0);
+  // The bars' see-through texture (GLOW: only the text is drawn over the glow).
+  static SDL_Texture *bezelTexture[PANELS];
+  if (bezel && !bezelTexture[which]) {
+    bezelTexture[which] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+                                            CANVAS_MAX_W, CANVAS_MAX_H);
+    if (!bezelTexture[which])
+      return;
+    SDL_SetTextureBlendMode(bezelTexture[which], SDL_BLENDMODE_BLEND);
+  }
+  SDL_Texture *shown = bezel ? bezelTexture[which] : panelTexture[which];
+  if (bezel) {
+    // The bar fills its room edge to edge: no card, its content shifting with the wings'. Text about a fifth of
+    // the bar tall (a font pixel two screen pixels on a 120 px bar), never past the wings' scale.
+    if (room.h / 48 < scale)
+      scale = room.h / 48 > 0 ? room.h / 48 : 1;
+    r = room;
+    w = r.w / scale;
+    h = r.h / scale;
+    if (w > CANVAS_MAX_W)
+      w = CANVAS_MAX_W;
+    if (h > CANVAS_MAX_H)
+      h = CANVAS_MAX_H;
+  }
+  if (bezel && (key != panelKey[which] || w != panelW[which] || h != panelH[which])) {
+    const uint32_t clear = 0x00FE01FE; // a colour no text uses: see-through
+    struct pd_canvas pc;
+    pd_canvas_init(&pc, w, h, panelPixels);
+    bezel_strip(&pc, a, b, c, clear);
+    for (int i = 0; i < w * h; i++)
+      panelPixels[i] = (panelPixels[i] & 0xFFFFFF) == clear ? 0 : 0xFF000000u | panelPixels[i];
+    SDL_UpdateTexture(shown, &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
+    if (panelKey[which] != key)
+      wingActivity = SDL_GetTicks();
+    panelKey[which] = key;
+    panelW[which] = w;
+    panelH[which] = h;
+  }
+  if (!bezel && (key != panelKey[which] || w != panelW[which] || h != panelH[which])) {
     struct pd_canvas pc;
     pd_canvas_init(&pc, w, h, panelPixels);
     struct pocket_wing_look wl;
@@ -1458,6 +1629,40 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     panelKey[which] = key;
     panelW[which] = w;
     panelH[which] = h;
+  }
+  if (bezel) {
+    SDL_Rect bar = {room.x, room.y, room.w, room.h};
+    set_color(bezelStyle == BEZEL_STYLE_BLACK ? 0x0B0B0D : 0x000000, 255);
+    SDL_RenderFillRect(renderer, &bar);
+    if (bezelStyle == BEZEL_STYLE_GLOW && bezelGlowSource) {
+      // The game's frame squeezed to 16 x 12 and stretched over the bar: a soft glow of its colours, dark and faint.
+      if (!bezelGlow) {
+        bezelGlow = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, 16, 12);
+        if (bezelGlow)
+          SDL_SetTextureScaleMode(bezelGlow, SDL_ScaleModeLinear);
+      }
+      SDL_Texture *was = SDL_GetRenderTarget(renderer);
+      if (bezelGlow && SDL_SetRenderTarget(renderer, bezelGlow) == 0) {
+        SDL_ScaleMode mode;
+        SDL_GetTextureScaleMode(bezelGlowSource, &mode);
+        SDL_SetTextureScaleMode(bezelGlowSource, SDL_ScaleModeLinear);
+        SDL_RenderCopy(renderer, bezelGlowSource, &bezelGlowSourceRect, NULL);
+        SDL_SetTextureScaleMode(bezelGlowSource, mode);
+        SDL_SetRenderTarget(renderer, was);
+        // Above the game its top edge's colours, below it its bottom's: the glow comes out of the picture.
+        SDL_Rect from = {0, which == PANEL_TOP ? 0 : 6, 16, 6};
+        SDL_SetTextureBlendMode(bezelGlow, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureAlphaMod(bezelGlow, 170);
+        SDL_SetTextureColorMod(bezelGlow, 170, 170, 170);
+        SDL_RenderCopy(renderer, bezelGlow, &from, &bar);
+      } else if (bezelGlow)
+        SDL_SetRenderTarget(renderer, was);
+    }
+    dim_texture(shown);
+    SDL_RenderCopy(renderer, shown, &(SDL_Rect){0, 0, w, h},
+                   &(SDL_Rect){r.x + dx + (r.w - w * scale) / 2, r.y + dy + (r.h - h * scale) / 2, w * scale,
+                               h * scale});
+    return;
   }
   if (look.cards) {
     set_color(look.outside, 255);
@@ -1513,6 +1718,28 @@ static void present_view_game(const struct pd_game *g, const struct pd_snapshot 
   if (!render_game(gw, gh))
     return;
   draw_panels(&viewShown, g, s, battle, false);
+  timed_present();
+}
+/* The game alone (test_runtime.c draws with it). */
+__attribute__((unused)) static void present_game(unsigned gw, unsigned gh) {
+  update_announce();
+  if (render_game(gw, gh))
+    timed_present();
+}
+/* The game alone with room above and below it (a taller screen than the game's shape): the bezel bars there. */
+#define BEZEL_MIN_ROOM 20
+static void present_bars_game(const struct pd_game *g, const struct pd_snapshot *s, bool battle, unsigned gw,
+                              unsigned gh) {
+  update_announce();
+  if (!render_game(gw, gh))
+    return;
+  int ow, oh;
+  SDL_GetRendererOutputSize(renderer, &ow, &oh);
+  int above = lastGameRect.y, below = oh - lastGameRect.y - lastGameRect.h;
+  if (above >= BEZEL_MIN_ROOM && below >= BEZEL_MIN_ROOM && lastGameRect.x <= 0 + ow / 8) {
+    draw_panel(PANEL_TOP, (struct view_rect){0, 0, ow, above}, g, s, battle);
+    draw_panel(PANEL_BOTTOM, (struct view_rect){0, oh - below, ow, below}, g, s, battle);
+  }
   timed_present();
 }
 /* The open companion where the view puts it: over the dimmed game (WINDOW), beside it (SIDE PANEL, STEP BACK)
@@ -1601,6 +1828,8 @@ static bool state(struct mCore *c, const char *path, bool save) {
   bool ok = save ? mCoreSaveStateNamed(c, f, SAVESTATE_RTC)
                  : mCoreLoadStateNamed(c, f, SAVESTATE_RTC);
   if(!f->close(f))ok=false;
+  if (ok && save)
+    bezelSavedAt = SDL_GetTicks();
   if (ok && !save) {
     pk_heal_rtc(c);
     pk_wide_reset(); // EXPAND's RAM history is from before the jump
@@ -2137,6 +2366,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   c->checksum(c, &crc, mCHECKSUM_CRC32);
   wideSupported = pk_wide_configure(crc) != 0;
   wideReady = false;
+  wide_camera_reset(&wideCam);
+  wideCamAspect = -1;
   // WILD ENCOUNTERS: the game's own switch (wild.c finds it), held by pk_wide's field read every frame.
   uint32_t wildSwitch = 0;
   bool fieldKnown = c->platform(c) == mPLATFORM_GBA && pk_field_configure(crc);
@@ -2246,6 +2477,16 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     oledBlack = settings.colors == POCKET_COLORS_OLED;
     dimCompanion = settings.dimCompanion;
     background = pocket_background_resolve(settings.background, oledBlack);
+    pocket_shader_brightness(settings.brightness);
+    // DARK MODE and THEME: the core's look follows them (the wings, the strips, the HUD, the companion).
+    static int lookKey = -1;
+    int lookNow = (settings.darkMode ? 1 : 0) | settings.theme << 1;
+    if (lookNow != lookKey) {
+      lookKey = lookNow;
+      pd_look_apply(&game, &settings);
+      hudDrawnKey = 0;
+      panelGen++;
+    }
     gameScaling = settings.aspect == PD_ASPECT_ORIGINAL || !wideSupported ? settings.scaling : PD_SCALE_INTEGER;
     events();
     audio_check();
@@ -2253,8 +2494,23 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     // plorpOS's hotkeys, over the game only.
     unsigned hkFired = 0, hkOn = 0;
     hotkeyMask = 0;
-    if (!companion && !quickOpen)
+    if (!companion && !quickOpen) {
       hkOn = hotkeys_held(&hkFired);
+      stick_hotkeys();
+    }
+    int zoomStep = host_action(HA_ZOOM_OUT) ? 1 : host_action(HA_ZOOM_IN) ? -1 : 0;
+    if (zoomStep) {
+      if (!wideSupported || settings.aspect == PD_ASPECT_ORIGINAL)
+        notice("Zoom needs ASPECT EXPAND");
+      else {
+        int to = wideCam.level + zoomStep;
+        to = to < 0 ? 0 : to >= wideLevelCount ? wideLevelCount - 1 : to;
+        static char zoomText[32];
+        snprintf(zoomText, sizeof zoomText, "Zoom %dx", (int)wideLevels[to]);
+        wideCam.level = to;
+        notice(zoomText);
+      }
+    }
     if (host_action(HA_SAVE_STATE))
       hkFired |= 1u << HK_SAVE;
     if (host_action(HA_LOAD_STATE))
@@ -2269,10 +2525,35 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     if (hkFired & (1u << HK_LOAD))
       notice(!pocket_exists(ss) ? "No state saved yet" : state(c, ss, false) ? "State loaded" : "State load failed");
     bool ffHeld = hkOn & (1u << HK_FF), rewinding = (hkOn & (1u << HK_REWIND)) && rewindOn;
-    if (down(R3) && !quickOpen) {
-      settings.companionView = (settings.companionView + 1) % PD_COMPANION_VIEWS;
-      notice(pd_companion_view_name(settings.companionView));
-      pd_settings_save(&settings, config);
+    // R3 (its usual use): a tap flips between the view picked and the game alone, a hold opens the views to pick
+    // from (A or a tap picks, B leaves it as it was).
+    static uint32_t r3Since;
+    static bool r3Picked;
+    if (!quickOpen && !companion && !hotkeyMap[PD_HOTKEY_R3]) {
+      bool r3 = held & (1u << R3);
+      if (down(R3)) {
+        r3Since = SDL_GetTicks();
+        r3Picked = false;
+      }
+      if (r3 && r3Since && !r3Picked && !stickChord && SDL_GetTicks() - r3Since >= R3_HOLD_MS) {
+        r3Picked = true;
+        c->setKeys(c, 0);
+        int v = layout_pick("PICK A VIEW", companion_layouts(), POCKET_VIEWS, settings.companionView);
+        if (v >= 0) {
+          settings.companionView = v;
+          viewGameOnly = false;
+          pd_settings_save(&settings, config);
+          notice(pd_companion_view_name(v));
+        }
+        if (audio)
+          SDL_ClearQueuedAudio(audio);
+      } else if (!r3 && r3Since) {
+        if (!r3Picked && !stickChord) {
+          viewGameOnly = !viewGameOnly;
+          notice(viewGameOnly ? "GAME ONLY" : pd_companion_view_name(settings.companionView));
+        }
+        r3Since = 0;
+      }
     }
     if (down(X) || host_action(HA_COMPANION)) {
       menuOpen = 0;
@@ -2794,6 +3075,19 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       bool field = (fieldFlags & PK_FIELD_KNOWN) && !(fieldFlags & (PK_FIELD_LOCKED | PK_FIELD_BATTLE)) &&
                    (!wideSupported || pk_wide_scene() == PK_WIDE_SCENE_FIELD) && flyStage == 0;
       hudFieldFrames = field ? hudFieldFrames + 1 : 0;
+      // The bezel bars' facts this frame.
+      static unsigned savesSeen;
+      if (saveStatus.syncs != savesSeen) {
+        savesSeen = saveStatus.syncs;
+        bezelSavedAt = SDL_GetTicks();
+      }
+      bezelFf = ff ? settings.ffSpeed : 0;
+      bezelStyle = bezel_style_resolve(settings.bezelStyle, pocket_backdrop_for(background).cards);
+      memcpy(bezelSlots, settings.bezelSlots, sizeof bezelSlots);
+      if (game.cfg && c->platform(c) == mPLATFORM_GBA && (frames & 15) == 0) {
+        int steps = repel_steps(c, game.cfg);
+        hudRepelSteps = steps > 0 ? steps : 0;
+      }
       if (view_has_panels(&viewShown)) {
         companion_canvas();
         present_view_game(&game, &snap, viewBattle, gw, gh);
@@ -2810,7 +3104,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         companion_canvas();
         present_hud_game(&game, &snap, &hudState, &settings, gw, gh);
       } else {
-        present_game(gw, gh);
+        present_bars_game(&game, &snap, viewBattle, gw, gh);
       }
     }
 #ifdef POCKET_TEST
@@ -3220,7 +3514,9 @@ static bool get_started(void) {
     }
     case SETUP_BUTTONS: {
       static const char *const rows[] = {"NINTENDO\tA ON THE RIGHT", "XBOX\tA AT THE BOTTOM"};
-      snprintf(hint, hintSize, "STEP %d OF %d. Which button is A on your controller?", number, steps);
+      snprintf(hint, hintSize, "STEP %d OF %d. Which button is A? LT / RT zoom, L3 is fast-forward and R3 "
+                               "switches the view (hold it to pick one): SETTINGS > HOTKEYS changes them.",
+               number, steps);
       pick = menu_pick_hint("BUTTON LAYOUT", hint, rows, 2, st.buttonLayout == PD_LAYOUT_XBOX ? 1 : 0);
       if (pick < 0)
         step = SETUP_FOLDERS;
@@ -3310,7 +3606,7 @@ static bool get_started(void) {
  * HOTKEYS. COMPANION VIEW and DS LAYOUT open the LAYOUT pickers. Saved to DATA/settings.ini (DS LAYOUT:
  * DATA/ds-settings.ini) at once. Returns the rail item to open next (RAIL_GAMES), or -1 when the app closes;
  * *foldersChanged says the game list needs reading again. */
-enum { PAGE_SET_HOME, PAGE_SET_DISPLAY, PAGE_SET_BUTTONS, PAGE_SET_HOTKEYS };
+enum { PAGE_SET_HOME, PAGE_SET_DISPLAY, PAGE_SET_BUTTONS, PAGE_SET_HOTKEYS, PAGE_SET_BEZEL };
 enum {
   ROW_VIEW = 1,
   ROW_DS,
@@ -3322,6 +3618,7 @@ enum {
   ROW_UPDATES,
   ROW_SHADER,
   ROW_COLORS,
+  ROW_BRIGHTNESS,
   ROW_DIM,
   ROW_BACKGROUND,
   ROW_FULL,
@@ -3329,6 +3626,9 @@ enum {
   ROW_TOUCH,
   ROW_LAYOUT,
   ROW_SETUP,
+  ROW_BEZEL_STYLE,
+  ROW_BEZEL,
+  ROW_BEZEL_SLOT0 = 80,
   ROW_HOTKEY0 = 100
 };
 static int settings_page(bool *foldersChanged) {
@@ -3336,11 +3636,11 @@ static int settings_page(bool *foldersChanged) {
                                                             "PORTRAIT FLIPPED"};
   static const char *const SHADERS[PD_SHADERS] = {"OFF", "SHARP", "xBRZ"};
   static const char *const COLORS[PD_COLORS] = {"ORIGINAL", "HANDHELD", "OLED"};
-  static const char *const TITLES[] = {"SETTINGS", "DISPLAY OPTIONS", "GAME BUTTONS", "HOTKEYS"};
+  static const char *const TITLES[] = {"SETTINGS", "DISPLAY OPTIONS", "GAME BUTTONS", "HOTKEYS", "BEZEL BARS"};
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
   int page = PAGE_SET_HOME, homeRow = -1, focus = PD_MENU_FOCUS_LIST;
-  int selectedOn[4] = {-1, -1, -1, -1};
+  int selectedOn[5] = {-1, -1, -1, -1, -1}, displayRow = -1;
   while (running) {
     struct pd_settings st;
     pd_settings_load(&st, path);
@@ -3383,17 +3683,36 @@ static int settings_page(bool *foldersChanged) {
     } else if (page == PAGE_SET_DISPLAY) {
       ROW(ROW_SHADER, "SHADER\t%s", SHADERS[st.shader >= 0 && st.shader < PD_SHADERS ? st.shader : 0]);
       ROW(ROW_COLORS, "COLORS\t%s", COLORS[st.colors >= 0 && st.colors < PD_COLORS ? st.colors : 0]);
+      ROW(ROW_BRIGHTNESS, "BRIGHTNESS\t%d%%", st.brightness);
       ROW(ROW_DIM, "DIM COMPANION\t%s", st.dimCompanion ? "ON" : "OFF");
       ROW(ROW_BACKGROUND, "BACKGROUND\t%s",
           pocket_background_name(pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED)));
+      ROW(ROW_BEZEL_STYLE, "BEZEL STYLE\t%s",
+          BEZEL_STYLE_NAMES[bezel_style_resolve(st.bezelStyle, pocket_background_resolve(st.background, st.colors ==
+                                                                POCKET_COLORS_OLED) == POCKET_BACKGROUND_BLACK)]);
+      ROW(ROW_BEZEL, "BEZEL BARS" PD_MENU_PAGE);
       ROW(ROW_FULL, "FULLSCREEN\t%s", fullscreenOn ? "ON" : "OFF");
       ROW(ROW_ORIENT, "ORIENTATION\t%s", ORIENTATIONS[st.orientation]);
       ROW(ROW_TOUCH, "GAME TOUCH\t%s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
+    } else if (page == PAGE_SET_BEZEL) {
+      for (int i = 0; i < BEZEL_SLOTS; i++) {
+        if (i == 0 || i == BEZEL_BOTTOM_LEFT)
+          ROW(0, PD_MENU_GROUP "%s", i ? "BOTTOM BAR" : "TOP BAR");
+        int item = st.bezelSlots[i] >= 0 && st.bezelSlots[i] < BEZEL_ITEMS ? st.bezelSlots[i] : 0;
+        ROW(ROW_BEZEL_SLOT0 + i, "%s\t%s", BEZEL_SLOT_NAMES[i] + (i < 3 ? 4 : 7), BEZEL_ITEM_NAMES[item]);
+      }
+      ROW(0, PD_MENU_MUTED "IN A BATTLE THE BOTTOM BAR SHOWS THE FOE");
     } else if (page == PAGE_SET_BUTTONS) {
       ROW(ROW_LAYOUT, "BUTTON LAYOUT\t%s", st.buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
     } else {
-      for (int i = 0; i < PD_HOTKEY_BUTTONS; i++)
+      ROW(0, PD_MENU_GROUP "TRIGGERS AND STICKS");
+      for (int r = 0; r < PD_HOTKEY_BUTTONS; r++) {
+        int i = HOTKEY_ROW_ORDER[r];
+        if (r == 4)
+          ROW(0, PD_MENU_GROUP "EXTRA BUTTONS");
         ROW(ROW_HOTKEY0 + i, "%s\t%s", HOTKEY_BUTTON_NAMES[i], HOTKEY_ACTIONS[st.hotkeys[i]]);
+      }
+      ROW(0, PD_MENU_MUTED "IN A DS GAME L2 / R2 STAY TOUCH SCREEN / DS LAYOUT");
     }
 #undef ROW
     for (int i = 0; i < n; i++)
@@ -3445,6 +3764,12 @@ static int settings_page(bool *foldersChanged) {
     if (back) {
       if (page == PAGE_SET_HOME)
         return RAIL_GAMES;
+      if (page == PAGE_SET_BEZEL) {
+        page = PAGE_SET_DISPLAY;
+        if (displayRow >= 0)
+          selectedOn[PAGE_SET_DISPLAY] = displayRow;
+        continue;
+      }
       page = PAGE_SET_HOME;
       if (homeRow >= 0)
         selectedOn[PAGE_SET_HOME] = homeRow;
@@ -3504,6 +3829,24 @@ static int settings_page(bool *foldersChanged) {
     case ROW_COLORS:
       st.colors = (st.colors + 1) % PD_COLORS;
       break;
+    case ROW_BRIGHTNESS: {
+      static char levels[(POCKET_BRIGHTNESS_MAX - POCKET_BRIGHTNESS_MIN) / POCKET_BRIGHTNESS_STEP + 1][24];
+      const char *rows[sizeof levels / sizeof *levels];
+      int count = 0, at = 0;
+      for (int v = POCKET_BRIGHTNESS_MIN; v <= POCKET_BRIGHTNESS_MAX; v += POCKET_BRIGHTNESS_STEP, count++) {
+        snprintf(levels[count], sizeof levels[count], v == 100 ? "%d%%\tTHE GAME'S OWN" :
+                 v == POCKET_BRIGHTNESS_DEFAULT ? "%d%%\tDEFAULT" : "%d%%", v);
+        rows[count] = levels[count];
+        if (v == st.brightness)
+          at = count;
+      }
+      int b = menu_pick("BRIGHTNESS", rows, count, at);
+      if (b < 0)
+        save = false;
+      else
+        st.brightness = POCKET_BRIGHTNESS_MIN + b * POCKET_BRIGHTNESS_STEP;
+      break;
+    }
     case ROW_DIM:
       st.dimCompanion = !st.dimCompanion;
       break;
@@ -3536,7 +3879,33 @@ static int settings_page(bool *foldersChanged) {
     case ROW_LAYOUT:
       st.buttonLayout = (st.buttonLayout + 1) % PD_BUTTON_LAYOUTS;
       break;
+    case ROW_BEZEL_STYLE: {
+      static const char *const rows[BEZEL_STYLES] = {"BLACK\tNEAR BLACK, FOR OLED", "GLOW\tTHE GAME'S COLOURS, FAINT",
+                                                     "THEME\tTHE THEME'S WINDOW"};
+      int b = menu_pick("BEZEL STYLE", rows, BEZEL_STYLES,
+                        bezel_style_resolve(st.bezelStyle, pocket_background_resolve(st.background, st.colors ==
+                                                               POCKET_COLORS_OLED) == POCKET_BACKGROUND_BLACK));
+      if (b < 0)
+        save = false;
+      else
+        st.bezelStyle = b;
+      break;
+    }
+    case ROW_BEZEL:
+      displayRow = pick;
+      page = PAGE_SET_BEZEL;
+      save = false;
+      break;
     default:
+      if (id >= ROW_BEZEL_SLOT0 && id < ROW_BEZEL_SLOT0 + BEZEL_SLOTS) {
+        int i = id - ROW_BEZEL_SLOT0;
+        int item = menu_pick(BEZEL_SLOT_NAMES[i], BEZEL_ITEM_NAMES, BEZEL_ITEMS, st.bezelSlots[i]);
+        if (item < 0)
+          save = false;
+        else
+          st.bezelSlots[i] = item;
+        break;
+      }
       if (id >= ROW_HOTKEY0 && id < ROW_HOTKEY0 + PD_HOTKEY_BUTTONS) {
         int b = id - ROW_HOTKEY0;
         int action = menu_pick(HOTKEY_BUTTON_NAMES[b], HOTKEY_ACTIONS, PD_HOTKEY_ACTIONS, st.hotkeys[b]);

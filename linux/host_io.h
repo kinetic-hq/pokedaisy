@@ -5,6 +5,7 @@
 #include <time.h>
 struct pocket_save_status {
   bool failed, closed;
+  unsigned syncs; // the game's saves written (the bezel bars' SAVED)
 };
 /* Takes inner on success or failure. status must outlive the returned VFile. */
 struct VFile *pocket_save_wrap(struct VFile *inner,
