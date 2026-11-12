@@ -6,7 +6,7 @@
 // Saved by number in ds-settings.ini (layout=N): append new layouts, never renumber.
 enum DsHostLayout { DSL_ONE=0, DSL_PIP=1, DSL_WING=2, DSL_STACKED=3, DSL_SIDE=4, DSL_LARGE=5, DSL_WINGS=6, DSL_SPLIT=7, DSL_COUNT=8 };
 inline const char* ds_layout_name(int layout){
-  static const char* const names[]={"ONE SCREEN","PICTURE IN PICTURE","TOUCH IN WING","STACKED","SIDE BY SIDE","LARGE + SMALL","WINGS","SPLIT TOUCH"};
+  static const char* const names[]={"ONE SCREEN","PICTURE IN PICTURE","TOUCH IN WING","STACKED","SIDE BY SIDE","LARGE + SMALL","WINGS","TOUCH PIECES"};
   return names[std::clamp(layout,0,DSL_COUNT-1)];
 }
 
@@ -26,6 +26,10 @@ struct DsPlacement {
   // each in a wing; touch is then empty.
   DsBox half[2];
   bool split()const{return half[0].shown();}
+  // TOUCH PIECES (touch_pieces.h): the game's buttons laid out in the wings, everything beside the top screen; the
+  // halves above are what shows on a screen it doesn't know.
+  bool pieces=false;
+  DsBox wing[2];
 };
 
 // A w x h picture (in DS pixels) as large as fits in the box: whole multiples from 3x up, so pixels stay even
