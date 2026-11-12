@@ -17,12 +17,13 @@ game shows which tab; a build that is not listed there has emulation only.
 Follow `linux/README.md` in the source repository for dependencies, native and
 TrimUI builds, controls, save paths and test commands. Use a separate data
 folder while testing. Existing emulator saves are never imported automatically.
-F11, Alt+Enter or L3 + R3 switch full screen, as on Windows, and `CONTROLS` at
-the bottom of the game list sets the `BUTTON LAYOUT` and the extra buttons' jobs
-the same way. `SCREEN` there turns the picture (`ORIENTATION`, for a screen
-mounted upright or upside down) and sets `GAME TOUCH`, and touch works on the
-game list, the menus and the companion.
-Games can also be listed from other folders (`GAME FOLDERS` at the bottom of the
+F11, Alt+Enter or L3 + R3 switch full screen, as on Windows. The game list has
+a `GAMES` / `SETTINGS` rail down its left, as on Windows: `SETTINGS` >
+`CONTROLS` sets the `BUTTON LAYOUT` and the extra buttons' jobs, and `SCREEN` >
+`DISPLAY OPTIONS` turns the picture (`ORIENTATION`, for a screen mounted upright
+or upside down) and sets `GAME TOUCH`. Touch works on the game list, the menus
+and the companion.
+Games can also be listed from other folders (`+ ADD GAMES` at the top of the
 game list) and saves kept beside them (`SAVES BESIDE GAMES`): the Windows page
 says how.
 
@@ -49,7 +50,7 @@ change tabs. While a list or dialog is open, the D-pad stays inside it.
 the game, a side panel, or your party and the matchup beside a battle. The
 right stick steps through them; see [Companion views](windows.md#companion-views).
 The picker draws each view (and each `DS LAYOUT`) as a small picture, and
-`SCREEN` at the bottom of the game list has both pickers too. The settings follow
+the game list's `SETTINGS` has both pickers too. The settings follow
 the app's groups; [Where the settings are](windows.md#where-the-settings-are)
 has the table.
 Your game menu has cancel-first save, load and quit confirmations.

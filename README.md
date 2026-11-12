@@ -32,14 +32,14 @@ UPDATES`.
 | Thing | How |
 | --- | --- |
 | Controls | Built in handheld controls and any SDL controller work as they come, and can be plugged in mid game. Keyboard: arrows, Z = A, X = B, Enter = START, Backspace = SELECT, Q / E = L / R, Tab = companion, F = quick menu, V = next companion view, K = lock the side panel, Escape = game menu. Other controllers: a line in `DATA\gamecontrollerdb.txt`. |
-| Button layout and hotkeys | `CONTROLS` at the bottom of the game list (and `SETTINGS` > `BUTTON LAYOUT`): `NINTENDO` (right button = A, the default) or `XBOX` (the button printed A = A); pick the one printed on your pad. GUIDE, SHARE, the four back paddles, L3 and R3 can each open the game menu or companion, fast forward, save / load a state, take a screenshot (`DATA\screenshots`), switch full screen, step the DS layout or swap the DS screens. |
-| Touch and orientation | `SCREEN` at the bottom of the game list (and `SETTINGS`): `ORIENTATION` turns everything for a screen mounted another way (`LANDSCAPE`, `PORTRAIT`, `LANDSCAPE FLIPPED`, `PORTRAIT FLIPPED`), touch included. Touch and the mouse work on the game list, menus and companion; `GAME TOUCH` `DS SCREEN ONLY` (default) or `OFF` says whether they press a DS game's touch screen. |
+| Button layout and hotkeys | `SETTINGS` > `CONTROLS` on the game list's rail (and the companion's `SETTINGS` > `BUTTON LAYOUT`): `NINTENDO` (right button = A, the default) or `XBOX` (the button printed A = A); pick the one printed on your pad. GUIDE, SHARE, the four back paddles, L3 and R3 can each open the game menu or companion, fast forward, save / load a state, take a screenshot (`DATA\screenshots`), switch full screen, step the DS layout or swap the DS screens. |
+| Touch and orientation | `SETTINGS` > `SCREEN` > `DISPLAY OPTIONS` on the game list's rail (and the companion's `SETTINGS`): `ORIENTATION` turns everything for a screen mounted another way (`LANDSCAPE`, `PORTRAIT`, `LANDSCAPE FLIPPED`, `PORTRAIT FLIPPED`), touch included. Touch and the mouse work on the game list, menus and companion; `GAME TOUCH` `DS SCREEN ONLY` (default) or `OFF` says whether they press a DS game's touch screen. |
 | Full screen | F11, Alt+Enter, L3 + R3 on a controller, the game menu or `SETTINGS` > `FULLSCREEN` switch it any time (borderless, remembered; on by default on a handheld's screen). `POCKET_FULLSCREEN=1` forces it; `POCKET_WINDOW=1920x1080` opens a window of that size. |
 | Start a game directly | `pokedaisy.exe "D:\Games\My Game.gba"`; `--data FOLDER` uses another data folder. |
 | COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
-| DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE` or `LARGE + SMALL`. R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
+| DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE`, `LARGE + SMALL` or `WINGS` (`TOUCH IN WING` and `WINGS` put the companion's party and trainer panels beside the top screen; `DS WING SIDE` picks the side). R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
 | Shaders | `SETTINGS` > `SHADER` (`OFF`, `SHARP`, `xBRZ`), `COLORS` (`ORIGINAL`, `HANDHELD`, `OLED`: true black panels, less glare) and `DIM COMPANION`. DS games have them in the `SET` tab. |
-| Games in other folders | `GAME FOLDERS` at the bottom of the game list: `ADD A FOLDER` browses your drives with a controller (e.g. `D:\Emulation\roms`); each folder and the folders right inside it are listed (kept in `DATA\roms-folders.txt`). |
+| Games in other folders | `+ ADD GAMES` at the top of the game list (or `SETTINGS` > `GAME FOLDERS`): `ADD A FOLDER` browses your drives with a controller (e.g. `D:\Emulation\roms`); each folder and the folders right inside it are listed (kept in `DATA\roms-folders.txt`). |
 | Save folders | GBA / Game Boy saves in `DATA\saves` for games in `DATA\roms`, and beside the game as `<name>.sav` for games in your own folders (`SETTINGS` > `SAVES BESIDE GAMES` turns that off); backed up to a `pokedaisy-backups` folder next to the save at each start. A DS save sits beside its game as `<name>.sav` (backups in `DATA\backups`). States go to `DATA\states` and never hold the save. |
 | Problems | Opened with a double click, it logs to `DATA\pokedaisy.log`; include it in a report. |
 
@@ -83,6 +83,10 @@ Keep this list current: a pull request that changes what the fork adds updates i
   for a screen mounted upright or upside down.
 - **Android's settings menus** on the desktop host: the companion's `SETTINGS` in the app's groups and order, and
   a picker for `COMPANION VIEW` and `DS LAYOUT` that draws every choice, from the companion or the game list.
+- **Game list rail** on the desktop host: `GAMES` / `SETTINGS` down the left of the game list, as in the app's
+  library, with `+ ADD GAMES` at the top and the app's settings groups.
+- **DS wings** on the desktop host: `TOUCH IN WING` puts the touch screen in one wing and the companion's party in
+  the other; `WINGS` is `ONE SCREEN` with party and trainer panels in both wings and the touch screen floating in.
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change.
