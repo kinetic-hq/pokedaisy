@@ -120,6 +120,8 @@ The button at the bottom right turns the page from the foe to your Pokémon and 
 
 In a trainer's double battle the page shows one foe at a time, the one on the left to start with. Both foes that are out show their icon in the column, and only the one you're looking at is framed. Tap the other to look at it, just as it is in the battle; a Pokémon that's out is never `UNSEEN`. Your side shows one of yours, the one on the left until you tap another.
 
+On the desktop, a double battle in Black, White, Black 2 or White 2 brings up the `BATTLE` tab too. It shows the foe on the left and your Pokémon on the left, with your moves rated against that foe. Triple and rotation battles don't get a `BATTLE` tab yet.
+
 ### Foe IVs
 
 The foe's IVs, EVs and nature are hidden by default, since knowing them is a bit of a peek. Turn on `FOE IVS` in SETTINGS and `INFO` gets a `STATS` button: your Pokémon and the foe side by side, each stat with its IV and EV, plus `NATURE` and `HIDDEN POWER`. It's the same view as the [STATS page in a summary](party.md).
