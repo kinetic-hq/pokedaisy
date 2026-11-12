@@ -41,6 +41,9 @@ struct pd_text {
     int mapsecsCount;
     // A FireRed 1.0 hack whose region_map.c reads its own sMapNames (the app's RomRegionMap): those names first.
     bool mapsecsRom;
+    // A hack drawn on Emerald's own map with its own section numbering (Petalburg Dynasty): each section's
+    // {page, x, y, w, h} on it, mapsecsCount of them (page 255 = not on the map); NULL = Emerald's.
+    const uint8_t (*mapsecRects)[5];
 };
 
 struct pd_game;

@@ -70,6 +70,12 @@ class RomArtTest {
         assertTrue("regionmap/player_brendan.png" in images && "regionmap/player_may.png" in images)
     }
 
+    /** Petalburg Dynasty keeps Emerald's own map, smol-compressed (EM_*_SMOL): the same picture as Emerald's. */
+    @Test fun petalburgSuppliesEmeraldsRegionMap() {
+        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Pokemon Petalburg Dynasty (v1.12.2).gba")
+        assertEquals("27d88e99", pixels(images.getValue("regionmap/hoenn.png")))
+    }
+
     /** Monomyth's ATHANTO MAP (MMY_REGION_*: its PokeNav's, a text screen of its own) and the one head its map code
      * loads: the map matched the game's own screen headless, pixel for pixel, but for its place-name window. */
     @Test fun monomythSuppliesItsRegionMap() {

@@ -54,6 +54,8 @@ BLOBS = [
     "SG_CARD_PAL0", "SG_CARD_PAL1", "SG_CARD_PAL2", "SG_CARD_PAL3", "SG_CARD_PAL4",
     "SG_CARD_FEMALE_PAL", "SG_CARD_BADGES_PAL", "SG_CARD_BADGES_GFX",
     "SG_PIC_MALE", "SG_PIC_MALE_PAL", "SG_PIC_FEMALE", "SG_PIC_FEMALE_PAL", "SG_FONT_NORMAL", "SG_FONT_NORMAL_WIDTHS",
+    # Emerald's region map, smol-compressed by an expansion build that kept it (Petalburg Dynasty).
+    "EM_REGION_GFX_SMOL", "EM_REGION_MAP_SMOL",
 ]
 
 # Regional dexes the card counts (TrainerCard.kt), by name: written as pd_card_dex_<lower>[].

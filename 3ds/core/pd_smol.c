@@ -5,6 +5,7 @@
 #define TABLE 64
 #define LO_MAX 8192   // loSize is 13 bits
 #define SYM_MAX 16384 // symSize is 14 bits
+#define OUT_MAX 0x10000 // imageSize is 14 bits of u32s; a whole region map's 8bpp tiles (Wishes', Petalburg's) pass 8 KB
 
 struct tans { uint8_t sym, k, y, mask; };
 
@@ -52,7 +53,7 @@ static int next(struct reader* r, const struct tans* table) {
 }
 
 // Runs the instruction bytes `lo` over the symbols into words[] (static, shared); the u16 count, or -1 if malformed.
-static uint16_t words[(8192 + 2) / 2 + 2];
+static uint16_t words[OUT_MAX / 2 + 2];
 
 static size_t instructions(const uint8_t* lo, size_t loSize, const uint16_t* sym, size_t symSize, size_t outBytes) {
     // lo holds (length, offset) pairs, 7 bits per byte + continue bit. A nonzero length emits one symbol, then copies
@@ -100,7 +101,7 @@ size_t pd_smol(const uint8_t* src, size_t avail, uint8_t* out, size_t outCap) {
     size_t imageSize = h0 >> 4 & 0x3FFF, symSize = h0 >> 18 & 0x3FFF;
     size_t bitstreamSize = h1 >> 6 & 0x1FFF, loSize = h1 >> 19 & 0x1FFF;
     size_t outBytes = imageSize * 4;
-    if (mode < 1 || mode > 6 || !loSize || !symSize || loSize > LO_MAX || outBytes > 8192 || outBytes > outCap) return 0;
+    if (mode < 1 || mode > 6 || !loSize || !symSize || loSize > LO_MAX || outBytes > OUT_MAX || outBytes > outCap) return 0;
 
     const size_t data = 8;
     bool loEncoded = mode >= 4, symEncoded = mode == 2 || mode == 3 || mode >= 5, symDelta = mode == 3 || mode == 6;
@@ -167,7 +168,7 @@ size_t pd_smol_tilemap(const uint8_t* src, size_t avail, uint8_t* out, size_t ou
     uint32_t h0 = rd32(src, avail, 0, &ok), h1 = rd32(src, avail, 4, &ok);
     if (!ok || (h0 & 0xF) != 8) return 0;
     size_t size = h0 >> 4 & 0x3FFF, symSize = h0 >> 18 & 0x3FFF, loSize = h1;
-    if (!symSize || !loSize || loSize > LO_MAX || symSize > SYM_MAX || size > 8192 || size > outCap) return 0;
+    if (!symSize || !loSize || loSize > LO_MAX || symSize > SYM_MAX || size > OUT_MAX || size > outCap) return 0;
     size_t loAt = 8 + symSize * 2 + 2 * (symSize % 2);
     if (loAt + loSize > avail) return 0;
     for (size_t i = 0; i < symSize; i++) sym[i] = (uint16_t) (src[8 + 2 * i] | src[9 + 2 * i] << 8);

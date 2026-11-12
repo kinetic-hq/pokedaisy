@@ -1064,6 +1064,26 @@ def kotlin_text_table(name, kind, where):
     fail(where, f"no `val {name}` in the app's data/")
 
 
+def kotlin_hoenn_rects(name):
+    """A hack's sections' places on Emerald's own map: its MapSecData's {region, x, y, w, h} by id, when that file draws
+    regionmap/hoenn.png (`regionMapImages... = arrayOf("hoenn")`) and isn't Emerald's own; else None. For a hack with no
+    pd_games entry of its own, whose numbering isn't vanilla's (Petalburg Dynasty)."""
+    if name == "mapSecDataEmerald":
+        return None
+    for path in sorted(glob.glob(os.path.join(DATA, "*.kt"))):
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        if not re.search(r"^(?:internal )?val " + name + r"\b", text, re.M):
+            continue
+        if not re.search(r'^val regionMapImages\w* = arrayOf\("hoenn"\)$', text, re.M):
+            return None
+        block = text[re.search(r"^(?:internal )?val " + name + r"\b", text, re.M).start():]
+        block = block[:block.index("\n)")]
+        return {int(i, 0): tuple(int(v) for v in rest.split(", "))
+                for i, rest in re.findall(r'^\s*(\d+|0x[0-9A-Fa-f]+) to MapSecInfo\("(?:[^"\\]|\\.)*", (-?\d+, \d+, \d+, \d+, \d+)\)', block, re.M)}
+    return None
+
+
 def kotlin_hack_table(hack, field, kind, where):
     for path in sorted(glob.glob(os.path.join(DATA, "*.kt"))):
         with open(path, encoding="utf-8") as fh:
@@ -1134,8 +1154,17 @@ def c_text(texts, rel):
         "// A hack's own names, dense by id (NULL = none); a config without one reads retail's (pd_tables.c).",
         '#include "pd_tables.h"',
     ]
+    rects = {}
     for val, (kind, table) in arrays.items():
         n = len(table) if kind in ("typeChart", "genderRatios") else max(table) + 1
+        r = kotlin_hoenn_rects(val) if kind == "mapsecs" else None
+        if r:
+            rects[val] = f"pd_{ident(val)}_rects"
+            out += ["", f"// Its sections' places on Emerald's own map (region 255 = not on it), from {val}.",
+                    f"static const uint8_t pd_{ident(val)}_rects[{n}][5] = {{"]
+            out += [f"    [{i}] = {{ {', '.join(str(x) for x in ((255 if v[0] < 0 else v[0]),) + v[1:])} }},"
+                    for i, v in sorted(r.items()) if i < n]
+            out.append("};")
         if kind == "genderRatios":
             out += ["", f"static const uint8_t pd_{ident(val)}[{n}] = {{"]
             out += [f"    {', '.join(str(v) for v in table[i:i + 24])}," for i in range(0, n, 24)]
@@ -1158,6 +1187,8 @@ def c_text(texts, rel):
             out.append(f"    .{field} = {arr}, .{field}Count = {n},")
         if texts[key][0].get("mapsecsRom"):
             out.append("    .mapsecsRom = true,")
+        if texts[key][0].get("mapsecs") in rects:
+            out.append(f"    .mapsecRects = {rects[texts[key][0]['mapsecs']]},")
         out.append("};")
     return "\n".join(out) + "\n"
 
