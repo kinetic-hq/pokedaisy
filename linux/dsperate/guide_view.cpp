@@ -100,9 +100,9 @@ std::vector<DsGuideEncounter> platinum_encounters(const std::vector<uint8_t>& d,
   }
   return out;
 }
-// A hack whose wild encounters come from its own cart: Origin HeartGold (Johto) or Renegade Platinum.
+// A hack whose wild encounters come from its own cart: Origin HeartGold or HeartFelt Gold (Johto), Renegade Platinum.
 const DsOrigin* origin_wild(DsGame game){
-  const auto* o=game==DsGame::Johto?ds_origin():game==DsGame::Platinum?ds_renegade():nullptr;
+  const auto* o=game==DsGame::Johto?(ds_origin()?ds_origin():ds_heartfelt()):game==DsGame::Platinum?ds_renegade():nullptr;
   return o && !o->mapWild.empty()?o:nullptr;
 }
 const std::vector<DsGuideEncounter>* origin_set(const DsOrigin& o,int map,int time){

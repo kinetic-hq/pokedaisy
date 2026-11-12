@@ -399,6 +399,20 @@ DsOrigin ds_read_heartfelt(const std::vector<uint8_t>& rom){
     }
     // Each species' icon palette: /a/0/2/8 member 9, a byte per species id.
     o.iconPalettes=member(file(rom,"/a/0/2/8"),9);
+    // GUIDE's wild encounters: HeartGold's 540 map headers, kept at retail's ARM9 0xF6BE0 (the encounter set first; all
+    // 135 of Android's HeartGold map-to-set lines match), and /a/0/3/7's sets in HeartGold's 196-byte format with the
+    // build's own species ids. A failure only costs the guide.
+    try{
+      constexpr size_t headers=0x4000+0xF6BE0;
+      o.mapWild.resize(540);
+      for(size_t i=0;i<o.mapWild.size();++i)o.mapWild[i]=rom.at(headers+i*24);
+      const auto sets=file(rom,"/a/0/3/7");
+      for(unsigned i=0;i<u16(sets,24);++i){
+        auto set=member(sets,i);
+        if(set.size()<196)set.resize(196,0);
+        o.wildSets.push_back(std::move(set));
+      }
+    }catch(const std::exception&){o.mapWild.clear();o.wildSets.clear();}
   }catch(const std::exception& e){std::fprintf(stderr,"HeartFelt Gold tables: %s\n",e.what());o.species.clear();}
   return o;
 }
