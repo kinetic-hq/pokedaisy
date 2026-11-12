@@ -70,17 +70,24 @@ Keep this list current: a pull request that changes what the fork adds updates i
   `STEP BACK`.
 - **Controllers**: hot plugging, several at once (a handheld's own controls and an Xbox pad together).
 - **Shaders and colours** on the desktop host: `SHARP` and `xBRZ` scaling, `HANDHELD` and `OLED` colours,
-  `DIM COMPANION`, and `BACKGROUND` (`BLACK` by default with `OLED`): true black round the game, the wings as
-  near black cards with a faint edge, a thin grey gutter at the game's border, still wings dimmed after a minute
-  and moved a pixel every few minutes against burn in.
+  `BRIGHTNESS` (80% to 150%, 110% by default), `DIM COMPANION`, and `BACKGROUND` (`BLACK` by default with
+  `OLED`): true black round the game, the wings as near black cards with a faint edge (dark mode and themes
+  reach them too), a thin grey gutter at the game's border, still wings dimmed after a minute and moved a pixel
+  every few minutes against burn in. The wings fill the screen's height: the party as tall cards, the map round
+  the player with badges, play time and money under it. Bezel bars above and below the game where there's room
+  (`BEZEL STYLE` `BLACK` / `GLOW` / `THEME`, each of six places picked in `BEZEL BARS`, the foe and matchups in a
+  battle).
 - **Game folders and saves beside games** on the desktop host: folders picked in the app (`GAME FOLDERS`,
   a folder browser that works with a controller) are listed with one level inside them, and their GBA / Game
   Boy saves sit next to the game (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.
 - **Full screen** on the desktop host: `FULLSCREEN` (borderless) switched any time by F11, Alt+Enter, L3 + R3, the
   game menu or `SETTINGS`, remembered, and on by default the first time on a handheld's screen.
 - **Button layout and hotkeys** on the desktop host: `BUTTON LAYOUT` `NINTENDO` / `XBOX` picks which face button is
-  A, and the extra buttons (GUIDE, SHARE, back paddles, L3 / R3) can be given a job: game menu, companion, fast
-  forward, states, screenshot, full screen, DS layout, swap screens.
+  A; LT / RT zoom out / in and L3 toggles fast forward by default (L2 / R2 stay the DS controls in a DS game);
+  a tap on R3 switches between your view and the game alone, a hold picks a view; the triggers, sticks and extra
+  buttons (GUIDE, SHARE, back paddles) can each be given a job in `HOTKEYS`: game menu, companion, fast forward,
+  states, screenshot, full screen, DS layout, swap screens, zoom in / out. EXPAND's camera eases in for text,
+  menus and battles and back out after, like the Android app's.
 - **Touch and orientation** on the desktop host: touch and the mouse on the game list, menus and companion,
   `GAME TOUCH` (`DS SCREEN ONLY` / `OFF`) for the game itself, and `ORIENTATION` turning the whole picture and touch
   for a screen mounted upright or upside down.

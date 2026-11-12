@@ -49,9 +49,19 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->fullscreen = -1;
     s->buttonLayout = PD_LAYOUT_NINTENDO;
     for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) s->hotkeys[i] = 0;
+    // The desktop host's defaults: L3 fast-forward on and off, the triggers zoom (a DS game keeps its own L2 / R2).
+    s->hotkeys[PD_HOTKEY_L3] = PD_HOTKEY_DO_FF;
+    s->hotkeys[PD_HOTKEY_L2] = PD_HOTKEY_DO_ZOOM_OUT;
+    s->hotkeys[PD_HOTKEY_R2] = PD_HOTKEY_DO_ZOOM_IN;
     s->orientation = PD_ORIENT_LANDSCAPE;
     s->gameTouch = PD_GAME_TOUCH_DS_SCREEN;
     s->background = -1;
+    s->brightness = 110;
+    s->bezelStyle = -1;
+    // linux/bezel.h's BEZEL_DEFAULT_SLOTS: LOCATION, CLOCK AND BATTERY, BADGES AND PLAY TIME, BUTTON HINTS,
+    // STATUS CHIPS, REPEL OR MONEY.
+    static const int BEZEL_SLOTS[6] = {1, 2, 5, 8, 9, 10};
+    for (int i = 0; i < 6; i++) s->bezelSlots[i] = BEZEL_SLOTS[i];
 }
 
 const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};
@@ -134,16 +144,31 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "orientation")) int_in(value, 0, PD_ORIENTATIONS - 1, &s->orientation);
         else if (!strcmp(key, "gametouch")) int_in(value, 0, PD_GAME_TOUCHES - 1, &s->gameTouch);
         else if (!strcmp(key, "background")) int_in(value, -1, 2, &s->background);
+        else if (!strcmp(key, "brightness")) int_in(value, 80, 150, &s->brightness);
+        else if (!strcmp(key, "bezel")) int_in(value, -1, 2, &s->bezelStyle);
+        else if (!strcmp(key, "bezelslots")) {
+            const char* p = value;
+            for (int i = 0; i < 6 && *p; i++) {
+                int v = atoi(p);
+                if (v >= 0 && v <= 11) s->bezelSlots[i] = v;
+                while (*p && *p != ',') p++;
+                if (*p == ',') p++;
+            }
+        }
         else if (!strcmp(key, "hotkeys")) {
             // One action a button, comma-separated; an unknown one is the button's usual use.
             const char* p = value;
+            int count = 0;
             for (int i = 0; i < PD_HOTKEY_BUTTONS && *p && *p != '\n'; i++) {
                 char* end;
                 long n = strtol(p, &end, 10);
                 if (end == p) break;
                 s->hotkeys[i] = n >= 0 && n < PD_HOTKEY_ACTIONS ? (unsigned char) n : 0;
+                count++;
                 p = *end == ',' ? end + 1 : end;
             }
+            // A file from before the triggers were on the list: L3 left on its usual use takes its new default.
+            if (count == 8 && !s->hotkeys[PD_HOTKEY_L3]) s->hotkeys[PD_HOTKEY_L3] = PD_HOTKEY_DO_FF;
         }
         else {
             int on;
@@ -181,7 +206,10 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "fullscreen=%d\n", s->fullscreen);
     fprintf(f, "buttons=%d\nhotkeys=", s->buttonLayout);
     for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) fprintf(f, i ? ",%d" : "%d", s->hotkeys[i]);
-    fprintf(f, "\norientation=%d\ngametouch=%d\nbackground=%d\n", s->orientation, s->gameTouch, s->background);
+    fprintf(f, "\norientation=%d\ngametouch=%d\nbackground=%d\nbrightness=%d\n", s->orientation, s->gameTouch,
+            s->background, s->brightness);
+    fprintf(f, "bezel=%d\nbezelslots=%d,%d,%d,%d,%d,%d\n", s->bezelStyle, s->bezelSlots[0], s->bezelSlots[1],
+            s->bezelSlots[2], s->bezelSlots[3], s->bezelSlots[4], s->bezelSlots[5]);
     if (fclose(f) != 0) return false;
 #ifdef _WIN32
     // rename() won't replace a file on Windows; MoveFileEx does, in one step (paths are UTF-8: the host's manifest).

@@ -450,7 +450,7 @@ static void test_wide_window(void) {
     {320,240,240,160,PD_ASPECT_ZOOM_OUT,320,240},// 1x can't go lower
     {1280,720,160,144,PD_ASPECT_EXPAND,256,144}, // Game Boy: 5x
     {1024,768,160,144,PD_ASPECT_EXPAND,204,152},
-    {4096,2160,240,160,PD_ASPECT_ZOOM_OUT,340,180},
+    {4096,2160,240,160,PD_ASPECT_ZOOM_OUT,408,216}, // 13x -> 10x: 12x and 11x show under 1.2 times more
   };
   for(unsigned i=0;i<sizeof cases/sizeof*cases;i++) {
     unsigned w,h;wide_window(cases[i].ow,cases[i].oh,cases[i].fw,cases[i].fh,cases[i].aspect,&w,&h);

@@ -11,11 +11,13 @@
 namespace {
 int gShader = POCKET_SHADER_OFF, gColors = POCKET_COLORS_ORIGINAL;
 bool gDs = false;
+int gBrightness = 100;
 
 // COLORS as a table of every colour at 6 bits a channel (the GBA's 5 and the DS's 6 both fit): XBGR in, XRGB out.
 std::vector<uint32_t> lut;
 int lutColors = -1;
 bool lutDs = false;
+int lutBrightness = -1;
 
 uint8_t to8(double v) {
   v = std::clamp(v, 0.0, 1.0);
@@ -52,19 +54,25 @@ uint32_t mapColor(int colors, bool ds, double r, double g, double b) {
   return uint32_t(to8(r)) << 16 | uint32_t(to8(g)) << 8 | to8(b);
 }
 
+// BRIGHTNESS as a gamma: v ^ (100 / percent).
+double lift(double v) {
+  return gBrightness == 100 ? v : std::pow(v, 100.0 / gBrightness);
+}
+
 void buildLut() {
-  if (lutColors == gColors && lutDs == gDs && !lut.empty())
+  if (lutColors == gColors && lutDs == gDs && lutBrightness == gBrightness && !lut.empty())
     return;
   lut.resize(1u << 18);
   for (uint32_t i = 0; i < lut.size(); i++) {
     auto ch = [&](int shift) {
       int v = (i >> shift) & 63;
-      return ((v << 2) | (v >> 4)) / 255.0;
+      return lift(((v << 2) | (v >> 4)) / 255.0);
     };
     lut[i] = mapColor(gColors, gDs, ch(0), ch(6), ch(12));
   }
   lutColors = gColors;
   lutDs = gDs;
+  lutBrightness = gBrightness;
 }
 
 inline uint32_t key(uint32_t xbgr) {
@@ -158,12 +166,16 @@ void pocket_shader_set(int shader, int colors, bool ds) {
   gDs = ds;
 }
 
+void pocket_shader_brightness(int percent) {
+  gBrightness = std::clamp(percent, POCKET_BRIGHTNESS_MIN, POCKET_BRIGHTNESS_MAX);
+}
+
 bool pocket_shader_active(void) {
-  return gShader != POCKET_SHADER_OFF || gColors != POCKET_COLORS_ORIGINAL;
+  return gShader != POCKET_SHADER_OFF || gColors != POCKET_COLORS_ORIGINAL || gBrightness != 100;
 }
 
 uint32_t pocket_shader_color(uint32_t xbgr) {
-  if (gColors == POCKET_COLORS_ORIGINAL)
+  if (gColors == POCKET_COLORS_ORIGINAL && gBrightness == 100)
     return swap(xbgr);
   buildLut();
   return lut[key(xbgr)];
@@ -172,7 +184,7 @@ uint32_t pocket_shader_color(uint32_t xbgr) {
 bool pocket_shader_draw(SDL_Renderer *r, const uint32_t *px, int pitch, int w, int h, bool xrgb, const SDL_Rect *dst) {
   if (!r || !px || w <= 0 || h <= 0 || !dst || dst->w <= 0 || dst->h <= 0)
     return false;
-  bool original = gColors == POCKET_COLORS_ORIGINAL;
+  bool original = gColors == POCKET_COLORS_ORIGINAL && gBrightness == 100;
   if (!original)
     buildLut();
   mapped.resize(size_t(w) * h);

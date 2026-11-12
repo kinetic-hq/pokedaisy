@@ -24,29 +24,33 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         pd_text_wrap(c, x, y, w, LINE, 2, "NO PARTY YET", PD_MUTED, PD_MUTED_SHADOW);
         return;
     }
-    // A slot: the icon and name, then the level and the HP bar, as tall as the room gives (at least the icon's).
+    // A card a slot, the six sharing the wing's height (as tall as the room gives, at least the icon's): the icon
+    // and name, then the level and the HP bar; a tall card (a wing beside a full-height game) puts the HP numbers
+    // under the bar.
     int rowMin = PD_ICON + 6, rowH = (bottom - y) / PD_PARTY_SIZE;
     if (rowH < rowMin) rowH = rowMin;
     char buf[40];
     for (int i = 0; i < s->partyCount && i < PD_PARTY_SIZE && y + rowMin <= bottom; i++, y += rowH) {
         const struct pd_mon* m = &s->party[i];
         bool fainted = m->species != PD_SPECIES_EGG && m->maxHp > 0 && m->hp == 0;
-        pd_round_rect(c, x, y, w, rowH - 3, 3, PD_LIST_FILL);
-        if (icon ? !icon(c, ctx, i, x + 1, y + (rowH - 3 - PD_ICON) / 2, fainted)
-                 : !pd_draw_mon_icon_shiny(c, g, m->species, m->shiny, x + 1, y + (rowH - 3 - PD_ICON) / 2, 1, fainted))
-            ui_ball(c, x + 13, y + (rowH - 3) / 2 - 4, true);
+        int cardH = rowH - 4;
+        bool tall = cardH >= 3 * LINE + 10;
+        pd_round_rect(c, x, y, w, cardH, 3, PD_LIST_FILL);
+        if (icon ? !icon(c, ctx, i, x + 1, y + (cardH - PD_ICON) / 2, fainted)
+                 : !pd_draw_mon_icon_shiny(c, g, m->species, m->shiny, x + 1, y + (cardH - PD_ICON) / 2, 1, fainted))
+            ui_ball(c, x + 13, y + cardH / 2 - 4, true);
         int tx = x + PD_ICON + 4, right = x + w - 3;
         const char* name = m->nickname[0] || !g ? m->nickname : pd_species_name(g, m->species, buf, sizeof(buf));
-        int ty = y + (rowH - 3 - 2 * LINE) / 2;
+        int ty = y + (cardH - (tall ? 3 * LINE + 2 : 2 * LINE)) / 2;
         if (m->species == PD_SPECIES_EGG) {
-            pd_text_fit(c, tx, ty + LINE / 2, right - tx, name, PD_LABEL, PD_LABEL_SHADOW);
+            pd_text_fit(c, tx, y + (cardH - LINE) / 2, right - tx, name, PD_LABEL, PD_LABEL_SHADOW);
             continue;
         }
         char lv[12];
         snprintf(lv, sizeof(lv), "Lv%d", m->level);
         int lvW = pd_text_width(lv);
         // Too narrow for the level beside the name: it goes before the HP bar.
-        bool lvRight = right - tx >= lvW + 40;
+        bool lvRight = !tall && right - tx >= lvW + 40; // a tall card: the whole name, the level under it
         pd_text_fit(c, tx, ty, right - tx - (lvRight ? lvW + 4 : 0), name, PD_LABEL, PD_LABEL_SHADOW);
         if (lvRight) pd_text_right(c, right, ty, lv, PD_MUTED, PD_MUTED_SHADOW);
         int by = ty + LINE + 1, bx = tx;
@@ -55,6 +59,16 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         if (*status) {
             ui_status_badge(c, bx, by + 1, m->status);
             bx += pd_text_width(status) + 10;
+        }
+        if (tall) {
+            // The bar its own line, as wide as the text column, the HP numbers under it.
+            by += LINE + 2;
+            bx = tx;
+            char hp[16];
+            snprintf(hp, sizeof(hp), "%d/%d", m->hp, m->maxHp);
+            if (right - bx - 18 >= 12) ui_hp_bar(c, bx, by, right - bx - 18, m->hp, m->maxHp);
+            pd_text_right(c, right, by + 5, hp, PD_MUTED, PD_MUTED_SHADOW);
+            continue;
         }
         int barW = right - bx - 18;
         if (barW >= 12) ui_hp_bar(c, bx, by + 5, barW, m->hp, m->maxHp);

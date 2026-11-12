@@ -89,6 +89,8 @@ static bool sync_save(struct VFile *vf, void *p, size_t size) {
   bool ok = s->inner->sync(s->inner, p, size);
   if (!ok)
     s->status->failed = true;
+  else
+    s->status->syncs++;
   return ok;
 }
 struct VFile *pocket_save_wrap(struct VFile *inner,
