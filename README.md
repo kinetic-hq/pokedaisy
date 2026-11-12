@@ -187,6 +187,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   the game, a page at a time as you scroll, each tagged with its source and size. `SHAPE` shows box shaped covers or
   all of them, `SEARCH AGAIN` types another name and picks SteamGridDB's game from a list, `CHOOSE FILE` takes a path
   or link, `AUTOMATIC` drops the pick. A pick is the game's own art: `SYNC BOX ART` never replaces it.
+- **Black, White, Black 2 and White 2 on the desktop host**: the USA / Europe carts (any dump with their header) get the
+  whole DS companion (`PARTY`, `BAG`, `DEX`, their own Town Map in `MAP`, `GUIDE`, `BATTLE`), the party and facts wings,
+  the HUD and EXPAND, on the app's Gen 5 reader and field reads.
 - **DS EXPAND** on the desktop host: Platinum, HeartGold and SoulSilver (and the games built on them) draw their world past
   the top screen's edges, Android's EXPAND (`pk_nds_wide.cpp`) on the desktop's melonDS, with the GBA's zoom steps and
   AUTO ZOOM IN.

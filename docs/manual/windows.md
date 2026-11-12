@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -543,8 +543,9 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   companion's panels don't show here, since the wings hold the touch screen. A
   window too narrow for that gets `TOUCH IN WING`.
 
-The companion's panels in the wings read Platinum (USA) and
-Renegade Platinum for now; in other DS games they say so. While they show, the HUD leaves out its party row.
+The companion's panels in the wings read Platinum (USA), Renegade Platinum,
+HeartGold, SoulSilver, Black, White, Black 2 and White 2; in other DS games
+they say so. While they show, the HUD leaves out its party row.
 
 SELECT and R3 together (Space on a keyboard) swap the two screens: in `ONE SCREEN` you see the
 touch screen alone, in `PICTURE IN PICTURE`, `LARGE + SMALL` and
@@ -556,7 +557,8 @@ pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
 and A. Escape pauses the game.
 
 With `ASPECT` on `EXPAND` (the default here), a DS game with a companion
-(Platinum, HeartGold and SoulSilver, and the games built on them) shows the
+(Platinum, HeartGold, SoulSilver, Black, White and their sequels, and the
+games built on them) shows the
 world past the top screen's edges, so the whole window is game. The middle is
 the game's own picture, untouched; the rest is the game's own 3D drawn again
 around it. A battle's background reaches the edges too. LT and RT zoom out and
@@ -579,7 +581,10 @@ It reads Platinum (USA) in full. It goes by the game code inside the file
 (`CPUE`, revision 0 or 1), so a trimmed or re-dumped copy works too, and so does
 Renegade Platinum (read as the original game, so types, stats and the `GUIDE`
 are the original game's). HeartGold and SoulSilver (USA) are read in full
-too, with the party's icons in the HUD and the wings. For other DS games you get the game alone, and `SETTINGS` tells you
+too, with the party's icons in the HUD and the wings. So are Black, White,
+Black 2 and White 2 (USA / Europe), with their own Town Map, Pokédex pages and
+guide; they go by the game code too, so another dump of the same cart works.
+For other DS games you get the game alone, and `SETTINGS` tells you
 which game and revision it found, and which ones the companion reads.
 
 ## When something goes wrong
