@@ -106,6 +106,23 @@ int main(void) {
     assert(!boxart_title_matches("Black", "Pok\xC3\xA9mon Black Version 2"));
     assert(!boxart_title_matches("FireRed Rocket Edition", "Pok\xC3\xA9mon FireRed Version"));
     assert(!boxart_title_matches("Pinball", "Pok\xC3\xA9mon Pinball: Generations"));
+    // BOX ART's picker: a SteamGridDB grids page, each grid's own fields (its author's object in between).
+    {
+      static const char page[] =
+          "{\"success\":true,\"page\":0,\"total\":2,\"limit\":50,\"data\":["
+          "{\"id\":11,\"score\":0,\"style\":\"alternate\",\"width\":600,\"height\":900,\"nsfw\":false,"
+          "\"mime\":\"image/png\",\"language\":\"en\",\"url\":\"https:\\/\\/cdn2.steamgriddb.com\\/grid\\/a.png\","
+          "\"thumb\":\"https:\\/\\/cdn2.steamgriddb.com\\/thumb\\/a.jpg\",\"author\":{\"name\":\"x\",\"steam64\":\"1\"}},"
+          "{\"id\":12,\"width\":920,\"height\":430,\"language\":\"en\",\"url\":\"https://cdn2.steamgriddb.com/grid/b.jpg\","
+          "\"thumb\":\"https://cdn2.steamgriddb.com/thumb/b.jpg\",\"author\":{\"name\":\"y\"}}]}";
+      struct boxart_grid grids[4];
+      assert(boxart_parse_grids(page, grids, 4) == 2);
+      assert(!strcmp(grids[0].url, "https://cdn2.steamgriddb.com/grid/a.png"));
+      assert(!strcmp(grids[0].thumb, "https://cdn2.steamgriddb.com/thumb/a.jpg"));
+      assert(grids[0].w == 600 && grids[0].h == 900);
+      assert(grids[1].w == 920 && grids[1].h == 430);
+      assert(boxart_parse_grids("{\"success\":true,\"data\":[]}", grids, 4) == 0);
+    }
   }
   puts("game names ok");
   return 0;

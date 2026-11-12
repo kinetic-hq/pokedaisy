@@ -189,6 +189,13 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   ty += NAME_LINES * LINE_H + 3;
   if (lines > NAME_LINES) // the third line sits where the tags were; they move down a line (no version here)
     ty += LINE_H;
+  if (it->tag) { // the picker's tile: its source, and its size on the version's line
+    tag(c, x + 4, ty, it->tag, it->tagColor);
+    ty += TAG_H + 2;
+    if (version)
+      pd_text_fit(c, x + 4, ty - 4, g->tileW - 8, it->version, p->muted, PD_NO_SHADOW);
+    return;
+  }
   int tx = x + 4;
   tx += tag(c, tx, ty, sn, sc) + 3;
   const char *kind = it->hack ? "ROMHACK" : "ORIGINAL"; // one word each, the same length, never shortened
