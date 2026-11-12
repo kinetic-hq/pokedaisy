@@ -220,8 +220,9 @@ inline bool ds_pieces_halves(int ow,int oh,const DsBox& top,DsBox half[2],bool s
 
 // TOUCH PIECES' placement: as ds_place() places SPLIT TOUCH, but for a game with pieces the top screen is the one
 // ds_pieces_top() picks, the halves (the fallback) beside it, and the wings are its whole sides.
-inline DsPlacement ds_place_with_pieces(const DsPieceGame* game,int layout,int ow,int oh,bool swapped,bool wanted,bool left){
-  DsPlacement p=ds_place(layout,ow,oh,swapped,wanted,left);
+inline DsPlacement ds_place_with_pieces(const DsPieceGame* game,int layout,int ow,int oh,bool swapped,bool wanted,bool left,
+                                        int room=DS_WING_ROOM_BALANCED){
+  DsPlacement p=ds_place(layout,ow,oh,swapped,wanted,left,room);
   if(!game || p.used!=DSL_SPLIT || swapped)return p;
   DsBox top=ds_pieces_top(*game,ow,oh),half[2];
   if(!top.shown() || !ds_pieces_halves(ow,oh,top,half,left))return p;

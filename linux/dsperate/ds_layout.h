@@ -42,9 +42,22 @@ inline DsBox ds_fit(int boxX,int boxY,int boxW,int boxH,int w,int h,bool whole=t
   return {boxX+(boxW-fw)/2,boxY+(boxH-fh)/2,fw,fh};
 }
 
+// WING ROOM (the host's SCREEN setting, linux/view_layout.h): 0 GAME FIRST, 1 BALANCED (the default), 2 WINGS FIRST.
+enum {DS_WING_ROOM_GAME_FIRST,DS_WING_ROOM_BALANCED,DS_WING_ROOM_WINGS_FIRST};
+
 // The top screen centred with a wing on each side at least minWing / 8 of its width: the largest whole scale that
 // leaves them (one step under the largest that fits, at most), or under 3x the full height. Zero size: no room.
-inline DsBox ds_winged_top(int ow,int oh,int minWing){
+// WING ROOM: GAME FIRST fills the height when that still leaves the wings; WINGS FIRST wants two eighths more
+// (or one) when there's room for that.
+inline DsBox ds_winged_top(int ow,int oh,int minWing,int room=DS_WING_ROOM_BALANCED){
+  if(room==DS_WING_ROOM_WINGS_FIRST){
+    for(int more=2;more>=1;more--){DsBox wide=ds_winged_top(ow,oh,minWing+more);if(wide.shown())return wide;}
+    // else as BALANCED
+  }
+  if(room==DS_WING_ROOM_GAME_FIRST){
+    int w=oh*4/3;
+    if(w<ow && (ow-w)/2*8>=w*minWing)return {(ow-w)/2,0,w,oh};
+  }
   int most=std::min(ow/256,oh/192);
   if(most>=3){
     for(int s=most;s>=most-1;s--){
@@ -60,8 +73,8 @@ inline DsBox ds_winged_top(int ow,int oh,int minWing){
 
 // SPLIT TOUCH: the top screen centred as WINGS places it, each half of the touch screen (128 x 192) filling a wing,
 // level with the top screen's bottom. Zero size: the wings are narrower than a half at 1x.
-inline bool ds_split_halves(int ow,int oh,DsBox& top,DsBox half[2],bool swapHalves){
-  top=ds_winged_top(ow,oh,1);
+inline bool ds_split_halves(int ow,int oh,DsBox& top,DsBox half[2],bool swapHalves,int room=DS_WING_ROOM_BALANCED){
+  top=ds_winged_top(ow,oh,1,room);
   if(!top.shown())return false;
   int wing=std::min(top.x,ow-top.x-top.w),bottom=top.y+top.h;
   if(wing<128 || bottom<192)return false;
@@ -76,17 +89,18 @@ inline bool ds_split_halves(int ow,int oh,DsBox& top,DsBox half[2],bool swapHalv
 // layout: the player's pick. swapped: R2's swap (ONE SCREEN shows the touch screen, PICTURE IN PICTURE and
 // LARGE + SMALL make it the large one; WINGS floats it in). touchWanted: the game wants the touch screen now (or the
 // player asked), which floats it over a ONE SCREEN or WINGS game. touchLeft: TOUCH IN WING's touch screen (and WINGS'
-// party) in the left wing.
-inline DsPlacement ds_place(int layout,int ow,int oh,bool swapped,bool touchWanted,bool touchLeft=false){
+// party) in the left wing. room: WING ROOM, for the layouts with wings.
+inline DsPlacement ds_place(int layout,int ow,int oh,bool swapped,bool touchWanted,bool touchLeft=false,
+                            int room=DS_WING_ROOM_BALANCED){
   DsPlacement p;p.used=std::clamp(layout,0,DSL_COUNT-1);
   if(ow<=0 || oh<=0)return p;
   // Fallbacks: TOUCH IN WING needs a wing a quarter of the top screen's width on each side, WINGS an eighth (else
   // PICTURE IN PICTURE / ONE SCREEN); SIDE BY SIDE on a window taller than wide is STACKED.
   DsBox winged;
   DsBox halves[2];
-  if(p.used==DSL_SPLIT && !ds_split_halves(ow,oh,winged,halves,touchLeft))p.used=DSL_WING;
-  if(p.used==DSL_WING && !(winged=ds_winged_top(ow,oh,2)).shown())p.used=DSL_PIP;
-  if(p.used==DSL_WINGS && !(winged=ds_winged_top(ow,oh,1)).shown())p.used=DSL_ONE;
+  if(p.used==DSL_SPLIT && !ds_split_halves(ow,oh,winged,halves,touchLeft,room))p.used=DSL_WING;
+  if(p.used==DSL_WING && !(winged=ds_winged_top(ow,oh,2,room)).shown())p.used=DSL_PIP;
+  if(p.used==DSL_WINGS && !(winged=ds_winged_top(ow,oh,1,room)).shown())p.used=DSL_ONE;
   if(p.used==DSL_SIDE && oh>ow)p.used=DSL_STACKED;
   switch(p.used){
   case DSL_ONE:

@@ -370,10 +370,14 @@ Three rows in the companion's `SETTINGS` change how the game looks:
 - **`UI SIZE`**: how large the menus, the HUD, the panels beside the game and
   the companion are drawn. `MEDIUM` is the default; `SMALL` fits more on the
   screen, and `LARGE` is the old, bigger size, easier to read from a distance.
+  A DS game's companion follows it too.
 - **`WING ROOM`**: how the width is shared between the game and the panels
   beside it. `BALANCED` (the default) keeps the game large with roomy panels;
   `GAME FIRST` makes the game as large as it goes, and `WINGS FIRST` gives the
   panels more room for a slightly smaller game. The game always keeps its shape.
+  The DS layouts with panels beside the top screen (`WINGS`, `TOUCH IN WING`,
+  `TOUCH PIECES`) follow it as well: `GAME FIRST` fills the height and
+  `WINGS FIRST` takes a size off the top screen for wider panels.
 - **`STRETCH`**: off by default. On, the game grows a little past its own shape
   (at most 5%) to fill the gaps round it.
 - **`WING LOOK`**: how large the panels beside the game are drawn. `COMPACT`

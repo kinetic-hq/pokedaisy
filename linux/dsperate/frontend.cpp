@@ -154,8 +154,17 @@ extern "C" bool pd_ds_wing_left_save(const char* root,bool left){
 constexpr int DS_SETTINGS=10;
 struct Texture {SDL_Texture* p;~Texture(){SDL_DestroyTexture(p);}};
 struct Audio {SDL_AudioDeviceID id=0;SDL_AudioStream* stream=nullptr;~Audio(){SDL_FreeAudioStream(stream);if(id)SDL_CloseAudioDevice(id);}};
+extern "C" { int pd_ds_ui_size=1; int pd_ds_wing_room=1; }
+// UI SIZE: the companion's canvas (341 x 256) at no more than the scale the host's companion has for this size of
+// screen (its least canvas: LARGE 320 x 240, MEDIUM 427 x 320, SMALL 560 x 420), so both are about as large.
+int ds_ui_scale(int w,int h,int ow,int oh){
+  static const int leastW[3]={560,427,320},leastH[3]={420,320,240};
+  int u=pd_ds_ui_size>=0 && pd_ds_ui_size<3?pd_ds_ui_size:1;
+  int fit=std::min(ow/w,oh/h),host=std::min(ow/leastW[u],oh/leastH[u]);
+  return std::max(1,std::min(fit,host));
+}
 void blit(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,int w,int h,int ow,int oh){
-  SDL_UpdateTexture(t,nullptr,px,w*4);int scale=std::max(1,std::min(ow/w,oh/h));
+  SDL_UpdateTexture(t,nullptr,px,w*4);int scale=ds_ui_scale(w,h,ow,oh);
   SDL_Rect dst{(ow-w*scale)/2,(oh-h*scale)/2,w*scale,h*scale};SDL_RenderCopy(r,t,nullptr,&dst);
 }
 // A DS screen drawn into its DS LAYOUT box.
@@ -744,7 +753,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(layoutPick)pd_layout_picker_draw(&canvas,"DS LAYOUT",ds_layout_options(),DSL_COUNT,prefs.layout,layoutSel,-1,&layoutScroll,layoutTiles);
       uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
     else{
-      DsPlacement place=ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom,prefs.wingLeft);
+      DsPlacement place=ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom,prefs.wingLeft,
+                                             pd_ds_wing_room);
       DsPieceLayout lay;
       if(place.pieces){int sc=ds_pieces_detect(*pieceGame,nds->framebuffer(1));if(sc>=0)lay=ds_pieces_arrange(*pieceGame,sc,place.wing);}
       if(lay.shown()!=pieceLay.shown() || lay.screen!=pieceLay.screen)pointerDown=false;  // the screen changed under a press
