@@ -295,12 +295,12 @@ static const int HOTKEY_ROW_ORDER[PD_HOTKEY_BUTTONS] = {PD_HOTKEY_L2, PD_HOTKEY_
                                                         3,            4,            5};
 enum {
   HA_USUAL, HA_MENU, HA_COMPANION, HA_FF, HA_SAVE_STATE, HA_LOAD_STATE, HA_SCREENSHOT, HA_FULLSCREEN,
-  HA_DS_LAYOUT_NEXT, HA_DS_LAYOUT_BACK, HA_SWAP_SCREENS, HA_ZOOM_IN, HA_ZOOM_OUT,
+  HA_DS_LAYOUT_NEXT, HA_DS_LAYOUT_BACK, HA_SWAP_SCREENS, HA_ZOOM_IN, HA_ZOOM_OUT, HA_REWIND,
 };
 // The app's HOTKEYS words (Hotkeys.kt's Action titles) where it has the same action.
 static const char *const HOTKEY_ACTIONS[PD_HOTKEY_ACTIONS] = {
     "USUAL USE",  "GAME MENU",  "COMPANION", "FF TOGGLE",      "SAVE STATE",   "LOAD STATE", "SCREENSHOT",
-    "FULLSCREEN", "DS LAYOUT", "DS LAYOUT BACK", "SWAP SCREENS", "ZOOM IN",    "ZOOM OUT"};
+    "FULLSCREEN", "DS LAYOUT", "DS LAYOUT BACK", "SWAP SCREENS", "ZOOM IN",    "ZOOM OUT",   "REWIND HOLD"};
 static unsigned hostActions;  // HA_* bits pressed since the game loop last looked
 static bool screenshotWanted; // the next present writes DATA/screenshots/...
 static int gameTouch; // GAME TOUCH, enum pd_game_touch
@@ -314,6 +314,15 @@ static void controls_load(void) {
   memcpy(hotkeyMap, st.hotkeys, sizeof hotkeyMap);
   gameTouch = st.gameTouch;
   orientation_set(st.orientation);
+}
+/* REWIND HOLD: held, not pressed - the HOTKEYS button (or trigger, or stick) bound to it, or R on a keyboard while
+ * REWIND is on. Any button bound to it keeps the ring running, as the setting does. */
+static bool rewindHeld, rewindKey;
+static bool rewind_hotkey(void) {
+  for (int i = 0; i < PD_HOTKEY_BUTTONS; i++)
+    if (hotkeyMap[i] == HA_REWIND)
+      return true;
+  return false;
 }
 static bool host_action(int action) {
   bool on = hostActions & (1u << action);
@@ -515,6 +524,10 @@ static bool hotkey_event(const SDL_Event *e) {
   for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) {
     if (HOTKEY_BUTTONS[i] < 0 || e->cbutton.button != HOTKEY_BUTTONS[i] || !hotkeyMap[i])
       continue;
+    if (hotkeyMap[i] == HA_REWIND) {
+      rewindHeld = e->type == SDL_CONTROLLERBUTTONDOWN;
+      return true;
+    }
     if (e->type == SDL_CONTROLLERBUTTONDOWN) {
       if (hotkeyMap[i] == HA_FULLSCREEN)
         fullscreen_toggle();
@@ -762,6 +775,8 @@ static void events(void) {
     if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
       if (!e.key.repeat)
         key(keyboard(e.key.keysym.sym), e.type == SDL_KEYDOWN);
+      if (e.key.keysym.sym == SDLK_r)
+        rewindKey = e.type == SDL_KEYDOWN;
     }
     if (hotkey_event(&e))
       continue;
@@ -910,6 +925,11 @@ static void stick_hotkeys(void) {
     int action = hotkeyMap[slots[i]];
     if (!action)
       continue;
+    if (action == HA_REWIND) { // held as long as the trigger or stick is
+      rewindHeld = (held & bit) != 0;
+      hotkeyMask |= bit;
+      continue;
+    }
     if (i < 2 ? (pressed & bit) != 0 : (was & bit) && !(held & bit) && !stickChord)
       hotkey_fire(action);
     hotkeyMask |= bit;
@@ -2383,6 +2403,9 @@ extern unsigned (*pd_ds_host_actions)(void);
 extern void (*pd_ds_present)(void);
 extern void (*pd_ds_point)(float, float, float *, float *);
 extern int pd_ds_game_touch_off;
+extern bool (*pd_ds_rewind_held)(void);
+extern int pd_ds_rewind_on;
+static bool ds_rewind_held(void) { return rewindHeld || rewindKey; }
 static bool ds_running(void) { return running != 0; }
 #endif
 #ifdef POCKET_DS
@@ -2415,6 +2438,15 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     pd_ds_present = timed_present;
     pd_ds_point = pd_host_point;
     pd_ds_game_touch_off = gameTouch == PD_GAME_TOUCH_OFF;
+    rewindHeld = rewindKey = false;
+    pd_ds_rewind_held = ds_rewind_held;
+    {
+      char cfg[1100];
+      struct pd_settings st;
+      snprintf(cfg, sizeof cfg, "%s/settings.ini", root);
+      pd_settings_load(&st, cfg);
+      pd_ds_rewind_on = st.rewind || rewind_hotkey();
+    }
     appError = pd_ds_run(path, root, maxFrames, shot, renderer, ds_running);
     // The DS backend owns its device while running. Restore the normal host's
     // device for the next GB/GBA game selected without restarting the app.
@@ -2589,7 +2621,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   struct pd_ui ui;
   pd_ui_init(&ui, &settings);
   hotkeys_load();
-  rewind_follow(settings.rewind || rewindBound);
+  rewind_follow(settings.rewind || rewindBound || rewind_hotkey());
   double frameCost = 0;
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
@@ -2656,7 +2688,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       hotkeys_load();
     }
     lastStart = frameStart;
-    rewind_follow(settings.rewind || rewindBound);
+    rewind_follow(settings.rewind || rewindBound || rewind_hotkey());
     lcdEnabled = settings.lcdFilter;
     pocket_shader_set(settings.shader, settings.colors, false);
     oledBlack = settings.colors == POCKET_COLORS_OLED;
@@ -2710,7 +2742,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       notice(state(c, ss, true) ? "State saved" : "State save failed");
     if (hkFired & (1u << HK_LOAD))
       notice(!pocket_exists(ss) ? "No state saved yet" : state(c, ss, false) ? "State loaded" : "State load failed");
-    bool ffHeld = hkOn & (1u << HK_FF), rewinding = (hkOn & (1u << HK_REWIND)) && rewindOn;
+    bool ffHeld = hkOn & (1u << HK_FF), rewinding = ((hkOn & (1u << HK_REWIND)) || rewindHeld || rewindKey) && rewindOn;
     // R3 (its usual use): a tap switches between WINGS and BATTLE WINGS (from any other view: WINGS), a hold opens
     // every view to pick from (A or a tap picks, B leaves it as it was). The view's name shows either way.
     static uint32_t r3Since;
@@ -3079,7 +3111,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           notice("Game restarted");
           break;
         case PD_ACTION_SETTINGS_CHANGED:
-          rewind_follow(settings.rewind || rewindBound);
+          rewind_follow(settings.rewind || rewindBound || rewind_hotkey());
           if ((settings.fullscreen == 1) != fullscreenOn)
             fullscreen_set(settings.fullscreen == 1);
           settings.fullscreen = fullscreenOn ? 1 : 0;

@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <fstream>
 #include <chrono>
+#include <deque>
 #include <ctime>
 #include <cmath>
 #include <cstring>
@@ -389,6 +390,10 @@ extern "C" { unsigned (*pd_ds_host_actions)(void)=nullptr; }
 // in drawing pixels, turned back the same way; GAME TOUCH OFF leaves the DS touch screen to the D-pad.
 extern "C" { void (*pd_ds_present)(void)=nullptr; void (*pd_ds_point)(float,float,float*,float*)=nullptr;
              int pd_ds_game_touch_off=0; }
+// REWIND (the host's setting, or a REWIND HOLD hotkey): a state a second, the last 20 kept (DS states are a few MB,
+// so the ring is coarser than the GBA's); held, it steps back a second every 6 frames, muted. States keep the battery
+// save in memory, so rewinding never takes back a save the game wrote.
+extern "C" { bool (*pd_ds_rewind_held)(void)=nullptr; int pd_ds_rewind_on=0; }
 extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* shot,SDL_Renderer* renderer,bool (*keepRunning)()) {
   auto bytes=read_file(rom);if(bytes.size()<512 || bytes.size()>512u*1024*1024){std::fprintf(stderr,"DS: invalid ROM size\n");return 1;}
   char hex[41];{pd_sha1 h;pd_sha1_init(&h);pd_sha1_update(&h,bytes.data(),bytes.size());pd_sha1_hex(&h,hex);}
@@ -397,6 +402,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   auto partyArt=supported?ds_party_icons(bytes):std::vector<std::vector<uint32_t>>{};
   auto nds=ds_core_create();active=nds.get();
   std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,supported?"Platinum":"unsupported");
+  std::deque<std::vector<uint8_t>> rewindRing;int rewindTick=0,rewindStep=0;
   std::string err;if(!nds->boot(rom,bytes,err)){std::fprintf(stderr,"DS boot failed: %s\n",err.c_str());return 1;}
   std::filesystem::path dir=std::filesystem::u8path(root);auto romPath=std::filesystem::u8path(rom);auto filename=romPath.filename().u8string();
   std::filesystem::create_directories(dir/"saves");std::filesystem::create_directories(dir/"states");
@@ -466,6 +472,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   int mapX=-1,mapY=-1,setting=0,page=0,tab=0,selected=0,scroll=0,touchX=128,touchY=96;uint32_t keys=0,lastActivityKeys=0,wingActivity=SDL_GetTicks(),wingSign=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
   const int raw[]={1,0,11,10,9,8,2,3,15,-1,12,13};const bool rawTrimui=std::getenv("POCKET_RAW_TRIMUI")!=nullptr;
   struct Press{int at,n;uint32_t mask;};std::vector<Press> script,hostScript;
+  // POCKET_DS_REWIND=AT:FRAMES holds REWIND from loop frame AT for FRAMES (headless checks).
+  int rewindAt=-1,rewindFor=0;if(auto s=std::getenv("POCKET_DS_REWIND"))std::sscanf(s,"%d:%d",&rewindAt,&rewindFor);
   if(auto s=std::getenv("POCKET_DS_KEYS")){std::string text=s;size_t pos=0;while(pos<text.size()){Press p{};int used=0;if(std::sscanf(text.c_str()+pos,"%d:%u:%d%n",&p.at,&p.mask,&p.n,&used)!=3)break;script.push_back(p);pos+=used+1;}}
   if(auto s=std::getenv("POCKET_DS_HOST_KEYS")){std::string text=s;size_t pos=0;while(pos<text.size()){Press p{};int used=0;if(std::sscanf(text.c_str()+pos,"%d:%u:%d%n",&p.at,&p.mask,&p.n,&used)!=3)break;hostScript.push_back(p);pos+=used+1;}}
   int companionAt=std::getenv("POCKET_DS_COMPANION_AT")?std::atoi(std::getenv("POCKET_DS_COMPANION_AT")):-1;
@@ -627,7 +635,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     }
     if(paused){if(pressed&(1u<<1))paused=false;if(pressed&(1u<<3))done=true;
       if(pressed&1){std::vector<uint8_t> w;if(!nds->saveState(w,err) || !atomic_file(state,w.data(),w.size())){std::fprintf(stderr,"DS state save failed: %s\n",err.c_str());failed=true;done=true;}paused=false;}
-      if(pressed&(1u<<10)){auto data=read_file(state);if(!data.empty()){if(!nds->loadState(data,true,err)){failed=true;done=true;std::fprintf(stderr,"DS state load failed: %s\n",err.c_str());}else std::fprintf(stderr,"DS manual state loaded at core frame %llu\n",(unsigned long long)nds->frameCount());}paused=false;}
+      if(pressed&(1u<<10)){auto data=read_file(state);if(!data.empty()){rewindRing.clear();if(!nds->loadState(data,true,err)){failed=true;done=true;std::fprintf(stderr,"DS state load failed: %s\n",err.c_str());}else std::fprintf(stderr,"DS manual state loaded at core frame %llu\n",(unsigned long long)nds->frameCount());}paused=false;}
     }else if(showQuick){
       nds->setButtons(0);nds->setTouch(0,0,false);
     }else if(showCompanion){
@@ -680,8 +688,25 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(pointerDown)nds->setTouch(pointerX,pointerY,true);
       else nds->setTouch(touchX,touchY,touchMode && (gameKeys&1));
       uint32_t held=touchMode?0:gameKeys&4095u;for(auto p:script)if(frame>=p.at && frame<p.at+p.n)held|=p.mask;
-      nds->setButtons(held);
-      nds->runFrame();
+      bool rewindScripted=rewindAt>=0 && frame>=rewindAt && frame<rewindAt+rewindFor;
+      bool rewinding=pd_ds_rewind_on && ((pd_ds_rewind_held && pd_ds_rewind_held()) || rewindScripted) && !rewindRing.empty();
+      if(rewinding){
+        if(rewindStep++%6==0){
+          if(!nds->loadState(rewindRing.back(),true,err))std::fprintf(stderr,"DS rewind failed: %s\n",err.c_str());
+          if(rewindRing.size()>1)rewindRing.pop_back();
+          if(rewindScripted)std::fprintf(stderr,"DS rewind to core frame %llu (%zu kept)\n",(unsigned long long)nds->frameCount(),rewindRing.size());
+          nds->setButtons(0);nds->runFrame();
+        }
+        int16_t drop[2048];while(nds->takeAudio(drop,1024)){}
+      }else{
+        rewindStep=0;
+        if(pd_ds_rewind_on && ++rewindTick>=60){
+          rewindTick=0;std::vector<uint8_t> w;
+          if(nds->saveState(w,err)){rewindRing.push_back(std::move(w));if(rewindRing.size()>20)rewindRing.pop_front();}
+        }
+        nds->setButtons(held);
+        nds->runFrame();
+      }
       if(nds->batteryWrites()!=lastWrites){lastWrites=nds->batteryWrites();quiet=0;}else quiet++;
       if(quiet>=60 && nds->batteryDirty()){auto s=nds->battery();if(!s.empty() && !atomic_file(save,s.data(),s.size())){failed=true;done=true;}else nds->clearBatteryDirty();}
       int16_t samples[2048];size_t n;while((n=nds->takeAudio(samples,1024)))if(audio.stream)SDL_AudioStreamPut(audio.stream,samples,int(n*4));
