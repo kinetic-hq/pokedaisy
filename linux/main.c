@@ -2799,7 +2799,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     oledBlack = settings.colors == POCKET_COLORS_OLED;
     dimCompanion = settings.dimCompanion;
     reduceMotion = settings.reduceMotion;
-    background = pocket_background_resolve(settings.background, oledBlack);
+    background = pocket_background_resolve(settings.background, oledBlack, settings.darkMode);
     pocket_shader_brightness(settings.brightness);
     // DARK MODE and THEME: the core's look follows them (the wings, the strips, the HUD, the companion).
     static int lookKey = -1;
@@ -4083,10 +4083,10 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_DIM, "DIM COMPANION\t%s", st.dimCompanion ? "ON" : "OFF");
       ROW(ROW_MOTION, "REDUCE MOTION\t%s", st.reduceMotion ? "ON" : "OFF");
       ROW(ROW_BACKGROUND, "BACKGROUND\t%s",
-          pocket_background_name(pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED)));
+          pocket_background_name(pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED, st.darkMode)));
       ROW(ROW_BEZEL_STYLE, "BEZEL STYLE\t%s",
           BEZEL_STYLE_NAMES[bezel_style_resolve(st.bezelStyle, pocket_background_resolve(st.background, st.colors ==
-                                                                POCKET_COLORS_OLED) == POCKET_BACKGROUND_BLACK)]);
+                                                                POCKET_COLORS_OLED, st.darkMode) == POCKET_BACKGROUND_BLACK)]);
       ROW(ROW_BEZEL, "BEZEL BARS" PD_MENU_PAGE);
       ROW(ROW_FULL, "FULLSCREEN\t%s", fullscreenOn ? "ON" : "OFF");
       ROW(ROW_ORIENT, "ORIENTATION\t%s", ORIENTATIONS[st.orientation]);
@@ -4301,7 +4301,7 @@ static int settings_page(bool *foldersChanged) {
       static const char *const rows[POCKET_BACKGROUNDS] = {"BLACK\tTRUE BLACK, FOR OLED", "DARK\tA NEAR BLACK",
                                                            "THEME\tTHE THEME'S DARK SLATE"};
       int b = menu_pick("BACKGROUND", rows, POCKET_BACKGROUNDS,
-                        pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED));
+                        pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED, st.darkMode));
       if (b < 0)
         save = false;
       else
@@ -4331,7 +4331,7 @@ static int settings_page(bool *foldersChanged) {
                                                      "THEME\tTHE THEME'S WINDOW"};
       int b = menu_pick("BEZEL STYLE", rows, BEZEL_STYLES,
                         bezel_style_resolve(st.bezelStyle, pocket_background_resolve(st.background, st.colors ==
-                                                               POCKET_COLORS_OLED) == POCKET_BACKGROUND_BLACK));
+                                                               POCKET_COLORS_OLED, st.darkMode) == POCKET_BACKGROUND_BLACK));
       if (b < 0)
         save = false;
       else

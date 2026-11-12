@@ -1,7 +1,8 @@
 #pragma once
 /* BACKGROUND (SETTINGS > DISPLAY OPTIONS, and the DS settings): what the screen round the game and its wings is.
  * BLACK is true black round the game and the wing cards, for OLED screens; DARK a near black; THEME the old look
- * (the wings on the theme's dark slate). Unset, it follows COLORS: OLED is BLACK, the rest THEME.
+ * (the wings on the theme's dark slate). Unset, it follows COLORS and DARK MODE: OLED is BLACK, DARK MODE DARK,
+ * the rest THEME.
  *
  * On BLACK and DARK the wings are cards: a near-black surface with a faint 1 px edge, so they don't read as black on
  * black, and their text a little off white. Against burn-in, a wing that sits still dims after a minute without
@@ -28,11 +29,11 @@ static inline const char *pocket_background_name(int background) {
   return background == POCKET_BACKGROUND_BLACK ? "BLACK" : background == POCKET_BACKGROUND_DARK ? "DARK" : "THEME";
 }
 
-/* The background in force: the one picked, else COLORS' (oled: COLORS is OLED). */
-static inline int pocket_background_resolve(int background, bool oled) {
+/* The background in force: the one picked, else COLORS' (oled: COLORS is OLED), else DARK MODE's (dark). */
+static inline int pocket_background_resolve(int background, bool oled, bool dark) {
   if (background >= 0 && background < POCKET_BACKGROUNDS)
     return background;
-  return oled ? POCKET_BACKGROUND_BLACK : POCKET_BACKGROUND_THEME;
+  return oled ? POCKET_BACKGROUND_BLACK : dark ? POCKET_BACKGROUND_DARK : POCKET_BACKGROUND_THEME;
 }
 
 static inline struct pocket_backdrop pocket_backdrop_for(int background) {

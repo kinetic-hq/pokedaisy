@@ -10,11 +10,15 @@ static int channel(uint32_t c, int i) {
 
 int main(void) {
   // Unset: COLORS decides (OLED = BLACK); a pick stays.
-  assert(pocket_background_resolve(POCKET_BACKGROUND_AUTO, true) == POCKET_BACKGROUND_BLACK);
-  assert(pocket_background_resolve(POCKET_BACKGROUND_AUTO, false) == POCKET_BACKGROUND_THEME);
-  assert(pocket_background_resolve(POCKET_BACKGROUND_DARK, true) == POCKET_BACKGROUND_DARK);
-  assert(pocket_background_resolve(POCKET_BACKGROUND_THEME, true) == POCKET_BACKGROUND_THEME);
-  assert(pocket_background_resolve(7, false) == POCKET_BACKGROUND_THEME);
+  assert(pocket_background_resolve(POCKET_BACKGROUND_AUTO, true, false) == POCKET_BACKGROUND_BLACK);
+  assert(pocket_background_resolve(POCKET_BACKGROUND_AUTO, false, false) == POCKET_BACKGROUND_THEME);
+  // DARK MODE: dark wings unless BACKGROUND was picked; OLED's BLACK wins.
+  assert(pocket_background_resolve(POCKET_BACKGROUND_AUTO, false, true) == POCKET_BACKGROUND_DARK);
+  assert(pocket_background_resolve(POCKET_BACKGROUND_AUTO, true, true) == POCKET_BACKGROUND_BLACK);
+  assert(pocket_background_resolve(POCKET_BACKGROUND_THEME, false, true) == POCKET_BACKGROUND_THEME);
+  assert(pocket_background_resolve(POCKET_BACKGROUND_DARK, true, false) == POCKET_BACKGROUND_DARK);
+  assert(pocket_background_resolve(POCKET_BACKGROUND_THEME, true, false) == POCKET_BACKGROUND_THEME);
+  assert(pocket_background_resolve(7, false, false) == POCKET_BACKGROUND_THEME);
   assert(!strcmp(pocket_background_name(POCKET_BACKGROUND_BLACK), "BLACK"));
 
   struct pocket_backdrop black = pocket_backdrop_for(POCKET_BACKGROUND_BLACK);
