@@ -153,8 +153,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **DS companion in the app's look** on the desktop host: the DS companion, pause screen and toasts use the theme's
   backdrop, windows and tab colours (and `DARK MODE`) like the GBA companion, and fill the window at `UI SIZE`'s
   scale instead of a small fixed box.
-- **DS Platinum by its header** on the desktop host: any `CPUE` revision 1 cart gets the Platinum companion, as on
-  Android (a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
+- **DS Platinum by its header** on the desktop host: any `CPUE` revision 0 or 1 cart gets the Platinum companion (rev 1 as on
+  Android, rev 0 too here: its addresses are the same; a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
   (game, region, revision, code) and the one it needs.
 - **EDIT SAVE** on the desktop host: a game's menu changes its save file (money, coins, the bag, party and PC
   Pokemon: species, nickname, level, nature, ability, item, moves, IVs, EVs, shiny; heal) for the GBA games with

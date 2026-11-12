@@ -47,10 +47,10 @@ const char* ds_canonical_sha1(const char* digest){
   return digest;
 }
 bool ds_platinum_cart(const uint8_t* rom,size_t size){
-  return size>=0x200 && !std::memcmp(rom+0x0C,"CPUE",4) && rom[0x1E]==1;
+  return size>=0x200 && !std::memcmp(rom+0x0C,"CPUE",4) && rom[0x1E]<=1;
 }
 bool ds_renegade_platinum(const uint8_t* rom,size_t size){
-  return ds_platinum_cart(rom,size) && size>=0x221064 && u32(rom+0x221060)==0x021E9F81u;
+  return ds_platinum_cart(rom,size) && rom[0x1E]==1 && size>=0x221064 && u32(rom+0x221060)==0x021E9F81u;
 }
 std::string ds_cart_label(const uint8_t* rom,size_t size){
   if(size<0x200)return "an unknown cart";

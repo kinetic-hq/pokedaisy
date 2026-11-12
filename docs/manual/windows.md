@@ -476,7 +476,7 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
 `TOUCH PIECES` are the ones added here):
 
 - **`ONE SCREEN`** (the first choice): the top screen fills the window. In
-  Platinum (USA, revision 1) the touch screen floats in over the dimmed game
+  Platinum (USA) the touch screen floats in over the dimmed game
   when the game wants it. Other DS games can't say when, so there you get
   `PICTURE IN PICTURE` instead.
 - **`PICTURE IN PICTURE`**: the top screen fills the window and the touch
@@ -516,7 +516,7 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   companion's panels don't show here, since the wings hold the touch screen. A
   window too narrow for that gets `TOUCH IN WING`.
 
-The companion's panels in the wings read Platinum (USA, revision 1) and
+The companion's panels in the wings read Platinum (USA) and
 Renegade Platinum for now; in other DS games they say so. While they show, the HUD leaves out its party row.
 
 SELECT and R3 together (Space on a keyboard) swap the two screens: in `ONE SCREEN` you see the
@@ -531,9 +531,9 @@ and A. Escape pauses the game.
 The DS companion fills the window and wears the same theme and `DARK MODE` as
 the Game Boy Advance companion; `UI SIZE` sets how large its text is.
 
-The companion reads one DS game so far, Platinum (USA, revision 1): its party,
-bag, dex and Town Map. It goes by the game code inside the file (`CPUE`,
-revision 1), so a trimmed or re-dumped copy works too, and so does Renegade
+The companion reads one DS game so far, Platinum (USA): its party, bag, dex
+and Town Map. It goes by the game code inside the file (`CPUE`, revision 0 or
+1), so a trimmed or re-dumped copy works too, and so does Renegade
 Platinum (its party, bag and map; types and stats still come from the original
 game). HeartGold and SoulSilver (USA) get the `TRAINER` facts. For other DS
 games you get the game alone, and the companion tells you which game and
