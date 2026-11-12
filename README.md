@@ -211,7 +211,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
   EXPAND stay off for it.
 - **HeartFelt Gold's `DEX` on the desktop host**: its Pokédex (1534 species ids, caught and seen) read from the save,
   listed in National Dex order, with each page's front, stats, size, text, evolutions and level-up moves from the cart.
-  Its machines aren't mapped, so none are listed.
+  Its TM01 to TM100 and HM01 to HM08 come from hg-engine's machine learnsets and moves in the cart.
 - **HeartFelt Gold's `GUIDE` on the desktop host**: `HERE` lists the wild creatures where you stand by time of day,
   read from the cart's own map headers and encounter tables, with the build's own species. `NEXT BOSS` shows the next
   gym leader or League member with the hack's own team, read from the cart's hg-engine trainer data.

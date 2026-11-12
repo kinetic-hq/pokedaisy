@@ -607,7 +607,8 @@ DsDexArt ds_dex_art(const std::vector<uint8_t>& rom,DsGame game){
     // 494..543 the egg and blanks, past national 1025 the forms), retail's text banks (descriptions 803, categories
     // 816; the US heights and weights as text in 814 / 812), retail's encrypted fronts (6 a species in /a/0/0/4), its
     // evolutions 9 to a 56-byte record, and its learnsets one flat table (ds_level_moves). Its machine compatibility
-    // isn't in the personal records, so no machines.
+    // isn't in the personal records but in hg-engine's code addons (/a/0/2/8): member 14 the learnsets (a bit per
+    // machine, rounded up to words, by species id) and member 20 the machines' moves.
     constexpr int count=dsHeartfeltLastSpecies;
     try{
       const auto personal=file(rom,"/a/0/0/2");
@@ -658,6 +659,12 @@ DsDexArt ds_dex_art(const std::vector<uint8_t>& rom,DsGame game){
     }catch(const std::exception&){}
     try{art.pictures=file(rom,"/a/0/0/4");}catch(const std::exception&){}
     try{art.learnsets=member(file(rom,"/a/0/3/3"),0);}catch(const std::exception&){}
+    try{
+      const auto addons=file(rom,"/a/0/2/8");
+      art.machineBits=member(addons,14);
+      const auto moves=member(addons,20);
+      for(size_t i=0;i+2<=moves.size();i+=2)art.machineMoves.push_back(u16(moves,i));
+    }catch(const std::exception&){art.machineBits.clear();art.machineMoves.clear();}
     try{
       const auto evo=file(rom,"/a/0/3/4");
       for(int species=1;species<=count;++species){
@@ -831,6 +838,16 @@ DsDexPage ds_dex_page(const DsDexArt& art,DsGame game,int species){
   }
   const bool heartfelt=game==DsGame::Johto && ds_heartfelt();  // retail's fronts, to its 1534 species ids
   if(species<=0 || species>(unova?649:heartfelt?dsHeartfeltLastSpecies:493))return page;
+  // HeartFelt Gold: hg-engine's machine order is TM01..TM92, HM01..HM08, then HM07's Dive, TM00, TM93..TM100 and the
+  // newer TMs and TRs past them; the DEX lists the TM01..TM100 and HM01..HM08 a species fits.
+  if(heartfelt && art.machineMoves.size()>=110){
+    const size_t stride=(art.machineMoves.size()+31)/32*4,at=size_t(species)*stride;
+    const auto fits=[&](size_t i){return at+i/8<art.machineBits.size() && (art.machineBits[at+i/8]>>(i%8))&1;};
+    const auto add=[&](size_t i,bool hm,int number){if(fits(i))page.machines.push_back({hm,number,art.machineMoves[i]});};
+    for(size_t i=0;i<92;++i)add(i,false,int(i)+1);
+    for(size_t i=102;i<110;++i)add(i,false,int(i)-9);
+    for(size_t i=92;i<100;++i)add(i,true,int(i)-91);
+  }
   if(size_t(species)<art.details.size() && art.details[species].hasMachines){
     const auto& bits=art.details[species].machineBits;
     const auto* renegade=game==DsGame::Platinum?ds_renegade():nullptr;

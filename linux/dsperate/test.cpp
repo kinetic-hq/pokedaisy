@@ -208,6 +208,15 @@ int main(int argc,char** argv){
       const auto bulbasaur=ds_level_moves(dex,DsGame::Johto,1);
       assert(bulbasaur[0].level==1 && bulbasaur[0].move==33 && bulbasaur[1].move==45);
       assert(!ds_dex_evolutions(dex,1).empty() && ds_dex_evolutions(dex,1)[0].to==2);
+      // Machines from hg-engine's code addons: Bulbasaur fits TM06 (Toxic) and TM22 (Solar Beam) and HM01 (Cut), not
+      // TM01 (Focus Punch).
+      {
+        const auto machines=ds_dex_page(dex,DsGame::Johto,1).machines;
+        const auto fits=[&](bool hm,int number,int move){
+          return std::any_of(machines.begin(),machines.end(),[&](const DsDexMachine& m){return m.hm==hm && m.number==number && m.move==move;});
+        };
+        assert(fits(false,6,92) && fits(false,22,76) && fits(true,1,15) && !fits(false,1,264));
+      }
       ds_set_heartfelt(nullptr);
       std::puts("PASS HeartFelt Gold's cart: names, types, moves, chart and icons");
     }
