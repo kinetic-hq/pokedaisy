@@ -347,6 +347,49 @@ DsOrigin ds_read_origin(const std::vector<uint8_t>& rom){
   return o;
 }
 
+DsOrigin ds_read_heartfelt(const std::vector<uint8_t>& rom){
+  DsOrigin o;
+  o.lastSpecies=dsHeartfeltLastSpecies;
+  try{
+    // HeartGold's message archive with its banks renumbered (species 237, moves 750, items 222), indexed by the
+    // build's own ids.
+    const auto messages=file(rom,"/a/0/2/7");
+    o.species=dex_text(member(messages,237),false,4000);
+    o.moves=dex_text(member(messages,750),false,4000);
+    o.items=dex_text(member(messages,222),false,4000);
+    // Personal records by species id, types at 6 / 7 (Fairy is 9); move records with the power at 3, the type at 4.
+    const auto personal=file(rom,"/a/0/0/2");
+    o.speciesTypes.assign(dsHeartfeltLastSpecies+1,{255,255});
+    for(int id=1;id<=dsHeartfeltLastSpecies;++id){
+      try{const auto p=member(personal,id);if(p.size()>=8)o.speciesTypes[id]={p[6],p[7]};}catch(const std::exception&){}
+    }
+    const auto moves=file(rom,"/a/0/1/1");
+    o.moveMeta.assign(std::max<size_t>(o.moves.size(),u16(moves,24)),{255,0});
+    for(size_t id=1;id<o.moveMeta.size();++id){
+      try{const auto m=member(moves,unsigned(id));if(m.size()>=5)o.moveMeta[id]={m[4],m[3]};}catch(const std::exception&){}
+    }
+    // The chart in overlay 130: retail's { attacker, defender, x10 } triples with Fairy's rows added, found by its
+    // first triples (Normal on Rock and on Steel, 1/2), 0xFE before the foresight pair, 0xFF at the end.
+    {
+      if(u32(rom,0x54)<131*32)throw std::runtime_error("no overlay 130");
+      const size_t id=u32(rom,u32(rom,0x50)+130*32+0x18);
+      const size_t start=u32(rom,u32(rom,0x48)+id*8),end=std::min<size_t>(u32(rom,u32(rom,0x48)+id*8+4),rom.size());
+      static const uint8_t first[6]={0,5,5,0,8,5};
+      size_t at=start;
+      while(at+6<=end && !std::equal(first,first+6,rom.begin()+at))++at;
+      if(at+6>end)throw std::runtime_error("no type chart");
+      o.chart.fill(4);
+      for(;at+3<=end && rom[at]!=0xFF;at+=3){
+        const uint8_t atk=rom[at],def=rom[at+1],x10=rom[at+2];
+        if(atk<18 && def<18)o.chart[atk*18+def]=uint8_t(x10*4/10);
+      }
+    }
+    // Each species' icon palette: /a/0/2/8 member 9, a byte per species id.
+    o.iconPalettes=member(file(rom,"/a/0/2/8"),9);
+  }catch(const std::exception& e){std::fprintf(stderr,"HeartFelt Gold tables: %s\n",e.what());o.species.clear();}
+  return o;
+}
+
 DsOrigin ds_read_renegade(const std::vector<uint8_t>& rom){
   DsOrigin o;
   try{
@@ -664,8 +707,11 @@ std::vector<std::vector<uint32_t>> ds_party_icons(const std::vector<uint8_t>& ro
     auto pal=palette(member(narc,0));
     const int egg=ds_egg_icon(game);
     const auto* banks=sequel?sequelIconPalettes:unova?unovaIconPalettes:johto?johtoIconPalettes:iconPalettes;
-    std::vector<std::vector<uint32_t>> icons(egg+1);
-    for(int species=1;species<=egg;species++){
+    // HeartFelt Gold: 7 + id each icon to 1534 (494 the egg's, as in retail), with the build's own palette table.
+    const auto* heartfelt=johto?ds_heartfelt():nullptr;
+    const int last=heartfelt?dsHeartfeltLastSpecies:egg;
+    std::vector<std::vector<uint32_t>> icons(last+1);
+    for(int species=1;species<=last;species++){
       const int id=(sequel?8:unova||johto?7:iconBase)+(unova?2:1)*species;
       Bytes tile;
       try {
@@ -676,7 +722,9 @@ std::vector<std::vector<uint32_t>> ds_party_icons(const std::vector<uint8_t>& ro
         continue;
       }
       const auto* renegade=game==DsGame::Platinum?ds_renegade():nullptr;
-      const unsigned bank=renegade && size_t(species)<renegade->iconPalettes.size()?renegade->iconPalettes[species]:banks[species];
+      const auto* own=renegade?renegade:heartfelt;
+      if(own && size_t(species)>=own->iconPalettes.size() && species>egg)continue;
+      const unsigned bank=own && size_t(species)<own->iconPalettes.size()?own->iconPalettes[species]:banks[species];
       if((bank+1)*16>pal.size())continue;
       auto& icon=icons[species];icon.resize(32*32,0);
       for(int y=0;y<32;y++)for(int x=0;x<32;x++){

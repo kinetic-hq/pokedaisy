@@ -195,6 +195,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Renegade Platinum on the desktop host**: its own names, species types, moves, Fairy type, type chart, TMs and icon
   palettes come from the cart, so `PARTY`, `BATTLE` and `DEX` show the hack's data; its `GUIDE` tab is hidden (as on
   Android), and so is Origin HeartGold's.
+- **HeartFelt Gold on the desktop host** (an hg-engine build of HeartGold, not read on Android): `PARTY`, `BAG` and
+  `MAP` on its own save offsets (its bigger bag moves the rest of the save), with its species to 1534, moves, items,
+  Fairy type, type chart and icon palettes read from the cart. No `DEX`, `GUIDE` or `BATTLE` yet. The game list's tag
+  now reads Renegade Platinum as "every tab but GUIDE" and knows Origin HeartGold too.
 - **Origin HeartGold on the desktop host**: `PARTY`, `BAG`, `MAP` and `DEX` (Pokédex pages, pictures, learnsets,
   machines, evolutions) on its own save offsets, with its species, moves, items, Fairy type and type chart read from
   the cart. No `BATTLE` panes yet.

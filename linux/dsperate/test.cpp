@@ -123,6 +123,46 @@ int main(int argc,char** argv){
   assert(ds_berry_pot_text(DsBerryPot{149,5,45,0})=="READY, FALL IN 45M");
   std::puts("PASS time of day and Berry Pot lines");
   {
+    // HeartFelt Gold: HeartGold's reader on its save with the bigger bag (the heartfelt_gold fixture: a new game played
+    // headless). Its tables come from the cart; an empty set is enough for the save.
+    std::ifstream f(std::filesystem::path(argv[1]).parent_path().parent_path()/"heartfelt_gold"/"mainram.bin",std::ios::binary);
+    std::vector<uint8_t> o{std::istreambuf_iterator<char>(f),{}};
+    assert(o.size()==4*1024*1024);
+    assert(!ds_read_companion(o.data(),o.size(),DsGame::Johto).valid);  // HeartGold's 493 species: the party fails
+    DsOrigin tables;tables.lastSpecies=dsHeartfeltLastSpecies;
+    ds_set_heartfelt(&tables);
+    auto t=ds_read_companion(o.data(),o.size(),DsGame::Johto);
+    assert(t.valid && t.party.size()==6);
+    const int species[]={155,750,25,937,445,6},levels[]={12,20,9,35,40,30};
+    for(int i=0;i<6;++i)assert(t.party[i].species==species[i] && t.party[i].level==levels[i] && t.party[i].hp==t.party[i].maxHp);
+    assert(t.party[2].heldItem==234);
+    assert(t.money==3000 && t.map==64 && t.repelSteps==0 && !t.hasPots && !t.dexValid);
+    auto count=[&](int id){for(auto& i:t.bag)if(i.id==id)return i.count;return 0;};
+    assert(count(17)==5 && count(4)==10 && count(155)==3 && count(79)==2 && count(328)==1 && count(450)==1 && count(420)==1);
+    auto pocket=[&](int id){for(auto& i:t.bag)if(i.id==id)return i.pocket;return -1;};
+    assert(pocket(79)==0 && pocket(450)==1 && pocket(328)==2 && pocket(17)==4 && pocket(155)==5 && pocket(4)==6);
+    assert(ds_egg_icon(DsGame::Johto)==494);
+    ds_set_heartfelt(nullptr);
+    std::puts("PASS HeartFelt Gold's save: party past 493, its bigger bag, its shifted location");
+    if(const char* path=std::getenv("PD_HEARTFELT_ROM")){
+      std::ifstream cart(path,std::ios::binary);std::vector<uint8_t> rom{std::istreambuf_iterator<char>(cart),{}};
+      assert(ds_heartfelt_cart(rom.data(),rom.size()) && !ds_origin_cart(rom.data(),rom.size()));
+      DsOrigin c=ds_read_heartfelt(rom);
+      assert(c.species[1]=="Bulbasaur" && c.species[544]=="Victini" && c.species[750]=="Sylveon" && c.species[937]=="Dragapult");
+      assert(c.moves[33]=="Tackle" && c.items[234]=="Leftovers");
+      assert((c.speciesTypes[750]==std::array<uint8_t,2>{9,9}) && (c.speciesTypes[937]==std::array<uint8_t,2>{16,7}));
+      assert((c.moveMeta[33]==std::array<uint8_t,2>{0,40}) && c.iconPalettes.size()==1535);
+      assert(c.chart[9*18+16]==8 && c.chart[16*18+9]==0 && c.chart[8*18+9]==8 && c.chart[0*18+7]==0 && c.chart[7*18+8]==4);
+      ds_set_heartfelt(&c);
+      auto icons=ds_party_icons(rom,DsGame::Johto);
+      assert(icons.size()==size_t(dsHeartfeltLastSpecies+1));
+      for(int id:{1,494,750,937,1534})assert(icons[id].size()==1024);
+      assert(!std::strcmp(ds_species(750,DsGame::Johto),c.species[750].c_str()));
+      ds_set_heartfelt(nullptr);
+      std::puts("PASS HeartFelt Gold's cart: names, types, moves, chart and icons");
+    }
+  }
+  {
     // Origin HeartGold: HeartGold's reader on its grown save (the origin_heartgold fixture: a new game played headless,
     // OriginHeartGoldTest's values). The forms come from the cart; one is enough here.
     std::ifstream f(std::filesystem::path(argv[1]).parent_path().parent_path()/"origin_heartgold"/"mainram.bin",std::ios::binary);

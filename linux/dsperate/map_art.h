@@ -54,5 +54,7 @@ std::vector<DsDexEvolution> ds_dex_evolutions(const DsDexArt&,int species);
 DsOrigin ds_read_origin(const std::vector<uint8_t>& rom);
 // Renegade Platinum's tables from its cart (NdsArt.readRenegade); empty species on failure.
 DsOrigin ds_read_renegade(const std::vector<uint8_t>& rom);
+// HeartFelt Gold's names, types, moves, Fairy's chart and icon palettes from its cart (empty species on failure).
+DsOrigin ds_read_heartfelt(const std::vector<uint8_t>& rom);
 
 std::vector<std::vector<uint32_t>> ds_hud_item_icons(const std::vector<uint8_t>& rom, DsGame game);
