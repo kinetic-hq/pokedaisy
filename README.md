@@ -155,8 +155,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   scale instead of a small fixed box.
 - **The full DS companion** on the desktop host: DS games get the handheld core's companion (`PARTY` summaries, `BAG`
   pockets, `DEX` pages, `MAP` with `PLACES`, `GUIDE`, and `BATTLE` with the foe and your moves' verdicts) instead of
-  a text list, with the desktop's DS rows under its `SETTINGS`; HeartGold and SoulSilver (USA) get every tab but
-  `BATTLE`.
+  a text list, with the desktop's DS rows under its `SETTINGS`; HeartGold and SoulSilver (USA) get it all too, on
+  the app's HeartGold field read (`BATTLE`, auto battles, the HUD and wings with the party's icons).
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 0 or 1 cart gets the Platinum companion (rev 1 as on
   Android, rev 0 too here: its addresses are the same; a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
   (game, region, revision, code) and the one it needs.

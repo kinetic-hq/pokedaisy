@@ -386,7 +386,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   if(shellGame!=DsGame::Unsupported)shell->dexArt=ds_dex_art(bytes,shellGame);
   DsCompanion shellSnap;bool shellOpen=false;
   auto nds=ds_core_create();active=nds.get();
-  std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,supported?"Platinum":"unsupported");
+  std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,supported?"Platinum":johto?"HeartGold / SoulSilver":"unsupported");
   std::deque<std::vector<uint8_t>> rewindRing;int rewindTick=0,rewindStep=0;
   std::string err;if(!nds->boot(rom,bytes,err)){std::fprintf(stderr,"DS boot failed: %s\n",err.c_str());return 1;}
   std::filesystem::path dir=std::filesystem::u8path(root);auto romPath=std::filesystem::u8path(rom);auto filename=romPath.filename().u8string();
@@ -446,7 +446,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   const DsPieceGame* pieceGame=ds_pieces_game(code);
   DsPieceLayout pieceLay;int pointerPiece=-1;  // TOUCH PIECES as last drawn; the piece a press began on
   // Platinum rev 0 runs on rev 1's field addresses (its party, field and battle structs sit at the same places).
-  const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):nullptr;
+  // HeartGold and SoulSilver (USA) run on the app's HeartGold field read too: BATTLE, auto battles, touch moments.
+  const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):johto?pk_nds_field_game(code,0):nullptr;
   bool& bottom=prefs.bottom;
   bool done=false,showCompanion=false,showQuick=false,paused=false,failed=false;
   int quickSelected=0;uint32_t blocked=0;
@@ -783,7 +784,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       // TOUCH IN WING / WINGS: the companion's panels in the wings (under a floating touch screen's dim).
       if(place.panel[0].shown() || place.panel[1].shown() || place.split())gutter_screen(renderer,topInset?place.touch:place.top,look);
-      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,supported||johto,partyArt,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
+      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,supported||johto,shellIcons,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
       wingPanels=place.panel[0].shown();
       if(place.touchFloats){SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer,0,0,0,150);SDL_RenderFillRect(renderer,nullptr);SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_NONE);}
       if(place.touchFloats || place.inset)frame_screen(renderer,topInset?place.top:place.touch);
@@ -804,7 +805,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       else if(showQuick)quick_draw(&canvas,nullptr,quickItems,4,quickSelected);
       else {
         pd_snapshot hs=ds_party_snapshot(snap);hs.valid=true;
-        struct HudArt {const DsCompanion* snap;const pd_snapshot* view;const std::vector<std::vector<uint32_t>>* art;} context{&snap,&hs,&partyArt};
+        struct HudArt {const DsCompanion* snap;const pd_snapshot* view;const std::vector<std::vector<uint32_t>>* art;} context{&snap,&hs,&shellIcons};
         hud_party_draw(&canvas,&hs,&context,[](pd_canvas* c,void* data,const pd_mon* m,int x,int y,bool faded){
           auto& ctx=*static_cast<HudArt*>(data);auto& mon=ctx.snap->party[m-ctx.view->party];
           if(!ds_party_icon(c,mon,*ctx.art,x,y,faded))pd_text_fit(c,x,y+10,32,m->nickname,faded?0xa8b0c0:0xf8f8f8,0x303840);

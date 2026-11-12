@@ -546,8 +546,8 @@ gear at the end opens `SETTINGS`: your trainer facts, then the DS rows (`SCREEN`
 It reads Platinum (USA) in full. It goes by the game code inside the file
 (`CPUE`, revision 0 or 1), so a trimmed or re-dumped copy works too, and so does
 Renegade Platinum (read as the original game, so types, stats and the `GUIDE`
-are the original game's). HeartGold and SoulSilver (USA) get every tab but
-`BATTLE`. For other DS games you get the game alone, and `SETTINGS` tells you
+are the original game's). HeartGold and SoulSilver (USA) are read in full
+too, with the party's icons in the HUD and the wings. For other DS games you get the game alone, and `SETTINGS` tells you
 which game and revision it found, and which ones the companion reads.
 
 ## When something goes wrong

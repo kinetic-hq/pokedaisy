@@ -36,22 +36,22 @@ foe team is listed as a gap even then.
 
 Of the 71 rows:
 
-- **44** get the companion at the same level as on Android, every tab
+- **46** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **20** get a companion that falls short of Android's somewhere.
+- **18** get a companion that falls short of Android's somewhere.
 - **7** get no companion at all yet.
 
 By tab:
 
 | Area | works | partly | no |
 | --- | --- | --- | --- |
-| `PARTY` | 62 | 2 | 7 |
-| `BAG` | 62 | 2 | 7 |
-| `BATTLE` | 5 | 56 | 10 |
-| `MAP` | 61 | 3 | 7 |
-| `DEX` | 47 | 5 | 19 |
-| `GUIDE` | 30 | 28 | 13 |
+| `PARTY` | 64 | 0 | 7 |
+| `BAG` | 64 | 0 | 7 |
+| `BATTLE` | 5 | 58 | 8 |
+| `MAP` | 63 | 1 | 7 |
+| `DEX` | 49 | 3 | 19 |
+| `GUIDE` | 32 | 26 | 13 |
 
 ## Game by game
 
@@ -80,8 +80,8 @@ By tab:
 | Sapphire | USA: AXPE rev 0, 1 and 2 | works | works | partly | works | works | works | None |
 | Sapphire | Spanish, German, French, Italian, Japanese rev 0 and 1 (AXPS, AXPD, AXPF, AXPI, AXPJ) | works | works | partly | works | works | partly | No guide for the Japanese cart |
 | Platinum (DS) | USA rev 0 and 1 (CPUE; rev 1 SHA-1 0862ec35); French and Spanish rev 0 (CPUF, CPUS) | works | works | works | works | works | works | USA carts: the full companion, as on Android; French and Spanish carts get nothing |
-| HeartGold (DS) | USA (IPKE rev 0, SHA-1 4fcded0e); Europe and every other language | partly | partly | no | partly | partly | partly | USA cart only: every companion tab but `BATTLE`, not yet checked in a game on the desktop |
-| SoulSilver (DS) | USA (IPGE rev 0, SHA-1 f8dc38ea); Europe and every other language | partly | partly | no | partly | partly | partly | Same as HeartGold |
+| HeartGold (DS) | USA (IPKE rev 0, SHA-1 4fcded0e); Europe and every other language | works | works | partly | works | works | works | USA cart only: the full companion, as on Android |
+| SoulSilver (DS) | USA (IPGE rev 0, SHA-1 f8dc38ea); Europe and every other language | works | works | partly | works | works | works | Same as HeartGold |
 | Black (DS) | USA/Europe (IRBO, SHA-1 26ad0b99) and every language | no | no | no | no | no | no | No companion: the reader exists but the desktop never uses it |
 | White (DS) | USA/Europe (IRAO, SHA-1 bc696a0d) and every language | no | no | no | no | no | no | Same as Black |
 | Black 2 (DS) | USA/Europe (IREO, SHA-1 e51e6dfb) and every language | no | no | no | no | no | no | Same as Black |
@@ -132,7 +132,7 @@ By tab:
 ## What the gaps come from
 
 - **The DS games.** Platinum (USA) has the whole companion, `BATTLE` and
-  `GUIDE` included. HeartGold and SoulSilver (USA) have every tab but `BATTLE`.
+  `GUIDE` included. HeartGold and SoulSilver (USA) have it too.
   Black, White, Black 2, White 2, Origin HeartGold and the French and Spanish
   Platinum carts get no companion yet.
 - **A missing `DEX` tab.** In Heart and Soul, Let's Go, Lazarus, Emerald
