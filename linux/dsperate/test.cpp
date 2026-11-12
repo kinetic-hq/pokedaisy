@@ -184,7 +184,18 @@ int main(int argc,char** argv){
       assert(c.mapWild.size()==540 && c.wildSets.size()==147 && c.mapWild[9]==111);
       const auto day=ds_guide_here(DsGame::Johto,9,12,6);
       assert(day.count>=2 && day.entries[0].species==584 && day.entries[0].chance==20 && day.entries[0].low==79);
-      assert(day.entries[1].species==68 && ds_guide_page_count(DsGame::Johto)==1 && !ds_guide_spots(DsGame::Johto,584).empty());
+      assert(day.entries[1].species==68 && ds_guide_page_count(DsGame::Johto)==2 && !ds_guide_spots(DsGame::Johto,584).empty());
+      // NEXT BOSS from its hg-engine trpoke: Falkner (20) opens with a Lv14 species 570, as a fight showed; Lance (244,
+      // the count's top bit set, 33 bytes a mon) has six, his ace a Lv65 species 149.
+      {
+        DsCompanion s{};s.game=DsGame::Johto;s.eventFlags.assign(512,0);
+        const auto rows=ds_guide_rows(s,GuidePage::NextBoss,false);
+        assert(rows.size()>=7 && rows[0].title=="NEXT: LEADER FALKNER" && rows[1].detail=="Lv14");
+        assert(rows[1].answer.rfind(std::string(ds_species(570,DsGame::Johto))+":",0)==0 && rows[6].detail=="Lv16");
+        const auto lance=std::find_if(rows.begin(),rows.end(),[](const GuideRow& row){return row.title=="CHAMPION LANCE";});
+        assert(lance!=rows.end() && rows.end()-lance>=7 && lance[6].detail=="Lv65");
+        assert(lance[6].answer.rfind(std::string(ds_species(149,DsGame::Johto))+":",0)==0);
+      }
       // DEX: national order over its ids (national 494 is id 544), sizes from the zukan to 493 and from the US text past
       // it (Sylveon 3'03" and 51.8 lbs), retail's fronts, the flat learnsets, evolutions.
       auto dex=ds_dex_art(rom,DsGame::Johto);

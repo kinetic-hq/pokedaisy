@@ -373,6 +373,21 @@ std::vector<BossMon> cart_team(const DsOrigin& o,int trainer){
   const auto& t=o.trainers[trainer];
   const auto& p=o.trainerParties[trainer];
   const auto u16=[&](size_t at){return int(p[at]|p[at+1]<<8);};
+  // HeartFelt Gold (hg-engine): the count's top bit is a flag, and the type's further bits add fields after the moves,
+  // so a mon's size is the party's over the count; species run past 1023.
+  if(&o==ds_heartfelt()){
+    const int count=std::min(t[3]&0x7F,6);
+    if(!count || p.size()%count)return team;
+    const size_t size=p.size()/count;
+    for(int i=0;i<count;++i){
+      size_t at=i*size+6;
+      BossMon mon{u16(i*size+2),u16(i*size+4)&0x7FF,0,{}};
+      if(t[0]&2){mon.item=u16(at);at+=2;}
+      if(t[0]&1)for(int k=0;k<4;++k)mon.moves[k]=u16(at+2*k);
+      team.push_back(mon);
+    }
+    return team;
+  }
   if(t[3] && p.size()==size_t(t[3])*28){
     for(int i=0;i<std::min<int>(t[3],6);++i){
       BossMon mon{u16(i*28+6),u16(i*28+8)&0x7FF,u16(i*28+10),{}};
@@ -459,7 +474,11 @@ std::vector<GuideRow> ds_guide_rows(const DsCompanion& s,GuidePage page,bool sou
     if(s.eventFlags.empty())return {};
     switch(s.game){
       case DsGame::Platinum:return boss_rows(s,ptBossTeams,ptBossMons,origin_wild(s.game));
-      case DsGame::Johto:return boss_rows(s,hgBossTeams,hgBossMons,origin_wild(s.game)==ds_origin()?ds_origin():nullptr);
+      case DsGame::Johto:{
+        // Origin HeartGold and HeartFelt Gold: retail's ids with the hacks' own teams, from their carts.
+        const auto* cart=origin_wild(s.game);
+        return boss_rows(s,hgBossTeams,hgBossMons,cart && !cart->trainers.empty()?cart:nullptr);
+      }
       case DsGame::Black:return boss_rows(s,blackBossTeams,blackBossMons);
       case DsGame::White:return boss_rows(s,whiteBossTeams,whiteBossMons);
       case DsGame::Black2:return boss_rows(s,black2BossTeams,black2BossMons);

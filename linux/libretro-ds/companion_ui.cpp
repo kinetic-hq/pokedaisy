@@ -137,7 +137,7 @@ void DsCompanionUi::set_game(DsGame value,bool soulSilverVersion){
     frame.availableTabs&=~(1<<PD_TAB_GUIDE);
     if(frame.tab==PD_TAB_GUIDE)frame.tab=PD_TAB_PARTY;
   }
-  // HeartFelt Gold: its GUIDE is HERE's wild encounters from the cart.
+  // HeartFelt Gold: its GUIDE is HERE's wild encounters and NEXT BOSS, from the cart.
   if(game==DsGame::Johto && ds_heartfelt()){
     frame.availableTabs&=~(ds_heartfelt()->mapWild.empty()?1<<PD_TAB_GUIDE:0);
     if(!(frame.availableTabs&(1<<frame.tab)))frame.tab=PD_TAB_PARTY;

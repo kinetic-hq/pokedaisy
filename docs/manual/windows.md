@@ -599,9 +599,10 @@ hidden where you stand, ticked once you have picked them up.
 HeartFelt Gold gets `PARTY`, `BAG`, `MAP`, `DEX` and `BATTLE`, with its own creatures,
 moves, items, types and icons read from its cart. `DEX` lists the whole
 National Dex in order, with each creature's picture, stats, size, entry text,
-evolutions and level-up moves; its machines aren't listed. Its `GUIDE` has one
-page, `HERE`: the wild creatures where you stand, by time of day, read from
-its cart. `BATTLE` shows your creature and the foe, their moves and types,
+evolutions and level-up moves; its machines aren't listed. Its `GUIDE` has two
+pages, read from its cart: `HERE` lists the wild creatures where you stand by
+time of day, and `NEXT BOSS` shows the next gym leader or League member with
+the hack's own team. `BATTLE` shows your creature and the foe, their moves and types,
 and a trainer's team. It has no EXPAND or auto battles.
 For other DS games you get the game alone, and `SETTINGS` tells you
 which game and revision it found, and which ones the companion reads.
