@@ -8,7 +8,11 @@
 #include "map_view.h"
 #include "guide_view.h"
 #include "browser.h"
+#ifdef PD_DS_DESKTOP
+#include "retro_pad.h"  // the desktop host has no libretro.h: just the joypad IDs this shell's controls use
+#else
 #include "libretro.h"
+#endif
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
@@ -16,6 +20,12 @@
 #include <fstream>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <direct.h>
+#include <io.h>
+#define mkdir(path,mode) _mkdir(path)
+#define fsync _commit
+#endif
 extern "C" {
 #include "pd_style.h"
 #include "pd_tables.h"
@@ -210,7 +220,17 @@ const std::vector<int>* DsCompanionUi::dex_order() const{
 }
 
 void DsCompanionUi::draw_body(pd_ui* u,pd_canvas* c){
-  if(u->tab==PD_TAB_SETTINGS){draw_settings(c);return;}
+  if(u->tab==PD_TAB_SETTINGS){
+    if(hostRows){
+      // A host with its own settings (the desktop app): its rows, its input.
+      pd_option_source source{"SETTINGS",hostRows,hostRowCount,hostInfo};
+      options.optionSelected=hostInfo+hostSelected;
+      options.optionSource=&source;
+      pd_ui_options_view(&options,c,&presentation,&battle);options.optionSource=nullptr;
+      return;
+    }
+    draw_settings(c);return;
+  }
   if(!supported || !snapshot->valid){
     pd_title_box(c,4,4,c->w-8,24,PD_TITLE_FILL);
     pd_text(c,12,9,supported?"WAITING FOR SAVE DATA":"COMPANION UNAVAILABLE FOR THIS ROM",PD_TITLE_TEXT,PD_TITLE_SHADOW);return;
@@ -363,6 +383,7 @@ bool DsCompanionUi::control(unsigned pressed){
     if(hit(RETRO_DEVICE_ID_JOYPAD_B)){picker=-1;return false;}
     if(hit(RETRO_DEVICE_ID_JOYPAD_A)){int row=picker;picker=-1;apply(row,choice);}return false;
   }
+  if(frame.tab==PD_TAB_SETTINGS && hostRows)return hit(RETRO_DEVICE_ID_JOYPAD_B);
   if(frame.tab==PD_TAB_SETTINGS){
     const int index=int(std::find(std::begin(settingsOrder),std::end(settingsOrder),setting)-std::begin(settingsOrder));
     setting=settingsOrder[pd_ui_list_step(index,Rows,dy)];

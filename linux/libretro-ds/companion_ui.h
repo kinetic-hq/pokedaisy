@@ -34,6 +34,10 @@ struct DsCompanionUi {
   DsDexPage dexPage;
   int setting=0,picker=-1,choice=0;
   std::string path,error;
+  // A host with its own settings (the desktop app) lists them here (hostInfo rows of facts first); SETTINGS then
+  // shows these rows, hostSelected marks one, and the host handles their input.
+  const pd_option_row* hostRows=nullptr;
+  int hostRowCount=0,hostInfo=0,hostSelected=0;
   void init(const std::string& directory,int legacyLayout=0,bool legacyHud=false);
   void set_game(DsGame game,bool soulSilverVersion=false);
   bool save();

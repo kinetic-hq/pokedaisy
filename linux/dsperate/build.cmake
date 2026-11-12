@@ -21,9 +21,23 @@ else()
 endif()
 # The Android app's DS field read (pk_nds_field.cpp) reads RAM through callbacks only, so it builds here unchanged; its
 # one read of melonDS's GPU lives in pk_nds_field_gpu.cpp, which isn't built here.
+# The companion is the handheld DS core's shell (linux/libretro-ds/companion_ui.cpp: PARTY, BAG, DEX, MAP, GUIDE and
+# BATTLE as the Android app draws them), its GUIDE tables generated from the app's Kotlin as that core's build does.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+set(pd_ds_kotlin ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/main/kotlin/com/pokedaisy/app/companion/data)
+set(pd_ds_guide ${CMAKE_CURRENT_BINARY_DIR}/ds-gen/guide_gen.h)
+file(GLOB pd_ds_guide_inputs CONFIGURE_DEPENDS ${pd_ds_kotlin}/Guide*.kt ${pd_ds_kotlin}/Gen4*.kt ${pd_ds_kotlin}/Gen5*.kt)
+add_custom_command(OUTPUT ${pd_ds_guide}
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/ds-gen
+  COMMAND ${Python3_EXECUTABLE} -X utf8 ${CMAKE_CURRENT_SOURCE_DIR}/dsperate/gen_guide.py ${pd_ds_kotlin} ${pd_ds_guide}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dsperate/gen_guide.py ${pd_ds_guide_inputs}
+  VERBATIM)
 add_library(pd_ds_backend STATIC dsperate/frontend.cpp dsperate/companion.cpp dsperate/map_art.cpp dsperate/save_edit_ds.cpp ${pd_ds_core_sources}
+  dsperate/party_view.cpp dsperate/bag_view.cpp dsperate/dex_view.cpp dsperate/guide_view.cpp dsperate/map_view.cpp
+  libretro-ds/companion_ui.cpp libretro-ds/battle_strip.cpp ${pd_ds_guide}
   ../app/src/main/cpp/nds/pk_nds_field.cpp)
-target_include_directories(pd_ds_backend PUBLIC dsperate PRIVATE ../app/src/main/cpp/nds ../3ds/desktop)
+target_compile_definitions(pd_ds_backend PRIVATE PD_DS_DESKTOP)
+target_include_directories(pd_ds_backend PUBLIC dsperate PRIVATE ../app/src/main/cpp/nds ../3ds/desktop libretro-ds ${CMAKE_CURRENT_BINARY_DIR}/ds-gen)
 target_link_libraries(pd_ds_backend PUBLIC ${pd_ds_core_target} pd_linux_common)
 # The field tables leave each game's unused trailing fields zero on purpose.
 target_compile_options(pd_ds_backend PRIVATE -Wall -Wextra -Wno-missing-field-initializers)
