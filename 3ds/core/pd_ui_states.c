@@ -55,9 +55,10 @@ void ui_states_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_host_i
         if (slot->thumb) thumb(c, slot->thumb, ix + 1, ty + 1, iw - 2, th - 2);
         ty += th + 2;
         pd_text_fit(c, ix, ty, iw, slot->used ? slot->when : "EMPTY", PD_MUTED, PD_MUTED_SHADOW);
-        ui_add_hit(ui, cx, y, cw, ch, HIT_STATE_SLOT + i);
+        // The picked card's hit stops above its buttons, so the D-pad steps down from the card onto SAVE / LOAD.
+        int by = y + ch - lf - 21, bw = (iw - 2) / 2;
+        ui_add_hit(ui, cx, y, cw, sel ? by - 2 - y : ch, HIT_STATE_SLOT + i);
         if (sel) {
-            int by = y + ch - lf - 21, bw = (iw - 2) / 2;
             ui_button(ui, c, ix, by, bw, 19, "SAVE", HIT_STATE_SAVE);
             if (slot->used) ui_button(ui, c, ix + bw + 2, by, bw, 19, "LOAD", HIT_STATE_LOAD);
         }

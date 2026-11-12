@@ -1923,6 +1923,63 @@ static bool capture_frame(const char *path, unsigned *lit) {
   free(shot);
   return ok;
 }
+/* STATES: ten slots per game, slot 0 the one state file there always was (states/<rom>.ss), the others
+ * states/<rom>.<n>.ss; each save leaves a 120x80 picture of the game beside it (<state>.thumb, 0xRRGGBB). */
+#include <sys/stat.h>
+static uint32_t slotThumbs[PD_STATE_SLOTS][PD_STATE_THUMB_W * PD_STATE_THUMB_H];
+static bool slotsStale = true; // a save changed a slot: read them again before the next draw
+static void slot_path(char *out, size_t n, const char *root, const char *name, int slot) {
+  if (slot <= 0)
+    snprintf(out, n, "%s/states/%s.ss", root, name);
+  else
+    snprintf(out, n, "%s/states/%s.%d.ss", root, name, slot);
+}
+static void slots_read(struct pd_host_info *host, const char *root, const char *name) {
+  for (int i = 0; i < PD_STATE_SLOTS; i++) {
+    struct pd_state_slot *out = &host->slots[i];
+    char path[1100], thumb[1120];
+    slot_path(path, sizeof path, root, name, i);
+    struct stat st;
+    out->used = !stat(path, &st);
+    out->thumb = NULL;
+    out->when[0] = 0;
+    if (!out->used)
+      continue;
+    time_t when = st.st_mtime;
+    struct tm *t = localtime(&when);
+    if (t)
+      strftime(out->when, sizeof out->when, "%m-%d %H:%M", t);
+    snprintf(thumb, sizeof thumb, "%s.thumb", path);
+    FILE *f = fopen(thumb, "rb");
+    if (!f)
+      continue;
+    if (fread(slotThumbs[i], 1, sizeof slotThumbs[i], f) == sizeof slotThumbs[i])
+      out->thumb = slotThumbs[i];
+    fclose(f);
+  }
+  slotsStale = false;
+}
+// The game's picture at the moment of a save, shrunk to the slot's thumbnail (nearest pixel; a Game Boy's 10:9 is
+// stretched to 3:2 like the card's well).
+static void slot_thumb_write(struct mCore *c, const char *path) {
+  unsigned w, h;
+  c->desiredVideoDimensions(c, &w, &h);
+  if (!w || !h || w > 256 || h > 256)
+    return;
+  static uint32_t px[PD_STATE_THUMB_W * PD_STATE_THUMB_H];
+  for (int y = 0; y < PD_STATE_THUMB_H; y++)
+    for (int x = 0; x < PD_STATE_THUMB_W; x++) {
+      uint32_t v = (uint32_t)video[(y * h / PD_STATE_THUMB_H) * 256 + x * w / PD_STATE_THUMB_W]; // mGBA's 0xBBGGRR
+      px[y * PD_STATE_THUMB_W + x] = (v & 0xFFu) << 16 | (v & 0xFF00u) | (v >> 16 & 0xFFu);
+    }
+  char thumb[1120];
+  snprintf(thumb, sizeof thumb, "%s.thumb", path);
+  FILE *f = fopen(thumb, "wb");
+  if (!f)
+    return;
+  fwrite(px, 1, sizeof px, f);
+  fclose(f);
+}
 static bool state(struct mCore *c, const char *path, bool save) {
   char tmp[1200];
   snprintf(tmp, sizeof tmp, "%s.tmp", path);
@@ -1945,6 +2002,9 @@ static bool state(struct mCore *c, const char *path, bool save) {
       ok = pocket_replace(tmp, path);
     else
       pocket_remove(tmp);
+    if (ok)
+      slot_thumb_write(c, path);
+    slotsStale = true;
   }
   return ok;
 }
@@ -2538,6 +2598,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                               .fullSettings = true, .androidMenus = true, .hasRewind = true, .hasFfMusic = true,
                               .batteryPct = -1, .layouts = companion_layouts(), .layoutCount = POCKET_VIEWS};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
+  host.hasStates = true; // STATES: slot 0 (the old one state file) is picked to begin with
+  slotsStale = true;
   const char *opts[] = {"Resume game",
                         "Party",
                         "Save state",
@@ -2983,6 +3045,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         case PD_ACTION_LOAD_STATE:
           notice(state(c, ss, false) ? "State loaded" : "State load failed");
           break;
+        case PD_ACTION_STATE_SLOT:
+          // The picked slot is where SAVE / LOAD and their hotkeys go from now on.
+          host.slotSelected = ui.actionSlot;
+          slot_path(ss, sizeof ss, root, name, host.slotSelected);
+          break;
         case PD_ACTION_RESTART_GAME:
           c->reset(c);
           notice("Game restarted");
@@ -3173,6 +3240,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         ui.focusId = focusId;
         host.ffOn = ff;
         host.hasState = pocket_exists(ss);
+        if (slotsStale)
+          slots_read(&host, root, name);
         pd_ui_draw(&ui, &canvas, &game, &snap, &host);
         map_cursor_sync(&ui, &game, &snap);
         focus_draw(&ui, focus_resolve(&ui));
