@@ -67,9 +67,9 @@ struct DsPrefs {
   int battle=0, layout=DSL_ONE;
   int shader=POCKET_SHADER_OFF, colors=POCKET_COLORS_ORIGINAL;bool dim=false;  // SHADER / COLORS / DIM COMPANION (shader.h)
   bool wingLeft=false;  // WING SIDE: TOUCH IN WING's touch screen (and WINGS' party) in the left wing
-  int background=POCKET_BACKGROUND_AUTO;  // BACKGROUND (backdrop.h): -1 = by COLORS
+  int background=POCKET_BACKGROUND_AUTO;  // BACKGROUND (backdrop.h): -1 = BLACK (a DS window is mostly room round the screens)
   bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud || layout!=other.layout || shader!=other.shader || colors!=other.colors || dim!=other.dim || wingLeft!=other.wingLeft || background!=other.background;}
-  int look()const{return pocket_background_resolve(background,colors==POCKET_COLORS_OLED);}
+  int look()const{return background==POCKET_BACKGROUND_AUTO?POCKET_BACKGROUND_BLACK:pocket_background_resolve(background,true);}
 };
 DsPrefs load_prefs(const std::string& path){
   DsPrefs p;std::ifstream f(path);std::string line;
