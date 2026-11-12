@@ -1147,6 +1147,7 @@ static SDL_Rect sdl_rect(struct view_rect r) {
 static int gameScaling; // plorpOS: enum pd_scaling, for ASPECT ORIGINAL's picture
 static bool oledBlack;    // COLORS OLED: the panels' backdrops true black, like the screen round the game
 static bool dimCompanion; // DIM COMPANION: the companion and its panels drawn darker, against OLED burn-in
+static bool reduceMotion; // REDUCE MOTION: no easing HP bars or sliding cards in the wings
 static int background = POCKET_BACKGROUND_THEME; // BACKGROUND in force (backdrop.h)
 
 static uint32_t panel_back(void) {
@@ -1611,6 +1612,9 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     struct pocket_wing_look wl;
     pocket_wing_look_begin(background, &wl);
     pd_fill(&pc, 0, 0, w, h, panel_back());
+    pd_ui_now_ms = SDL_GetTicks();
+    pd_ui_reduce_motion = reduceMotion;
+    pd_ui_panel_moving = false;
     if (which == PANEL_LEFT)
       pd_ui_party_panel(&pc, g, s);
     else if (which == PANEL_RIGHT && battle)
@@ -1623,7 +1627,8 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     SDL_UpdateTexture(panelTexture[which], &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
     if (panelKey[which] != key)
       wingActivity = SDL_GetTicks(); // the wing changed: not a still one
-    panelKey[which] = key;
+    // Still easing (an HP bar, a card sliding in): drawn again next frame.
+    panelKey[which] = pd_ui_panel_moving ? key ^ 0x5A5A5A5Au : key;
     panelW[which] = w;
     panelH[which] = h;
   }
@@ -2473,6 +2478,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     pocket_shader_set(settings.shader, settings.colors, false);
     oledBlack = settings.colors == POCKET_COLORS_OLED;
     dimCompanion = settings.dimCompanion;
+    reduceMotion = settings.reduceMotion;
     background = pocket_background_resolve(settings.background, oledBlack);
     pocket_shader_brightness(settings.brightness);
     // DARK MODE and THEME: the core's look follows them (the wings, the strips, the HUD, the companion).
@@ -3619,6 +3625,7 @@ enum {
   ROW_COLORS,
   ROW_BRIGHTNESS,
   ROW_DIM,
+  ROW_MOTION,
   ROW_BACKGROUND,
   ROW_FULL,
   ROW_ORIENT,
@@ -3684,6 +3691,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_COLORS, "COLORS\t%s", COLORS[st.colors >= 0 && st.colors < PD_COLORS ? st.colors : 0]);
       ROW(ROW_BRIGHTNESS, "BRIGHTNESS\t%d%%", st.brightness);
       ROW(ROW_DIM, "DIM COMPANION\t%s", st.dimCompanion ? "ON" : "OFF");
+      ROW(ROW_MOTION, "REDUCE MOTION\t%s", st.reduceMotion ? "ON" : "OFF");
       ROW(ROW_BACKGROUND, "BACKGROUND\t%s",
           pocket_background_name(pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED)));
       ROW(ROW_BEZEL_STYLE, "BEZEL STYLE\t%s",
@@ -3848,6 +3856,9 @@ static int settings_page(bool *foldersChanged) {
     }
     case ROW_DIM:
       st.dimCompanion = !st.dimCompanion;
+      break;
+    case ROW_MOTION:
+      st.reduceMotion = !st.reduceMotion;
       break;
     case ROW_BACKGROUND: {
       static const char *const rows[POCKET_BACKGROUNDS] = {"BLACK\tTRUE BLACK, FOR OLED", "DARK\tA NEAR BLACK",

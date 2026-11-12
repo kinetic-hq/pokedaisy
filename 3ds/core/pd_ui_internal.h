@@ -178,6 +178,8 @@ void ui_button(struct pd_ui* ui, struct pd_canvas* c, int x, int y, int w, int h
 // The party menu's HP bar: a dark frame, the "HP" tag, a two-tone fill.
 void ui_hp_bar(struct pd_canvas* c, int x, int y, int barW, int hp, int maxHp);
 void ui_status_badge(struct pd_canvas* c, int x, int y, uint32_t status);
+// Our 7 x 7 held-item satchel.
+void ui_held_mark(struct pd_canvas* c, int x, int y);
 // A message in a list window across the content area.
 void ui_notice(struct pd_canvas* c, const char* title, const char* line1, const char* line2);
 // A LABEL  VALUE row, the value from ~42% across (OptionLine).

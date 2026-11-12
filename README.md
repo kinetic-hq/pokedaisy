@@ -77,6 +77,9 @@ Keep this list current: a pull request that changes what the fork adds updates i
   the player with badges, play time and money under it. Bezel bars above and below the game where there's room
   (`BEZEL STYLE` `BLACK` / `GLOW` / `THEME`, each of six places picked in `BEZEL BARS`, the foe and matchups in a
   battle).
+- **Redesigned wing cards** on the desktop host: rounded cards with a soft gradient and a type colour stripe,
+  shiny star and held item marks, pixel headings (Silkscreen) and clear numbers (Atkinson Hyperlegible), HP
+  bars that glide and cards that slide in when the party changes (`REDUCE MOTION` turns both off).
 - **Game folders and saves beside games** on the desktop host: folders picked in the app (`GAME FOLDERS`,
   a folder browser that works with a controller) are listed with one level inside them, and their GBA / Game
   Boy saves sit next to the game (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.

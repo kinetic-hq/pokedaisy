@@ -25,4 +25,13 @@ void pd_font_get(const struct pd_glyph** glyphs, int* count);
 // The glyph for a codepoint ('?' when the font lacks it).
 const struct pd_glyph* pd_font_glyph(uint32_t codepoint);
 
+// The wings' faces (pd_font_faces_gen.c, 3ds/tools/gen_font_faces.py): Silkscreen Bold for headings, Atkinson
+// Hyperlegible Bold's figures for numbers. pd_font_face puts one in front of everything (the game's font too) until
+// it's reset with NULL; a codepoint it lacks falls through as before.
+extern const struct pd_glyph pd_font_heading[];
+extern const int pd_font_heading_count;
+extern const struct pd_glyph pd_font_numbers[];
+extern const int pd_font_numbers_count;
+void pd_font_face(const struct pd_glyph* glyphs, int count);
+
 #endif

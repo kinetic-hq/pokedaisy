@@ -100,7 +100,15 @@ void pd_font_get(const struct pd_glyph** glyphs, int* count) {
     *glyphs = custom_font;
     *count = custom_count;
 }
+static const struct pd_glyph* face_font;
+static int face_count;
+void pd_font_face(const struct pd_glyph* glyphs, int count) {
+    face_font = glyphs;
+    face_count = glyphs && count > 0 ? count : 0;
+}
 const struct pd_glyph* pd_font_glyph(uint32_t cp) {
+    for (int i = 0; i < face_count; i++)
+        if (face_font[i].codepoint == cp) return &face_font[i];
     for (int i = 0; i < custom_count; i++)
         if (custom_font[i].codepoint == cp) return &custom_font[i];
     if (cp >= 32 && cp < 127) return &pd_font_glyphs[cp - 32];
@@ -280,4 +288,32 @@ void pd_bitmap(struct pd_canvas* c, int x, int y, const uint16_t* rows, int h, u
             if (bits & 1) plot(c, x + col, y + r, color);
         }
     }
+}
+
+int pd_heading(struct pd_canvas* c, int x, int y, const char* utf8, uint32_t color, uint32_t shadow) {
+    pd_font_face(pd_font_heading, pd_font_heading_count);
+    int w = pd_text(c, x, y, utf8, color, shadow);
+    pd_font_face(NULL, 0);
+    return w;
+}
+int pd_heading_fit(struct pd_canvas* c, int x, int y, int max_w, const char* utf8, uint32_t color, uint32_t shadow) {
+    pd_font_face(pd_font_heading, pd_font_heading_count);
+    int w = pd_text_width(utf8) <= max_w ? pd_text(c, x, y, utf8, color, shadow) : -1;
+    pd_font_face(NULL, 0);
+    return w >= 0 ? w : pd_text_fit(c, x, y, max_w, utf8, color, shadow); // too long: the plain font, fitted
+}
+int pd_number(struct pd_canvas* c, int x, int y, const char* utf8, uint32_t color, uint32_t shadow) {
+    pd_font_face(pd_font_numbers, pd_font_numbers_count);
+    int w = pd_text(c, x, y, utf8, color, shadow);
+    pd_font_face(NULL, 0);
+    return w;
+}
+int pd_number_width(const char* utf8) {
+    pd_font_face(pd_font_numbers, pd_font_numbers_count);
+    int w = pd_text_width(utf8);
+    pd_font_face(NULL, 0);
+    return w;
+}
+void pd_number_right(struct pd_canvas* c, int right, int y, const char* utf8, uint32_t color, uint32_t shadow) {
+    pd_number(c, right - pd_number_width(utf8), y, utf8, color, shadow);
 }

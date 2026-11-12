@@ -224,7 +224,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
 | `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `CHEATS` | |
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
-| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
+| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |
 | `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
 | `APP` | | `CHECK FOR UPDATES` |
@@ -254,6 +254,9 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   the same a shade lighter. `THEME` keeps the theme's own colours. With
   `COLORS` `OLED` it starts on `BLACK`. Panels that stay still for a minute dim
   a little more, and move by a pixel every few minutes, so nothing burns in.
+- **`REDUCE MOTION`**: the party cards beside the game slide in when your team
+  changes, and their HP bars glide to the new value. Turn this on and they
+  change at once instead.
 - **`BEZEL STYLE`** and **`BEZEL BARS`**: where the screen has room above and
   below the game, a bar sits in each. `BLACK` is near black with light text (the
   default with a `BLACK` background), `GLOW` is a soft, faint glow of the game's
