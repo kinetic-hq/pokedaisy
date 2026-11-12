@@ -173,9 +173,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   AUTO ZOOM IN.
 - **The game list's header** on the desktop host: the app's daisy, redrawn as 16 x 16 pixel art, beside the PokeDaisy
   name, instead of "PokeDaisy Windows" / "PokeDaisy Linux" (the window title and SETTINGS' HOST row keep the platform).
-- **DEX for expansion hacks** on the desktop host and the 3DS port: Heart and Soul, Wishes of Tomorrow and Dreamstone
-  Mysteries (and any pokeemerald-expansion game whose gSpeciesInfo the ROM is seen to hold) get the `DEX` tab, read
-  from the game's own species data; the game grid's support tag asks the same rule.
+- **DEX for expansion hacks** on the desktop host and the 3DS port: Heart and Soul, Wishes of Tomorrow, Dreamstone
+  Mysteries and Lazarus (and any pokeemerald-expansion game whose gSpeciesInfo the ROM is seen to hold) get the `DEX` tab, read
+  from the game's own species data (Lazarus, which zeroes the species it leaves out, is checked on another one); the game grid's support tag asks the same rule.
 - **Amethyst 1.4.3**: its own config (PARTY, BAG, BATTLE with the foe's team, DEX, GUIDE, the PC) instead of 1.4.1's
   guessed one, which read the wrong ability names and foe teams; on the desktop, the 3DS port and Android alike.
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 0 or 1 cart gets the Platinum companion (rev 1 as on
