@@ -51,6 +51,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) s->hotkeys[i] = 0;
     s->orientation = PD_ORIENT_LANDSCAPE;
     s->gameTouch = PD_GAME_TOUCH_DS_SCREEN;
+    s->background = -1;
 }
 
 const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};
@@ -132,6 +133,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "buttons")) int_in(value, 0, PD_BUTTON_LAYOUTS - 1, &s->buttonLayout);
         else if (!strcmp(key, "orientation")) int_in(value, 0, PD_ORIENTATIONS - 1, &s->orientation);
         else if (!strcmp(key, "gametouch")) int_in(value, 0, PD_GAME_TOUCHES - 1, &s->gameTouch);
+        else if (!strcmp(key, "background")) int_in(value, -1, 2, &s->background);
         else if (!strcmp(key, "hotkeys")) {
             // One action a button, comma-separated; an unknown one is the button's usual use.
             const char* p = value;
@@ -179,7 +181,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "fullscreen=%d\n", s->fullscreen);
     fprintf(f, "buttons=%d\nhotkeys=", s->buttonLayout);
     for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) fprintf(f, i ? ",%d" : "%d", s->hotkeys[i]);
-    fprintf(f, "\norientation=%d\ngametouch=%d\n", s->orientation, s->gameTouch);
+    fprintf(f, "\norientation=%d\ngametouch=%d\nbackground=%d\n", s->orientation, s->gameTouch, s->background);
     if (fclose(f) != 0) return false;
 #ifdef _WIN32
     // rename() won't replace a file on Windows; MoveFileEx does, in one step (paths are UTF-8: the host's manifest).

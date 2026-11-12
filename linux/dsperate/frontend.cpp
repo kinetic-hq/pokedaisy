@@ -9,6 +9,8 @@
 #include "pk_nds_field.h"
 #include "ds_layout.h"
 #include "../shader.h"
+#include "../backdrop.h"
+#include "../wing_look.h"
 #include <SDL.h>
 #include <algorithm>
 #include <filesystem>
@@ -63,7 +65,9 @@ struct DsPrefs {
   int battle=0, layout=DSL_ONE;
   int shader=POCKET_SHADER_OFF, colors=POCKET_COLORS_ORIGINAL;bool dim=false;  // SHADER / COLORS / DIM COMPANION (shader.h)
   bool wingLeft=false;  // WING SIDE: TOUCH IN WING's touch screen (and WINGS' party) in the left wing
-  bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud || layout!=other.layout || shader!=other.shader || colors!=other.colors || dim!=other.dim || wingLeft!=other.wingLeft;}
+  int background=POCKET_BACKGROUND_AUTO;  // BACKGROUND (backdrop.h): -1 = by COLORS
+  bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud || layout!=other.layout || shader!=other.shader || colors!=other.colors || dim!=other.dim || wingLeft!=other.wingLeft || background!=other.background;}
+  int look()const{return pocket_background_resolve(background,colors==POCKET_COLORS_OLED);}
 };
 DsPrefs load_prefs(const std::string& path){
   DsPrefs p;std::ifstream f(path);std::string line;
@@ -78,11 +82,12 @@ DsPrefs load_prefs(const std::string& path){
     else if(line.rfind("colors=",0)==0){int v=std::atoi(line.c_str()+7);if(v>=0 && v<POCKET_COLORS_COUNT)p.colors=v;}
     else if(line=="dim=1")p.dim=true;else if(line=="dim=0")p.dim=false;
     else if(line=="wingside=1")p.wingLeft=true;else if(line=="wingside=0")p.wingLeft=false;
+    else if(line.rfind("background=",0)==0){int v=std::atoi(line.c_str()+11);if(v>=-1 && v<POCKET_BACKGROUNDS)p.background=v;}
   }
   return p;
 }
 bool save_prefs(const std::string& path,const DsPrefs& p){
-  std::string text="# PokeDaisy DS preferences\nbottom="+std::to_string(p.bottom)+"\nresume="+std::to_string(p.resume)+"\nbattle="+std::to_string(p.battle)+"\nhud="+std::to_string(p.hud)+"\nlayout="+std::to_string(p.layout)+"\nshader="+std::to_string(p.shader)+"\ncolors="+std::to_string(p.colors)+"\ndim="+std::to_string(p.dim)+"\nwingside="+std::to_string(p.wingLeft)+"\n";
+  std::string text="# PokeDaisy DS preferences\nbottom="+std::to_string(p.bottom)+"\nresume="+std::to_string(p.resume)+"\nbattle="+std::to_string(p.battle)+"\nhud="+std::to_string(p.hud)+"\nlayout="+std::to_string(p.layout)+"\nshader="+std::to_string(p.shader)+"\ncolors="+std::to_string(p.colors)+"\ndim="+std::to_string(p.dim)+"\nwingside="+std::to_string(p.wingLeft)+"\nbackground="+std::to_string(p.background)+"\n";
   return atomic_file(path,reinterpret_cast<const uint8_t*>(text.data()),text.size());
 }
 int keyboard(SDL_Keycode k){switch(k){
@@ -134,8 +139,8 @@ extern "C" bool pd_ds_wing_left_save(const char* root,bool left){
   std::string path=(std::filesystem::u8path(root)/"ds-settings.ini").string();
   DsPrefs p=load_prefs(path);p.wingLeft=left;return save_prefs(path,p);
 }
-// The SET tab's rows: SCREEN, DS LAYOUT, AUTO-RESUME, BATTLES, HUD, SHADER, COLORS, DIM COMPANION, WING SIDE.
-constexpr int DS_SETTINGS=9;
+// The SET tab's rows: SCREEN, DS LAYOUT, AUTO-RESUME, BATTLES, HUD, SHADER, COLORS, DIM COMPANION, WING SIDE, BACKGROUND.
+constexpr int DS_SETTINGS=10;
 struct Texture {SDL_Texture* p;~Texture(){SDL_DestroyTexture(p);}};
 struct Audio {SDL_AudioDeviceID id=0;SDL_AudioStream* stream=nullptr;~Audio(){SDL_FreeAudioStream(stream);if(id)SDL_CloseAudioDevice(id);}};
 void blit(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,int w,int h,int ow,int oh){
@@ -174,8 +179,8 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
   pd_list_box(&c,5,61,c.w-10,c.h-86);int y=68;
   auto line=[&](const std::string& t){pd_text_fit(&c,13,y,c.w-26,t.c_str(),0x303030,PD_NO_SHADOW);y+=20;};
   if(tab==4){
-    const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("DS LAYOUT: ")+ds_layout_name(prefs.layout),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF"),std::string("SHADER: ")+pocket_shader_name(prefs.shader),std::string("COLORS: ")+pocket_colors_name(prefs.colors),std::string("DIM COMPANION: ")+(prefs.dim?"ON":"OFF"),std::string("DS WING SIDE: TOUCH ")+(prefs.wingLeft?"LEFT":"RIGHT")};
-    for(int i=0;i<DS_SETTINGS;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,20,0xffe4a0);line(rows[i]);}
+    const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("DS LAYOUT: ")+ds_layout_name(prefs.layout),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF"),std::string("SHADER: ")+pocket_shader_name(prefs.shader),std::string("COLORS: ")+pocket_colors_name(prefs.colors),std::string("DIM COMPANION: ")+(prefs.dim?"ON":"OFF"),std::string("DS WING SIDE: TOUCH ")+(prefs.wingLeft?"LEFT":"RIGHT"),std::string("BACKGROUND: ")+pocket_background_name(prefs.look())};
+    for(int i=0;i<DS_SETTINGS;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,18,0xffe4a0);pd_text_fit(&c,13,y,c.w-26,rows[i].c_str(),0x303030,PD_NO_SHADOW);y+=17;}
   }
   else if(!supported)line("Companion: Platinum USA Rev 1 only");
   else if(!s.valid){line("Waiting for the game's save data");line("Return to the game to finish booting");}
@@ -257,12 +262,24 @@ bool ds_party_icon(pd_canvas* c,const DsMon& mon,const std::vector<std::vector<u
 // TOUCH IN WING's and WINGS' companion panels, each filling its wing: 0 the party (the cart's icons), 1 the
 // trainer's facts. Drawn at a whole scale, at least 120 canvas pixels across.
 constexpr int WING_W=512,WING_H=1024;
-void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,const DsBox& box,int which,const DsCompanion& s,bool supported,const std::vector<std::vector<uint32_t>>& art,bool dim,int oh){
+void set_color(SDL_Renderer* r,uint32_t c,uint8_t a=255){SDL_SetRenderDrawColor(r,c>>16,c>>8&0xFF,c&0xFF,a);}
+// BLACK / DARK: a thin dark grey line round a screen beside the wings, so a bright edge doesn't meet pure black.
+void gutter_screen(SDL_Renderer* r,const DsBox& box,int background){
+  pocket_backdrop look=pocket_backdrop_for(background);if(!look.cards || !box.shown())return;
+  int t=box.w>=768?2:1;set_color(r,look.gutter);
+  SDL_Rect sides[4]={{box.x-t,box.y-t,box.w+2*t,t},{box.x-t,box.y+box.h,box.w+2*t,t},{box.x-t,box.y,t,box.h},{box.x+box.w,box.y,t,box.h}};
+  SDL_RenderFillRects(r,sides,4);
+}
+void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,DsBox box,int which,const DsCompanion& s,bool supported,const std::vector<std::vector<uint32_t>>& art,bool dim,int oh,int background,uint32_t idleMs){
   if(!box.shown() || box.w<64 || box.h<64)return;
+  // BLACK / DARK: the wing is a card inset in its room, on the background, its content moved a step now and then.
+  pocket_backdrop look=pocket_backdrop_for(background);int dx=0,dy=0;
+  if(look.cards){int pad=std::max(3,box.w/40);pocket_wing_shift(background,SDL_GetTicks(),pad/3,&dx,&dy);box={box.x+pad,box.y+pad,box.w-2*pad-2,box.h-2*pad-2};}
   // One scale for both wings (from the wing's width and the window's height), whatever room each panel has.
   int scale=std::max(1,std::min(box.w/120,oh/300));
   int w=std::min(WING_W,box.w/scale),h=std::min(WING_H,box.h/scale);
-  pd_canvas c;pd_canvas_init(&c,w,h,px.data());pd_fill(&c,0,0,w,h,0x101418);
+  pd_canvas c;pd_canvas_init(&c,w,h,px.data());pd_fill(&c,0,0,w,h,look.card);
+  pocket_wing_look wl;pocket_wing_look_begin(background,&wl);
   if(which==0){
     pd_snapshot hs=ds_party_snapshot(s);if(!supported)hs.valid=false;
     struct Ctx {const DsCompanion* s;const std::vector<std::vector<uint32_t>>* art;} ctx{&s,&art};
@@ -284,10 +301,12 @@ void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,co
     std::vector<const char*> list;for(auto& row:rows)list.push_back(row.c_str());
     pd_ui_facts_panel(&c,"TRAINER",list.data(),int(list.size()));
   }
-  SDL_SetRenderDrawColor(r,0x10,0x14,0x18,255);SDL_Rect back{box.x,box.y,box.w,box.h};SDL_RenderFillRect(r,&back);
+  pocket_wing_look_end(&wl);
+  SDL_Rect back{box.x+dx,box.y+dy,box.w,box.h};set_color(r,look.card);SDL_RenderFillRect(r,&back);
+  if(look.cards){SDL_SetRenderDrawBlendMode(r,SDL_BLENDMODE_BLEND);set_color(r,look.border,look.borderAlpha);SDL_RenderDrawRect(r,&back);SDL_SetRenderDrawBlendMode(r,SDL_BLENDMODE_NONE);}
   SDL_Rect src{0,0,w,h};SDL_UpdateTexture(t,&src,px.data(),w*4);
-  uint8_t v=dim?150:255;SDL_SetTextureColorMod(t,v,v,v);
-  SDL_Rect dst{box.x+(box.w-w*scale)/2,box.y+(box.h-h*scale)/2,w*scale,h*scale};SDL_RenderCopy(r,t,&src,&dst);
+  uint8_t v=pocket_wing_shade(background,dim,idleMs);SDL_SetTextureColorMod(t,v,v,v);
+  SDL_Rect dst{box.x+dx+(box.w-w*scale)/2,box.y+dy+(box.h-h*scale)/2,w*scale,h*scale};SDL_RenderCopy(r,t,&src,&dst);
   SDL_SetTextureColorMod(t,255,255,255);
 }
 // The host's controller bookkeeping (main.c): a pad switched on or off mid-game is opened / closed there,
@@ -369,7 +388,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   bool done=false,showCompanion=false,showQuick=false,paused=false,summary=false,failed=false;
   int quickSelected=0;uint32_t blocked=0;
   bool layoutPick=false;int layoutSel=0,layoutScroll=0,layoutTiles[DSL_COUNT][4]={};
-  int mapX=-1,mapY=-1,setting=0,page=0,tab=0,selected=0,scroll=0,touchX=128,touchY=96;uint32_t keys=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
+  int mapX=-1,mapY=-1,setting=0,page=0,tab=0,selected=0,scroll=0,touchX=128,touchY=96;uint32_t keys=0,lastActivityKeys=0,wingActivity=SDL_GetTicks(),wingSign=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
   const int raw[]={1,0,11,10,9,8,2,3,15,-1,12,13};const bool rawTrimui=std::getenv("POCKET_RAW_TRIMUI")!=nullptr;
   struct Press{int at,n;uint32_t mask;};std::vector<Press> script,hostScript;
   if(auto s=std::getenv("POCKET_DS_KEYS")){std::string text=s;size_t pos=0;while(pos<text.size()){Press p{};int used=0;if(std::sscanf(text.c_str()+pos,"%d:%u:%d%n",&p.at,&p.mask,&p.n,&used)!=3)break;script.push_back(p);pos+=used+1;}}
@@ -543,7 +562,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         if(pressed&(1u<<6))setting=(setting+DS_SETTINGS-1)%DS_SETTINGS;
         if(pressed&(1u<<7))setting=(setting+1)%DS_SETTINGS;
         if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1){layoutPick=true;layoutSel=prefs.layout;}else if(setting==2)prefs.resume=!prefs.resume;else if(setting==3)prefs.battle=1-prefs.battle;else if(setting==4)prefs.hud=!prefs.hud;
-          else if(setting==5)prefs.shader=(prefs.shader+1)%POCKET_SHADERS;else if(setting==6)prefs.colors=(prefs.colors+1)%POCKET_COLORS_COUNT;else if(setting==7)prefs.dim=!prefs.dim;else prefs.wingLeft=!prefs.wingLeft;}
+          else if(setting==5)prefs.shader=(prefs.shader+1)%POCKET_SHADERS;else if(setting==6)prefs.colors=(prefs.colors+1)%POCKET_COLORS_COUNT;else if(setting==7)prefs.dim=!prefs.dim;else if(setting==8)prefs.wingLeft=!prefs.wingLeft;else prefs.background=(prefs.look()+1)%POCKET_BACKGROUNDS;}
       }
       if(tab!=4 && tab!=5 && (pressed&(1u<<6))){if(tab==1 || tab==2)scroll=std::max(0,scroll-1);else selected=std::max(0,selected-1);}
       if(tab!=4 && tab!=5 && (pressed&(1u<<7))){if(tab==1 || tab==2)scroll=std::min(std::max(0,(tab==1?int(snap.bag.size()):int(snap.dexSeen.size())-1)-1),scroll+1);else selected=std::min(std::max(0,int(snap.party.size())-1),selected+1);}
@@ -573,8 +592,13 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     if((paused || showCompanion || showQuick) && audio.id)SDL_ClearQueuedAudio(audio.id);
     int ow=1024,oh=768;
     if(!ds_display_pixels(renderer,ow,oh)){std::fprintf(stderr,"DS display setup failed: %s\n",SDL_GetError());failed=true;break;}
-    SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_RenderClear(renderer);
+    const int look=prefs.look();
+    set_color(renderer,showCompanion?0:pocket_backdrop_for(look).outside);SDL_RenderClear(renderer);SDL_SetRenderDrawColor(renderer,0,0,0,255);
     pocket_shader_set(prefs.shader,prefs.colors,true);
+    // The still wings' dim: any press, a finger, or the wings' facts changing count as activity.
+    {uint32_t sign=uint32_t(snap.map)*2654435761u^uint32_t(snap.money)^uint32_t(snap.badges)<<20^uint32_t(snap.party.size())<<26;
+     for(auto& m:snap.party)sign=sign*31+uint32_t(m.hp);
+     if(keys!=lastActivityKeys || pointerDown || sign!=wingSign){wingActivity=SDL_GetTicks();lastActivityKeys=keys;wingSign=sign;}}
     bool wingPanels=false;  // the party is in a wing: no HUD party row over the game
     if(showCompanion){companion(canvas,snap,supported,tab,selected,summary,scroll,page,prefs,setting,mapArt,mapX,mapY);
       if(layoutPick)pd_layout_picker_draw(&canvas,"DS LAYOUT",ds_layout_options(),DSL_COUNT,prefs.layout,layoutSel,-1,&layoutScroll,layoutTiles);
@@ -585,13 +609,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(topInset)draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
       draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       // TOUCH IN WING / WINGS: the companion's panels in the wings (under a floating touch screen's dim).
-      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,partyArt,prefs.dim,oh);
+      if(place.panel[0].shown() || place.panel[1].shown() || place.split())gutter_screen(renderer,topInset?place.touch:place.top,look);
+      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,partyArt,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
       wingPanels=place.panel[0].shown();
       if(place.touchFloats){SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer,0,0,0,150);SDL_RenderFillRect(renderer,nullptr);SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_NONE);}
       if(place.touchFloats || place.inset)frame_screen(renderer,topInset?place.top:place.touch);
       if(topInset)draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       else draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
-      if(place.split())draw_halves(renderer,touchTex.p,nds->framebuffer(1),place);
+      if(place.split()){for(int i=0;i<2;i++)gutter_screen(renderer,place.half[i],look);draw_halves(renderer,touchTex.p,nds->framebuffer(1),place);}
       touchPlace=paused?DsPlacement{}:place;
     }
     if(showCompanion)touchPlace={};

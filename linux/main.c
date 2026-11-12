@@ -14,6 +14,8 @@
 #include "fly.h"
 #include "display_filter.h"
 #include "updater.h"
+#include "backdrop.h"
+#include "wing_look.h"
 #include "shader.h"
 #include "hud.h"
 #include "pd_dex.h"
@@ -627,6 +629,7 @@ static int menu_taps(struct pd_menu *m) {
   tapCount = 0;
   return row;
 }
+static uint32_t wingActivity; // the last input or wing change (draw_panel: the still wings dim)
 static void events(void) {
   pressed = 0;
   tapCount = 0;
@@ -635,6 +638,9 @@ static void events(void) {
   while (SDL_PollEvent(&e)) {
     if (e.type == SDL_QUIT)
       running = 0;
+    if (e.type == SDL_KEYDOWN || e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_JOYBUTTONDOWN ||
+        e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_FINGERDOWN || e.type == SDL_CONTROLLERAXISMOTION)
+      wingActivity = SDL_GetTicks();
     controller_device_event(&e);
     tap_event(&e);
     if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
@@ -1080,12 +1086,18 @@ static SDL_Rect sdl_rect(struct view_rect r) {
 static int gameScaling; // plorpOS: enum pd_scaling, for ASPECT ORIGINAL's picture
 static bool oledBlack;    // COLORS OLED: the panels' backdrops true black, like the screen round the game
 static bool dimCompanion; // DIM COMPANION: the companion and its panels drawn darker, against OLED burn-in
+static int background = POCKET_BACKGROUND_THEME; // BACKGROUND in force (backdrop.h)
+
 static uint32_t panel_back(void) {
-  return oledBlack ? 0 : 0x101418;
+  struct pocket_backdrop b = pocket_backdrop_for(background);
+  return b.cards ? b.card : oledBlack ? 0 : 0x101418;
 }
 static void dim_texture(SDL_Texture *t) {
-  uint8_t v = dimCompanion ? 150 : 255;
+  uint8_t v = pocket_wing_shade(background, dimCompanion, SDL_GetTicks() - wingActivity);
   SDL_SetTextureColorMod(t, v, v, v);
+}
+static void set_color(uint32_t c, uint8_t a) {
+  SDL_SetRenderDrawColor(renderer, c >> 16, c >> 8 & 0xFF, c & 0xFF, a);
 }
 static const struct view_layout *gameView; // COMPANION VIEW: where the game goes (NULL = the whole screen)
 static int hudRepelSteps; // the bottom strip's REPEL
@@ -1140,7 +1152,9 @@ static bool render_game(unsigned gw, unsigned gh) {
     }
     drawn = wideTexture;
   }
+  set_color(pocket_backdrop_for(background).outside, 255);
   SDL_RenderClear(renderer);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   if (pocket_shader_active()) {
     // SHADER / COLORS: a filtered copy of the same pixels (shader.cpp), drawn into the same rectangle.
     bool wide = drawn == wideTexture;
@@ -1392,6 +1406,19 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     scale = fit;
   if (scale < 1)
     scale = 1;
+  // BLACK / DARK: the wing is a card inset in its room, on the background, its content moved a step now and then.
+  struct pocket_backdrop look = pocket_backdrop_for(background);
+  struct view_rect room = r;
+  int dx = 0, dy = 0;
+  if (look.cards) {
+    int pad = (which == PANEL_TOP || which == PANEL_BOTTOM ? r.h : r.w) / 40;
+    if (pad < 3)
+      pad = 3;
+    pocket_wing_shift(background, SDL_GetTicks(), pad / 3, &dx, &dy);
+    r = (struct view_rect){r.x + pad, r.y + pad, r.w - 2 * pad - 2, r.h - 2 * pad - 2};
+    if (r.w < 8 || r.h < 8)
+      return;
+  }
   int w = r.w / scale, h = r.h / scale;
   if (w > CANVAS_MAX_W)
     w = CANVAS_MAX_W;
@@ -1408,10 +1435,13 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   if (strip)
     panel_text(g, s, which, a, b, c, sizeof a);
   uint32_t key = panelGen * 2654435761u ^ (uint32_t)(w * 65599 + h) ^ (battle ? 0x80000000u : 0) ^
+                 (uint32_t)background << 28 ^
                  (strip ? (uint32_t)(a[0] * 31 + b[3] * 7 + b[4] + c[7] * 131) : 0);
   if (key != panelKey[which] || w != panelW[which] || h != panelH[which]) {
     struct pd_canvas pc;
     pd_canvas_init(&pc, w, h, panelPixels);
+    struct pocket_wing_look wl;
+    pocket_wing_look_begin(background, &wl);
     pd_fill(&pc, 0, 0, w, h, panel_back());
     if (which == PANEL_LEFT)
       pd_ui_party_panel(&pc, g, s);
@@ -1421,21 +1451,53 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
       pd_ui_map_panel(&pc, g, s, false);
     else
       pd_ui_strip(&pc, a, b, c);
+    pocket_wing_look_end(&wl);
     SDL_UpdateTexture(panelTexture[which], &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
+    if (panelKey[which] != key)
+      wingActivity = SDL_GetTicks(); // the wing changed: not a still one
     panelKey[which] = key;
     panelW[which] = w;
     panelH[which] = h;
   }
-  uint32_t back = panel_back();
-  SDL_SetRenderDrawColor(renderer, back >> 16, back >> 8 & 0xFF, back & 0xFF, 255);
-  SDL_RenderFillRect(renderer, &(SDL_Rect){r.x, r.y, r.w, r.h});
+  if (look.cards) {
+    set_color(look.outside, 255);
+    SDL_RenderFillRect(renderer, &(SDL_Rect){room.x, room.y, room.w, room.h});
+    SDL_Rect card = {r.x + dx, r.y + dy, r.w, r.h};
+    set_color(look.card, 255);
+    SDL_RenderFillRect(renderer, &card);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    set_color(look.border, look.borderAlpha);
+    SDL_RenderDrawRect(renderer, &card);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+  } else {
+    set_color(panel_back(), 255);
+    SDL_RenderFillRect(renderer, &(SDL_Rect){r.x, r.y, r.w, r.h});
+  }
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   dim_texture(panelTexture[which]);
   SDL_RenderCopy(renderer, panelTexture[which], &(SDL_Rect){0, 0, w, h},
-                 &(SDL_Rect){r.x + (r.w - w * scale) / 2, r.y + (r.h - h * scale) / 2, w * scale, h * scale});
+                 &(SDL_Rect){r.x + dx + (r.w - w * scale) / 2, r.y + dy + (r.h - h * scale) / 2, w * scale, h * scale});
+}
+/* BLACK / DARK: a thin dark grey line round the game beside the wings, so its edge doesn't meet pure black. */
+static void draw_gutter(void) {
+  struct pocket_backdrop look = pocket_backdrop_for(background);
+  int ow, oh;
+  if (!look.cards || SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0)
+    return;
+  SDL_Rect g = lastGameRect;
+  if (g.x <= 0 && g.y <= 0 && g.w >= ow && g.h >= oh)
+    return;
+  int t = g.w >= 960 ? 2 : 1;
+  set_color(look.gutter, 255);
+  SDL_Rect sides[4] = {{g.x - t, g.y - t, g.w + 2 * t, t}, {g.x - t, g.y + g.h, g.w + 2 * t, t}, {g.x - t, g.y, t, g.h},
+                       {g.x + g.w, g.y, t, g.h}};
+  SDL_RenderFillRects(renderer, sides, 4);
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 }
 static void draw_panels(const struct view_layout *v, const struct pd_game *g, const struct pd_snapshot *s,
                         bool battle, bool companionInRight) {
+  if (v->left.w || v->right.w || v->top.w || v->bottom.w)
+    draw_gutter();
   draw_panel(PANEL_LEFT, v->left, g, s, battle);
   if (!companionInRight)
     draw_panel(PANEL_RIGHT, v->right, g, s, battle);
@@ -2183,6 +2245,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     pocket_shader_set(settings.shader, settings.colors, false);
     oledBlack = settings.colors == POCKET_COLORS_OLED;
     dimCompanion = settings.dimCompanion;
+    background = pocket_background_resolve(settings.background, oledBlack);
     gameScaling = settings.aspect == PD_ASPECT_ORIGINAL || !wideSupported ? settings.scaling : PD_SCALE_INTEGER;
     events();
     audio_check();
@@ -3260,6 +3323,7 @@ enum {
   ROW_SHADER,
   ROW_COLORS,
   ROW_DIM,
+  ROW_BACKGROUND,
   ROW_FULL,
   ROW_ORIENT,
   ROW_TOUCH,
@@ -3320,6 +3384,8 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_SHADER, "SHADER\t%s", SHADERS[st.shader >= 0 && st.shader < PD_SHADERS ? st.shader : 0]);
       ROW(ROW_COLORS, "COLORS\t%s", COLORS[st.colors >= 0 && st.colors < PD_COLORS ? st.colors : 0]);
       ROW(ROW_DIM, "DIM COMPANION\t%s", st.dimCompanion ? "ON" : "OFF");
+      ROW(ROW_BACKGROUND, "BACKGROUND\t%s",
+          pocket_background_name(pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED)));
       ROW(ROW_FULL, "FULLSCREEN\t%s", fullscreenOn ? "ON" : "OFF");
       ROW(ROW_ORIENT, "ORIENTATION\t%s", ORIENTATIONS[st.orientation]);
       ROW(ROW_TOUCH, "GAME TOUCH\t%s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
@@ -3441,6 +3507,17 @@ static int settings_page(bool *foldersChanged) {
     case ROW_DIM:
       st.dimCompanion = !st.dimCompanion;
       break;
+    case ROW_BACKGROUND: {
+      static const char *const rows[POCKET_BACKGROUNDS] = {"BLACK\tTRUE BLACK, FOR OLED", "DARK\tA NEAR BLACK",
+                                                           "THEME\tTHE THEME'S DARK SLATE"};
+      int b = menu_pick("BACKGROUND", rows, POCKET_BACKGROUNDS,
+                        pocket_background_resolve(st.background, st.colors == POCKET_COLORS_OLED));
+      if (b < 0)
+        save = false;
+      else
+        st.background = b;
+      break;
+    }
     case ROW_FULL:
       fullscreen_toggle(); // saves FULLSCREEN itself
       save = false;
