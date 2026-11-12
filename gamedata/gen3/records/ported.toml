@@ -3736,8 +3736,8 @@ kotlin = false
 wildHeaders = 0x0874AC1C
 
 # From app/src/main/kotlin/com/pokedaisy/app/companion/data/Pokedex.kt / GuideRom.kt (POKEDEX_MONOMYTH, GUIDE_TABLES_MONOMYTH):
-# what the 3DS / Linux companion reads of Monomyth so far - its dex flags and save offsets. Its dex pages (packed egg
-# groups, its own evolution scheme) and trainers (TrainerMon strides of its own) aren't read there yet.
+# what the 3DS / Linux companion reads of Monomyth: its dex flags and pages (the pages' packed egg groups and its own
+# evolution scheme aren't shown there) and its save offsets. Its trainers (TrainerMon strides of its own) aren't read there yet.
 [record.POKEDEX_MONOMYTH_FLAGS]
 schema = 'gen3_dexflags'
 kotlin = false
@@ -3756,6 +3756,20 @@ footprints = 0
 palettes = 0x084880D0
 speciesInfo = 0x084F6DBC
 speciesToNational = 0x084F4520
+hiddenAbilityOff = 0x16
+entryStride = 0x28
+entryCategoryLen = 14
+entryHeightOff = 0x0E
+entryDescOff = 0x14
+baseStats = { kotlin = 'BaseStatsLayout(stride = 24, genderOff = 0x09, eggGroupsOff = 0x0D, eggGroupsPacked = true, abilitiesOff = 0x14)' }
+categorySuffix = 'Pokémon'
+metric = true
+decimalPoint = '.'
+probeCategory = 'Groundhog'
+probeHeight = 4
+probeWeight = 85
+probeSpecies = 176
+levelUpLearnsets = 0x0850664C
 speciesCount = 405
 nationalCount = 362
 regionalCount = 362
@@ -3772,6 +3786,7 @@ abilityNames = 0x084EEA8B
 palettes = 0x0848855C
 speciesInfo = 0x084F7244
 speciesToNational = 0x084F49A8
+levelUpLearnsets = 0x08506AD4
 
 [record.GUIDE_TABLES_MONOMYTH]
 schema = 'gen3_guide'

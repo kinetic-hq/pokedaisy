@@ -167,6 +167,9 @@ probeHeight = 'pokedex.probeHeight'
 probeWeight = 'pokedex.probeWeight'
 probeSpecies = 'pokedex.probeSpecies'
 regionName = 'pokedex.regionName'
+dexMetric = 'pokedex.metric'
+dexUnitSpace = 'pokedex.unitSpace'
+dexDecimal = 'pokedex.decimalPoint'
 
 # GUIDE's live pages.
 [part.guide]
@@ -815,12 +818,12 @@ values = { partyMenu = 0x0203B0A0, partyMenuGrid = true }
 
 [config.monomyth]
 name = 'MONOMYTH'
-parts = ['ram', 'foes', 'icons', 'battle', 'engine', 'boxes']
+parts = ['ram', 'foes', 'icons', 'dex', 'battle', 'engine', 'boxes']
 values = { partyMenuGrid = true }
 
 [config.monomyth_v1_1]
 name = 'MONOMYTH_V1_1'
-parts = ['ram', 'foes', 'icons', 'battle', 'engine', 'boxes']
+parts = ['ram', 'foes', 'icons', 'dex', 'battle', 'engine', 'boxes']
 values = { partyMenuGrid = true }
 
 [config.soulgold_v1_2_1]
