@@ -41,6 +41,7 @@ bool pocket_save_backup(const char*,time_t);
 extern const char* pocket_backup_dir;
 extern int pd_ds_xbox_layout;  // BUTTON LAYOUT XBOX, set by the host (outside the unnamed namespace, so it links)
 }
+extern "C" { extern int pd_ds_ui_size; }  // UI SIZE, set by the host (main.c), defined below
 namespace {
 DsCore* active=nullptr;
 uint32_t read32(uint32_t a){return active->read32(a);}
@@ -154,7 +155,6 @@ extern "C" bool pd_ds_wing_left_save(const char* root,bool left){
 constexpr int DS_SETTINGS=10;
 struct Texture {SDL_Texture* p;~Texture(){SDL_DestroyTexture(p);}};
 struct Audio {SDL_AudioDeviceID id=0;SDL_AudioStream* stream=nullptr;~Audio(){SDL_FreeAudioStream(stream);if(id)SDL_CloseAudioDevice(id);}};
-extern "C" { int pd_ds_ui_size=1; int pd_ds_wing_room=1; }
 // UI SIZE: the companion's canvas (341 x 256) at no more than the scale the host's companion has for this size of
 // screen (its least canvas: LARGE 320 x 240, MEDIUM 427 x 320, SMALL 560 x 420), so both are about as large.
 int ds_ui_scale(int w,int h,int ow,int oh){
@@ -403,6 +403,8 @@ extern "C" { void (*pd_ds_device_event)(const SDL_Event*)=nullptr; }
 extern "C" { bool (*pd_ds_host_event)(const SDL_Event*)=nullptr; }
 // BUTTON LAYOUT XBOX: the bottom face button is A (SDL reports pads by position); else the right one, as before.
 extern "C" { int pd_ds_xbox_layout=0; }
+// UI SIZE and WING ROOM, the host's SCREEN settings, for the DS companion and the layouts with wings.
+extern "C" { int pd_ds_ui_size=1; int pd_ds_wing_room=1; }
 // The host's HOTKEYS (main.c's HA_* bits: 1 GAME MENU, 2 COMPANION, 4 SAVE STATE, 5 LOAD STATE, 8 / 9 DS LAYOUT
 // NEXT / BACK, 10 SWAP SCREENS), read and cleared once a frame; and its screenshot, taken before a present.
 extern "C" { unsigned (*pd_ds_host_actions)(void)=nullptr; }
