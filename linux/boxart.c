@@ -42,6 +42,66 @@ static int findResult = -1;
 static const char *const LIBRETRO_SYSTEMS[] = {"Nintendo - Game Boy Advance", "Nintendo - Game Boy Color",
                                                "Nintendo - Game Boy", "Nintendo - Nintendo DS"};
 
+static int working; // the game being looked for now (1) or none (0), for the progress (under lock)
+static bool forceAll; // SYNC BOX ART > ALL AGAIN: this queue looks again even where art was found (under lock)
+
+/* GBA game codes (3 letters at 0xAC), DS game codes (at 0x0C) and Game Boy titles (at 0x134): the libretro name. */
+static const struct {
+  const char *key, *name;
+  int system;
+} BASES[] = {
+    {"AXV", "Pokemon - Ruby Version (USA, Europe)", BOXART_GBA},
+    {"AXP", "Pokemon - Sapphire Version (USA, Europe)", BOXART_GBA},
+    {"BPE", "Pokemon - Emerald Version (USA, Europe)", BOXART_GBA},
+    {"BPR", "Pokemon - FireRed Version (USA, Europe)", BOXART_GBA},
+    {"BPG", "Pokemon - LeafGreen Version (USA, Europe)", BOXART_GBA},
+    {"CPU", "Pokemon - Platinum Version (USA)", BOXART_NDS},
+    {"IPK", "Pokemon - HeartGold Version (USA)", BOXART_NDS},
+    {"IPG", "Pokemon - SoulSilver Version (USA)", BOXART_NDS},
+    {"IRB", "Pokemon - Black Version (USA, Europe) (NDSi Enhanced)", BOXART_NDS},
+    {"IRA", "Pokemon - White Version (USA, Europe) (NDSi Enhanced)", BOXART_NDS},
+    {"IRE", "Pokemon - Black Version 2 (USA, Europe) (NDSi Enhanced)", BOXART_NDS},
+    {"IRD", "Pokemon - White Version 2 (USA, Europe) (NDSi Enhanced)", BOXART_NDS},
+    {"POKEMON RED", "Pokemon - Red Version (USA, Europe) (SGB Enhanced)", BOXART_GB},
+    {"POKEMON BLUE", "Pokemon - Blue Version (USA, Europe) (SGB Enhanced)", BOXART_GB},
+    {"POKEMON YELLOW", "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)", BOXART_GB},
+    {"POKEMON_GLD", "Pokemon - Gold Version (USA, Europe) (SGB Enhanced) (GB Compatible)", BOXART_GBC},
+    {"POKEMON_SLV", "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible)", BOXART_GBC},
+    {"PM_CRYSTAL", "Pokemon - Crystal Version (USA, Europe) (Rev 1)", BOXART_GBC},
+};
+
+bool boxart_base_of_rom(const char *path, char *name, size_t size, int *system) {
+  name[0] = 0;
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return false;
+  unsigned char head[0x150];
+  size_t n = fread(head, 1, sizeof head, f);
+  fclose(f);
+  if (n < sizeof head)
+    return false;
+  char gba[4] = {(char)head[0xAC], (char)head[0xAD], (char)head[0xAE], 0};
+  char nds[4] = {(char)head[0x0C], (char)head[0x0D], (char)head[0x0E], 0};
+  char gb[17];
+  memcpy(gb, head + 0x134, 16);
+  gb[16] = 0;
+  for (int i = 0; i < 16; i++)
+    if ((unsigned char)gb[i] < 0x20 || (unsigned char)gb[i] > 0x7E)
+      gb[i] = 0;
+  for (size_t i = 0; i < sizeof BASES / sizeof *BASES; i++) {
+    const char *key = BASES[i].key;
+    bool hit = BASES[i].system == BOXART_GBA   ? !strcmp(gba, key)
+               : BASES[i].system == BOXART_NDS ? !strcmp(nds, key)
+                                                : !strncmp(gb, key, strlen(key));
+    if (hit) {
+      snprintf(name, size, "%s", BASES[i].name);
+      *system = BASES[i].system;
+      return true;
+    }
+  }
+  return false;
+}
+
 static void path_of(char *out, size_t size, const char *stem, const char *kind) {
   if (!strcmp(kind, "custom"))
     snprintf(out, size, "%s/boxart/custom/%s.img", root, stem);
@@ -109,6 +169,16 @@ static char *fetch_image(const char *url, const char *header, size_t *len) {
     data = NULL;
   }
   return data;
+}
+
+static char *libretro_named(const char *name, int system, size_t *len) {
+  char sys[128], enc[800], url[1024];
+  http_encode(LIBRETRO_SYSTEMS[system >= 0 && system <= BOXART_NDS ? system : 0], sys, sizeof sys);
+  char safe[256];
+  boxart_libretro_name(name, safe, sizeof safe);
+  http_encode(safe, enc, sizeof enc);
+  snprintf(url, sizeof url, "https://thumbnails.libretro.com/%s/Named_Boxarts/%s.png", sys, enc);
+  return fetch_image(url, NULL, len);
 }
 
 /* The libretro thumbnails: the file name as it is, then without [tags]. */
@@ -193,13 +263,24 @@ static bool look(const struct boxart_game *g) {
   char key[80];
   boxart_key(key, sizeof key);
   size_t len = 0;
+  bool base = false;
   char *img = from_libretro(g, &len);
+  if (!img && !g->hack && g->base[0]) // an original under a name of the player's own
+    img = libretro_named(g->base, g->baseSystem, &len);
   if (!img)
     img = from_steamgriddb(g, key, &len);
-  char path[1400];
+  char path[1400], had[1400];
+  path_of(had, sizeof had, g->stem, "img");
+  path_of(path, sizeof path, g->stem, "base");
+  bool ownArt = pocket_exists(had) && !pocket_exists(path); // art of its own from before: never swapped for the base
+  if (!img && g->hack && g->base[0] && !ownArt) // a hack nobody has art for: the game it was made from, with a banner
+    base = (img = libretro_named(g->base, g->baseSystem, &len)) != NULL;
   if (!img) {
-    path_of(path, sizeof path, g->stem, "none");
-    write_file(path, "", 0);
+    path_of(path, sizeof path, g->stem, "img");
+    if (!pocket_exists(path)) { // looked again and found nothing: what it had stays
+      path_of(path, sizeof path, g->stem, "none");
+      write_file(path, "", 0);
+    }
     return false;
   }
   path_of(path, sizeof path, g->stem, "img");
@@ -208,9 +289,25 @@ static bool look(const struct boxart_game *g) {
   if (ok) {
     path_of(path, sizeof path, g->stem, "none");
     pocket_remove(path);
+    path_of(path, sizeof path, g->stem, "base");
+    if (base)
+      write_file(path, "", 0);
+    else
+      pocket_remove(path);
     SDL_AtomicAdd(&generation, 1);
   }
   return ok;
+}
+
+int boxart_generation(void) { return SDL_AtomicGet(&generation); }
+
+bool boxart_is_base(const char *stem) {
+  char path[1400];
+  path_of(path, sizeof path, stem, "custom");
+  if (pocket_exists(path))
+    return false;
+  path_of(path, sizeof path, stem, "base");
+  return pocket_exists(path);
 }
 
 static bool tried(const char *stem) {
@@ -240,6 +337,10 @@ static int work(void *unused) {
         g = queue[queueNext++];
         have = true;
       }
+    working = have && !isFind;
+    bool force = forceAll;
+    if (queueNext >= queueCount)
+      forceAll = false;
     SDL_UnlockMutex(lock);
     if (!have) {
       SDL_Delay(200);
@@ -253,10 +354,35 @@ static int work(void *unused) {
         SDL_AtomicSet(&finding, 0);
       }
       SDL_UnlockMutex(lock);
-    } else if (!tried(g.stem))
-      look(&g);
+    } else if (force ? !boxart_has_custom(g.stem) : !tried(g.stem))
+      look(&g); // ALL AGAIN: the old art stays until a new one replaces it
+    SDL_LockMutex(lock);
+    working = 0;
+    SDL_UnlockMutex(lock);
   }
   return 0;
+}
+
+void boxart_sync(const struct boxart_game *games, int count, bool all) {
+  char path[1400];
+  for (int i = 0; i < count; i++) {
+    path_of(path, sizeof path, games[i].stem, "none"); // tried before and none found: try again
+    pocket_remove(path);
+  }
+  SDL_AtomicAdd(&generation, 1);
+  boxart_queue(games, count);
+  SDL_LockMutex(lock);
+  forceAll = all && count > 0;
+  SDL_UnlockMutex(lock);
+}
+
+bool boxart_progress(int *done, int *total) {
+  SDL_LockMutex(lock);
+  *total = queueCount;
+  *done = queueNext - working;
+  bool busy = queueNext < queueCount || working;
+  SDL_UnlockMutex(lock);
+  return busy;
 }
 
 void boxart_init(const char *data) {
@@ -338,6 +464,7 @@ void boxart_queue(const struct boxart_game *games, int count) {
   queue = copy;
   queueCount = copy ? count : 0;
   queueNext = 0;
+  forceAll = false;
   SDL_UnlockMutex(lock);
 }
 

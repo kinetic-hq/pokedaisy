@@ -120,6 +120,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   SteamGridDB with your own key; your own picture wins), each game with its system, `ORIGINAL` / `ROM HACK` and its
   version; `GAME FOLDERS` and `SETTINGS` in a slim top bar; `FIND BOX ART`, `SET BOX ART` (a copied path or link, or
   an image dropped on the window) and `RENAME` from `X`, a right click or a long press; D-pad, mouse, wheel and touch.
+  Tiles are box shaped (3:4) with the art filling them, long names wrap to up to three lines, `SYNC BOX ART` fetches
+  every game's art with progress (`MISSING ONLY` or `ALL AGAIN`), an original under any file name gets its box from
+  its header's game code, and a hack with no art of its own gets its base game's box with a name banner.
 - **DS wings** on the desktop host: `TOUCH IN WING` puts the touch screen in one wing and the companion's party in
   the other; `WINGS` is `ONE SCREEN` with party and trainer panels in both wings and the touch screen floating in;
   `TOUCH PIECES` takes the touch screen apart into its buttons, each on a card in the wings, balanced between them

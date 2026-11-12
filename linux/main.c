@@ -1189,7 +1189,8 @@ static void grid_art_draw(void) {
     SDL_Texture *t = boxart_texture(renderer, gridStems[a->index], &tw, &th);
     if (!t || tw <= 0 || th <= 0)
       continue;
-    double wx = a->w * k, wy = a->h * k, f = wx / tw < wy / th ? wx / tw : wy / th;
+    // Cover: the art fills the well, its overhang cut off evenly (a box a little off 3:4 loses a sliver).
+    double wx = a->w * k, wy = a->h * k, f = wx / tw > wy / th ? wx / tw : wy / th;
     int dw = (int)(tw * f + 0.5), dh = (int)(th * f + 0.5);
     SDL_Rect dst = {canvasAt.x + (int)(a->x * k + (wx - dw) / 2), canvasAt.y + (int)(a->y * k + (wy - dh) / 2), dw, dh};
     int top = a->y > a->clipY ? a->y : a->clipY;
@@ -1200,6 +1201,8 @@ static void grid_art_draw(void) {
       continue;
     SDL_Rect clip = {canvasAt.x + (int)(a->x * k), canvasAt.y + (int)(top * k), (int)(a->w * k + 0.5),
                      (int)((bottom - top) * k + 0.5)};
+    if (clip.w > wx + 0.5)
+      clip.w = (int)(wx + 0.5);
     SDL_RenderSetClipRect(renderer, &clip);
     SDL_RenderCopy(renderer, t, NULL, &dst);
   }
@@ -5081,7 +5084,7 @@ static void grid_set_art(const char *stem, const char *source) {
   else
     notice(*err ? err : "Couldn't use that picture");
 }
-enum { GRID_BAR_FOLDERS, GRID_BAR_SETTINGS };
+enum { GRID_BAR_SYNC, GRID_BAR_FOLDERS, GRID_BAR_SETTINGS };
 struct library {
   struct rom_list games;
   struct game_grid_item *items;
@@ -5091,7 +5094,7 @@ struct library {
   struct game_grid grid;
   int count;
 };
-static const char *const LIBRARY_BAR[] = {"GAME FOLDERS", "SETTINGS"};
+static const char *const LIBRARY_BAR[] = {"SYNC BOX ART", "GAME FOLDERS", "SETTINGS"};
 static void library_free(struct library *l) {
   for (int i = 0; i < l->count; i++)
     free(l->stems[i]);
@@ -5132,8 +5135,11 @@ static void library_load(struct library *l) {
       count = i;
       break;
     }
+    l->art[i].hack = !game_is_original(label);
+    boxart_base_of_rom(l->games.paths[i], l->art[i].base, sizeof l->art[i].base, &l->art[i].baseSystem);
     game_version(label, l->versions[i], sizeof l->versions[i]);
-    l->items[i] = (struct game_grid_item){l->games.names[i], l->versions[i], l->art[i].system, !game_is_original(label)};
+    l->items[i] = (struct game_grid_item){l->games.names[i], l->versions[i], l->art[i].system, l->art[i].hack,
+                                          boxart_is_base(l->stems[i])};
   }
   l->count = count;
   game_grid_init(&l->grid, l->items, count);
@@ -5142,7 +5148,7 @@ static void library_load(struct library *l) {
   l->grid.scrollY = scroll;
   l->grid.title = POCKET_HOST_NAME;
   l->grid.bar = LIBRARY_BAR;
-  l->grid.barCount = 2;
+  l->grid.barCount = 3;
   l->grid.hint = "A PLAY   X OPTIONS   Y SETTINGS   B QUIT";
   l->grid.emptyPath = ROMS_PATH;
   char path[1100];
@@ -5651,7 +5657,8 @@ static void library_screen(void) {
   }
   struct game_grid *grid = &lib.grid;
   uint32_t touchAt = 0;
-  bool wasTouching = false, finding = false;
+  bool wasTouching = false, finding = false, syncing = false;
+  static char syncHint[96];
   while (running) {
     events();
     repeat_directions();
@@ -5723,6 +5730,24 @@ static void library_screen(void) {
       free(droppedFile);
       droppedFile = NULL;
     }
+    static int artSeen = -1;
+    if (artSeen != boxart_generation()) { // new art: a hack may now show its base game's box, with a banner
+      artSeen = boxart_generation();
+      for (int i = 0; i < lib.count; i++)
+        lib.items[i].banner = boxart_is_base(lib.stems[i]);
+    }
+    if (syncing) {
+      // SYNC BOX ART's progress along the bottom; the banners (a hack's base box) come with the reload at the end.
+      int done = 0, total = 0;
+      if (boxart_progress(&done, &total)) {
+        snprintf(syncHint, sizeof syncHint, "BOX ART: %d OF %d GAMES", done, total);
+        grid->hint = syncHint;
+      } else {
+        syncing = false;
+        library_load(&lib);
+        notice("Box art up to date");
+      }
+    }
     if (finding) {
       int r = boxart_find_result();
       if (r >= 0) {
@@ -5734,7 +5759,16 @@ static void library_screen(void) {
                       : "No box art found: a SteamGridDB key in SETTINGS finds more");
       }
     }
-    if (bar == GRID_BAR_FOLDERS) {
+    if (bar == GRID_BAR_SYNC && lib.count) {
+      static const char *const rows[] = {"MISSING ONLY\tGAMES WITH NO BOX ART YET",
+                                         "ALL AGAIN\tEVERY GAME, YOUR OWN ART STAYS"};
+      int pick = menu_pick("SYNC BOX ART", rows, 2, 0);
+      if (pick >= 0) {
+        boxart_sync(lib.art, lib.count, pick == 1);
+        syncing = true;
+        notice("Looking for box art...");
+      }
+    } else if (bar == GRID_BAR_FOLDERS) {
       if (folders_screen())
         library_load(&lib);
     } else if (bar == GRID_BAR_SETTINGS) {

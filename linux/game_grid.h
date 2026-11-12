@@ -17,6 +17,7 @@ struct game_grid_item {
   const char *version; // "v4.5.3", or "" / NULL
   int system;          // enum boxart_system
   bool hack;           // a ROM hack (else ORIGINAL)
+  bool banner;         // the art is the base game's box: the name goes on a banner across its foot
 };
 
 struct game_grid_art {

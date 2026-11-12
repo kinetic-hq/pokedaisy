@@ -9,8 +9,10 @@
 #define PAD 8
 #define BAR_H 26
 #define HINT_H 16
-#define TARGET_TILE 96 // tiles are about this wide; the columns follow the canvas
+#define TARGET_TILE 84 // tiles are about this wide; the columns follow the canvas
 #define TAG_H 12
+#define LINE_H 12 // a line of a tile's name
+#define NAME_LINES 2 // room kept for the name (a third line takes the version's)
 #define RING 0xFF8A1Eu // the app's focus ring (AppColors.focusRing)
 
 struct palette {
@@ -41,8 +43,8 @@ static void layout(struct game_grid *g, int w, int h) {
   if (g->columns < 2)
     g->columns = 2;
   g->tileW = (w - PAD * (g->columns + 1)) / g->columns;
-  int artH = (g->tileW - 8) * 3 / 4;
-  g->tileH = 4 + artH + 4 + 16 + TAG_H + 2 + 12 + 4;
+  int artH = (g->tileW - 8) * 4 / 3; // portrait, the shape of a GBA or DS box
+  g->tileH = 4 + artH + 3 + NAME_LINES * LINE_H + 3 + TAG_H + 2 + 12 + 2;
   g->gridTop = BAR_H + 6;
   g->gridBottom = h - (g->hint ? HINT_H : 0) - 2;
 }
@@ -78,6 +80,68 @@ static int tag(struct pd_canvas *c, int x, int y, const char *text, uint32_t col
   return w;
 }
 
+/* A name in at most `most` lines of width w: one line if it fits, else the break that makes the longest line shortest
+ * (two lines, then three); the last line cut to fit when even that doesn't. starts[] / ends[] index name. */
+static int span_width(const char *name, int from, int to) {
+  char buf[256];
+  snprintf(buf, sizeof buf, "%.*s", to - from, name + from);
+  return pd_text_width(buf);
+}
+
+static int wrap_name(const char *name, int w, int most, int starts[3], int ends[3]) {
+  int words[24], wordEnd[24], n = 0;
+  for (int i = 0; name[i] && n < 24;) {
+    while (name[i] == ' ')
+      i++;
+    if (!name[i])
+      break;
+    words[n] = i;
+    while (name[i] && name[i] != ' ')
+      i++;
+    wordEnd[n++] = i;
+  }
+  if (!n)
+    return 0;
+#define SPAN(a, b) span_width(name, words[a], wordEnd[b])
+  if (SPAN(0, n - 1) <= w || most == 1 || n == 1) {
+    starts[0] = words[0], ends[0] = wordEnd[n - 1];
+    return 1;
+  }
+  int best = 1 << 30, b1 = -1, b2 = -1;
+  for (int i = 0; i + 1 < n; i++) {
+    int m = SPAN(0, i) > SPAN(i + 1, n - 1) ? SPAN(0, i) : SPAN(i + 1, n - 1);
+    if (m <= w && m < best)
+      best = m, b1 = i;
+  }
+  if (b1 >= 0 || most == 2 || n == 2) {
+    if (b1 < 0) // nothing fits in two: the even split, its second line cut
+      for (int i = 0; i + 1 < n; i++) {
+        int m = SPAN(0, i) > SPAN(i + 1, n - 1) ? SPAN(0, i) : SPAN(i + 1, n - 1);
+        if (m < best)
+          best = m, b1 = i;
+      }
+    starts[0] = words[0], ends[0] = wordEnd[b1];
+    starts[1] = words[b1 + 1], ends[1] = wordEnd[n - 1];
+    return 2;
+  }
+  best = 1 << 30;
+  for (int i = 0; i + 2 < n; i++)
+    for (int j = i + 1; j + 1 < n; j++) {
+      int a = SPAN(0, i), b = SPAN(i + 1, j), d = SPAN(j + 1, n - 1);
+      int m = a > b ? a : b;
+      m = m > d ? m : d;
+      bool fits = m <= w;
+      int score = fits ? m : (1 << 20) + m;
+      if (score < best)
+        best = score, b1 = i, b2 = j;
+    }
+#undef SPAN
+  starts[0] = words[0], ends[0] = wordEnd[b1];
+  starts[1] = words[b1 + 1], ends[1] = wordEnd[b2];
+  starts[2] = words[b2 + 1], ends[2] = wordEnd[n - 1];
+  return 3;
+}
+
 static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const struct palette *p) {
   const struct game_grid_item *it = &g->items[i];
   int x, y;
@@ -90,33 +154,50 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   pd_round_rect(c, x, y, g->tileW, g->tileH, 6, on ? RING : p->tileEdge);
   pd_round_rect(c, x + 1, y + 1, g->tileW - 2, g->tileH - 2, 5, on ? p->tileOn : p->tile);
   // The art's well: the system's colour, darkened, with its name, until a picture covers it.
-  int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = (g->tileW - 8) * 3 / 4;
+  int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = (g->tileW - 8) * 4 / 3;
   int sys = it->system >= 0 && it->system <= BOXART_NDS ? it->system : 0;
   uint32_t sc = SYSTEM_COLORS[sys];
   uint32_t well = pd_dark ? ((sc >> 2) & 0x3F3F3F) + 0x0A0A0A : (sc & 0xFEFEFE) / 2 + 0x7F7F7F;
   pd_round_rect(c, ax, ay, aw, ah, 4, well);
   const char *sn = SYSTEM_NAMES[sys];
   pd_heading(c, ax + (aw - pd_text_width(sn)) / 2, ay + ah / 2 - 9, sn, pd_dark ? 0x9AA3B2 : 0xFFFFFF, PD_NO_SHADOW);
-  if (g->artCount < GAME_GRID_ART_MAX) {
-    struct game_grid_art *a = &g->art[g->artCount++];
-    a->x = ax, a->y = ay, a->w = aw, a->h = ah, a->index = i;
-    a->clipY = g->gridTop;
-    a->clipH = g->gridBottom - g->gridTop;
-  }
-  int ty = ay + ah + 3;
   // Every game here is a Pokémon game: the tile shows the rest of the name, which then fits.
   const char *name = it->name ? it->name : "";
   if (!strncmp(name, "Pok\xC3\xA9mon ", 9) && name[9])
     name += 9;
-  pd_text_fit(c, x + 4, ty - 3, g->tileW - 8, name, p->text, PD_NO_SHADOW);
-  ty += 15;
+  // A hack shown with its base game's box: its name on a banner across the box's foot (the art stops above it).
+  int bannerH = it->banner ? 15 : 0;
+  if (g->artCount < GAME_GRID_ART_MAX) {
+    struct game_grid_art *a = &g->art[g->artCount++];
+    a->x = ax, a->y = ay, a->w = aw, a->h = ah - bannerH, a->index = i;
+    a->clipY = g->gridTop;
+    a->clipH = g->gridBottom - g->gridTop;
+  }
+  if (bannerH) {
+    pd_fill(c, ax, ay + ah - bannerH, aw, bannerH, 0xD9822B);
+    pd_text_fit(c, ax + 3, ay + ah - bannerH - 1, aw - 6, name, 0xFFFFFF, PD_NO_SHADOW);
+  }
+  int ty = ay + ah + 3;
+  int starts[3], ends[3];
+  bool version = it->version && *it->version;
+  int lines = wrap_name(name, g->tileW - 8, version ? NAME_LINES : NAME_LINES + 1, starts, ends);
+  for (int l = 0; l < lines; l++) {
+    char line[256];
+    snprintf(line, sizeof line, "%.*s", ends[l] - starts[l], name + starts[l]);
+    pd_text_fit(c, x + 4, ty - 3 + l * LINE_H, g->tileW - 8, line, p->text, PD_NO_SHADOW);
+  }
+  ty += NAME_LINES * LINE_H + 3;
+  if (lines > NAME_LINES) // the third line sits where the tags were; they move down a line (no version here)
+    ty += LINE_H;
   int tx = x + 4;
   tx += tag(c, tx, ty, sn, sc) + 3;
   const char *kind = it->hack ? "ROM HACK" : "ORIGINAL";
+  if (it->hack && tx + pd_text_width(kind) + 6 > x + g->tileW - 4) // a narrow tile: the short word
+    kind = "HACK";
   if (tx + pd_text_width(kind) + 6 <= x + g->tileW - 4)
     tag(c, tx, ty, kind, it->hack ? 0xD9822B : 0x2E9E6A);
   ty += TAG_H + 2;
-  if (it->version && *it->version)
+  if (version)
     pd_text_fit(c, x + 4, ty - 4, g->tileW - 8, it->version, p->muted, PD_NO_SHADOW);
 }
 
