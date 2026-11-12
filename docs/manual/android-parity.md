@@ -42,7 +42,7 @@ the fork's README.
 - **Fast forward music**: `FF MUSIC` plays the game's own sound sped up
   (`SPED-UP`) or turns it off; there's no `STEADY` music yet.
 - **Save editing**: `EDIT SAVE` in a game's options changes money, the bag and
-  your Pokemon in the GBA games and English HeartGold and SoulSilver, with a
+  your Pokemon in the GBA games and English HeartGold, SoulSilver and Platinum, with a
   backup first. Trading between two saves stays on Android.
 - **Updates**: the program updates itself from this version's releases.
 

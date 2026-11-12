@@ -1,6 +1,6 @@
-// GPL-3.0. SAVE EDITOR's HeartGold / SoulSilver part (save_edit.h): the general and PC blocks of the battery save, each
-// changed where the game last saved it and its CRC-16 written again, the way the save's own footer checks it
-// (pokeheartgold's save_data.c; the Pokemon records are Gen4Reader.kt's). Species, moves, items and abilities are the
+// GPL-3.0. SAVE EDITOR's HeartGold / SoulSilver and Platinum part (save_edit.h): the general and PC blocks of the
+// battery save, each changed where the game last saved it and its CRC-16 written again, the way the save's own footer
+// checks it (pokeheartgold's and pokeplatinum's save_data.c; the Pokemon records are Gen4Reader.kt's). Species, moves, items and abilities are the
 // cart's own (its personal / move NARCs and its ability names), so nothing is written that the game doesn't have.
 #include "../save_edit.h"
 
@@ -26,12 +26,27 @@ namespace {
 using Bytes = std::vector<uint8_t>;
 
 constexpr size_t COPY = 0x40000;
-constexpr size_t GENERAL_SIZE = 0xF628, STORAGE_OFF = 0xF700, STORAGE_SIZE = 0x12310;
 constexpr uint32_t MAGIC = 0x20060623;
-constexpr size_t MONEY = 0x78, PARTY_COUNT = 0x94, PARTY = 0x98, BAG = 0x644;
-constexpr int PARTY_MON = 236, BOX_MON = 136, BOXES = 18, BOX_SLOTS = 30, BOX_STRIDE = 0x1000;
+constexpr int PARTY_MON = 236, BOX_MON = 136, BOXES = 18, BOX_SLOTS = 30;
 constexpr int POCKETS = 8, P_KEY = 1, P_TMHM = 2;
 constexpr int SPECIES_MAX = 493, MOVE_MAX = 467, FIRST_HM = 420, LAST_HM = 427;
+
+// Where a game keeps things: its blocks (each ends in a FOOTER-byte footer: the save number, for Platinum the block's
+// own count, then the size, the magic, the block id and the CRC), the general block's money / party / bag and the
+// PC's boxes, and the cart's tables.
+struct Layout {
+  size_t general, storageOff, storage, footer;
+  size_t money, partyCount, party, bag, boxBase, boxStride;
+  int pockets[POCKETS];
+  DsGame game;
+  const char *personal, *moves, *messages;
+  unsigned abilityBank;
+};
+const Layout JOHTO = {0xF628, 0xF700, 0x12310, 16, 0x78, 0x94, 0x98, 0x644, 0, 0x1000,
+                      {165, 50, 101, 12, 40, 64, 24, 30}, DsGame::Johto, "/a/0/0/2", "/a/0/1/1", "/a/0/2/7", 720};
+const Layout PLATINUM = {0xCF2C, 0xCF2C, 0x121E4, 20, 0x7C, 0x9C, 0xA0, 0x630, 4, 0xFF0,
+                         {165, 50, 100, 12, 40, 64, 15, 30}, DsGame::Platinum, "/poketool/personal/pl_personal.narc",
+                         "/poketool/waza/pl_waza_tbl.narc", "/msgdata/pl_msg.narc", 610};
 constexpr int SPECIES_UNOWN = 201, SPECIES_SHEDINJA = 292;
 const char *const POCKET_NAME[POCKETS] = {"ITEMS",   "KEY ITEMS", "TMs & HMs",  "MAIL",
                                           "MEDICINE", "BERRIES",   "POKé BALLS", "BATTLE ITEMS"};
@@ -55,18 +70,19 @@ uint16_t crc16(const uint8_t *p, size_t n) {
   return crc;
 }
 
-// The block at BASE (SIZE with its 16-byte footer): its save number, or -1 when the footer doesn't check.
-long block_number(const uint8_t *save, size_t saveSize, size_t base, size_t size) {
+// The block at BASE (SIZE with its FOOTER-byte footer): its save number, or -1 when the footer doesn't check.
+long block_number(const uint8_t *save, size_t saveSize, size_t base, size_t size, size_t footer) {
   if (base + size > saveSize)
     return -1;
-  const uint8_t *f = save + base + size - 16;
-  if (rd32(f + 4) != size || rd32(f + 8) != MAGIC || rd16(f + 14) != crc16(save + base, size - 16))
+  const uint8_t *f = save + base + size - footer;
+  if (rd32(f + footer - 12) != size || rd32(f + footer - 8) != MAGIC ||
+      rd16(f + footer - 2) != crc16(save + base, size - footer))
     return -1;
   return long(rd32(f));
 }
 // The newer copy of a block that checks, or SIZE_MAX.
-size_t active(const uint8_t *save, size_t saveSize, size_t off, size_t size) {
-  long a = block_number(save, saveSize, off, size), b = block_number(save, saveSize, COPY + off, size);
+size_t active(const uint8_t *save, size_t saveSize, size_t off, size_t size, size_t footer) {
+  long a = block_number(save, saveSize, off, size, footer), b = block_number(save, saveSize, COPY + off, size, footer);
   if (a < 0 && b < 0)
     return SIZE_MAX;
   return b > a ? COPY + off : off;
@@ -277,6 +293,7 @@ bool stat_forms(int species) {
 }
 
 struct G4 {
+  const Layout *lay = &JOHTO;
   Bytes raw;
   size_t general = 0, storage = 0; // the active copies' offsets in RAW
   Bytes gen, sto;                  // their bytes, as edited
@@ -287,27 +304,29 @@ struct G4 {
 };
 G4 *G(save_edit *e) { return static_cast<G4 *>(e->impl); }
 
-const char *species_name(save_edit *, int id) {
+const char *species_name(save_edit *e, int id) {
   if (id < 1 || id > SPECIES_MAX)
     return nullptr;
-  const char *s = ds_species(id, DsGame::Johto);
+  const char *s = ds_species(id, G(e)->lay->game);
   return *s && std::strcmp(s, "?") ? s : nullptr;
 }
 int species_max(save_edit *) { return SPECIES_MAX; }
 const char *move_name(save_edit *e, int id) {
   if (id < 1 || id > MOVE_MAX || size_t(id) >= G(e)->movePp.size() || !G(e)->movePp[size_t(id)])
     return nullptr;
-  const char *s = ds_move(id, DsGame::Johto);
+  const char *s = ds_move(id, G(e)->lay->game);
   return *s && std::strcmp(s, "?") ? s : nullptr;
 }
 int move_max(save_edit *) { return MOVE_MAX; }
-const char *item_name(save_edit *, int id) {
+const char *item_name(save_edit *e, int id) {
   if (id < 1)
     return nullptr;
-  const char *s = ds_item(id, DsGame::Johto);
+  const char *s = ds_item(id, G(e)->lay->game);
   return *s && std::strcmp(s, "?") ? s : nullptr;
 }
-int item_max(save_edit *) { return int(std::size(pd_ds_data::johtoItems)) - 1; }
+int item_max(save_edit *e) {
+  return int(G(e)->lay->game == DsGame::Johto ? std::size(pd_ds_data::johtoItems) : std::size(pd_ds_data::items)) - 1;
+}
 // Items a Pokemon can hold: everything up to the TMs but Mail, and the Apricorn balls.
 bool holdable(save_edit *e, int id) {
   return item_name(e, id) && ((id >= 1 && id <= 327 && !(id >= 137 && id <= 148)) || (id >= 492 && id <= 500));
@@ -342,12 +361,12 @@ bool abilities(save_edit *e, int species, const char **first, const char **secon
 
 uint8_t *record(G4 *g, int box, int slot) {
   if (box == SE_PARTY)
-    return slot >= 0 && slot < 6 && uint32_t(slot) < rd32(g->gen.data() + PARTY_COUNT)
-               ? g->gen.data() + PARTY + size_t(slot) * PARTY_MON
+    return slot >= 0 && slot < 6 && uint32_t(slot) < rd32(g->gen.data() + g->lay->partyCount)
+               ? g->gen.data() + g->lay->party + size_t(slot) * PARTY_MON
                : nullptr;
   if (box < 0 || box >= BOXES || slot < 0 || slot >= BOX_SLOTS)
     return nullptr;
-  return g->sto.data() + size_t(box) * BOX_STRIDE + size_t(slot) * BOX_MON;
+  return g->sto.data() + g->lay->boxBase + size_t(box) * g->lay->boxStride + size_t(slot) * BOX_MON;
 }
 bool empty_record(const uint8_t *r) {
   for (int i = 0; i < BOX_MON; i++)
@@ -558,10 +577,10 @@ bool set_mon(save_edit *e, int box, int slot, const se_mon *want, char *err, siz
 
 int heal(save_edit *e) {
   G4 *g = G(e);
-  uint32_t count = rd32(g->gen.data() + PARTY_COUNT);
+  uint32_t count = rd32(g->gen.data() + g->lay->partyCount);
   int healed = 0;
   for (uint32_t i = 0; i < count && i < 6; i++) {
-    uint8_t *r = g->gen.data() + PARTY + i * PARTY_MON;
+    uint8_t *r = g->gen.data() + g->lay->party + i * PARTY_MON;
     Mon m = decode(r, true);
     if (!m.ok || !rd16(m.A()) || ((rd32(m.B() + 16) >> 30) & 1))
       continue;
@@ -587,12 +606,12 @@ int heal(save_edit *e) {
 }
 
 const char *title(save_edit *e) { return G(e)->title.c_str(); }
-long money(save_edit *e) { return long(rd32(G(e)->gen.data() + MONEY)); }
+long money(save_edit *e) { return long(rd32(G(e)->gen.data() + G(e)->lay->money)); }
 long money_max(save_edit *) { return 999999; }
 bool set_money(save_edit *e, long v, char *err, size_t n) {
   if (v < 0 || v > 999999)
     return say(err, n, "Money goes from 0 to 999999"), false;
-  wr32(G(e)->gen.data() + MONEY, uint32_t(v));
+  wr32(G(e)->gen.data() + G(e)->lay->money, uint32_t(v));
   e->dirty = true;
   return true;
 }
@@ -602,15 +621,15 @@ bool set_coins(save_edit *, long, char *err, size_t n) {
 }
 int pockets(save_edit *) { return POCKETS; }
 const char *pocket_name(save_edit *, int p) { return p >= 0 && p < POCKETS ? POCKET_NAME[p] : ""; }
-int pocket_slots(save_edit *, int p) { return p >= 0 && p < POCKETS ? pd_ds_data::johtoPockets[p] : 0; }
+int pocket_slots(save_edit *e, int p) { return p >= 0 && p < POCKETS ? G(e)->lay->pockets[p] : 0; }
 uint8_t *pocket_base(G4 *g, int p) {
-  size_t off = BAG;
+  size_t off = g->lay->bag;
   for (int i = 0; i < p; i++)
-    off += size_t(pd_ds_data::johtoPockets[i]) * 4;
+    off += size_t(g->lay->pockets[i]) * 4;
   return g->gen.data() + off;
 }
 bool pocket_item(save_edit *e, int p, int i, se_item *out) {
-  if (p < 0 || p >= POCKETS || i < 0 || i >= pd_ds_data::johtoPockets[p])
+  if (p < 0 || p >= POCKETS || i < 0 || i >= pocket_slots(e, p))
     return false;
   const uint8_t *s = pocket_base(G(e), p) + i * 4;
   out->id = rd16(s);
@@ -626,7 +645,7 @@ int item_max_count(save_edit *, int p, int id) {
   return 999;
 }
 bool set_item(save_edit *e, int p, int i, int id, int count, char *err, size_t n) {
-  if (p < 0 || p >= POCKETS || i < 0 || i >= pd_ds_data::johtoPockets[p])
+  if (p < 0 || p >= POCKETS || i < 0 || i >= pocket_slots(e, p))
     return say(err, n, "There's no such bag slot"), false;
   if (pocket_locked(e, p))
     return say(err, n, pocket_locked(e, p)), false;
@@ -635,7 +654,7 @@ bool set_item(save_edit *e, int p, int i, int id, int count, char *err, size_t n
   if (old.id >= FIRST_HM && old.id <= LAST_HM && p == P_TMHM)
     return say(err, n, "HMs are the story's: the editor leaves them be"), false;
   uint8_t *base = pocket_base(G(e), p);
-  const int slots = pd_ds_data::johtoPockets[p];
+  const int slots = pocket_slots(e, p);
   if (!count || !id) {
     if (!old.id)
       return true;
@@ -658,28 +677,30 @@ bool set_item(save_edit *e, int p, int i, int id, int count, char *err, size_t n
 int boxes(save_edit *) { return BOXES; }
 int box_slots(save_edit *) { return BOX_SLOTS; }
 
-void finish(Bytes &out, size_t base, size_t size, const Bytes &block) {
-  std::memcpy(out.data() + base, block.data(), size - 16);
-  wr16(out.data() + base + size - 2, crc16(out.data() + base, size - 16));
+void finish(Bytes &out, size_t base, size_t size, size_t footer, const Bytes &block) {
+  std::memcpy(out.data() + base, block.data(), size - footer);
+  wr16(out.data() + base + size - 2, crc16(out.data() + base, size - footer));
 }
 bool verify(save_edit *e, const uint8_t *b, size_t size, char *err, size_t n) {
   G4 *g = G(e);
+  const Layout &L = *g->lay;
   if (size != g->raw.size())
     return say(err, n, "The save's size changed"), false;
-  if (active(b, size, 0, GENERAL_SIZE) != g->general || active(b, size, STORAGE_OFF, STORAGE_SIZE) != g->storage)
+  if (active(b, size, 0, L.general, L.footer) != g->general ||
+      active(b, size, L.storageOff, L.storage, L.footer) != g->storage)
     return say(err, n, "The game wouldn't load the changed save"), false;
-  if (std::memcmp(b + g->general, g->gen.data(), GENERAL_SIZE - 16) ||
-      std::memcmp(b + g->storage, g->sto.data(), STORAGE_SIZE - 16))
+  if (std::memcmp(b + g->general, g->gen.data(), L.general - L.footer) ||
+      std::memcmp(b + g->storage, g->sto.data(), L.storage - L.footer))
     return say(err, n, "The save read back differently"), false;
   for (size_t i = 0; i < size; i++) {
-    bool inGeneral = i >= g->general && i < g->general + GENERAL_SIZE;
-    bool inStorage = i >= g->storage && i < g->storage + STORAGE_SIZE;
+    bool inGeneral = i >= g->general && i < g->general + L.general;
+    bool inStorage = i >= g->storage && i < g->storage + L.storage;
     if (!inGeneral && !inStorage && b[i] != g->raw[i])
       return say(err, n, "A byte outside the game's save blocks changed"), false;
     // Inside them only the data and the CRC may change: the save numbers, sizes and magic stay.
     size_t at = inGeneral ? i - g->general : inStorage ? i - g->storage : 0;
-    size_t blockSize = inGeneral ? GENERAL_SIZE : STORAGE_SIZE;
-    if ((inGeneral || inStorage) && at >= blockSize - 16 && at < blockSize - 2 && b[i] != g->raw[i])
+    size_t blockSize = inGeneral ? L.general : L.storage;
+    if ((inGeneral || inStorage) && at >= blockSize - L.footer && at < blockSize - 2 && b[i] != g->raw[i])
       return say(err, n, "The save's footer changed"), false;
   }
   return true;
@@ -687,8 +708,8 @@ bool verify(save_edit *e, const uint8_t *b, size_t size, char *err, size_t n) {
 bool build(save_edit *e, uint8_t **out, size_t *size, char *err, size_t n) {
   G4 *g = G(e);
   Bytes bytes = g->raw;
-  finish(bytes, g->general, GENERAL_SIZE, g->gen);
-  finish(bytes, g->storage, STORAGE_SIZE, g->sto);
+  finish(bytes, g->general, g->lay->general, g->lay->footer, g->gen);
+  finish(bytes, g->storage, g->lay->storage, g->lay->footer, g->sto);
   if (!verify(e, bytes.data(), bytes.size(), err, n))
     return false;
   *out = static_cast<uint8_t *>(std::malloc(bytes.size()));
@@ -718,31 +739,33 @@ extern "C" struct save_edit *se_open_gen4(const uint8_t *save, size_t saveSize, 
   char code[5] = {};
   std::memcpy(code, rom + 0x0C, 4);
   const bool johto = !std::strncmp(code, "IPK", 3) || !std::strncmp(code, "IPG", 3);
-  if (!johto)
-    return say(err, errSize,
-               !std::strncmp(code, "CPU", 3) ? "Platinum saves aren't covered yet"
-                                              : "The save editor covers HeartGold / SoulSilver among the DS games so far"),
+  const bool platinum = !std::strncmp(code, "CPU", 3);
+  if (!johto && !platinum)
+    return say(err, errSize, "The save editor covers HeartGold / SoulSilver and Platinum among the DS games so far"),
            nullptr;
   if (code[3] != 'E')
-    return say(err, errSize, "Only English HeartGold / SoulSilver saves are covered so far"), nullptr;
+    return say(err, errSize, "Only English HeartGold / SoulSilver and Platinum saves are covered so far"), nullptr;
   if (saveSize < 2 * COPY)
-    return say(err, errSize, "This save is too small to be a HeartGold / SoulSilver save"), nullptr;
+    return say(err, errSize, "This save is too small to be a DS save"), nullptr;
   auto g = std::make_unique<G4>();
+  g->lay = platinum ? &PLATINUM : &JOHTO;
+  const Layout &L = *g->lay;
   g->raw.assign(save, save + saveSize);
-  g->general = active(save, saveSize, 0, GENERAL_SIZE);
-  g->storage = active(save, saveSize, STORAGE_OFF, STORAGE_SIZE);
+  g->general = active(save, saveSize, 0, L.general, L.footer);
+  g->storage = active(save, saveSize, L.storageOff, L.storage, L.footer);
   if (g->general == SIZE_MAX || g->storage == SIZE_MAX)
     return say(err, errSize, "The save doesn't check out, so the editor won't change it"), nullptr;
-  if (block_number(save, saveSize, g->general, GENERAL_SIZE) != block_number(save, saveSize, g->storage, STORAGE_SIZE))
+  if (block_number(save, saveSize, g->general, L.general, L.footer) !=
+      block_number(save, saveSize, g->storage, L.storage, L.footer))
     return say(err, errSize, "The save's blocks are from different saves: save in the game once, then try again"),
            nullptr;
-  g->gen.assign(save + g->general, save + g->general + GENERAL_SIZE);
-  g->sto.assign(save + g->storage, save + g->storage + STORAGE_SIZE);
-  if (rd32(g->gen.data() + PARTY_COUNT) > 6)
+  g->gen.assign(save + g->general, save + g->general + L.general);
+  g->sto.assign(save + g->storage, save + g->storage + L.storage);
+  if (rd32(g->gen.data() + L.partyCount) > 6)
     return say(err, errSize, "The save's party doesn't read right, so the editor won't change it"), nullptr;
   try {
     Bytes cart(rom, rom + romSize);
-    Bytes personal = rom_file(cart, "/a/0/0/2"), moves = rom_file(cart, "/a/0/1/1");
+    Bytes personal = rom_file(cart, L.personal), moves = rom_file(cart, L.moves);
     g->personal.resize(SPECIES_MAX + 1);
     for (int s = 1; s <= SPECIES_MAX; s++) {
       Bytes rec = narc_member(personal, unsigned(s));
@@ -756,7 +779,7 @@ extern "C" struct save_edit *se_open_gen4(const uint8_t *save, size_t saveSize, 
       if (rec.size() >= 7)
         g->movePp[mv] = rec[6];
     }
-    g->abilityNames = bank_lines(narc_member(rom_file(cart, "/a/0/2/7"), 720));
+    g->abilityNames = bank_lines(narc_member(rom_file(cart, L.messages), L.abilityBank));
   } catch (const std::exception &) {
     return say(err, errSize, "This cart's tables couldn't be read, so the editor won't change its save"), nullptr;
   }
@@ -764,7 +787,7 @@ extern "C" struct save_edit *se_open_gen4(const uint8_t *save, size_t saveSize, 
   if (g->personal[1][0] != 45 || g->personal[1][22] != 65 || g->abilityNames.size() < 124 ||
       g->abilityNames[65] != "Overgrow" || g->movePp[33] != 35)
     return say(err, errSize, "This cart's tables aren't the ones the editor knows"), nullptr;
-  g->title = code[2] == 'K' ? "POKéMON HEARTGOLD" : "POKéMON SOULSILVER";
+  g->title = platinum ? "POKéMON PLATINUM" : code[2] == 'K' ? "POKéMON HEARTGOLD" : "POKéMON SOULSILVER";
   auto *e = new save_edit{};
   e->ops = &G4_OPS;
   e->impl = g.release();
