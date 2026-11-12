@@ -194,15 +194,20 @@ void frame_screen(SDL_Renderer* r,const DsBox& box){
 }
 std::string ds_unsupported_label; // the cart, when the companion can't read it (ds_cart_label)
 void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int selected,bool summary,int scroll,int page,const DsPrefs& prefs,int setting,const DsMapArt& art,int mapX,int mapY){
-  pd_fill(&c,0,0,c.w,c.h,0x50a8a8);pd_title_box(&c,5,5,c.w-10,25,0xffffff);
-  pd_text(&c,12,10,"PokeDaisy DS",0x303030,PD_NO_SHADOW);
+  // The GBA companion's look (pd_style: the theme, DARK MODE): its backdrop, title and list windows, tab colours.
+  pd_backdrop(&c);pd_title_box(&c,5,5,c.w-10,25,PD_TITLE_FILL);
+  pd_text(&c,12,pd_text_y(5,25),"POKEDAISY DS",PD_TITLE_TEXT,PD_TITLE_SHADOW);
   const char* tabs[]={"PARTY","BAG","DEX","STATUS","SET","MAP"};
-  for(int i=0;i<6;i++){int x=5+i*(c.w-10)/6;pd_title_box(&c,x,34,(c.w-10)/6-2,23,i==tab?0xffefbc:0xffffff);pd_text(&c,x+8,38,tabs[i],0x303030,PD_NO_SHADOW);}
+  for(int i=0;i<6;i++){
+    int x=5+i*(c.w-10)/6,w=(c.w-10)/6-2;
+    pd_title_box(&c,x,34,w,23,i==tab?pd_cur->tabSelectedFill:pd_cur->tabIdleFill);
+    pd_text(&c,x+(w-pd_text_width(tabs[i]))/2,pd_text_y(34,23),tabs[i],i==tab?PD_TITLE_TEXT:PD_MUTED,i==tab?PD_TITLE_SHADOW:PD_MUTED_SHADOW);
+  }
   pd_list_box(&c,5,61,c.w-10,c.h-86);int y=68;
-  auto line=[&](const std::string& t){pd_text_fit(&c,13,y,c.w-26,t.c_str(),0x303030,PD_NO_SHADOW);y+=20;};
+  auto line=[&](const std::string& t){pd_text_fit(&c,13,y,c.w-26,t.c_str(),PD_LABEL,PD_LABEL_SHADOW);y+=20;};
   if(tab==4){
     const std::string rows[]={std::string("SCREEN: ")+(prefs.bottom?"BOTTOM":"TOP"),std::string("DS LAYOUT: ")+ds_layout_name(prefs.layout),std::string("AUTO-RESUME: ")+(prefs.resume?"ON":"OFF"),std::string("BATTLES: ")+(prefs.battle?"AUTO":"OFF"),std::string("HUD: ")+(prefs.hud?"ON":"OFF"),std::string("SHADER: ")+pocket_shader_name(prefs.shader),std::string("COLORS: ")+pocket_colors_name(prefs.colors),std::string("DIM COMPANION: ")+(prefs.dim?"ON":"OFF"),std::string("DS WING SIDE: TOUCH ")+(prefs.wingLeft?"LEFT":"RIGHT"),std::string("BACKGROUND: ")+pocket_background_name(prefs.look())};
-    for(int i=0;i<DS_SETTINGS;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,18,0xffe4a0);pd_text_fit(&c,13,y,c.w-26,rows[i].c_str(),0x303030,PD_NO_SHADOW);y+=17;}
+    for(int i=0;i<DS_SETTINGS;i++){if(i==setting)pd_fill(&c,10,y-2,c.w-20,18,PD_ROW_SELECTED);pd_text_fit(&c,13,y,c.w-26,rows[i].c_str(),PD_LABEL,PD_LABEL_SHADOW);y+=17;}
   }
   else if(!supported){
     // What this cart is and what the companion reads, so a player knows which dump to look for.
@@ -215,7 +220,7 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
   else if(tab==5){
     if(art.background.empty())line("Map art unavailable");
     else {
-      int ox=(c.w-art.width)/2,oy=61;
+      int ox=(c.w-art.width)/2,oy=std::max(61,61+(c.h-86-art.height)/2);  // centred in the list window
       for(int y=0;y<art.height;y++)for(int x=0;x<art.width;x++)c.px[(oy+y)*c.w+ox+x]=art.background[y*art.width+x]&0xffffff;
       auto sprite=[&](const std::vector<uint32_t>& img,int cx,int cy){for(int y=0;y<16;y++)for(int x=0;x<16;x++){
         int dx=cx-8+x,dy=cy-8+y;if(dx>=0 && dx<art.width && dy>=0 && dy<art.height && (img[y*16+x]>>24))c.px[(oy+dy)*c.w+ox+dx]=img[y*16+x]&0xffffff;
@@ -230,8 +235,8 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
       int cx=ox+pd_ds_data::mapOriginX+mapX*pd_ds_data::mapTile,cy=oy+pd_ds_data::mapOriginY+mapY*pd_ds_data::mapTile;
       pd_clip(&c,ox,oy,art.width,art.height);
       pd_fill(&c,cx,cy,7,1,0xe84840);pd_fill(&c,cx,cy+6,7,1,0xe84840);pd_fill(&c,cx,cy,1,7,0xe84840);pd_fill(&c,cx+6,cy,1,7,0xe84840);pd_unclip(&c);
-      pd_fill(&c,10,9,c.w-20,17,0xffffff);
-      const char* name=ds_map_name(ds_map_section(mapX,mapY));pd_text_fit(&c,12,10,c.w-24,*name?name:"No location",0x303030,PD_NO_SHADOW);
+      pd_fill(&c,10,9,c.w-20,17,PD_TITLE_FILL);
+      const char* name=ds_map_name(ds_map_section(mapX,mapY));pd_text_fit(&c,12,10,c.w-24,*name?name:"No location",PD_TITLE_TEXT,PD_TITLE_SHADOW);
     }
   }
   else if(tab==0 && summary && selected<int(s.party.size())){
@@ -245,7 +250,7 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
       line(std::string(m.egg?"EGG  ":"")+"GENDER: "+(m.gender==1?"MALE":m.gender==2?"FEMALE":"NONE"));
     }else for(int i=0;i<4;i++)if(m.moves[i])line(std::string(ds_move(m.moves[i]))+"  PP "+std::to_string(m.pp[i]));
   }else if(tab==0){for(size_t i=0;i<s.party.size();i++){
-    auto& m=s.party[i];if(int(i)==selected)pd_fill(&c,10,y-2,c.w-20,20,0xffe4a0);
+    auto& m=s.party[i];if(int(i)==selected)pd_fill(&c,10,y-2,c.w-20,20,PD_ROW_SELECTED);
     line(m.nickname+" Lv"+std::to_string(m.level)+"  "+std::to_string(m.hp)+"/"+std::to_string(m.maxHp));
   }}else if(tab==1){int rows=(c.h-100)/20;for(int i=scroll;i<int(s.bag.size()) && i<scroll+rows;i++)line(std::string(ds_item(s.bag[i].id))+" x"+std::to_string(s.bag[i].count));}
   else if(tab==2){
@@ -260,7 +265,7 @@ void companion(pd_canvas& c,const DsCompanion& s,bool supported,int tab,int sele
     }
   }
   else {line("TRAINER: "+s.trainer);line("MONEY: "+std::to_string(s.money));line(std::string("PLACE: ")+ds_place(s.map));line("MAP: "+std::to_string(s.map));line(s.dexValid?(s.nationalDex?"NATIONAL DEX: UNLOCKED":"NATIONAL DEX: LOCKED"):"DEX: UNAVAILABLE");}
-  pd_text_fit(&c,9,c.h-20,c.w-18,tab==5?"D-pad move  A player  L/R tabs":tab==4?"Up/Down select  A change  L/R tabs":tab==0 && summary?"Left/Right info/moves  Up/Down Pokemon":tab==1 || tab==2?"Up/Down scroll  Left/Right page  L/R tabs":"L/R tabs  A summary  B back  HOME game",0xffffff,PD_NO_SHADOW);
+  pd_text_fit(&c,9,c.h-20,c.w-18,tab==5?"D-pad move  A player  L/R tabs":tab==4?"Up/Down select  A change  L/R tabs":tab==0 && summary?"Left/Right info/moves  Up/Down Pokemon":tab==1 || tab==2?"Up/Down scroll  Left/Right page  L/R tabs":"L/R tabs  A summary  B back  HOME game",PD_ON_BACKDROP,PD_ON_BACKDROP_SHADOW);
 }
 }
 // The party as the GBA panels and HUD read it: nicknames, HP, level, status (the DS species drawn by the caller).
@@ -677,7 +682,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       blocked|=keys&4095u;
       int dx=(pressed&(1u<<4)?1:0)-(pressed&(1u<<5)?1:0);
       int dy=(pressed&(1u<<7)?1:0)-(pressed&(1u<<6)?1:0);
-      if(dx || dy)quickSelected=quick_step(4,quickSelected,dx,dy,341,256);
+      if(dx || dy)quickSelected=quick_step(4,quickSelected,dx,dy,canvas.w,canvas.h);
       if(pressed&(1u<<1))showQuick=false;
       else if((pressed&1) && !quickItems[quickSelected].why){
         showQuick=false;
@@ -697,7 +702,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       blocked|=keys&4095u;
       // DS LAYOUT's picker (A on its SET row): the D-pad walks the tiles, A wears one, B leaves it as it was.
       if(layoutPick){
-        int cols=pd_layout_picker_columns(341);
+        int cols=pd_layout_picker_columns(canvas.w);
         if(pressed&(1u<<4))layoutSel=std::min(DSL_COUNT-1,layoutSel+1);
         if(pressed&(1u<<5))layoutSel=std::max(0,layoutSel-1);
         if(pressed&(1u<<6))layoutSel=std::max(0,layoutSel-cols);
@@ -775,6 +780,18 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     if((paused || showCompanion || showQuick) && audio.id)SDL_ClearQueuedAudio(audio.id);
     int ow=1024,oh=768;
     if(!ds_display_pixels(renderer,ow,oh)){std::fprintf(stderr,"DS display setup failed: %s\n",SDL_GetError());failed=true;break;}
+    {
+      // The companion, menus and toasts fill the window at UI SIZE's scale, as the GBA companion's canvas does (at
+      // least the 341 x 256 everything is laid out for).
+      int sc=ds_ui_scale(341,256,ow,oh),cw=std::clamp(ow/sc,341,1024),ch=std::clamp(oh/sc,256,768);
+      if(cw!=canvas.w || ch!=canvas.h){
+        SDL_DestroyTexture(ui.p);SDL_DestroyTexture(overlay.p);
+        ui.p=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB888,SDL_TEXTUREACCESS_STREAMING,cw,ch);
+        overlay.p=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,cw,ch);
+        SDL_SetTextureBlendMode(overlay.p,SDL_BLENDMODE_BLEND);
+        uiPixels.assign(size_t(cw)*ch,0);pd_canvas_init(&canvas,cw,ch,uiPixels.data());layoutScroll=0;
+      }
+    }
     const int look=prefs.look();
     set_color(renderer,showCompanion?0:pocket_backdrop_for(look).outside);SDL_RenderClear(renderer);SDL_SetRenderDrawColor(renderer,0,0,0,255);
     pocket_shader_set(prefs.shader,prefs.colors,true);
@@ -785,7 +802,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     bool wingPanels=false;  // the party is in a wing: no HUD party row over the game
     if(showCompanion){companion(canvas,snap,supported,tab,selected,summary,scroll,page,prefs,setting,mapArt,mapX,mapY);
       if(layoutPick)pd_layout_picker_draw(&canvas,"DS LAYOUT",ds_layout_options(),DSL_COUNT,prefs.layout,layoutSel,-1,&layoutScroll,layoutTiles);
-      uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
+      uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),canvas.w,canvas.h,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
     else{
       auto placeIn=[&](int room){return ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom,
                                                              prefs.wingLeft,room);};
@@ -824,7 +841,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     bool toastShown=!showCompanion && !paused && !toast.empty() && int(toastUntil-SDL_GetTicks())>0;
     if(hudShown || toastShown){
       for(auto& p:uiPixels)p=QUICK_CLEAR;
-      if(toastShown){int tw=pd_text_width(toast.c_str())+20;pd_title_box(&canvas,(341-tw)/2,8,tw,22,0xffffff);pd_text(&canvas,(341-tw)/2+10,12,toast.c_str(),0x303030,PD_NO_SHADOW);}
+      if(toastShown){int tw=pd_text_width(toast.c_str())+20;pd_title_box(&canvas,(canvas.w-tw)/2,8,tw,22,PD_TITLE_FILL);pd_text(&canvas,(canvas.w-tw)/2+10,pd_text_y(8,22),toast.c_str(),PD_TITLE_TEXT,PD_TITLE_SHADOW);}
       if(!hudShown){}
       else if(showQuick)quick_draw(&canvas,nullptr,quickItems,4,quickSelected);
       else {
@@ -835,7 +852,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
           if(!ds_party_icon(c,mon,*ctx.art,x,y,faded))pd_text_fit(c,x,y+10,32,m->nickname,faded?0xa8b0c0:0xf8f8f8,0x303840);
         });
       }
-      quick_finish(&canvas);blit(renderer,overlay.p,uiPixels.data(),341,256,ow,oh);
+      quick_finish(&canvas);blit(renderer,overlay.p,uiPixels.data(),canvas.w,canvas.h,ow,oh);
     }
     if(ds_touch_shown(touchPlace) && !showCompanion && !paused && !showQuick && (keys&(1u<<2))){
       int x,y;bool on=true;
@@ -844,7 +861,11 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_Rect outline{x-5,y-5,11,11};SDL_RenderDrawRect(renderer,&outline);
       SDL_SetRenderDrawColor(renderer,255,255,255,255);SDL_RenderDrawLine(renderer,x-4,y,x+4,y);SDL_RenderDrawLine(renderer,x,y-4,x,y+4);
     }}
-    if(paused){pd_fill(&canvas,0,0,341,256,0x303838);pd_title_box(&canvas,15,40,311,170,0xffffff);pd_text(&canvas,28,55,"PokeDaisy DS / PAUSED",0x303030,PD_NO_SHADOW);pd_text(&canvas,28,90,"B resume   A save state",0x303030,PD_NO_SHADOW);pd_text(&canvas,28,120,"X load state   START quit",0x303030,PD_NO_SHADOW);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);}
+    if(paused){
+      pd_backdrop(&canvas);int bx=(canvas.w-311)/2,by=(canvas.h-170)/2;pd_title_box(&canvas,bx,by,311,25,PD_TITLE_FILL);
+      pd_text(&canvas,bx+10,pd_text_y(by,25),"PAUSED",PD_TITLE_TEXT,PD_TITLE_SHADOW);pd_list_box(&canvas,bx,by+30,311,140);
+      pd_text(&canvas,bx+13,by+50,"B resume   A save state",PD_LABEL,PD_LABEL_SHADOW);pd_text(&canvas,bx+13,by+80,"X load state   START quit",PD_LABEL,PD_LABEL_SHADOW);
+      blit(renderer,ui.p,uiPixels.data(),canvas.w,canvas.h,ow,oh);}
     if(shot && limit && frame==limit-1){std::vector<uint32_t> pixels(size_t(ow)*oh);if(!SDL_RenderReadPixels(renderer,nullptr,SDL_PIXELFORMAT_ARGB8888,pixels.data(),ow*4))pd_png_write(shot,ow,oh,pixels.data());}
     if(pd_ds_present)pd_ds_present();else SDL_RenderPresent(renderer);
     frame++;

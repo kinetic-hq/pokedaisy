@@ -528,6 +528,9 @@ wherever it shows; a drag works too. With a controller, hold SELECT, move the
 pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
 and A. Escape pauses the game.
 
+The DS companion fills the window and wears the same theme and `DARK MODE` as
+the Game Boy Advance companion; `UI SIZE` sets how large its text is.
+
 The companion reads one DS game so far, Platinum (USA, revision 1): its party,
 bag, dex and Town Map. It goes by the game code inside the file (`CPUE`,
 revision 1), so a trimmed or re-dumped copy works too, and so does Renegade
