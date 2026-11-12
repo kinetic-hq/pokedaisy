@@ -326,7 +326,7 @@ struct pd_summary_learn {
     struct pd_summary_learn_row (*row)(const void*, int index, char* scratch, size_t capacity);
     int count, first;
 };
-struct pd_summary_move { const char* name; int type, power, pp; };
+struct pd_summary_move { const char* name; int type, power, pp, lowPp; }; // lowPp: pd_move_low_pp()
 struct pd_summary_view {
     const struct pd_game* game; // type names and effectiveness; NULL for standard DS types
     void* ctx;

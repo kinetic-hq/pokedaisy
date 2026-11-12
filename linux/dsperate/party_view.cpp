@@ -91,7 +91,7 @@ void party_summary(pd_canvas* c,const DsCompanion& s,const std::vector<std::vect
   stats.hiddenPowerPower = pd_hidden_power_power(&stats);
   shared.stats = &stats;
   for (int i = 0; i < 4; i++) if (int move = mon.moves[i])
-    shared.moves[i] = {ds_move(move, s.game), ds_move_type(move, s.game), ds_move_power(move, s.game), mon.pp[i]};
+    shared.moves[i] = {ds_move(move, s.game), ds_move_type(move, s.game), ds_move_power(move, s.game), mon.pp[i], pd_move_low_pp(nullptr, move, mon.pp[i])};
   const auto moves = page == PD_SUMMARY_LEARN && art ? ds_level_moves(*art, s.game, mon.species) : std::vector<DsDexMove>{};
   if (learnLast) *learnLast = pd_ui_summary_learn_last(c->h, int(moves.size()));
   struct LearnContext {const std::vector<DsDexMove>& moves; DsGame game;};

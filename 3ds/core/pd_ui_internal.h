@@ -261,4 +261,9 @@ void ui_scroll_bar(struct pd_canvas* c, int x, int y, int h, int scroll, int tot
 #define SCROLL_BAR_W 8
 void ui_scroll_rail(struct pd_ui* ui, struct pd_canvas* c, int x, int y, int w, int h, int scroll, int total, int view);
 
+// The low PP warning's colour (pd_move_low_pp: 1 orange, 2 red), else the line's own.
+static inline uint32_t pd_pp_color(int low, uint32_t normal) {
+    return low >= 2 ? 0xE83838u : low == 1 ? 0xF09020u : normal;
+}
+
 #endif
