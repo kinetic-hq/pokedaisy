@@ -245,6 +245,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   order, so there's no NEXT BOSS.
 - **Petalburg Dynasty's Tera type**: BATTLE shows a Terastallized Pokémon's Tera type, and the verdicts and weaknesses
   that go with it, on Android, the desktop host and the 3DS port. A Stellar Tera keeps its own types.
+- **DS double battles on the desktop**: Black, White, Black 2 and White 2 show the BATTLE tab in a double battle too,
+  with the foe on the left and your Pokémon on the left, as a GBA double does. Before, the tab didn't appear at all.
 - **Petalburg Dynasty's MAP picture** on the desktop host, the 3DS port and Android: the game keeps Emerald's own map,
   stored in the newer smol compression, and now shows it with each of its places where the game puts them. On the desktop
   and the 3DS port, Wishes of Tomorrow's map shows too: its pictures were too large for the smol reader before.

@@ -128,7 +128,7 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
   const bool gen5=game->gen==5;
   const bool managed=game->battleManagerPtr!=0;
   uint32_t foeParty=0,foePersonality=0;
-  std::array<uint32_t,2> identities{},mons{};
+  std::array<uint32_t,4> identities{},mons{};
   if(managed){
     // Gen4Reader.readManagedBattle (Gen4ManagedBattle): Origin HeartGold's own engine. The field's process manager runs
     // the battle's child (gOverlayTemplate_Battle's init); its manager holds the BattleSetup (+0x10, the battle type
@@ -176,11 +176,14 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
     if(!proc)return;
     const auto setup=read32(proc+0x10),main=read32(proc+game->offProcWork);
     if(!in_ram(setup,0x28) || !in_ram(main,0xe8))return;
+    // The rule: 0 single, 1 double (Gen5Reader's member 1 of each client is the second one out), triples and rotations
+    // left out. The panes follow the left foe, as a Game Boy Advance double's do.
     const auto rule=read32(setup+4);
-    if(rule!=0)return; // Suggestions target one foe at a time.
+    if(rule>1)return;
     out.isTrainer=read32(setup)!=0;
+    out.isDouble=rule==1;
     foeParty=read32(setup+0x28);
-    mons={read32(main+0xcc),read32(main+0xe8)};
+    mons={read32(main+0xcc),read32(main+0xe8),out.isDouble?read32(main+0xd0):0u,out.isDouble?read32(main+0xec):0u};
   }else{
     // Gen4Reader.Gen4Battle: BattleSystem.parties and BattleContext.battleMons.
     const auto system=gen4_battle_system(game,read32);
@@ -191,7 +194,7 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
     if(type&2)return;
     out.isTrainer=(type&1)!=0;
     foeParty=read32(system+0x6c);
-    for(unsigned i=0;i<mons.size();++i)mons[i]=ctx+battle_offBattleMons+i*0xc0;
+    for(unsigned i=0;i<2;++i)mons[i]=ctx+battle_offBattleMons+i*0xc0;
   }
   // HeartFelt Gold keeps retail's BattleSystem and battle mons with its own species ids (to 1534) and Fairy at 9.
   const bool heartfelt=!gen5 && !managed && ds_heartfelt();
