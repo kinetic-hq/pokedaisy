@@ -83,7 +83,7 @@ enum pd_game_touch { PD_GAME_TOUCH_DS_SCREEN, PD_GAME_TOUCH_OFF, PD_GAME_TOUCHES
 // The desktop host's HOTKEYS buttons, stored in this order (GUIDE, SHARE, PADDLE 1-4, L3, R3, then the triggers L2,
 // R2: a file from before 1.11 has the first eight) and its actions (linux/main.c's HOTKEY_ACTIONS).
 #define PD_HOTKEY_BUTTONS 10
-#define PD_HOTKEY_ACTIONS 13
+#define PD_HOTKEY_ACTIONS 14
 enum { PD_HOTKEY_L3 = 6, PD_HOTKEY_R3 = 7, PD_HOTKEY_L2 = 8, PD_HOTKEY_R2 = 9 };
 enum { PD_HOTKEY_DO_FF = 3, PD_HOTKEY_DO_ZOOM_IN = 11, PD_HOTKEY_DO_ZOOM_OUT = 12 };
 struct pd_settings {

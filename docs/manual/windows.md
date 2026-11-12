@@ -181,7 +181,14 @@ and the four back `PADDLE` buttons. Out of the box LT zooms out, RT zooms in
 and R2 stay the touch screen and the DS layout. Pick one and choose
 `GAME MENU`, `COMPANION`, `FF TOGGLE`, `SAVE STATE`, `LOAD STATE`,
 `SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT`, `DS LAYOUT BACK`, `SWAP SCREENS`,
-`ZOOM IN` or `ZOOM OUT`, or `USUAL USE` to give it back.
+`ZOOM IN`, `ZOOM OUT` or `REWIND HOLD`, or `USUAL USE` to give it back.
+
+`REWIND` (in `FF / SPEED`) keeps the last 20 seconds or so. While you hold the
+button you gave `REWIND HOLD` (or R on a keyboard, with `REWIND` on), the game
+runs backwards, muted, and stops at the oldest moment it kept. A button with
+`REWIND HOLD` keeps the rewind running even with `REWIND` off. In a Game Boy
+Advance or Game Boy game it steps back frame by frame; in a DS game it goes back
+a second at a time. Rewinding never takes back a save the game wrote.
 
 R3's usual use is the view. In a Game Boy Advance or Game Boy game a tap
 switches between `WINGS` and `BATTLE WINGS`; in a DS game it steps through the
