@@ -189,6 +189,31 @@ int main(int argc,char** argv){
     assert(t.dexValid && t.dexSeen.size()==1026 && t.seenCount==5 && t.caughtCount==5);
     for(int n:{25,155,445,700,887})assert(t.dexSeen[n] && t.dexCaught[n]);
     assert(ds_egg_icon(DsGame::Johto)==dsOriginEgg);
+    {
+      // Its own battle engine (OriginHeartGoldTest's origin_heartgold_battle / _trainer): the manager's objects.
+      std::vector<uint8_t> cart(0x4000+0x2773C+4,0);std::memcpy(cart.data()+0x0C,"IPKJ",4);
+      const uint32_t sig=0x021D11B0;std::memcpy(cart.data()+0x4000+0x2773C,&sig,4);
+      const auto* origin=pk_nds_field_game_rom(cart.data(),uint32_t(cart.size()));
+      assert(origin && origin->battleManagerPtr);
+      const auto fixtures=std::filesystem::path(argv[1]).parent_path().parent_path();
+      battleRam=read_file_bytes((fixtures/"origin_heartgold_battle"/"mainram.bin").string());
+      pd_snapshot fight{};
+      auto save=ds_read_companion(battleRam.data(),battleRam.size(),DsGame::Johto);
+      assert(save.valid);
+      ds_read_battle_companion(origin,battle_read32,battleRam.data(),battleRam.size(),save,fight);
+      assert(fight.valid && fight.inBattle && !fight.isTrainer && fight.foeCount==0);
+      const auto& me=fight.battlers[0];const auto& foe=fight.battlers[1];
+      assert(me.species==887 && me.level==35 && me.hp==80 && me.maxHp==117 && me.type1==16 && me.type2==7);
+      assert(me.moves[0]==372 && me.moves[1]==506 && me.moves[2]==97 && me.moves[3]==458);
+      assert(me.stats[0]==83 && me.stats[1]==68 && me.stats[2]==112 && me.stats[3]==79 && me.stats[4]==74);
+      assert(foe.species==16 && foe.level==50 && foe.type1==0 && foe.type2==2);
+      battleRam=read_file_bytes((fixtures/"origin_heartgold_trainer"/"mainram.bin").string());
+      save=ds_read_companion(battleRam.data(),battleRam.size(),DsGame::Johto);
+      ds_read_battle_companion(origin,battle_read32,battleRam.data(),battleRam.size(),save,fight);
+      assert(fight.valid && fight.isTrainer && fight.battlers[0].species==155 && fight.battlers[1].species==399);
+      assert(fight.foeCount==1 && fight.foes[0].species==399 && fight.foeActive==0);
+      std::puts("PASS Origin HeartGold's battles: its own engine's objects, a wild one and a trainer's team");
+    }
     ds_set_origin(nullptr);
     assert(ds_egg_icon(DsGame::Johto)==494);
     std::puts("PASS Origin HeartGold's save: party past 493 and a form's id, its bag's pockets, its wider Pokedex");

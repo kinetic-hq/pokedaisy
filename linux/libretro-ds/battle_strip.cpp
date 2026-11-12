@@ -118,7 +118,7 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
                               const uint8_t* ram,size_t ramSize,const DsCompanion& save,pd_snapshot& out) {
   out={};
   out.foeActive=out.foeNext=-1;
-  if(!game || !ram || !save.valid || game->battleManagerPtr)return;
+  if(!game || !ram || !save.valid)return;
   auto at=[&](uint32_t addr,size_t count)->const uint8_t* {
     if(addr<0x02000000)return nullptr;
     const size_t offset=addr-0x02000000;
@@ -126,9 +126,51 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
   };
   auto u16=[](const uint8_t* b){return unsigned(b[0]) | (unsigned(b[1])<<8);};
   const bool gen5=game->gen==5;
+  const bool managed=game->battleManagerPtr!=0;
   uint32_t foeParty=0,foePersonality=0;
   std::array<uint32_t,2> identities{},mons{};
-  if(gen5){
+  if(managed){
+    // Gen4Reader.readManagedBattle (Gen4ManagedBattle): Origin HeartGold's own engine. The field's process manager runs
+    // the battle's child (gOverlayTemplate_Battle's init); its manager holds the BattleSetup (+0x10, the battle type
+    // first), the active slots (+0x58: the player's first, a second or 0xFF), the player's six battle objects (+0x60), the
+    // foe's (+0x7C, +0x94 of them) and the two parties (+0xD0). A battle object: species (u16 +0), its party record
+    // (+0x10), max HP / HP (+0x1C / +0x1E), item (+0x20), level (+0x24), Attack, Defense, Sp. Atk, Sp. Def, Speed
+    // (+0x22C), the types (+0x236), the moves (+0x250, 0x12 apart: the move at +2, its PP at +4).
+    const auto fs=read32(game->fieldSystemPtr);
+    if(!in_ram(fs))return;
+    const auto manager=read32(fs+game->offProcessManager);
+    if(!in_ram(manager,4))return;
+    const auto child=read32(manager+4),init=read32(game->battleTemplate);
+    if(!init || !in_ram(child) || read32(child)!=init)return;
+    const auto mgr=read32(game->battleManagerPtr);
+    if(!in_ram(mgr,0xD8))return;
+    const auto setup=read32(mgr+0x10);
+    const uint32_t type=in_ram(setup)?read32(setup):0;
+    const auto* active=at(read32(mgr+0x58),2);
+    if(!active || active[1]!=0xFF || active[0]>=PD_PARTY_SIZE)return;  // single battles only, as Gen 4's
+    out.isTrainer=(type&1)!=0;
+    foeParty=read32(mgr+0xD0+4);
+    const DsOrigin* origin=ds_origin();
+    const int lastSpecies=origin?origin->lastSpecies:dsOriginLastSpecies;
+    const uint32_t objects[2]={read32(mgr+0x60+active[0]*4),read32(mgr+0x7C)};
+    for(unsigned i=0;i<2;++i){
+      const auto* o=in_ram(objects[i])?at(objects[i],0x2A0):nullptr;
+      if(!o)continue;
+      auto& m=out.battlers[i];
+      const int speciesId=int(u16(o));
+      m.level=o[0x24];m.maxHp=int(u16(o+0x1C));
+      if(speciesId<1 || speciesId>lastSpecies || m.level<1 || m.level>100 || m.maxHp<=0 || m.maxHp>999){m={};continue;}
+      m.species=speciesId;m.hp=std::clamp(int(u16(o+0x1E)),0,m.maxHp);m.heldItem=int(u16(o+0x20));
+      m.type1=o[0x236]<=17?o[0x236]:PD_TYPE_NONE;m.type2=o[0x237]<=17?o[0x237]:PD_TYPE_NONE;
+      const int st[5]={int(u16(o+0x22C)),int(u16(o+0x22E)),int(u16(o+0x230)),int(u16(o+0x232)),int(u16(o+0x234))};
+      m.stats[0]=st[0];m.stats[1]=st[1];m.stats[2]=st[4];m.stats[3]=st[2];m.stats[4]=st[3];
+      for(int k=0;k<PD_NUM_MOVES;++k){m.moves[k]=int(u16(o+0x250+k*0x12+2));m.pp[k]=o[0x250+k*0x12+4];}
+      DsMon record;
+      const auto* raw=at(read32(objects[i]+0x10),monSize);
+      if(raw && ds_decode_mon(raw,monSize,record,save.game)){m.status=record.status;identities[i]=record.personality;}
+    }
+    foePersonality=identities[PD_POS_OPPONENT_LEFT];
+  }else if(gen5){
     // Gen5Reader.Gen5Battle: setup and the battle module's two client parties.
     const auto proc=gen5_battle_proc(game,read32);
     if(!proc)return;
@@ -151,7 +193,7 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
     foeParty=read32(system+0x6c);
     for(unsigned i=0;i<mons.size();++i)mons[i]=ctx+battle_offBattleMons+i*0xc0;
   }
-  for(unsigned i=0;i<mons.size();++i){
+  for(unsigned i=0;i<mons.size() && !managed;++i){
     const auto* b=at(mons[i],gen5?0x140:0xc0);
     if(!b)continue;
     auto& m=out.battlers[i];
