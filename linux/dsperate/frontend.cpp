@@ -8,6 +8,7 @@
 #include "map_art.h"
 #include "pk_nds_field.h"
 #include "ds_layout.h"
+#include "touch_pieces.h"
 #include "../shader.h"
 #include "../backdrop.h"
 #include "../wing_look.h"
@@ -109,7 +110,7 @@ int pad(int b){
   case SDL_CONTROLLER_BUTTON_GUIDE:return 15;case SDL_CONTROLLER_BUTTON_RIGHTSTICK:return 14;default:return -1;}}
 // DS LAYOUT's drawings for the picker: each layout placed by ds_place() on a 16:9 screen. ONE SCREEN and WINGS are drawn
 // with the touch screen floated in over the dimmed game, as they show when the game wants it. All but TOUCH IN WING,
-// WINGS and SPLIT TOUCH are the app's.
+// WINGS and TOUCH PIECES are the app's.
 const pd_layout_option* ds_layout_options(){
   static pd_layout_option options[DSL_COUNT];static bool made=false;
   if(made)return options;
@@ -123,6 +124,15 @@ const pd_layout_option* ds_layout_options(){
     for(auto& panel:pl.panel)if(panel.shown())o.box[o.boxCount++]=box(panel,PD_PART_PANEL);
     if(pl.top.shown())o.box[o.boxCount++]=box(pl.top,pl.touchFloats?PD_PART_DIM:PD_PART_GAME);
     if(pl.touch.shown())o.box[o.boxCount++]=box(pl.touch,PD_PART_TOUCH);
+    if(l==DSL_SPLIT){
+      DsPlacement pp=ds_place_with_pieces(&ds_pieces_hgss::GAME,l,ow,oh,false,false,false);
+      DsPieceLayout pieces=ds_pieces_arrange(ds_pieces_hgss::GAME,0,pp.wing);
+      if(pp.pieces && pieces.shown()){
+        o.boxCount=0;o.box[o.boxCount++]=box(pp.top,PD_PART_GAME);
+        for(auto& pc:pieces.placed)if(o.boxCount<PD_LAYOUT_BOXES)o.box[o.boxCount++]=box(pc.card,PD_PART_TOUCH);
+        continue;
+      }
+    }
     for(auto& half:pl.half)if(half.shown())o.box[o.boxCount++]=box(half,PD_PART_TOUCH);
   }
   return options;
@@ -154,7 +164,7 @@ void draw_screen(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,const DsBox& 
   if(pocket_shader_active() && pocket_shader_draw(r,px,256,256,192,true,&dst))return;  // SHADER / COLORS
   SDL_UpdateTexture(t,nullptr,px,256*4);SDL_RenderCopy(r,t,nullptr,&dst);
 }
-// SPLIT TOUCH: the touch screen's two halves, each into its wing.
+// TOUCH PIECES' fallback: the touch screen's two halves, each into its wing.
 void draw_halves(SDL_Renderer* r,SDL_Texture* t,const uint32_t* px,const DsPlacement& p){
   bool uploaded=false;
   for(int i=0;i<2;i++){
@@ -264,6 +274,62 @@ bool ds_party_icon(pd_canvas* c,const DsMon& mon,const std::vector<std::vector<u
 constexpr int WING_W=512,WING_H=1024;
 void set_color(SDL_Renderer* r,uint32_t c,uint8_t a=255){SDL_SetRenderDrawColor(r,c>>16,c>>8&0xFF,c&0xFF,a);}
 // BLACK / DARK: a thin dark grey line round a screen beside the wings, so a bright edge doesn't meet pure black.
+// TOUCH PIECES: a card in whole-pixel rounded steps (the app's pixel corners), its shadow first.
+void fill_card(SDL_Renderer* r,const DsBox& b,int step,uint32_t color,uint8_t alpha=255){
+  if(!b.shown())return;
+  SDL_SetRenderDrawBlendMode(r,alpha<255?SDL_BLENDMODE_BLEND:SDL_BLENDMODE_NONE);set_color(r,color,alpha);
+  SDL_Rect parts[3]={{b.x+2*step,b.y,b.w-4*step,b.h},{b.x+step,b.y+step,b.w-2*step,b.h-2*step},{b.x,b.y+2*step,b.w,b.h-4*step}};
+  SDL_RenderFillRects(r,parts,3);SDL_SetRenderDrawBlendMode(r,SDL_BLENDMODE_NONE);
+}
+// Each piece of the touch screen showing, on its card in its wing: the game's own button (corners see-through) or,
+// for a piece of ours, its label in the app's font. art: a 256 x 192 ARGB texture with blending; label: 128 x 32.
+void draw_pieces(SDL_Renderer* r,SDL_Texture* art,SDL_Texture* label,const DsPieceGame& game,const DsPieceLayout& lay,
+                 const uint32_t* px,int background){
+  const DsPieceScreen& sc=game.screens[lay.screen];
+  pocket_backdrop look=pocket_backdrop_for(background);
+  uint32_t card=look.cards?look.card:0xf8f8f8,edge=look.cards?look.border:0x283040,shadow=0x000000;
+  int step=std::max(1,int(std::lround(lay.scale*2)));
+  static std::vector<uint32_t> buf(256*192),piece;
+  std::fill(buf.begin(),buf.end(),0u);
+  for(int i=0;i<sc.count;i++){
+    const DsPiece& p=sc.pieces[i];if(p.own)continue;
+    piece.resize(size_t(p.w)*p.h);ds_piece_art(game,p,px,piece.data());
+    for(int y=0;y<p.h;y++)std::memcpy(&buf[(p.y+y)*256+p.x],&piece[y*p.w],p.w*4);
+  }
+  SDL_UpdateTexture(art,nullptr,buf.data(),256*4);
+  for(int i=0;i<sc.count;i++){
+    const DsPiece& p=sc.pieces[i];const DsPiecePlaced& pl=lay.placed[i];if(!pl.card.shown())continue;
+    int sh=std::max(1,step);
+    fill_card(r,{pl.card.x+sh,pl.card.y+sh,pl.card.w,pl.card.h},step,shadow,look.cards?160:70);
+    fill_card(r,pl.card,step,edge,look.cards?(look.borderAlpha?look.borderAlpha:255):255);
+    int t=std::max(1,step/2);
+    fill_card(r,{pl.card.x+t,pl.card.y+t,pl.card.w-2*t,pl.card.h-2*t},step,card);
+    if(!p.own){
+      SDL_Rect src{p.x,p.y,p.w,p.h},dst{pl.art.x,pl.art.y,pl.art.w,pl.art.h};SDL_RenderCopy(r,art,&src,&dst);
+      continue;
+    }
+    // Our own piece: its label, centred on a face the game's button colour would sit on.
+    std::vector<uint32_t> lp(128*32);pd_canvas c;pd_canvas_init(&c,128,32,lp.data());
+    int lw=std::min<int>(128,p.lw),lh=std::min<int>(32,p.lh);
+    uint32_t face=look.cards?0x3a4258:0x5878c0;
+    pd_fill(&c,0,0,128,32,face);
+    int tw=std::min(lw-4,pd_text_width(p.label));
+    pd_text_fit(&c,(lw-tw)/2,(lh-16)/2,lw-4,p.label,0xf8f8f8,0x202838);
+    SDL_UpdateTexture(label,nullptr,lp.data(),128*4);
+    fill_card(r,pl.art,step,face);
+    SDL_Rect src{0,0,lw,lh},dst{pl.art.x,pl.art.y,pl.art.w,pl.art.h};SDL_RenderCopy(r,label,&src,&dst);
+  }
+}
+// A DS touch point to the window: the middle of where it lands on a laid out piece, false when it's on none.
+bool ds_pieces_to_window(const DsPieceGame& game,const DsPieceLayout& lay,int x,int y,int& wx,int& wy){
+  if(!lay.shown())return false;
+  const DsPieceScreen& sc=game.screens[lay.screen];
+  for(int i=0;i<sc.count;i++){const DsPiece& p=sc.pieces[i];const DsPiecePlaced& pl=lay.placed[i];
+    if(x<p.x || y<p.y || x>=p.x+p.w || y>=p.y+p.h)continue;
+    if(p.own){wx=pl.art.x+pl.art.w/2;wy=pl.art.y+pl.art.h/2;return true;}
+    wx=pl.art.x+(x-p.x)*pl.art.w/p.w;wy=pl.art.y+(y-p.y)*pl.art.h/p.h;return true;}
+  return false;
+}
 void gutter_screen(SDL_Renderer* r,const DsBox& box,int background){
   pocket_backdrop look=pocket_backdrop_for(background);if(!look.cards || !box.shown())return;
   int t=box.w>=768?2:1;set_color(r,look.gutter);
@@ -383,6 +449,11 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   std::vector<uint32_t> uiPixels(341*256);pd_canvas canvas;pd_canvas_init(&canvas,341,256,uiPixels.data());
   Texture wingTex[2]{{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB888,SDL_TEXTUREACCESS_STREAMING,WING_W,WING_H)},{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB888,SDL_TEXTUREACCESS_STREAMING,WING_W,WING_H)}};
   std::vector<uint32_t> wingPixels(size_t(WING_W)*WING_H);
+  Texture pieceTex{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,256,192)};
+  Texture pieceLabel{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,128,32)};
+  if(pieceTex.p)SDL_SetTextureBlendMode(pieceTex.p,SDL_BLENDMODE_BLEND);
+  const DsPieceGame* pieceGame=ds_pieces_game(code);
+  DsPieceLayout pieceLay;int pointerPiece=-1;  // TOUCH PIECES as last drawn; the piece a press began on
   const auto* field=supported?pk_nds_field_game(code,revision):nullptr;
   bool& bottom=prefs.bottom;
   bool done=false,showCompanion=false,showQuick=false,paused=false,summary=false,failed=false;
@@ -409,7 +480,13 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   int touchOn=0,touchOff=0;bool touchWanted=false;
   auto pointerAt=[&](float px,float py,bool start){
     if(pd_ds_game_touch_off || !ds_touch_shown(touchPlace) || showCompanion || showQuick || paused){pointerDown=false;return;}
-    int x,y;if(!ds_touch_at(touchPlace,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return;}
+    int x,y;
+    if(touchPlace.pieces && pieceLay.shown()){
+      if(start)pointerPiece=ds_pieces_hit(*pieceGame,pieceLay,int(px),int(py),x,y);
+      else if(pointerPiece>=0 && pointerPiece<int(pieceLay.placed.size()))ds_pieces_drag(*pieceGame,pieceLay,pointerPiece,int(px),int(py),x,y);
+      else {pointerDown=false;return;}
+      if(pointerPiece<0){if(start)pointerDown=false;return;}
+    }else if(!ds_touch_at(touchPlace,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return;}
     pointerX=x;pointerY=y;if(start)pointerDown=true;
   };
   // Mouse events are in window coordinates; the picture is laid out in the renderer's output pixels.
@@ -626,7 +703,10 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(layoutPick)pd_layout_picker_draw(&canvas,"DS LAYOUT",ds_layout_options(),DSL_COUNT,prefs.layout,layoutSel,-1,&layoutScroll,layoutTiles);
       uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
     else{
-      DsPlacement place=ds_place(layout,ow,oh,view.bottom,touchWanted && !view.bottom,prefs.wingLeft);
+      DsPlacement place=ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom,prefs.wingLeft);
+      DsPieceLayout lay;
+      if(place.pieces){int sc=ds_pieces_detect(*pieceGame,nds->framebuffer(1));if(sc>=0)lay=ds_pieces_arrange(*pieceGame,sc,place.wing);}
+      if(lay.shown()!=pieceLay.shown() || lay.screen!=pieceLay.screen)pointerDown=false;  // the screen changed under a press
       bool topInset=place.inset && view.bottom;  // PICTURE IN PICTURE swapped: the top screen is the small one
       if(topInset)draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
       draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
@@ -638,10 +718,12 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(place.touchFloats || place.inset)frame_screen(renderer,topInset?place.top:place.touch);
       if(topInset)draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       else draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
-      if(place.split()){for(int i=0;i<2;i++)gutter_screen(renderer,place.half[i],look);draw_halves(renderer,touchTex.p,nds->framebuffer(1),place);}
+      if(lay.shown() && pieceTex.p && pieceLabel.p)draw_pieces(renderer,pieceTex.p,pieceLabel.p,*pieceGame,lay,nds->framebuffer(1),look);
+      else if(place.split()){for(int i=0;i<2;i++)gutter_screen(renderer,place.half[i],look);draw_halves(renderer,touchTex.p,nds->framebuffer(1),place);}
+      pieceLay=paused?DsPieceLayout{}:lay;
       touchPlace=paused?DsPlacement{}:place;
     }
-    if(showCompanion)touchPlace={};
+    if(showCompanion){touchPlace={};pieceLay={};}
     bool hudShown=!showCompanion && !paused && (showQuick || (prefs.hud && !wingPanels && snap.valid && !view.bottom && !inBattle && (fieldBits&PK_NDS_FIELD_SCREEN) && !(fieldBits&(PK_NDS_FIELD_LOCKED|PK_NDS_FIELD_MENU))));
     bool toastShown=!showCompanion && !paused && !toast.empty() && int(toastUntil-SDL_GetTicks())>0;
     if(hudShown || toastShown){
@@ -660,10 +742,12 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       quick_finish(&canvas);blit(renderer,overlay.p,uiPixels.data(),341,256,ow,oh);
     }
     if(ds_touch_shown(touchPlace) && !showCompanion && !paused && !showQuick && (keys&(1u<<2))){
-      int x,y;ds_touch_to_window(touchPlace,touchX,touchY,x,y);
+      int x,y;bool on=true;
+      if(touchPlace.pieces && pieceLay.shown())on=ds_pieces_to_window(*pieceGame,pieceLay,touchX,touchY,x,y);else ds_touch_to_window(touchPlace,touchX,touchY,x,y);
+      if(on){
       SDL_SetRenderDrawColor(renderer,0,0,0,255);SDL_Rect outline{x-5,y-5,11,11};SDL_RenderDrawRect(renderer,&outline);
       SDL_SetRenderDrawColor(renderer,255,255,255,255);SDL_RenderDrawLine(renderer,x-4,y,x+4,y);SDL_RenderDrawLine(renderer,x,y-4,x,y+4);
-    }
+    }}
     if(paused){pd_fill(&canvas,0,0,341,256,0x303838);pd_title_box(&canvas,15,40,311,170,0xffffff);pd_text(&canvas,28,55,"PokeDaisy DS / PAUSED",0x303030,PD_NO_SHADOW);pd_text(&canvas,28,90,"B resume   A save state",0x303030,PD_NO_SHADOW);pd_text(&canvas,28,120,"X load state   START quit",0x303030,PD_NO_SHADOW);blit(renderer,ui.p,uiPixels.data(),341,256,ow,oh);}
     if(shot && limit && frame==limit-1){std::vector<uint32_t> pixels(size_t(ow)*oh);if(!SDL_RenderReadPixels(renderer,nullptr,SDL_PIXELFORMAT_ARGB8888,pixels.data(),ow*4))pd_png_write(shot,ow,oh,pixels.data());}
     if(pd_ds_present)pd_ds_present();else SDL_RenderPresent(renderer);

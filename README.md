@@ -37,7 +37,7 @@ UPDATES`.
 | Full screen | F11, Alt+Enter, L3 + R3 on a controller, the game menu or `SETTINGS` > `FULLSCREEN` switch it any time (borderless, remembered; on by default on a handheld's screen). `POCKET_FULLSCREEN=1` forces it; `POCKET_WINDOW=1920x1080` opens a window of that size. |
 | Start a game directly | `pokedaisy.exe "D:\Games\My Game.gba"`; `--data FOLDER` uses another data folder. |
 | COMPANION VIEW | `SETTINGS` > `COMPANION VIEW`, or the right stick (V) to step through: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`. |
-| DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE`, `LARGE + SMALL`, `WINGS` or `SPLIT TOUCH` (`TOUCH IN WING` and `WINGS` put the companion's party and trainer panels beside the top screen; `SPLIT TOUCH` puts half the touch screen in each wing; `DS WING SIDE` picks the side). R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
+| DS games | Run on melonDS, no BIOS needed. `DS LAYOUT` (in `SETTINGS`, or SELECT + R2 / L2) picks `ONE SCREEN`, `PICTURE IN PICTURE`, `TOUCH IN WING`, `STACKED`, `SIDE BY SIDE`, `LARGE + SMALL`, `WINGS` or `TOUCH PIECES` (`TOUCH IN WING` and `WINGS` put the companion's party and trainer panels beside the top screen; `TOUCH PIECES` lays the touch screen's buttons out in the wings; `DS WING SIDE` picks the side). R2 swaps the screens; the mouse or a finger presses the touch screen, or SELECT + D-pad + A. |
 | Shaders | `SETTINGS` > `SHADER` (`OFF`, `SHARP`, `xBRZ`), `COLORS` (`ORIGINAL`, `HANDHELD`, `OLED`: true black panels, less glare), `DIM COMPANION` and `BACKGROUND` (`BLACK`, `DARK`, `THEME`: what's round the game and the wing cards). DS games have them in the `SET` tab. |
 | Get started | The first start with no games opens `GET STARTED`: game folders, button layout, full screen, companion view, DS layout and colours (`OLED` too), one page each, then the game list. `SETTINGS` > `APP` > `RUN SETUP` brings it back. |
 | Games in other folders | `GAME FOLDERS` in the game list's top bar (or `SETTINGS` > `GAME FOLDERS`): `ADD A FOLDER` browses your drives with a controller (e.g. `D:\Emulation\roms`); each folder and the folders right inside it are listed (kept in `DATA\roms-folders.txt`). |
@@ -103,7 +103,8 @@ Keep this list current: a pull request that changes what the fork adds updates i
   an image dropped on the window) and `RENAME` from `X`, a right click or a long press; D-pad, mouse, wheel and touch.
 - **DS wings** on the desktop host: `TOUCH IN WING` puts the touch screen in one wing and the companion's party in
   the other; `WINGS` is `ONE SCREEN` with party and trainer panels in both wings and the touch screen floating in;
-  `SPLIT TOUCH` cuts the touch screen in two, a half in each wing.
+  `TOUCH PIECES` takes the touch screen apart into its buttons, each on a card in the wings, balanced between them
+  (HeartGold / SoulSilver's battle menu, moves, bag and party; other screens and games get the screen's two halves).
 - **Updates**: the program checks this fork's releases and updates itself on Windows.
 - **Releases**: a desktop release (`desktop-vX.Y.Z`) is cut automatically when `main` gets a `feat`, `fix` or `perf`
   change. Desktop builds are a beta: every one goes up as a GitHub pre-release until one is called stable, and the

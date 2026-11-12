@@ -267,8 +267,10 @@ inline void ds_piece_art(const DsPieceGame& game,const DsPiece& p,const uint32_t
       if(x<x0 || x>=x0+R || y<y0 || y>=y0+R)continue;
       uint32_t& v=out[i];if(!(v>>24) || game.edge(v))continue;
       v=0;
-      if(x>0)stack.push_back(i-1);if(x<p.w-1)stack.push_back(i+1);
-      if(y>0)stack.push_back(i-p.w);if(y<p.h-1)stack.push_back(i+p.w);
+      if(x>0)stack.push_back(i-1);
+      if(x<p.w-1)stack.push_back(i+1);
+      if(y>0)stack.push_back(i-p.w);
+      if(y<p.h-1)stack.push_back(i+p.w);
     }
   }
 }

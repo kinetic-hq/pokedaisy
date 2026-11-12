@@ -320,7 +320,7 @@ companion's `SET` tab, in the game list's `SETTINGS`, or hold
 SELECT (Backspace) and press R2 (Space) for the next one or L2 (Tab) for the one
 before. The picker shows each layout as a small picture of the window, marked
 the same way as the companion views (`TOUCH IN WING`, `WINGS` and
-`SPLIT TOUCH` are the ones added here):
+`TOUCH PIECES` are the ones added here):
 
 - **`ONE SCREEN`** (the first choice): the top screen fills the window. In
   Platinum (USA, revision 1) the touch screen floats in over the dimmed game
@@ -344,11 +344,16 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   facts the other (`DS WING SIDE` says which side the party is on). The touch
   screen floats in over the game when the game wants it, as in `ONE SCREEN`,
   or when you press R2. A window with no room for wings gets `ONE SCREEN`.
-- **`SPLIT TOUCH`**: the top screen in the middle, as in `WINGS`, and the touch
-  screen cut down the middle: its left half fills the left wing and its right
-  half the right wing, level with the top screen's bottom. Tap either half as
-  you would the whole screen; a drag can cross from one wing to the other
-  without lifting. `DS WING SIDE` set to `LEFT` swaps the halves. The
+- **`TOUCH PIECES`**: the top screen in the middle and the touch screen taken
+  apart, button by button, into the two wings. In HeartGold and SoulSilver the
+  battle's buttons each get a card of their own: FIGHT in one wing and the
+  other three in the other; your moves, two to a wing; the bag's pockets; your
+  party, three to a wing; with `BACK` or `CANCEL` as a button of its own under
+  them. The buttons are drawn as large as both wings allow, so neither wing is
+  crowded while the other sits empty. Tap a button as you would on the DS. A
+  screen it doesn't know yet (and every other DS game) shows the touch screen
+  cut down the middle instead, a half in each wing: a drag can cross from one
+  half to the other, and `DS WING SIDE` set to `LEFT` swaps them. The
   companion's panels don't show here, since the wings hold the touch screen. A
   window too narrow for that gets `TOUCH IN WING`.
 
@@ -358,7 +363,7 @@ other DS games they say so. While they show, the HUD leaves out its party row.
 R2 (Space on a keyboard) swaps the two screens: in `ONE SCREEN` you see the
 touch screen alone, in `PICTURE IN PICTURE`, `LARGE + SMALL` and
 `TOUCH IN WING` the touch screen becomes the large one, in `WINGS` it
-floats in over the game, and in `SPLIT TOUCH` it shows whole in the middle. L2 (Tab) opens the quick menu. To touch the touch
+floats in over the game, and in `TOUCH PIECES` it shows whole in the middle. L2 (Tab) opens the quick menu. To touch the touch
 screen, click it with the mouse or tap it with your finger on a touch display,
 wherever it shows; a drag works too. With a controller, hold SELECT, move the
 pointer with the D-pad and press A to tap. On a keyboard the DS's X and Y are S
