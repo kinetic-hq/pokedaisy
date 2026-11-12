@@ -105,6 +105,7 @@ struct pd_settings {
     bool ffAudio;    // the game's sound sped up under fast-forward, else silent
     bool rewind;     // REWIND: the last ~20 s kept for the rewind hotkey
     bool runIndoors; // RUN INDOORS: every map lets the player run
+    bool levelCap;   // LEVEL CAP: party levels past the next boss's top level show orange (a Nuzlocke's rule)
     bool lcdFilter;  // optional host LCD display mask
     bool quickGrid;  // hosts with hasQuickMenu: false = RING, true = GRID
     // Hosts with hasButtonRows: the pad buttons for the quick menu, the companion and the HUD cursor (enum pd_button).
@@ -578,6 +579,8 @@ void pd_ui_guide_view(struct pd_ui*, struct pd_canvas*, const struct pd_guide_so
 void pd_ui_guide_reset(struct pd_ui*);
 void pd_ui_guide_control(struct pd_ui*, int dx, int dy, bool confirm);
 void pd_ui_guide_boss_note(char*, size_t, const char* place, int count, int ace, int best);
+// The level cap: the next boss not beaten yet's top level (its first team), 0 with no boss data or none left.
+int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s);
 void pd_ui_dex_view(struct pd_ui*,struct pd_canvas*,const struct pd_game*,const struct pd_snapshot*,int selected);
 void pd_ui_bag_cycle_sort(struct pd_ui*);
 // The tab bar's D-pad step: the key after / before `key` in `keys` (the tabs in the order they are drawn), the ends

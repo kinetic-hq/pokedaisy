@@ -108,6 +108,11 @@ struct slot_geometry {
     int nameMid, levelMid, hpTextMid;
 };
 
+// LEVEL CAP: the cap ui_party_grid found for this draw (0 = off or none), and whether a Pokemon is past it.
+#define OVER_CAP 0xF09020u
+static int levelCapNow;
+static bool over_cap(const struct pd_mon* m) { return levelCapNow > 0 && !m->egg && m->level > levelCapNow; }
+
 static struct slot_geometry geometry(int w, int h) {
     struct slot_geometry g;
     float scale = (float) w / 86 < (float) h / 57 ? (float) w / 86 : (float) h / 57;
@@ -573,7 +578,8 @@ static void art_slot_at(struct pd_canvas* c, const struct pd_game* g, const stru
     int status = status_icon(m);
     if (status < 0) {
         snprintf(line, sizeof(line), "%c%d", LV_MARK, m->level);
-        art_text(art, a, line, art_left(a, st->levelX), art_text_y(a, st->levelY), st->text, st->textShadow);
+        art_text(art, a, line, art_left(a, st->levelX), art_text_y(a, st->levelY), over_cap(m) ? OVER_CAP : st->text,
+                 st->textShadow);
     }
     // "hp/" right-aligned in 3 digits and "/max": both move with the stretched bar's right end, they share the slash.
     if (cardTextsOn) {
@@ -770,7 +776,7 @@ static void party_slot(struct pd_ui* ui, struct pd_canvas* c, const struct pd_ga
         } else {
             char lv[12];
             snprintf(lv, sizeof(lv), "Lv%d", m->level);
-            int lw = pd_text(c, x + geo.textX + 6 * u, y + geo.levelMid - 8, lv, text, shadow);
+            int lw = pd_text(c, x + geo.textX + 6 * u, y + geo.levelMid - 8, lv, over_cap(m) ? OVER_CAP : text, shadow);
             if (m->shiny) pd_text(c, x + geo.textX + 6 * u + lw + 3, y + geo.levelMid - 8, "*", SHINY_MARK, shadow);
         }
         int gx = x + geo.fx + geo.fw - 14 * u, gy = y + geo.levelMid - 4 * u;
@@ -1593,6 +1599,11 @@ void ui_party_grid(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* 
     int x0 = MARGIN, y0 = CONTENT_Y - 2, w = c->w - 2 * MARGIN, h = c->h - y0 - MARGIN;
     int cols = w > 2 * h ? 3 : 2, rows = (PD_PARTY_SIZE + cols - 1) / cols;
     int selected = best;
+    // The cap reads boss teams from the ROM: kept for a second's worth of draws, or until the game changes.
+    static const struct pd_game* capGame;
+    static int capAge;
+    if (!(ui->settings && ui->settings->levelCap)) levelCapNow = 0, capGame = NULL;
+    else if (capGame != g || ++capAge >= 60) levelCapNow = pd_ui_level_cap(g, s), capGame = g, capAge = 0;
     if (selected < 0)
         for (int i = 0; i < s->partyCount; i++)
             if (out >> i & 1) {

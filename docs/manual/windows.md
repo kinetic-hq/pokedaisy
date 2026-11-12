@@ -243,6 +243,12 @@ in games where the full amount isn't known) and in red once it's out, in a
 Pokemon's summary and in the battle's move list, so you know to heal before the
 next fight.
 
+`LEVEL CAP` (in `SETTINGS`, `GAMEPLAY`, off at first) is for runs with a level
+rule. It takes the top level of the next leader you haven't beaten as your cap:
+`NEXT BOSS` in the `GUIDE` names it, and a party slot whose level is past it
+shows that level in orange. It follows the guide, so games without a `NEXT BOSS`
+page have no cap.
+
 ## Where the settings are
 
 The companion's `SETTINGS` has the same groups in the same order as the app on
@@ -254,7 +260,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | --- | --- | --- |
 | `FF / SPEED` | `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `SPEED OPTIONS` (`FF MODE`, `FF MUSIC`) | |
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
-| `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `CHEATS` | |
+| `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `CHEATS` | `LEVEL CAP` |
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
 | `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE HINTS`, `ONE-TAP MOVES`, `TAB BAR` | |

@@ -146,9 +146,10 @@ static void test_replace(void) {
   set.ffSpeed = 3;
   assert(pd_settings_save(&set, ini));
   set.ffSpeed = 4;
+  set.levelCap = true;
   assert(pd_settings_save(&set, ini));
   pd_settings_defaults(&back);
-  assert(pd_settings_load(&back, ini) && back.ffSpeed == 4);
+  assert(pd_settings_load(&back, ini) && back.ffSpeed == 4 && back.levelCap);
   assert(pocket_remove(ini));
   assert(pocket_remove(a) && !pocket_exists(a));
   assert(pocket_mkdir(dir) && pocket_rmdir(dir)); // mkdir of an existing one is fine
