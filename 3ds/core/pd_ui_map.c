@@ -481,22 +481,47 @@ struct pd_map_viewport pd_ui_map_view(struct pd_canvas* c, const struct pd_map_s
     return (struct pd_map_viewport){view.x, view.y, view.w, view.h};
 }
 
-// Under a wing's map: the badges, the play time and the money, each a label over its value; what the save
-// doesn't give is left out.
-static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, int x, int y, int w,
-                      int bottom) {
-    if (!s->valid) return;
-    char rows[4][2][24];
+// Under a wing's map: the badges (as pips), the play time, the next boss, this area's catches, the Pokedex and the
+// money, each a label over its value. What the save doesn't give, and what the host's bars already show
+// (pd_ui_bar_facts), is left out.
+struct wing_fact { char label[24], value[48]; int pips; }; // pips >= 0: that many of 8 badges, drawn as dots
+
+static int wing_facts(const struct pd_game* g, const struct pd_snapshot* s, struct wing_fact* rows) {
+    if (!s->valid) return 0;
     int n = 0;
-    if (g && g->cfg && g->cfg->badgeFlag > 0) {
+    uint32_t bars = pd_ui_bar_facts;
+    if (g && g->cfg && g->cfg->badgeFlag > 0 && !(bars & PD_BAR_BADGES)) {
         int badges = 0;
         for (int i = 0; i < 8; i++) badges += pd_flag(s, g->cfg->badgeFlag + i);
-        snprintf(rows[n][0], sizeof(rows[n][0]), "BADGES");
-        snprintf(rows[n++][1], sizeof(rows[n][1]), "%d OF 8", badges);
+        snprintf(rows[n].label, sizeof(rows[n].label), "BADGES");
+        snprintf(rows[n].value, sizeof(rows[n].value), "%d OF 8", badges);
+        rows[n++].pips = badges;
     }
-    if (s->playHours || s->playMinutes) {
-        snprintf(rows[n][0], sizeof(rows[n][0]), "PLAY TIME");
-        snprintf(rows[n++][1], sizeof(rows[n][1]), "%d:%02d", s->playHours, s->playMinutes);
+    if ((s->playHours || s->playMinutes) && !(bars & PD_BAR_TIME)) {
+        snprintf(rows[n].label, sizeof(rows[n].label), "PLAY TIME");
+        snprintf(rows[n].value, sizeof(rows[n].value), "%d:%02d", s->playHours, s->playMinutes);
+        rows[n++].pips = -1;
+    }
+    // The guide's two (a walk over the boss teams and this area's wild sets): worked out twice a second at most.
+    static char boss[40];
+    static int cap, here, kinds;
+    static uint32_t at;
+    static const struct pd_snapshot* atSave;
+    if (!pd_ui_now_ms || pd_ui_now_ms - at >= 500u || atSave != s) {
+        at = pd_ui_now_ms;
+        atSave = s;
+        cap = pd_ui_next_boss(g, s, boss, sizeof(boss));
+        if (!pd_ui_caught_here(g, s, &here, &kinds)) kinds = 0;
+    }
+    if (cap > 0 && boss[0] && !(bars & PD_BAR_BOSS)) {
+        snprintf(rows[n].label, sizeof(rows[n].label), "NEXT BOSS");
+        snprintf(rows[n].value, sizeof(rows[n].value), "%s Lv%d", boss, cap);
+        rows[n++].pips = -1;
+    }
+    if (kinds > 0 && !(bars & PD_BAR_HERE)) {
+        snprintf(rows[n].label, sizeof(rows[n].label), "CAUGHT HERE");
+        snprintf(rows[n].value, sizeof(rows[n].value), "%d / %d", here, kinds);
+        rows[n++].pips = -1;
     }
     if (s->dexOk && s->dexCount > 0) {
         int seen = 0, caught = 0;
@@ -504,25 +529,49 @@ static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct
             seen += s->dexSeen[i / 8] >> (i % 8) & 1;
             caught += s->dexCaught[i / 8] >> (i % 8) & 1;
         }
-        snprintf(rows[n][0], sizeof(rows[n][0]), "CAUGHT / SEEN");
-        snprintf(rows[n++][1], sizeof(rows[n][1]), "%d / %d", caught, seen);
+        snprintf(rows[n].label, sizeof(rows[n].label), "CAUGHT / SEEN");
+        snprintf(rows[n].value, sizeof(rows[n].value), "%d / %d", caught, seen);
+        rows[n++].pips = -1;
     }
-    if (s->money >= 0) {
-        snprintf(rows[n][0], sizeof(rows[n][0]), "MONEY");
-        snprintf(rows[n++][1], sizeof(rows[n][1]), "$%ld", s->money);
+    if (s->money >= 0 && !(bars & PD_BAR_MONEY)) {
+        snprintf(rows[n].label, sizeof(rows[n].label), "MONEY");
+        snprintf(rows[n].value, sizeof(rows[n].value), "$%ld", s->money);
+        rows[n++].pips = -1;
     }
+    return n;
+}
+#define WING_FACTS_MAX 6
+
+static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, int x, int y, int w,
+                      int bottom) {
+    struct wing_fact rows[WING_FACTS_MAX];
+    int n = wing_facts(g, s, rows);
     for (int i = 0; i < n && y + 2 * 16 <= bottom; i++, y += 2 * 16 + 4) {
-        pd_heading_fit(c, x, y, w, rows[i][0], PD_MUTED, PD_MUTED_SHADOW);
-        if (pd_number_width(rows[i][1]) <= w - 4) pd_number(c, x + 4, y + 16, rows[i][1], PD_LABEL, PD_LABEL_SHADOW);
-        else pd_text_fit(c, x + 4, y + 16, w - 4, rows[i][1], PD_LABEL, PD_LABEL_SHADOW);
+        pd_heading_fit(c, x, y, w, rows[i].label, PD_MUTED, PD_MUTED_SHADOW);
+        if (rows[i].pips >= 0 && w - 4 >= 8 * 10) {
+            // Eight dots, the badges earned filled gold, the rest as rings.
+            for (int k = 0; k < 8; k++) {
+                int px = x + 4 + k * 10, py = y + 16 + 4;
+                if (k < rows[i].pips) {
+                    pd_round_rect(c, px, py, 8, 8, 4, 0xB08820);
+                    pd_round_rect(c, px + 1, py + 1, 6, 6, 3, 0xF8C830);
+                    pd_fill(c, px + 2, py + 2, 2, 1, 0xFFF0B0);
+                } else {
+                    pd_round_rect(c, px, py, 8, 8, 4, PD_MUTED);
+                    pd_round_rect(c, px + 1, py + 1, 6, 6, 3, PD_TITLE_FILL);
+                }
+            }
+            continue;
+        }
+        if (pd_number_width(rows[i].value) <= w - 4) pd_number(c, x + 4, y + 16, rows[i].value, PD_LABEL, PD_LABEL_SHADOW);
+        else pd_text_fit(c, x + 4, y + 16, w - 4, rows[i].value, PD_LABEL, PD_LABEL_SHADOW);
     }
 }
 
 // How tall map_facts' rows come out.
 static int map_facts_height(const struct pd_game* g, const struct pd_snapshot* s) {
-    if (!s->valid) return 0;
-    int n = (g && g->cfg && g->cfg->badgeFlag > 0) + (s->playHours || s->playMinutes) + (s->dexOk && s->dexCount > 0) +
-            (s->money >= 0);
+    struct wing_fact rows[WING_FACTS_MAX];
+    int n = wing_facts(g, s, rows);
     return n ? n * (2 * 16 + 4) - 4 : 0;
 }
 
@@ -555,7 +604,7 @@ void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct 
     // full height) gets the map at its own size instead, a window round the player, and what the place is under it.
     int mw = crop.r - crop.l, mh = crop.b - crop.t;
     int vw = w - 2 * FRAME, vh = vw * mh / mw, room = c->h - f - 3 - y - 2 * FRAME;
-    int factsH = 4 * (2 * 16 + 4);
+    int factsH = 5 * (2 * 16 + 4);
     bool window = vw < mw && room - factsH >= vw;
     if (window) {
         vh = room - factsH - 2 * FRAME;

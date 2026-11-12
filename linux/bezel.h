@@ -168,7 +168,7 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
 /* A bar's three places: each its own item's text, and an empty one given the first filler with something to say that
  * neither this bar nor the other one (other: its three items, or NULL) shows yet. The battle's bar is its own. */
 static inline void bezel_bar_text(const int items[3], const int *other, const struct bezel_facts *f,
-                                  char out[3][64]) {
+                                  char out[3][64], bool *shown /* [BEZEL_ITEMS], what was drawn; may be NULL */) {
   bool used[BEZEL_ITEMS] = {false};
   for (int i = 0; other && i < 3; i++)
     if (other[i] > BEZEL_NONE && other[i] < BEZEL_ITEMS)
@@ -177,6 +177,8 @@ static inline void bezel_bar_text(const int items[3], const int *other, const st
     int item = items[i] >= 0 && items[i] < BEZEL_ITEMS ? items[i] : BEZEL_NONE;
     bezel_item_text(item, f, out[i], 64);
     used[item] = true;
+    if (shown && out[i][0])
+      shown[item] = true;
   }
   for (int i = 0; i < 3; i++) {
     if (out[i][0] || items[i] == BEZEL_NONE)
@@ -188,6 +190,8 @@ static inline void bezel_bar_text(const int items[3], const int *other, const st
       bezel_item_text(item, f, out[i], 64);
       if (out[i][0]) {
         used[item] = true;
+        if (shown)
+          shown[item] = true;
         break;
       }
     }

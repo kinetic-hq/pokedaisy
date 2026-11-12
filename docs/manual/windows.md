@@ -372,7 +372,7 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   change at once instead.
 - **`BEZEL STYLE`** and **`BEZEL BARS`**: where the screen has room above and
   below the game (a 16:9 screen with the wings has just enough), a bar sits in
-  each. `BLACK` is near black with light text (the default with a `BLACK` or
+  each. Its text is sized to the bar, a step smaller when all three places wouldn't fit side by side. `BLACK` is near black with light text (the default with a `BLACK` or
   `DARK` background, so with `OLED` and `DARK MODE`), `GLOW` is a soft, faint
   glow of the game's own colours, `THEME` the theme's window. `BEZEL BARS`
   picks what each of the six places shows, or `NONE`: the place, the clock and
@@ -389,9 +389,14 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   how likely a ball is to work. Anything your game doesn't tell the app is left
   out.
 - **Wings**: the party fills the left wing top to bottom, a card a Pokemon with
-  its level, status and HP (an empty card for each place still free); the right wing shows the map round you and, under
-  it, your badges, play time, how many kinds you have caught and seen, and your
-  money.
+  its level, status, HP and a thin blue EXP bar to its next level (an outlined
+  card with a ball for each place still free). A long name gets the room the
+  level would take, so it's cut only when it's wider than the card. The right
+  wing shows the map round you and, under it, your badges as eight dots, play
+  time, the next boss, how many of this area's wild Pokemon you have, how many
+  kinds you have caught and seen, and your money. Whatever the bars above and
+  below the game already show is left out of the wing, so nothing is said
+  twice.
 
 DS games have the same rows in the companion's `SET` tab.
 

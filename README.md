@@ -83,6 +83,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Redesigned wing cards** on the desktop host: rounded cards with a soft gradient and a type colour stripe,
   shiny star and held item marks, pixel headings (Silkscreen) and clear numbers (Atkinson Hyperlegible), HP
   bars that glide and cards that slide in when the party changes (`REDUCE MOTION` turns both off).
+- **Fuller wings** on the desktop host: an EXP bar under each HP bar, an outlined card with a ball for each free
+  party place (seen on dark wings too), long names given the level's room before they're cut, badges as eight
+  dots, the next boss and this area's catches under the map, nothing the bars already show said again, and bar
+  text a size larger (a step smaller when three places wouldn't fit).
 - **Game folders and saves beside games** on the desktop host: folders picked in the app (`GAME FOLDERS`,
   a folder browser that works with a controller) are listed with one level inside them, and their GBA / Game
   Boy saves sit next to the game (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.

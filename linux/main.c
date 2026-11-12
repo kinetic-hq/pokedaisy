@@ -1566,6 +1566,7 @@ static uint32_t panelPixels[CANVAS_MAX_W * CANVAS_MAX_H];
 static SDL_Texture *panelTexture[PANELS];
 static uint32_t panelKey[PANELS], panelGen;
 static int panelW[PANELS], panelH[PANELS];
+static uint32_t barFacts[2]; // PD_BAR_* the top / bottom bar showed last draw: the right wing leaves them out
 static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int which, bool battle, char *a,
                        char *b, char *c, size_t n) {
   a[0] = b[0] = c[0] = 0;
@@ -1585,6 +1586,7 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
       if (pct > best)
         best = pct;
     }
+    barFacts[1] = 0; // the battle's own bar
     snprintf(b, n, "%s", bezel_matchup(best));
     if (s->foeCount <= 0) {
       const char *st = pd_status_label(foe->status);
@@ -1669,7 +1671,20 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
   char bar[3][64];
   // The other bar's own items are its: a filler here never repeats them (the battle's bar has its own).
   const int *other = which == PANEL_TOP ? &bezelSlots[BEZEL_BOTTOM_LEFT] : &bezelSlots[BEZEL_TOP_LEFT];
-  bezel_bar_text(&bezelSlots[first], battle ? NULL : other, &f, bar);
+  bool shown[BEZEL_ITEMS] = {false};
+  bezel_bar_text(&bezelSlots[first], battle ? NULL : other, &f, bar, shown);
+  uint32_t facts = 0;
+  if (shown[BEZEL_MONEY] || (shown[BEZEL_REPEL_MONEY] && f.repel <= 0))
+    facts |= PD_BAR_MONEY;
+  if (shown[BEZEL_BADGES_TIME] || shown[BEZEL_BADGES])
+    facts |= PD_BAR_BADGES;
+  if (shown[BEZEL_BADGES_TIME] || shown[BEZEL_PLAY_TIME])
+    facts |= PD_BAR_TIME;
+  if (shown[BEZEL_NEXT_BOSS])
+    facts |= PD_BAR_BOSS;
+  if (shown[BEZEL_CAUGHT_HERE])
+    facts |= PD_BAR_HERE;
+  barFacts[which == PANEL_TOP ? 0 : 1] = facts;
   snprintf(a, n, "%s", bar[0]);
   snprintf(b, n, "%s", bar[1]);
   snprintf(c, n, "%s", bar[2]);
@@ -1743,7 +1758,8 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     for (const char *q = *p; *q; q++)
       textKey = (textKey ^ (uint8_t)*q) * 16777619u;
   uint32_t key = panelGen * 2654435761u ^ (uint32_t)(w * 65599 + h) ^ (battle ? 0x80000000u : 0) ^
-                 (uint32_t)background << 28 ^ (uint32_t)bezelStyle << 24 ^ (strip ? textKey : 0);
+                 (uint32_t)background << 28 ^ (uint32_t)bezelStyle << 24 ^
+                 (strip ? textKey : pd_ui_bar_facts * 2246822519u);
   // The bars' see-through texture (GLOW: only the text is drawn over the glow).
   static SDL_Texture *bezelTexture[PANELS];
   if (bezel && !bezelTexture[which]) {
@@ -1755,10 +1771,15 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   }
   SDL_Texture *shown = bezel ? bezelTexture[which] : panelTexture[which];
   if (bezel) {
-    // The bar fills its room edge to edge: no card, its content shifting with the wings'. Text about a fifth of
-    // the bar tall (a font pixel two screen pixels on a 120 px bar), never past the wings' scale.
-    if (room.h / 48 < scale)
-      scale = room.h / 48 > 0 ? room.h / 48 : 1;
+    // The bar fills its room edge to edge: no card, its content shifting with the wings'. Text about a third of
+    // the bar tall (a font pixel two screen pixels on a 60 px bar), never past the wings' scale.
+    if (room.h / 30 < scale)
+      scale = room.h / 30 > 0 ? room.h / 30 : 1;
+    // A step smaller while the three don't fit side by side: all three at a smaller size beat a dropped one.
+    int lw = *a ? pd_text_width(a) : 0, rw = *c ? pd_text_width(c) : 0;
+    int need = 2 * (lw > rw ? lw : rw) + (*b ? pd_text_width(b) : 0) + 36; // the middle sits in the centre
+    while (scale > 1 && room.w / scale < need)
+      scale--;
     r = room;
     w = r.w / scale;
     h = r.h / scale;
@@ -1880,6 +1901,9 @@ static void draw_panels(const struct view_layout *v, const struct pd_game *g, co
                         bool battle, bool companionInRight) {
   if (v->left.w || v->right.w || v->top.w || v->bottom.w)
     draw_gutter();
+  // The bars as last drawn: what they show, the right wing doesn't repeat.
+  pd_ui_bar_facts = (v->top.w >= 8 && v->top.h >= 8 ? barFacts[0] : 0) |
+                    (v->bottom.w >= 8 && v->bottom.h >= 8 ? barFacts[1] : 0);
   draw_panel(PANEL_LEFT, v->left, g, s, battle);
   if (!companionInRight)
     draw_panel(PANEL_RIGHT, v->right, g, s, battle);
