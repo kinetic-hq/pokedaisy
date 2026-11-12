@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -85,6 +86,10 @@ void se_close(struct save_edit *e);
 /* Backs SAVE up beside it (<save>.before-edit-<date>.sav), writes the changes through a temporary file and a rename,
  * reads them back. The backup's path in BACKUP. */
 bool se_save(struct save_edit *e, char *backup, size_t backupSize, char *err, size_t errSize);
+/* After an edit: a resume state left from before it (statesDir/<romFile>*.resume.ss, GBA's and DS's alike) would put
+ * the old save back with CONTINUE, so each is renamed to <state>.before-edit-<stamp> (kept, never deleted) and the
+ * next start boots from the edited save. Returns how many were set aside, -1 if one couldn't be. */
+int se_set_resume_aside(const char *statesDir, const char *romFile, time_t now);
 
 /* Gen 3 from bytes (tests, and se_open's GBA path). ROM is kept by the editor (not copied). */
 struct save_edit *se_open_gen3(const uint8_t *save, size_t saveSize, const uint8_t *rom, size_t romSize, char *err,

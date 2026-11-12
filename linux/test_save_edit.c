@@ -2,10 +2,12 @@
  * POCKET_SAVE_EDIT_GBA="<rom>|<save>" and / or POCKET_SAVE_EDIT_NDS="<rom>|<save>" (never committed, never the
  * originals: the test copies the save into a scratch folder first). */
 #include "save_edit.h"
+#include "pocket_os.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define CHECK(x)                                                                                                       \
   do {                                                                                                                 \
@@ -146,6 +148,48 @@ int main(void) {
   remove(rom);
   remove(save);
   puts("PASS save editor refuses what it doesn't know");
+
+  /* An edit sets the game's resume states aside (renamed, kept); other games' and the slot states stay. */
+  char states[1100], path[1300];
+  snprintf(states, sizeof states, "%s/edit-test-states", scratch);
+  pocket_mkdir(states);
+  const char *files[] = {"My Game.gba.resume.ss", "My Game.nds.melonds.resume.ss", "My Game.gba.ss",
+                         "Other.gba.resume.ss"};
+  for (int i = 0; i < 4; i++) {
+    snprintf(path, sizeof path, "%s/%s", states, files[i]);
+    write_bytes(path, "state", 5);
+  }
+  CHECK(se_set_resume_aside(states, "My Game.gba", 0) == 1);
+  CHECK(se_set_resume_aside(states, "My Game.nds", 0) == 1);
+  CHECK(se_set_resume_aside(states, "My Game.gba", 0) == 0);
+  snprintf(path, sizeof path, "%s/My Game.gba.resume.ss", states);
+  CHECK(!pocket_exists(path));
+  snprintf(path, sizeof path, "%s/My Game.nds.melonds.resume.ss", states);
+  CHECK(!pocket_exists(path));
+  snprintf(path, sizeof path, "%s/My Game.gba.ss", states);
+  CHECK(pocket_exists(path));
+  snprintf(path, sizeof path, "%s/Other.gba.resume.ss", states);
+  CHECK(pocket_exists(path));
+  int kept = 0;
+  for (int i = 0; i < 2; i++) {
+    char aside[1400];
+    struct tm tm;
+    time_t zero = 0;
+    pocket_localtime(&zero, &tm);
+    char stamp[32];
+    strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", &tm);
+    snprintf(aside, sizeof aside, "%s/%s.before-edit-%s", states, files[i], stamp);
+    kept += pocket_exists(aside);
+    remove(aside);
+  }
+  CHECK(kept == 2);
+  for (int i = 2; i < 4; i++) {
+    snprintf(path, sizeof path, "%s/%s", states, files[i]);
+    remove(path);
+  }
+  pocket_rmdir(states);
+  CHECK(se_set_resume_aside(states, "My Game.gba", 0) == 0);
+  puts("PASS an edit sets the game's resume state aside");
   const char *gba = getenv("POCKET_SAVE_EDIT_GBA"), *nds = getenv("POCKET_SAVE_EDIT_NDS");
   if (gba && *gba)
     round_trip(gba, scratch);
