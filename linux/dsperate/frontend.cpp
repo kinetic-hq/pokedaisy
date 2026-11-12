@@ -375,22 +375,35 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // It only reads RAM, so a US cart's other dumps (by its header) count too.
   const bool johto=!supported&&(ds_companion_game(ds_canonical_sha1(hex))==DsGame::Johto||
                                 ((!std::memcmp(bytes.data()+12,"IPKE",4)||!std::memcmp(bytes.data()+12,"IPGE",4))&&bytes[30]==0));char code[5]={};std::memcpy(code,bytes.data()+12,4);int revision=bytes[30];
+  // Black, White, Black 2 and White 2 (USA / Europe rev 0): the Gen 5 reader (Gen5Reader.kt's layout). It reads RAM
+  // and the cart's file system only, so any dump with the cart's header counts, as on Android.
+  DsGame unova=DsGame::Unsupported;
+  if(!supported && !johto){
+    const DsGame known=ds_companion_game(ds_canonical_sha1(hex));
+    if(ds_unova(known))unova=known;
+    else if(revision==0){
+      static const struct {const char* code;DsGame game;} carts[]={{"IRBO",DsGame::Black},{"IRAO",DsGame::White},
+                                                                 {"IREO",DsGame::Black2},{"IRDO",DsGame::White2}};
+      for(const auto& cart:carts)if(!std::memcmp(code,cart.code,4))unova=cart.game;
+    }
+  }
+  const bool other=johto || unova!=DsGame::Unsupported;  // a game with its own art (not Platinum's)
   DsMapArt mapArt=supported?ds_map_art(bytes):DsMapArt{};
   auto partyArt=supported?ds_party_icons(bytes):std::vector<std::vector<uint32_t>>{};
-  // The companion: the handheld DS core's shell (PARTY, BAG, DEX, MAP, GUIDE, BATTLE), with HeartGold and SoulSilver's
-  // own art read from their cart.
-  const DsGame shellGame=supported?DsGame::Platinum:johto?DsGame::Johto:DsGame::Unsupported;
-  DsMapArt johtoMap=johto?ds_map_art(bytes,DsGame::Johto):DsMapArt{};
-  auto johtoIcons=johto?ds_party_icons(bytes,DsGame::Johto):std::vector<std::vector<uint32_t>>{};
-  DsMapArt& shellMap=johto?johtoMap:mapArt;
-  const auto& shellIcons=johto?johtoIcons:partyArt;
+  // The companion: the handheld DS core's shell (PARTY, BAG, DEX, MAP, GUIDE, BATTLE), with HeartGold, SoulSilver,
+  // Black, White and their sequels' own art read from their cart.
+  const DsGame shellGame=supported?DsGame::Platinum:johto?DsGame::Johto:unova;
+  DsMapArt otherMap=other?ds_map_art(bytes,shellGame):DsMapArt{};
+  auto otherIcons=other?ds_party_icons(bytes,shellGame):std::vector<std::vector<uint32_t>>{};
+  DsMapArt& shellMap=other?otherMap:mapArt;
+  const auto& shellIcons=other?otherIcons:partyArt;
   auto shell=std::make_unique<DsCompanionUi>();
   shell->init(root);
   shell->set_game(shellGame,johto && !std::memcmp(bytes.data()+12,"IPG",3));
   if(shellGame!=DsGame::Unsupported)shell->dexArt=ds_dex_art(bytes,shellGame);
-  DsCompanion shellSnap;bool shellOpen=false;
+  DsCompanion shellSnap,lastGood;bool shellOpen=false;
   auto nds=ds_core_create();active=nds.get();
-  std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,supported?"Platinum":johto?"HeartGold / SoulSilver":"unsupported");
+  std::fprintf(stderr,"%s %s rev %d SHA1 %s, companion %s\n",nds->name(),code,revision,hex,supported?"Platinum":johto?"HeartGold / SoulSilver":other?"Black / White":"unsupported");
   std::deque<std::vector<uint8_t>> rewindRing;int rewindTick=0,rewindStep=0;
   std::string err;if(!nds->boot(rom,bytes,err)){std::fprintf(stderr,"DS boot failed: %s\n",err.c_str());return 1;}
   std::filesystem::path dir=std::filesystem::u8path(root);auto romPath=std::filesystem::u8path(rom);auto filename=romPath.filename().u8string();
@@ -450,8 +463,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   const DsPieceGame* pieceGame=ds_pieces_game(code);
   DsPieceLayout pieceLay;int pointerPiece=-1;  // TOUCH PIECES as last drawn; the piece a press began on
   // Platinum rev 0 runs on rev 1's field addresses (its party, field and battle structs sit at the same places).
-  // HeartGold and SoulSilver (USA) run on the app's HeartGold field read too: BATTLE, auto battles, touch moments.
-  const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):johto?pk_nds_field_game(code,0):nullptr;
+  // HeartGold and SoulSilver (USA) run on the app's HeartGold field read too: BATTLE, auto battles, touch moments;
+  // Black, White and their sequels on the app's Gen 5 field reads.
+  const auto* field=supported?pk_nds_field_game(code,!std::strcmp(code,"CPUE")?1:revision):other?pk_nds_field_game(code,0):nullptr;
   // EXPAND (ASPECT on EXPAND, melonDS, a game with field rules): the world drawn past the top screen's edges, with the
   // GBA's camera (wide_camera.h): ZOOM IN / OUT step it on the overworld; battles, menus and (AUTO ZOOM IN) text boxes
   // pull in to the closest view.
@@ -636,8 +650,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     int layout=prefs.layout==DSL_ONE && !field?DSL_PIP:prefs.layout;
     if(choosing && std::getenv("POCKET_DS_STOP_ON_BATTLE_INPUT"))limit=frame+1;
     if(pressed&(1u<<15)){paused=!paused;showQuick=false;blocked|=keys&4095u;}
-    DsCompanion snap=supported?ds_read_companion(nds->mainRam(),nds->mainRamSize()):
-      johto?ds_read_companion(nds->mainRam(),nds->mainRamSize(),DsGame::Johto):DsCompanion{};
+    DsCompanion snap=shellGame!=DsGame::Unsupported?ds_read_companion(nds->mainRam(),nds->mainRamSize(),shellGame):DsCompanion{};
+    // Gen 5 decrypts a record in place now and then, so a read can fail for a frame: keep the last good one.
+    if(ds_unova(shellGame)){if(snap.valid)lastGood=snap;else if(lastGood.valid)snap=lastGood;}
     quick_item quickItems[4]{};
     quickItems[0].action=QUICK_COMPANION;
     quickItems[1].action=QUICK_SAVE_STATE;
@@ -769,7 +784,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       pd_option_row rows[4+DS_SETTINGS];int info=0;
       if(shellGame==DsGame::Unsupported){
         rows[info++]={"THIS CART",ds_unsupported_label.c_str()};
-        rows[info++]={"COMPANION","PLATINUM, HEARTGOLD, SOULSILVER (USA)"};
+        rows[info++]={"COMPANION","PLATINUM, HEARTGOLD, SOULSILVER, BLACK, WHITE, BLACK 2, WHITE 2"};
       }else{
         rows[info++]={"TRAINER",shellSnap.valid?shellSnap.trainer.c_str():"-"};
         rows[info++]={"PLACE",shellSnap.valid?ds_place(shellSnap.map,shellGame):"-"};
@@ -848,7 +863,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(!wideShown)draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       // TOUCH IN WING / WINGS: the companion's panels in the wings (under a floating touch screen's dim).
       if(!wideShown && (place.panel[0].shown() || place.panel[1].shown() || place.split()))gutter_screen(renderer,topInset?place.touch:place.top,look);
-      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,supported||johto,shellIcons,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
+      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,shellGame!=DsGame::Unsupported,shellIcons,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
       wingPanels=place.panel[0].shown();
       if(place.touchFloats){SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer,0,0,0,150);SDL_RenderFillRect(renderer,nullptr);SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_NONE);}
       if(place.touchFloats || place.inset)frame_screen(renderer,topInset?place.top:place.touch);
