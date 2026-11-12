@@ -90,6 +90,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   width between the game and the wings (`BALANCED` by default, `GAME FIRST`, `WINGS FIRST`), `STRETCH` (off) lets
   the game lose up to 5% of its shape to fill the screen, and the zoom buttons turn `EXPAND` on themselves. The DS
   layouts with wings and the DS companion follow `WING ROOM` and `UI SIZE` too
+- **Tap the HUD and zoom in WINGS** on the desktop host: the HUD's party slots, minimap, balls, `PC`, `BAG`, `WILD`
+  and `COMPANION` answer a tap or click, the first click on the window counts, a tap on the party wing in a battle
+  opens `PARTY`, and LT / RT zoom the game's area in `WINGS`
 - **Wing look and clicks** on the desktop host: `WING LOOK` (`COMPACT`, `COMFY`, `BIG`) sizes the wings, `BACKGROUND` `BLUR` puts a blurred copy of the game behind the cards, a click on a wing opens the companion on its page, the map wing shows this area's wild kinds as icons (the ones not caught yet faded), and a small card at the bottom of the left wing shows the buttons when no bar does
 - **Fuller wings** on the desktop host: an EXP bar under each HP bar, an outlined card with a ball for each free
   party place (seen on dark wings too), long names given the level's room before they're cut, badges as eight

@@ -85,6 +85,7 @@ static SDL_Texture *wideTexture;
 static uint32_t wideSource[240 * 160], wideFrame[PK_WIDE_MAX_VIEW_W * PK_WIDE_MAX_VIEW_H];
 static bool wideSupported, wideReady;
 static unsigned wideW, wideH;
+static int wideBoxW, wideBoxH; // the game's area beside the wings (0: the whole screen), EXPAND's window sized to it
 static struct wide_camera wideCam; // EXPAND's zoom (wide_camera.h)
 static float wideScale = 1;        // screen pixels per game pixel of the window now
 static float wideLevels[WIDE_CAMERA_LEVELS];
@@ -701,7 +702,7 @@ static int menu_taps(struct pd_menu *m) {
   return row;
 }
 /* POCKET_KEYS="N:K:LEN,..." (headless checks): button K (A 0, B 1, SELECT 2, START 3, RIGHT 4, LEFT 5, UP 6, DOWN 7,
- * R 8, L 9, ...) held from events() call N for LEN calls. */
+ * R 8, L 9, ...) held from events() call N for LEN calls; K 100 + HA_* fires that HOTKEYS action instead. */
 static int keyScriptTick;
 static void key_script(void) {
   const char *s = getenv("POCKET_KEYS");
@@ -712,10 +713,15 @@ static void key_script(void) {
     int n, k, len, used = 0;
     if (sscanf(s, "%d:%d:%d%n", &n, &k, &len, &used) != 3 || !used)
       break;
-    if (tick == n)
-      key(k, true);
-    if (tick == n + len)
-      key(k, false);
+    if (k >= 100) { // 100 + HA_*: a HOTKEYS action (zoom, the companion...), fired once
+      if (tick == n)
+        hotkey_fire(k - 100);
+    } else {
+      if (tick == n)
+        key(k, true);
+      if (tick == n + len)
+        key(k, false);
+    }
     s += used;
     if (*s == ',')
       s++;
@@ -1268,6 +1274,8 @@ static void wide_tick(struct mCore *c, bool skip, const struct pd_settings *s) {
   int ow = W, oh = H;
   if (SDL_GetRendererOutputSize(renderer, &ow, &oh) < 0 || ow <= 0 || oh <= 0)
     ow = W, oh = H;
+  if (wideBoxW > 0 && wideBoxH > 0)
+    ow = wideBoxW, oh = wideBoxH; // WINGS, BATTLE WINGS: zoom inside the game's own area
   wideLevelCount = wide_camera_levels(ow, oh, (int)fw, (int)fh, PK_WIDE_MAX_VIEW_W, PK_WIDE_MAX_VIEW_H, wideLevels);
   if (wideCamAspect != s->aspect) {
     wideCamAspect = s->aspect;
@@ -1346,20 +1354,24 @@ static bool render_game(unsigned gw, unsigned gh) {
   bool placed = gameView && !gameView->expand && gameView->game.w > 0;
   if (placed)
     lastGameRect = sdl_rect(gameView->game);
+  wideBoxW = placed ? gameView->game.w : 0;
+  wideBoxH = placed ? gameView->game.h : 0;
   // The textures take mGBA's pixels as they are (XBGR: SDL's BGR888).
   if (SDL_UpdateTexture(gameTexture, &(SDL_Rect){0, 0, (int)gw, (int)gh}, video, 256 * 4) < 0) {
     notice(SDL_GetError());
     return false;
   }
   SDL_Texture *drawn = gameTexture;
-  if (wideReady && !placed) {
+  if (wideReady) {
     // The same scale: the window's middle lands on the game's own picture.
     gw = wideW;
     gh = wideH;
     // The camera's scale (whole once it settles; between two while it eases), the window centred on the screen.
     float fs = wideScale >= 1 ? wideScale : 1;
     int dw = (int)lroundf((float)gw * fs), dh = (int)lroundf((float)gh * fs);
-    lastGameRect = (SDL_Rect){(ow - dw) / 2, (oh - dh) / 2, dw, dh};
+    lastGameRect = placed ? (SDL_Rect){gameView->game.x + (gameView->game.w - dw) / 2,
+                                       gameView->game.y + (gameView->game.h - dh) / 2, dw, dh}
+                          : (SDL_Rect){(ow - dw) / 2, (oh - dh) / 2, dw, dh};
     if (SDL_UpdateTexture(wideTexture, &(SDL_Rect){0, 0, (int)gw, (int)gh},
                           wideFrame, (int)gw * 4) < 0) {
       notice(SDL_GetError());
@@ -1419,6 +1431,19 @@ static uint32_t hudDrawnKey;
 static int hudW, hudH;
 static bool hudShown;
 static struct hud_hits hudHits; // where hud_draw put each target, in HUD canvas pixels
+static SDL_Rect hudAt;          // where the HUD was last drawn, in the renderer's pixels (w 0: not shown)
+static int hudAtScale = 1;      // ... at this many pixels per HUD canvas pixel
+/* The HUD target under a point in the renderer's pixels, or -1. */
+static int hud_target_at(float x, float y) {
+  if (hudAt.w <= 0 || x < hudAt.x || y < hudAt.y || x >= hudAt.x + hudAt.w || y >= hudAt.y + hudAt.h)
+    return -1;
+  int cx = (int)((x - hudAt.x) / hudAtScale), cy = (int)((y - hudAt.y) / hudAtScale);
+  for (int i = 0; i < hudHits.n; i++)
+    if (cx >= hudHits.at[i].x && cy >= hudHits.at[i].y && cx < hudHits.at[i].x + hudHits.at[i].w &&
+        cy < hudHits.at[i].y + hudHits.at[i].h)
+      return hudHits.at[i].id;
+  return -1;
+}
 static int hudScale = 1;
 static void present_hud_game(const struct pd_game *g, const struct pd_snapshot *s, const struct hud_state *h,
                              const struct pd_settings *st, unsigned gw, unsigned gh) {
@@ -1432,7 +1457,7 @@ static void present_hud_game(const struct pd_game *g, const struct pd_snapshot *
   if (scale < 1)
     scale = 1;
   hudScale = scale;
-  SDL_Rect area = wideReady ? (SDL_Rect){0, 0, ow, oh} : lastGameRect;
+  SDL_Rect area = wideReady && !wideBoxW ? (SDL_Rect){0, 0, ow, oh} : lastGameRect;
   int w = area.w / scale, hh = area.h / scale;
   if (w > CANVAS_MAX_W)
     w = CANVAS_MAX_W;
@@ -1455,9 +1480,12 @@ static void present_hud_game(const struct pd_game *g, const struct pd_snapshot *
     hudW = w;
     hudH = hh;
   }
+  hudAt.w = 0;
   if (hudTexture && hudShown) {
     SDL_Rect at = {area.x + (area.w - w * scale) / 2, area.y + (area.h - hh * scale) / 2, w * scale, hh * scale};
     SDL_RenderCopy(renderer, hudTexture, &(SDL_Rect){0, 0, w, hh}, &at);
+    hudAt = at;
+    hudAtScale = scale;
   }
   timed_present();
 }
@@ -3203,9 +3231,18 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     }
     // A click on a wing opens the companion on that wing's page: the party's on PARTY, the map's on MAP (BATTLE in
     // a battle).
+    // A tap on a HUD target (a party slot, the minimap, the balls, PC, BAG, WILD, COMPANION) presses it, as the HUD
+    // hotkey's A does.
+    int hudTapped = -1;
+    if (wingClicked && !companion && !menuOpen && !quickOpen && hudShown) {
+      hudTapped = hud_target_at(wingClickX, wingClickY);
+      if (hudTapped >= 0)
+        wingClicked = false;
+    }
     if (wingClicked && !companion && !menuOpen && !quickOpen) {
       int tab = wing_tab_at(&viewShown, wingClickX, wingClickY, snap.inBattle);
       if (tab >= 0) {
+        pd_ui_update(&ui, &snap); // a battle's start puts BATTLE first: before the page picked, not over it
         ui.tab = tab;
         if (tab == PD_TAB_MAP)
           ui.mapPage = -1;
@@ -3244,12 +3281,13 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         hudState.focus = hud_first(&hudHits);
         c->setKeys(c, 0);
       }
-    } else if (hudFocus) {
-      if (down(B) || down(MENU)) {
+    } else if (hudFocus || hudTapped >= 0) {
+      if (hudTapped < 0 && (down(B) || down(MENU))) {
         hudFocus = false;
         hudState.focus = -1;
-      } else if (down(A)) {
-        int id = hudState.focus;
+      } else if (hudTapped >= 0 || down(A)) {
+        int id = hudTapped >= 0 ? hudTapped : hudState.focus;
+        pd_ui_update(&ui, &snap);
         hudFocus = false;
         hudState.focus = -1;
         if (id == HUD_PC) {
@@ -5794,6 +5832,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+  // A click or tap that brings the window forward also presses what it lands on (a HUD button, a wing).
+  SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
   // Every pad's face buttons by position (SDL would otherwise swap a Nintendo pad's by its labels): BUTTON LAYOUT
   // says which one is A.
   SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
