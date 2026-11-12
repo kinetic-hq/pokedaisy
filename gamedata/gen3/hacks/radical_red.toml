@@ -41,3 +41,10 @@ guideTables = 'GUIDE_TABLES_RADICAL_RED'
 # FireRed's battle menu cursors (CFRU's EWRAM), checked headless like Unbound's (radical_red_battle's README).
 actionCursor = 0x02023FF8
 moveCursor = 0x02023FFC
+# FOE TEAM: FireRed's battle EWRAM too. radical_red_battle's wild PIKACHU is at gEnemyParty 0x0202402C (its name at
+# +8), gBattlerPositions 8 bytes past gBattlerPartyIndexes, and the gBattleStruct pointer's monToSwitchIntoId reads
+# 06 06 06 06 at +0x5C.
+enemyParty = { from = 'firered_rev1' }
+battlerPartyIndexes = { from = 'firered_rev1' }
+battleStructPtr = { from = 'firered_rev1' }
+monToSwitchIntoOff = { from = 'firered_rev1' }
