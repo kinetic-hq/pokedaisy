@@ -201,7 +201,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
   guessed one, which read the wrong ability names and foe teams; on the desktop, the 3DS port and Android alike.
 - **Petalburg Dynasty 1.12.2**: a new supported hack (pokeemerald-expansion 1.16.4, its sha1 only): PARTY, BAG, BATTLE
   with the foe's team and the battle buttons, MAP place names and the GUIDE's wild Pokemon on the desktop, the 3DS port
-  and Android, and its DEX on Android.
+  and Android, and its DEX on all three.
 - **DS Platinum by its header** on the desktop host: any `CPUE` revision 0 or 1 cart gets the Platinum companion (rev 1 as on
   Android, rev 0 too here: its addresses are the same; a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
   (game, region, revision, code) and the one it needs.
