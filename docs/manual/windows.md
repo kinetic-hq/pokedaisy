@@ -603,7 +603,7 @@ evolutions, level-up moves and the TMs and HMs it fits. Its `GUIDE` has two
 pages, read from its cart: `HERE` lists the wild creatures where you stand by
 time of day, and `NEXT BOSS` shows the next gym leader or League member with
 the hack's own team. `BATTLE` shows your creature and the foe, their moves and types,
-and a trainer's team. It has no EXPAND or auto battles.
+and a trainer's team. EXPAND and auto battles work as in HeartGold.
 For other DS games you get the game alone, and `SETTINGS` tells you
 which game and revision it found, and which ones the companion reads.
 

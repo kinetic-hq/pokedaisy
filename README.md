@@ -215,6 +215,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **HeartFelt Gold's `GUIDE` on the desktop host**: `HERE` lists the wild creatures where you stand by time of day,
   read from the cart's own map headers and encounter tables, with the build's own species. `NEXT BOSS` shows the next
   gym leader or League member with the hack's own team, read from the cart's hg-engine trainer data.
+- **HeartFelt Gold's EXPAND and auto battles on the desktop host**: its code is retail HeartGold's where the field
+  read looks (the same ARM9 and field overlay bytes), so it runs on HeartGold's field read: EXPAND, `BATTLES` `AUTO`
+  and the touch screen floating in for menus.
 - **HeartFelt Gold on the desktop host** (an hg-engine build of HeartGold, not read on Android): `PARTY`, `BAG` and
   `MAP` on its own save offsets (its bigger bag moves the rest of the save), with its species to 1534, moves, items,
   Fairy type, type chart and icon palettes read from the cart. No `DEX`, `GUIDE` or `BATTLE` yet. The game list's tag
