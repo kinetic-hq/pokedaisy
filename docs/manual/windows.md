@@ -127,6 +127,13 @@ different copies are kept. Save states go to `DATA\states`. A state is written
 to a new file first and then put in place in one step, so a crash while saving a
 state never leaves half a file behind.
 
+In GBA and Game Boy games each game has ten state slots, in the companion's
+`STATES` tab (on the tab bar, or under the tiles button). Each card shows a
+small picture of the game from the moment you saved and when it was saved. Pick
+a card, then `SAVE` or `LOAD` under it. The `SAVE STATE` and `LOAD STATE`
+hotkeys use the card you picked last. Slot 0 is the one state file from earlier
+versions, so a state you already had is still there.
+
 ## Full screen and controllers
 
 Press F11 or Alt+Enter to switch between full screen and a window, any time: in
