@@ -32,7 +32,7 @@ const struct pd_pc_storage pd_pc_static = { .format = PD_BOX_ENCRYPTED, .boxes =
 const struct pd_pc_storage pd_pc_plain = { .format = PD_BOX_PLAIN, .boxes = VANILLA_BOXES, .record = BOX_RECORD };
 const struct pd_pc_storage pd_pc_soulgold = { .format = PD_BOX_PLAIN, .boxes = 15, .record = 0x4C };
 const struct pd_pc_storage pd_pc_unbound = CFRU_PC(0x08A769AFu), pd_pc_radical_red = CFRU_PC(0x091521D0u),
-    pd_pc_amethyst = CFRU_PC(0x089B6358u), pd_pc_amethyst_v141 = CFRU_PC(0x089FFCA8u), pd_pc_sword_shield = CFRU_PC(0x094BFA7Cu),
+    pd_pc_amethyst = CFRU_PC(0x089B6358u), pd_pc_amethyst_v141 = CFRU_PC(0x089FFCA8u), pd_pc_amethyst_v143 = CFRU_PC(0x08A00FB4u), pd_pc_sword_shield = CFRU_PC(0x094BFA7Cu),
     pd_pc_gs_chronicles = CFRU_PC(0x09D10BE3u);
 
 bool pd_boxes_supported(const struct pd_game* g) {

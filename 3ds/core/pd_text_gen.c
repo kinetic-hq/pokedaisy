@@ -151497,6 +151497,17 @@ const struct pd_text pd_text_amethyst_v1_4_1 = {
     .speciesTypes = 0, .speciesTypesCount = 0,
     .genderRatios = pd_genderRatiosAmethystV141, .genderRatiosCount = 1294,
     .mapsecs = 0, .mapsecsCount = 0,
+};
+
+const struct pd_text pd_text_amethyst_v1_4_3 = {
+    .species = pd_speciesNamesAmethystV141, .speciesCount = 1294,
+    .items = pd_itemNamesAmethystV141, .itemsCount = 723,
+    .moves = pd_moveDataAmethyst, .movesCount = 829,
+    .typeNames = 0, .typeNamesCount = 0,
+    .typeChart = 0, .typeChartCount = 0,
+    .speciesTypes = 0, .speciesTypesCount = 0,
+    .genderRatios = pd_genderRatiosAmethystV141, .genderRatiosCount = 1294,
+    .mapsecs = 0, .mapsecsCount = 0,
     .mapsecsRom = true,
 };
 

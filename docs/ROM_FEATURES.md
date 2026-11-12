@@ -58,6 +58,7 @@ change to any of the places listed under "Where it's decided" updates its rows h
 | Origin HeartGold (DS) | 4.0.3 English 1.0.0 | ✅ ¹⁴ | — ²⁹ | — | — | — | ✅ ²⁹ | — | ✅ ²⁹ | ✅ ¹⁴ | ✅ ²⁹ | ✅ ²⁹ | — | n/a | — | — | — |
 | Renegade Platinum (DS) | 1.3.0, 1.3.0 Classic, 1.2.0 | ✅ ³² | ✅ ³² | — | — | — | ✅ ³² | — | ✅ ³² | ◐ ³² | ◐ ³² | ✅ ³² | — | n/a | — | — | — |
 | Amethyst | 1.3.0, 1.4.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | ✅ ¹⁹ | — ³³ | ✅ ³³ |
+| Amethyst | 1.4.3 ³⁴ | — | — | — | — | — | — | — | — | — | — | — | — | — | ✅ ¹⁹ | — | — |
 | Ash Gray | 4.5.3, Fork Bug Fix 1.0 | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ ⁹ | — | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ | — | — | ✅ ¹⁹ | ✅ | — ³³ |
 | Celia's Stupid Romhack | 1.1.4 | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | ✅ | — | ✅ ¹⁵ | — | — | — | — |
 | Dreamstone Mysteries | the one release | — | ✅ | ✅ | ✅ | — | — | — | — | — | — ²² | — | — | — | — | — | — |
@@ -463,6 +464,9 @@ change to any of the places listed under "Where it's decided" updates its rows h
     (Heart and Soul lit 0x865, badge 0x880; SoulGold 0x9B4 / 0x993 and its cave byte at +0x16, `FlashFns.caveOff`), the
     badge from isUnlocked or the party menu (Lazarus's switch asks badge 3, 0x869). Each lit a dark cave of its own map
     table headless.
+34. Amethyst 1.4.3: the companion reads it (PARTY, BAG, BATTLE with the foe's team, DEX, GUIDE, the PC) with its
+   own tables, each found from the code that reads it and checked in the ROM (`gamedata/gen3/hacks/amethyst.toml`).
+   With no save of it yet, the features that write to the game stay off until each is tried on it.
 
 ## What each column is
 

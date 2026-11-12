@@ -790,6 +790,14 @@ guide = 'GuideId.AMETHYST_V141'
 mapGroups = 0x083526A8
 altTrainers = [0x08A1861C, 0x08A02384, 0x08A0FD08]
 
+# Amethyst v1.4.3: v1.4.1's, its four trainer tables 0x130C later (the loader's literal pool).
+[record.GUIDE_TABLES_AMETHYST_V1_4_3]
+schema = 'gen3_guide'
+base = 'GUIDE_TABLES_AMETHYST_V1_4_1'
+kotlin = false
+trainers = 0x08A26D20
+altTrainers = [0x08A19928, 0x08A03690, 0x08A11014]
+
 #
 # Pokémon Ultra Violet: retail FireRed rev 0's gTrainers (FireRed's gyms and League, one
 # trainer added at 530) and gLevelUpLearnsets, its own gWildMonHeaders (0x087339C0, all 14
@@ -2072,6 +2080,13 @@ speciesToNational = 0x09AF5F14
 abilityNames = 0x0894DD1C
 speciesCount = 1294
 evoLayout = { kotlin = 'EvoLayout(EvoScheme.CFRU, table = 0x09AAB2FCL, perMon = 16)' }
+
+# Amethyst v1.4.3: v1.4.1's dex, its ability names 0x100C later.
+[record.POKEDEX_AMETHYST_V1_4_3]
+schema = 'gen3_pokedex'
+base = 'POKEDEX_AMETHYST_V1_4_1'
+kotlin = false
+abilityNames = 0x0894ED28
 
 #
 # Celia's Stupid Romhack v1.1.4: one 150-entry dex in its own order (No. 1

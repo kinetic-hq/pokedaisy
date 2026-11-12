@@ -508,7 +508,7 @@ object BestEffort {
             romGameCode = c.cfg.gameCode
             soulGoldV12 = c.cfg === NATIVE_SOULGOLD_V1_2 || c.cfg === NATIVE_SOULGOLD_V1_2B || c.cfg === NATIVE_SOULGOLD_V1_2C ||
                 c.cfg === NATIVE_SOULGOLD_V1_2_1
-            amethystV141 = c.cfg === NATIVE_AMETHYST_V1_4_1
+            amethystV141 = c.cfg === NATIVE_AMETHYST_V1_4_1 || c.cfg === NATIVE_AMETHYST_V1_4_3
             fireRedHack = fireRedHackFor(c.cfg)
             emeraldHack = emeraldHackFor(c.cfg)
             mariomonV13 = c.cfg === NATIVE_MARIOMON_V1_3 || c.cfg === NATIVE_MARIOMON_V1_2_2 || c.cfg === NATIVE_MARIOMON_V1_2_1

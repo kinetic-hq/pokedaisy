@@ -135,7 +135,7 @@ struct pd_pc_storage {
     uint32_t cfruExtra[6];
 };
 extern const struct pd_pc_storage pd_pc_vanilla, pd_pc_static, pd_pc_plain, pd_pc_soulgold, pd_pc_unbound, pd_pc_radical_red,
-    pd_pc_amethyst, pd_pc_amethyst_v141, pd_pc_sword_shield, pd_pc_gs_chronicles;
+    pd_pc_amethyst, pd_pc_amethyst_v141, pd_pc_amethyst_v143, pd_pc_sword_shield, pd_pc_gs_chronicles;
 
 // struct BattlePokemon's field offsets (the app's BattleMonLayout); a config without one is retail's.
 struct pd_battle_layout {

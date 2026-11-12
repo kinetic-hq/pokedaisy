@@ -2873,6 +2873,21 @@ val NATIVE_AMETHYST_V1_4_1 = NATIVE_AMETHYST.copy(
     handleInputChooseTarget = 0x0890BE01L, // its moved target-select handler, found the same way
 )
 
+// Pokemon Amethyst v1.4.3: v1.4.1 with some of the hack's own data moved. Every vanilla-code literal
+// pool word that names a table (the dex, species info, pictures, learnsets, icons, names) still holds
+// v1.4.1's address, and its RAM words are all still in use. What moved: the ability names (+0x100C:
+// index 1 reads its own first ability), gBattleMoves (+0x130C, 0x08A00FB4: the trainer loader's pool
+// next to the tables) and the trainer tables (+0x130C, read from the loader's pool: probe trainer 14
+// still reads its name), and the target-select handler (the literal in the hack's own move handler's
+// pool, a push {r4-r7, lr} at 0x0890C4A4). Its species, items and moves are v1.4.1's
+// (gen_amethyst_tables.py v1.4.3 --check).
+val NATIVE_AMETHYST_V1_4_3 = NATIVE_AMETHYST_V1_4_1.copy(
+    pcStorage = AMETHYST_V143_PC_STORAGE,
+    pokedex = POKEDEX_AMETHYST_V1_4_3,
+    guideTables = GUIDE_TABLES_AMETHYST_V1_4_3,
+    handleInputChooseTarget = 0x0890C4A5L,
+)
+
 // ---- gamedata/gen3/hacks/celia.toml ----
 
 // Pokemon Celia's Stupid Romhack v1.1.4 - BPRE rev 0, ~28.7 MB, no source.

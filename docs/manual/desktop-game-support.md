@@ -94,7 +94,7 @@ By tab:
 | Gaia | 3.2; SHA-1 d5b1e779 | works | works | partly | works | works | works | None |
 | Odyssey | 4.1.1; SHA-1 8745ddbd | works | works | partly | works | works | works | None |
 | Heart and Soul | 2.0.6; SHA-1 79ee6df0 | works | works | partly | works | no | works | No `DEX` tab |
-| Amethyst | 1.3.0 (SHA-1 00e70c03), 1.4.1 (91291aad) | works | works | partly | works | works | works | None |
+| Amethyst | 1.3.0 (SHA-1 00e70c03), 1.4.1 (91291aad), 1.4.3 (411e9023) | works | works | partly | works | works | works | None |
 | Celia's Stupid Romhack | 1.1.4; SHA-1 3cbd5a2e | works | works | partly | works | works | works | None |
 | Orange Islands | Beta 5.7 and an older beta; SHA-1 8bac897d, d2e3800e | works | works | partly | works | works | works | None |
 | Ultra Violet | 1.22; SHA-1 3b6c51d8 | works | works | partly | works | works | works | None |

@@ -72,6 +72,7 @@ const struct pd_shiny_rom pd_shiny_roms[] = {
     {"25f8840ecb58e584edf18ffde35f845e94f3f17c", 8}, // GS Chronicles v2.7.6 (CFRU)
     {"00e70c0384a5f1698588034201fd5b849d3542e2", 8}, // Amethyst v1.3.0 (CFRU)
     {"91291aade04b4b111cd03ae7b6e2ff460e1edd8a", 16}, // Amethyst v1.4.1 (CFRU, its own 1 in 4096)
+    {"411e9023cefae108e6cc28be493e3fd91e9aba6e", 16}, // Amethyst v1.4.3 (v1.4.1's check: cmp r0, #15 at 0x08044120)
     {"b4776b82a4c7915d0fadeaa27e013523f99dfd94", 16}, // Unbound v2.1.1.1 (CFRU, its own 1 in 4096)
     {"0ce2a880aa097f1dce4e1db8ee513d0e82d15859", 16}, // Unbound v2.1.1.1 FR (CFRU, its own 1 in 4096)
     {"7dcdc7e280bc4631487e13dd37e6e0cea04adea6", 16}, // Lazarus v2.0 (its colours shift with the personality: 15 drew nearest the shiny, 16 the normal) (expansion)
