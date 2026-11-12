@@ -146,6 +146,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   3x, xBRZ drawn as SHARP, the companion and game list redrawn half as often.
 - **DS time of day and Berry Pots** on the desktop host: the DS facts wing shows MORNING / DAY / (EVENING) / NIGHT,
   and HeartGold / SoulSilver get their party and facts wings with each Berry Pot's berry, stage, time left and DRY.
+- **DS Platinum by its header** on the desktop host: any `CPUE` revision 1 cart gets the Platinum companion, as on
+  Android (a trimmed or re-dumped copy, Renegade Platinum), and another DS game's companion names the cart it found
+  (game, region, revision, code) and the one it needs.
 - **EDIT SAVE** on the desktop host: a game's menu changes its save file (money, coins, the bag, party and PC
   Pokemon: species, nickname, level, nature, ability, item, moves, IVs, EVs, shiny; heal) for the GBA games with
   the retail save layout and English HeartGold / SoulSilver / Platinum, only to values the game allows, with a backup first.
