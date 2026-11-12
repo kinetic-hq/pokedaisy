@@ -240,7 +240,7 @@ companion's `SETTINGS` has the same `BUTTON LAYOUT` row.
 In `HOTKEYS`, the triggers and sticks come first (`L2 / LT`, `R2 / RT`, `L3`,
 `R3`), then each extra button your controller may have: `GUIDE / HOME`, `SHARE`
 and the four back `PADDLE` buttons. Out of the box LT zooms out, RT zooms in
-(the first press turns `ASPECT` `EXPAND` on, in a game that has it) and L3 turns fast forward on and off.
+(`ASPECT` starts on `EXPAND` here, so zoom works from your first game; if you picked `ORIGINAL`, the first press turns `EXPAND` back on, in a game that has it) and L3 turns fast forward on and off.
 A DS game uses the same buttons: LT and RT make the game smaller or larger
 against the wings (`WINGS FIRST`, `BALANCED`, `GAME FIRST`, for as long as you
 play; in a layout without wings the game says so), L3 turns fast forward on and

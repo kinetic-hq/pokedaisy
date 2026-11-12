@@ -91,6 +91,7 @@ struct pd_settings {
     int ffSpeed;    // PD_FF_MIN..PD_FF_MAX
     int guideNotice; // a bit per game kind whose GUIDE notice was accepted
     int aspect;      // enum pd_aspect (hosts with hasExpand only)
+    bool aspectPicked; // ASPECT chosen by the player (pd_settings_expand_default leaves a chosen ORIGINAL alone)
     bool autoZoom;   // AUTO ZOOM IN: ZOOM OUT steps back in off the plain overworld
     bool wildOff;    // WILD ENCOUNTERS off (hosts that can: the Linux host's quick menu)
     int tabBar;      // TAB BAR: a bit per enum pd_tab on the bar (PARTY .. DEX, CARD); the rest open from MORE
