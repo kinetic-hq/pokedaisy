@@ -92,7 +92,6 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | White 2 (DS) | USA/Europe, every language | NDS | Original | ✅ | ✅ FULL (USA / Europe cart) | Real save |
 | Origin HeartGold (DS) | 4.0.3 English 1.0.0 | NDS | ROM hack | ◐ | ◐ PARTLY: GUIDE has HERE and NEXT BOSS | Run on copy |
 | Renegade Platinum (DS) | 1.2.0, 1.3.0 (+ Classic) | NDS | ROM hack | ◐ | ◐ PARTLY: GUIDE has HERE and NEXT BOSS | Run on copy |
-| HeartFelt Gold (DS) | hg-engine release | NDS | ROM hack | Desktop only | ◐ PARTLY: GUIDE has HERE and NEXT BOSS | Run on copy |
 | Unbound | 2.1.1.1 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
 | Unbound | 2.1.1.1 French | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Radical Red | 4.1 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
@@ -136,8 +135,8 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | R.O.W.E. | 2.1.9.1 Experimental | GBA | ROM hack | ◐ | ✅ FULL | Run on copy |
 
 On the DS, the desktop's companion reads the USA carts of Platinum, HeartGold and SoulSilver and the USA / Europe
-carts of Black, White, Black 2 and White 2; the other languages play without it for now. HeartFelt Gold isn't
-supported on Android. [desktop-game-support.md](docs/manual/desktop-game-support.md) goes through each tab, game by game.
+carts of Black, White, Black 2 and White 2; the other languages play without it for now.
+[desktop-game-support.md](docs/manual/desktop-game-support.md) goes through each tab, game by game.
 
 ## OLED handhelds (OneXPlayer 3, Legion Go 2)
 
@@ -160,7 +159,7 @@ An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everythi
 | Controls | Hot plugged controllers (several at once), `NINTENDO` / `XBOX` layouts, hotkeys for paddles and extra buttons, touch and mouse, rumble |
 | Games and saves | A box art game grid, your own game folders with saves beside the games, ten state slots, resume, per-game settings, `EDIT SAVE` |
 | Play | Level cap, low PP warning, battery saver |
-| Games | HeartFelt Gold on the DS, and a [game compatibility](#game-compatibility) table comparing Android with Windows / Linux |
+| Games | A [game compatibility](#game-compatibility) table comparing Android with Windows / Linux |
 
 Every change, one line each (a pull request that changes what the fork adds updates this list):
 
@@ -298,22 +297,6 @@ Every change, one line each (a pull request that changes what the fork adds upda
   `HERE` also lists the item balls and hidden items where you stand, from the cart's map events and scripts.
 - **Origin HeartGold's `BATTLE` on the desktop host**: its own battle engine's objects are read (as on Android): your
   creature and the foe with their stats, types and moves, and a trainer's team.
-- **HeartFelt Gold's `BATTLE` on the desktop host**: it keeps HeartGold's battle structures, so the panes read your
-  creature and the foe (with the build's own species, moves and Fairy type) and a trainer's team. Auto battles and
-  EXPAND stay off for it.
-- **HeartFelt Gold's `DEX` on the desktop host**: its Pokédex (1534 species ids, caught and seen) read from the save,
-  listed in National Dex order, with each page's front, stats, size, text, evolutions and level-up moves from the cart.
-  Its TM01 to TM100 and HM01 to HM08 come from hg-engine's machine learnsets and moves in the cart.
-- **HeartFelt Gold's `GUIDE` on the desktop host**: `HERE` lists the wild creatures where you stand by time of day,
-  read from the cart's own map headers and encounter tables, with the build's own species. `NEXT BOSS` shows the next
-  gym leader or League member with the hack's own team, read from the cart's hg-engine trainer data.
-- **HeartFelt Gold's EXPAND and auto battles on the desktop host**: its code is retail HeartGold's where the field
-  read looks (the same ARM9 and field overlay bytes), so it runs on HeartGold's field read: EXPAND, `BATTLES` `AUTO`
-  and the touch screen floating in for menus.
-- **HeartFelt Gold on the desktop host** (an hg-engine build of HeartGold, not read on Android): `PARTY`, `BAG` and
-  `MAP` on its own save offsets (its bigger bag moves the rest of the save), with its species to 1534, moves, items,
-  Fairy type, type chart and icon palettes read from the cart. No `DEX`, `GUIDE` or `BATTLE` yet. The game list's tag
-  now reads Renegade Platinum as "every tab but GUIDE" and knows Origin HeartGold too.
 - **Origin HeartGold on the desktop host**: `PARTY`, `BAG`, `MAP` and `DEX` (Pokédex pages, pictures, learnsets,
   machines, evolutions) on its own save offsets, with its species, moves, items, Fairy type and type chart read from
   the cart. No `BATTLE` panes yet.
@@ -404,6 +387,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Dark by default, with a LIGHT / DARK button** on the desktop host: the game list starts dark until you pick
   light, keeps your choice from the very first frame (an update no longer flashes it back to light), and a sun /
   moon button at the right end of its top bar switches it by controller, mouse or touch.
+- **HeartFelt Gold switched off** on the desktop host: the hack is still being made, so its companion is
+  off for now and the game plays without one, like any game PokeDaisy doesn't read. Its reading code stays, ready
+  for when the hack is finished.
 
 </details>
 

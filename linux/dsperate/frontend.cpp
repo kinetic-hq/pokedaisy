@@ -388,8 +388,10 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   static struct pd_ds_types renegadeTypes;renegadeTypes={"Fairy",renegadeTables.chart.data()};
   if(renegade)pd_ds_types=&renegadeTypes;
   // HeartFelt Gold: HeartGold's companion on its own save offsets and the tables its cart holds.
+  constexpr bool heartfeltOn=false;  // Off until the hack itself is finished: its cart plays without a companion.
   static DsOrigin heartfeltTables;
-  bool heartfelt=!supported && !origin && ds_heartfelt_cart(bytes.data(),bytes.size());
+  const bool heartfeltCart=!supported && !origin && ds_heartfelt_cart(bytes.data(),bytes.size());
+  bool heartfelt=heartfeltOn && heartfeltCart;
   if(heartfelt){heartfeltTables=ds_read_heartfelt(bytes);heartfelt=!heartfeltTables.species.empty();}
   ds_set_heartfelt(heartfelt?&heartfeltTables:nullptr);
   static struct pd_ds_types heartfeltTypes;heartfeltTypes={"Fairy",heartfeltTables.chart.data()};
@@ -397,7 +399,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   struct OriginReset{~OriginReset(){ds_set_origin(nullptr);ds_set_renegade(nullptr);ds_set_heartfelt(nullptr);pd_ds_types=nullptr;}} originReset;
   // HeartGold / SoulSilver: the TRAINER wing's facts only (time of day, Berry Pots, money, place) for now.
   // It only reads RAM, so a US cart's other dumps (by its header) count too.
-  const bool johto=!supported&&(origin||ds_companion_game(ds_canonical_sha1(hex))==DsGame::Johto||
+  const bool johto=!supported&&!(heartfeltCart&&!heartfelt)&&(origin||ds_companion_game(ds_canonical_sha1(hex))==DsGame::Johto||
                                 ((!std::memcmp(bytes.data()+12,"IPKE",4)||!std::memcmp(bytes.data()+12,"IPGE",4))&&bytes[30]==0));char code[5]={};std::memcpy(code,bytes.data()+12,4);int revision=bytes[30];
   // Black, White, Black 2 and White 2 (USA / Europe rev 0): the Gen 5 reader (Gen5Reader.kt's layout). It reads RAM
   // and the cart's file system only, so any dump with the cart's header counts, as on Android.
