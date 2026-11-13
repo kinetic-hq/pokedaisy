@@ -176,12 +176,15 @@ void ds_read_battle_companion(const PkNdsFieldGame* game,uint32_t (*read32)(uint
     if(!proc)return;
     const auto setup=read32(proc+0x10),main=read32(proc+game->offProcWork);
     if(!in_ram(setup,0x28) || !in_ram(main,0xe8))return;
-    // The rule: 0 single, 1 double (Gen5Reader's member 1 of each client is the second one out), triples and rotations
-    // left out. The panes follow the left foe, as a Game Boy Advance double's do.
+    // The rule: 0 single, 1 double, 2 triple, 3 rotation. Each client's members are ordered by where they stand: in a
+    // double or a triple, member 0 is that side's left one, member 1 the next (a triple's centre); in a rotation the
+    // game reorders them on every turn, so member 0 is always the one in front (checked in Black's real battles).
+    // A triple shows its left and centre pairs as a double; a rotation shows the front ones as a single. The panes
+    // follow the left foe, as a Game Boy Advance double's do.
     const auto rule=read32(setup+4);
-    if(rule>1)return;
+    if(rule>3)return;
     out.isTrainer=read32(setup)!=0;
-    out.isDouble=rule==1;
+    out.isDouble=rule==1 || rule==2;
     foeParty=read32(setup+0x28);
     mons={read32(main+0xcc),read32(main+0xe8),out.isDouble?read32(main+0xd0):0u,out.isDouble?read32(main+0xec):0u};
   }else{
