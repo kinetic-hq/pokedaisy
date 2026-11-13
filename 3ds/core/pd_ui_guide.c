@@ -491,21 +491,34 @@ bool pd_ui_caught_here(const struct pd_game* g, const struct pd_snapshot* s, int
     return n > 0;
 }
 
-int pd_ui_wild_here(const struct pd_game* g, const struct pd_snapshot* s, int* species, bool* caught, int max) {
+int pd_ui_wild_levels_here(const struct pd_game* g, const struct pd_snapshot* s, int* species, bool* caught, int* minLv,
+                           int* maxLv, int max) {
     if (!g || !s || max <= 0) return 0;
     static struct pd_wild_set wild;
     if (!pd_wild_here(g, s, &wild)) return 0;
     int n = 0;
     for (int m = 0; m < PD_WILD_METHODS; m++) {
-        for (int i = 0; i < wild.count[m] && n < max; i++) {
-            int sp = wild.mons[m][i].species, k = 0;
-            while (k < n && species[k] != sp) k++;
-            if (k < n) continue;
-            species[n] = sp;
-            caught[n++] = caught_species(g, s, sp);
+        for (int i = 0; i < wild.count[m]; i++) {
+            const struct pd_wild* w = &wild.mons[m][i];
+            int k = 0;
+            while (k < n && species[k] != w->species) k++;
+            if (k < n) {  // met another way too: the range covers both
+                if (minLv && w->minLv < minLv[k]) minLv[k] = w->minLv;
+                if (maxLv && w->maxLv > maxLv[k]) maxLv[k] = w->maxLv;
+                continue;
+            }
+            if (n == max) continue;
+            species[n] = w->species;
+            if (minLv) minLv[n] = w->minLv;
+            if (maxLv) maxLv[n] = w->maxLv;
+            caught[n++] = caught_species(g, s, w->species);
         }
     }
     return n;
+}
+
+int pd_ui_wild_here(const struct pd_game* g, const struct pd_snapshot* s, int* species, bool* caught, int max) {
+    return pd_ui_wild_levels_here(g, s, species, caught, NULL, NULL, max);
 }
 
 static void build_bosses(const struct pd_game* g, const struct pd_snapshot* s, const struct pd_guide* gd) {

@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -381,8 +381,14 @@ battle).
 
 Click a wing (or touch it) to open the companion on that wing's page: the
 party's wing opens `PARTY`, the other `MAP`, or `BATTLE` during a battle. Under
-the map, `CAUGHT HERE` shows this area's wild kinds as small icons, the ones
-you haven't caught yet faded. When no strip runs above or below the game, a
+the map, `HERE` lists this area's wild kinds, each with its icon, the levels
+you meet it at and a tick once you've caught one (the ones you haven't are
+faded). `QUICK BAG` counts your balls, your healing items and your keep-away
+sprays, and while a spray works it shows the steps it has left. At the foot of
+the wing, `SAVE STATE` saves a state at once (the same one the hotkey and the
+quick menu save), and `CLOSE GAME` asks before it takes you back to the game
+list: `Cancel` is picked first, and `B` or `Esc` keeps playing. Whatever doesn't
+fit the wing, or your game doesn't tell the app, is left out. When no strip runs above or below the game, a
 small card at the bottom of the left wing shows the buttons for a few seconds
 as a game starts, and again when you've been idle a while.
 
@@ -477,14 +483,17 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   glow of the game's own colours, `THEME` the theme's window. `BEZEL BARS`
   picks what each of the six places shows, or `NONE`: the place, the clock and
   battery, badges and play time, button hints (they fade when you leave the
-  controls alone), fast forward, zoom and a `SAVED` mark, the keep-away spray's
+  controls alone), fast forward, the zoom (as a share of the game's picture,
+  `ZOOM 75%`) and a `SAVED` mark, the keep-away spray's
   steps or your money, `NEXT BOSS AND CAP` (the next leader to beat and their
   top level), `CAUGHT HERE` (how many of this area's wild Pokemon you have),
   `LEAD POKEMON` (its HP and the EXP to its next level) and `LAST SAVED` (it
   warns you after half an hour without a save). The top bar starts on the
-  place, the clock and badges, the bottom one on your lead, the next boss and
-  your money. A place with nothing to say borrows something useful neither bar
-  shows yet, so a bar is never half empty; `NONE` stays empty. In a battle the
+  place, the clock and the next boss with its level cap, the bottom one on your
+  badges (`BADGES 3/8`), your play time and your money. A place with nothing to
+  say borrows something useful neither bar shows yet, so a bar is never half
+  empty, and the bottom bar never repeats what the top one says; `NONE` stays
+  empty. In a battle the
   bottom bar shows the foe, how your moves do against it, and for a wild one
   how likely a ball is to work. Anything your game doesn't tell the app is left
   out.
@@ -493,8 +502,8 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   card with a ball for each place still free). A long name gets the room the
   level would take, so it's cut only when it's wider than the card. The right
   wing shows the map round you and, under it, your badges as eight dots, play
-  time, the next boss, how many of this area's wild Pokemon you have, how many
-  kinds you have caught and seen, and your money. Whatever the bars above and
+  time, the next boss, how many kinds you have caught and seen, your money,
+  then `HERE`, `QUICK BAG` and the `SAVE STATE` and `CLOSE GAME` buttons. Whatever the bars above and
   below the game already show is left out of the wing, so nothing is said
   twice. When something happens (a level up, a new area, a save, the spray
   wearing off), a short note shows at the top of the right wing for a couple

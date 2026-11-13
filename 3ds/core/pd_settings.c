@@ -77,9 +77,9 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->uiSize = 1;
     s->wingRoom = 3; // AUTO
     s->stretch = false;
-    // linux/bezel.h's BEZEL_DEFAULT_SLOTS: LOCATION, CLOCK AND BATTERY, BADGES AND PLAY TIME, LEAD POKEMON,
-    // NEXT BOSS AND CAP, REPEL OR MONEY.
-    static const int BEZEL_SLOTS[6] = {1, 2, 5, 14, 12, 10};
+    // linux/bezel.h's BEZEL_DEFAULT_SLOTS: LOCATION, CLOCK AND BATTERY, NEXT BOSS AND CAP, BADGES, PLAY TIME,
+    // REPEL OR MONEY.
+    static const int BEZEL_SLOTS[6] = {1, 2, 12, 6, 7, 10};
     for (int i = 0; i < 6; i++) s->bezelSlots[i] = BEZEL_SLOTS[i];
 }
 
@@ -191,6 +191,9 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
                 while (*p && *p != ',') p++;
                 if (*p == ',') p++;
             }
+            // The old defaults (LEAD POKEMON and NEXT BOSS below, where a filler on top said it again): the new ones.
+            static const int OLD[6] = {1, 2, 5, 14, 12, 10}, NEW[6] = {1, 2, 12, 6, 7, 10};
+            if (!memcmp(s->bezelSlots, OLD, sizeof(OLD))) memcpy(s->bezelSlots, NEW, sizeof(NEW));
         }
         else if (!strcmp(key, "hotkeys")) {
             // One action a button, comma-separated; an unknown one is the button's usual use.

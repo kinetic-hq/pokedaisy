@@ -652,6 +652,9 @@ int pd_ui_next_boss(const struct pd_game* g, const struct pd_snapshot* s, char* 
 bool pd_ui_caught_here(const struct pd_game* g, const struct pd_snapshot* s, int* caught, int* total);
 // This area's wild kinds (every method, each once, in the guide's order) and whether each is caught; up to max.
 int pd_ui_wild_here(const struct pd_game* g, const struct pd_snapshot* s, int* species, bool* caught, int max);
+// The same with each kind's level range over every way it's met here (MIN / MAX may be NULL).
+int pd_ui_wild_levels_here(const struct pd_game* g, const struct pd_snapshot* s, int* species, bool* caught, int* minLv,
+                           int* maxLv, int max);
 void pd_ui_dex_view(struct pd_ui*,struct pd_canvas*,const struct pd_game*,const struct pd_snapshot*,int selected);
 void pd_ui_bag_cycle_sort(struct pd_ui*);
 // The tab bar's D-pad step: the key after / before `key` in `keys` (the tabs in the order they are drawn), the ends
@@ -696,6 +699,14 @@ extern bool pd_ui_reduce_motion;
 // What the host's bezel bars show right now (PD_BAR_*): the right wing leaves those facts out, so nothing is said twice.
 enum { PD_BAR_MONEY = 1, PD_BAR_BADGES = 2, PD_BAR_TIME = 4, PD_BAR_BOSS = 8, PD_BAR_HERE = 16 };
 extern uint32_t pd_ui_bar_facts;
+// The map wing's two buttons (the desktop host's, under the wing's facts): drawn when pd_ui_wing_buttons_on, and where
+// each landed in the wing's canvas after a draw (w 0 = not drawn: no room).
+enum { PD_WING_SAVE_STATE, PD_WING_CLOSE_GAME, PD_WING_BUTTONS };
+struct pd_ui_rect { int x, y, w, h; };
+extern bool pd_ui_wing_buttons_on;
+extern struct pd_ui_rect pd_ui_wing_buttons[PD_WING_BUTTONS];
+// REPEL's steps left as the host reads them (QUICK BAG's line): 0 = none working, -1 = unknown.
+extern int pd_ui_repel_steps;
 extern bool pd_ui_panel_moving;
 // The same, each slot's icon drawn by ICON (false: a Poke Ball stands in) for a host whose species aren't the GBA's
 // (the DS games); the game may be NULL, then the names are the snapshot's nicknames.

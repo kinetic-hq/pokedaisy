@@ -18,15 +18,15 @@ static int failures;
 int main(void) {
   struct bezel_facts f = {.place = "VIRIDIAN CITY", .hour = 9, .minute = 5, .battery = 82, .charging = true,
                           .badges = 1, .playHours = 3, .playMinutes = 7, .hints = true, .companion = true,
-                          .quickMenu = true, .ff = 4, .zoom = 1, .saved = true, .money = 3300, .repel = 0};
+                          .quickMenu = true, .ff = 4, .zoomPct = 75, .saved = true, .money = 3300, .repel = 0};
   EXPECT(BEZEL_NONE, &f, "");
   EXPECT(BEZEL_LOCATION, &f, "VIRIDIAN CITY");
   EXPECT(BEZEL_CLOCK_BATTERY, &f, "09:05  +82%");
   EXPECT(BEZEL_CLOCK, &f, "09:05");
   EXPECT(BEZEL_BATTERY, &f, "+82%");
-  EXPECT(BEZEL_BADGES_TIME, &f, "BADGES 1  3:07");
+  EXPECT(BEZEL_BADGES_TIME, &f, "BADGES 1/8  3:07");
   EXPECT(BEZEL_HINTS, &f, "Y QUICK MENU  X COMPANION  R3 VIEW");
-  EXPECT(BEZEL_CHIPS, &f, "FF x4  ZOOM -1  SAVED");
+  EXPECT(BEZEL_CHIPS, &f, "FF x4  ZOOM 75%  SAVED");
   EXPECT(BEZEL_REPEL_MONEY, &f, "$3300");
   f.repel = 87;
   EXPECT(BEZEL_REPEL_MONEY, &f, "REPEL 87");
@@ -43,7 +43,7 @@ int main(void) {
   u.playHours = 0;
   u.playMinutes = 0;
   u.badges = 0;
-  EXPECT(BEZEL_BADGES_TIME, &u, "BADGES 0"); // 0:00 is a card that wasn't read
+  EXPECT(BEZEL_BADGES_TIME, &u, "BADGES 0/8"); // 0:00 is a card that wasn't read
 
   // The new facts, and an empty place given a filler the bar doesn't show yet.
   struct bezel_facts k = {.place = "ROUTE 1", .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = 500,
@@ -75,6 +75,36 @@ int main(void) {
     // What the bar drew is reported, so the wings don't say it again; an empty NONE isn't.
     if (!shown[BEZEL_LEAD] || !shown[BEZEL_NEXT_BOSS] || shown[BEZEL_NONE] || shown[BEZEL_CAUGHT_HERE]) {
       puts("bar shown");
+      failures++;
+    }
+  }
+  {
+    // Both bars: nothing the top says comes back in the bottom, a filler included. The top's BADGES AND PLAY TIME
+    // has nothing to say (no badges or time read), so NEXT BOSS fills it; the bottom's own NEXT BOSS then says nothing.
+    int slots[BEZEL_SLOTS] = {BEZEL_LOCATION, BEZEL_CLOCK_BATTERY, BEZEL_BADGES_TIME,
+                              BEZEL_LEAD,     BEZEL_CHIPS,         BEZEL_REPEL_MONEY};
+    struct bezel_facts r = k;
+    r.zoomPct = 50;
+    char top[3][64], bottom[3][64];
+    bezel_bars(slots, &r, top, bottom, NULL, NULL);
+    int topBoss = 0, bottomBoss = 0;
+    for (int i = 0; i < 3; i++) {
+      topBoss += !strcmp(top[i], "NEXT BROCK  CAP Lv14");
+      bottomBoss += !strcmp(bottom[i], "NEXT BROCK  CAP Lv14");
+    }
+    if (topBoss != 1 || bottomBoss || strcmp(bottom[1], "ZOOM 50%") || strcmp(bottom[2], "$500")) {
+      printf("bars: '%s' '%s' '%s' / '%s' '%s' '%s'\n", top[0], top[1], top[2], bottom[0], bottom[1], bottom[2]);
+      failures++;
+    }
+    // The defaults: NEXT BOSS on top only; badges, time and money below.
+    struct bezel_facts d = k;
+    d.badges = 3;
+    d.playHours = 5;
+    d.playMinutes = 9;
+    bezel_bars(BEZEL_DEFAULT_SLOTS, &d, top, bottom, NULL, NULL);
+    if (strcmp(top[2], "NEXT BROCK  CAP Lv14") || strcmp(bottom[0], "BADGES 3/8") || strcmp(bottom[1], "5:09") ||
+        strcmp(bottom[2], "$500")) {
+      printf("default bars: '%s' / '%s' '%s' '%s'\n", top[2], bottom[0], bottom[1], bottom[2]);
       failures++;
     }
   }
