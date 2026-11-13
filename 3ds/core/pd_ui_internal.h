@@ -159,6 +159,7 @@ enum setting_row {
     SETTING_RUMBLE,    // hosts with hasRumble: flips in place
     SETTING_PER_GAME,  // hosts with hasPerGame: PD_ACTION_PER_GAME
     SETTING_SAVER,     // hosts with hasSaver: AUTO / ON / OFF in turn
+    SETTING_SHINY_ODDS, // hasShinyOdds: opens its pick-list
     SETTING_SCENE,     // hasSceneSpeeds: SETTING_SCENE + PD_SCENE_*, each opens its pick-list
     SETTING_SCENE_END = SETTING_SCENE + PD_SCENE_COUNT - 1,
 };

@@ -650,8 +650,12 @@ static void identify(struct pd_game* g) {
     pd_sha1_update(&s, g->rom, g->romSize);
     pd_sha1_hex(&s, g->sha1);
     g->shinyBelow = 0;
+    g->shinyFlags = 0;
     for (const struct pd_shiny_rom* r = pd_shiny_roms; r->sha1; r++)
-        if (!strcmp(r->sha1, g->sha1)) g->shinyBelow = r->below;
+        if (!strcmp(r->sha1, g->sha1)) {
+            g->shinyBelow = r->below;
+            g->shinyFlags = r->flags;
+        }
 
     for (const struct unsupported_rom* u = UNSUPPORTED_ROMS; u->sha1; u++) {
         if (strcmp(u->sha1, g->sha1)) continue;

@@ -112,6 +112,7 @@ struct pd_settings {
     bool instantText; // INSTANT TEXT: a text box's words appear at once (pd_rom_tweaks.c)
     bool reusableTms; // REUSABLE TMS: a TM stays in the bag after it teaches a move
     bool tradeEvolutions; // TRADE EVOS: a Pokémon that evolves by trading gets EVOLVE on its summary
+    int shinyOdds;        // SHINY ODDS: an index into PD_SHINY_LABELS, 0 = NORMAL
     int batterySaver; // BATTERY SAVER: enum pd_battery_saver
     bool rumble;      // RUMBLE: the controller buzzes as a battle starts, harder for a shiny foe, and for rumble carts
     bool resumeGames; // RESUME GAMES: a state on leaving a game, offered back (CONTINUE) at its next start
@@ -184,6 +185,8 @@ enum pd_button { PD_BTN_X, PD_BTN_Y, PD_BTN_L2, PD_BTN_R2, PD_BTN_NONE, PD_BUTTO
 // GAME SPEED's steps, as the app's SPEED_STEPS: the old five, then the slow two.
 #define PD_GAME_SPEED_COUNT 7
 #define PD_SCENE_SPEED_COUNT 6
+#define PD_SHINY_CHOICES 5
+extern const char* const PD_SHINY_LABELS[PD_SHINY_CHOICES];
 extern const char* const PD_SCENE_SPEEDS[PD_SCENE_SPEED_COUNT];
 extern const char* const PD_GAME_SPEEDS[PD_GAME_SPEED_COUNT];
 
@@ -285,6 +288,7 @@ struct pd_host_info {
     bool androidMenus;
     bool hasGameSpeed, hasSound, hasAutoRun, hasFfMode, hasRewind, hasFfMusic;
     bool hasSteady; // FF MUSIC offers STEADY
+    bool hasShinyOdds, shinyOddsFits; // SHINY ODDS' row, and whether it works in this game (else N/A)
     bool wildSupported, fieldSupported; // WILD ENCOUNTERS / the field read works on this game
     // SCENE SPEEDS (androidMenus): the rows shown, and which scenes this game can be read in (else N/A).
     bool hasSceneSpeeds;
@@ -338,6 +342,7 @@ enum pd_overlay {
     PD_OVERLAY_PICK_VIEW, // COMPANION VIEW's pick-list
     PD_OVERLAY_LAYOUT,    // COMPANION VIEW's drawn picker (host->layouts)
     PD_OVERLAY_PICK_SCENE, // a SCENE SPEEDS row's pick-list (ui->sceneRow)
+    PD_OVERLAY_PICK_SHINY, // SHINY ODDS' pick-list
 };
 
 // Optional presentation data for another emulator; IDs stay native to that backend.
