@@ -123,7 +123,7 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | Moemon Quetzal | Alpha 0.8.4 Hotfix (EN/ES) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Super Mariomon | 1.2.1-1.3, 1.5.1, 1.5.2 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Recharged Emerald | 2.2.5, 2.2.8, Rebalanced | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
-| Modern Emerald | 3.6 | GBA | ROM hack | ◐ | ❌ PLAY ONLY | Not yet |
+| Modern Emerald | 3.6 | GBA | ROM hack | ◐ | ◐ PARTLY: no DEX or GUIDE | Not yet |
 | Elite Redux | 2.65.3b, 2.65.4.1b | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Team Rocket Dragonsden | 1.5 | GBA | ROM hack | ◐ | ◐ PARTLY: no DEX | Not yet |
 | Team Rocket Dragonsden | 2026 3.0.9 (Spanish) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
@@ -321,6 +321,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   guessed one, which read the wrong ability names and foe teams; on the desktop, the 3DS port and Android alike.
 - **Team Rocket Dragonsden 2026 (Spanish)** on the desktop host and the 3DS port: PARTY, BAG, BATTLE, MAP, DEX and GUIDE,
   from the app's own data for that build (it played with no companion before).
+- **Modern Emerald 3.6** on the desktop host and the 3DS port: PARTY, BAG, BATTLE and MAP, as in the app, with its types
+  and type chart following the settings the save picked (MODERN TYPES, FAIRY TYPE, TYPE CHART, the randomizer's types).
 - **Petalburg Dynasty 1.12.2**: a new supported hack (pokeemerald-expansion 1.16.4, its sha1 only): PARTY, BAG, BATTLE
   with the foe's team and the battle buttons, MAP place names and the GUIDE's wild Pokemon on the desktop, the 3DS port
   and Android, and its DEX on all three.

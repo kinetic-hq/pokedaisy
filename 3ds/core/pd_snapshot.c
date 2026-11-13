@@ -5,6 +5,7 @@
 
 #include "pd_dex.h"
 #include "pd_gb.h"
+#include "pd_modern_emerald.h"
 #include "pd_romart.h"
 #include "pd_tables.h"
 
@@ -595,6 +596,9 @@ void pd_snapshot_read(struct pd_snapshot* s, const struct pd_game* g, pd_read_fn
         uint32_t v = money ^ key;
         if (v <= (cfg->maxMoney ? cfg->maxMoney : MAX_MONEY)) s->money = (long) v;
     }
+
+    // Modern Emerald's types follow the save's settings.
+    pd_modern_emerald_read(cfg, read, ctx, sb1, sb2);
 
     // --- bag: quantities XOR the key's low half (readNativeBag); Quetzal's / Elite Redux's bags of their own ---
     if (in_ram(sb1) && cfg->itemFlagsOff) read_item_flags(s, cfg, read, ctx, sb1);

@@ -142,6 +142,8 @@ if(BUILD_TESTING)
   add_test(NAME diagnostic-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/make_diagnostic.py)
   # EDIT SAVE's move lists (save_tables_gen.h) still match the app's SaveTablesGen.kt.
   add_test(NAME save-tables-gen COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/gen_save_tables_c.py --check)
+  # Modern Emerald's save-dependent types (pd_modern_emerald_gen.h) still match the app's ModernEmeraldGen.kt.
+  add_test(NAME modern-emerald-gen COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/gen_modern_emerald_c.py --check)
   set_tests_properties(diagnostic-roms PROPERTIES FIXTURES_SETUP diagnostics)
   set_tests_properties(linux-runtime-test PROPERTIES FIXTURES_REQUIRED diagnostics TIMEOUT 60)
   if(CMAKE_CROSSCOMPILING)

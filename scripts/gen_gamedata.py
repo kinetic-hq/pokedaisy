@@ -994,7 +994,7 @@ def kotlin_gender_ratios(name, where):
                         if m:
                             return list(bytes.fromhex(m.group(1)))
                 fail(where, f"{hack} has no `{field} = unhexRatios(\"..\")`")
-            elif re.match(r"^(?:internal )?val " + name + r": IntArray by lazy \{", line):
+            elif re.match(r"^(?:internal )?val " + name + r": IntArray (?:by lazy \{|= unhexRatios\()", line):
                 m = KT_UNHEX.search(line)
                 if not m:
                     fail(where, f"{name} isn't one `unhexRatios(\"..\")` line")
