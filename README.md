@@ -113,7 +113,7 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | Emerald Legacy | 1.1.4 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Lazarus | 2.0 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
 | Emerald Seaglass | 3.0 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
-| Too Many Types 2 | 1.5.2 | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
+| Too Many Types 2 | 1.5.2 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
 | Glazed | 9.2.0 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
 | Emerald Imperium | 1.3.1 | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
 | Quetzal | English Alpha 9 v0 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
