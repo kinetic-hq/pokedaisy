@@ -29,20 +29,32 @@ bool pd_dex_has_details(const struct pd_game* g) {
     return c && c->dexEvolutions && g->rom;
 }
 
+// gEvolutionTable's rows a species: vanilla's 5, Monomyth's 8.
+static int evos_per_mon(const struct pd_game* g) {
+    return g->cfg->dexEvoPerMon ? g->cfg->dexEvoPerMon : EVOS_PER_MON;
+}
+
 static const uint8_t* evos_of(const struct pd_game* g, int species) {
-    return pd_rom_at(g, g->cfg->dexEvolutions + (uint32_t) species * EVOS_PER_MON * EVO_SIZE, EVOS_PER_MON * EVO_SIZE);
+    int per = evos_per_mon(g);
+    return pd_rom_at(g, g->cfg->dexEvolutions + (uint32_t) species * (uint32_t) per * EVO_SIZE, (size_t) per * EVO_SIZE);
 }
 
 static int species_count(const struct pd_game* g) {
     return g->cfg->dexSpeciesCount ? g->cfg->dexSpeciesCount : 412;
 }
 
+// A row that leads somewhere: a method (not a Mega's, 0xF0 and up) and a species the game has.
+static bool evo_row(const struct pd_game* g, int from, const uint8_t* e) {
+    int method = u16le(e), to = u16le(e + 4);
+    return method && method < 0xF0 && to && to != from && to < species_count(g);
+}
+
 static int walk(const struct pd_game* g, int species, struct pd_evo* out, int n, int max) {
     const uint8_t* e = evos_of(g, species);
     if (!e) return n;
-    for (int i = 0; i < EVOS_PER_MON && n < max; i++, e += EVO_SIZE) {
+    for (int i = 0; i < evos_per_mon(g) && n < max; i++, e += EVO_SIZE) {
         int method = u16le(e), param = u16le(e + 2), to = u16le(e + 4);
-        if (!method || !to) continue;
+        if (!evo_row(g, species, e)) continue;
         bool seen = false;
         for (int k = 0; k < n; k++) seen |= out[k].from == species && out[k].to == to && out[k].method == method;
         if (seen) continue;
@@ -59,8 +71,8 @@ int pd_dex_family(const struct pd_game* g, int species, struct pd_evo* out, int 
         int parent = 0;
         for (int s = 1; s < count && !parent; s++) {
             const uint8_t* e = evos_of(g, s);
-            for (int i = 0; e && i < EVOS_PER_MON; i++)
-                if (u16le(e + i * EVO_SIZE) && u16le(e + i * EVO_SIZE + 4) == first) parent = s;
+            for (int i = 0; e && i < evos_per_mon(g); i++)
+                if (evo_row(g, s, e + i * EVO_SIZE) && u16le(e + i * EVO_SIZE + 4) == first) parent = s;
         }
         if (!parent) break;
         first = parent;
@@ -84,7 +96,18 @@ void pd_dex_evo_text(const struct pd_game* g, const struct pd_evo* e, char* out,
     case 11: case 12: snprintf(out, len, "LV %d, by chance (personality)", p); break;
     case 14: snprintf(out, len, "LV %d, a spare party slot", p); break;
     case 15: snprintf(out, len, "Level up, BEAUTY %d+", p); break;
-    default: snprintf(out, len, "Special condition"); break;
+    default:
+        if (g->cfg->dexEvoScheme == PD_EVO_SCHEME_MONOMYTH) {  // expansion's numbers for the four it adds
+            char name[32];
+            switch (e->method) {
+            case 23: snprintf(out, len, "Level up, knowing %s", pd_move_name(g, p, name, sizeof(name))); return;
+            case 25: snprintf(out, len, "Level up at %s", pd_mapsec_name(g, p)); return;
+            case 27: snprintf(out, len, "Use %s, female", pd_item_name(g, p)); return;
+            case 32: snprintf(out, len, "Level up in a special place"); return;
+            }
+        }
+        snprintf(out, len, "Special condition");
+        break;
     }
 }
 

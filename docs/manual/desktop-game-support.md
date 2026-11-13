@@ -39,10 +39,10 @@ foe team is listed as a gap even then.
 
 Of the 72 rows:
 
-- **63** get the companion at the same level as on Android, every tab
+- **64** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **9** get a companion that falls short of Android's somewhere.
+- **8** get a companion that falls short of Android's somewhere.
 - **None** is left with no companion.
 
 By tab:
@@ -128,7 +128,7 @@ By tab:
 | Wishes of Tomorrow | 1.2.6; SHA-1 60182b93 | works | works | partly | works | works | partly | None |
 | Petalburg Dynasty | 1.12.2; SHA-1 648c88a4 | works | works | partly | works | works | partly | None |
 | Dreamstone Mysteries | The one release; SHA-1 20e91aec | works | works | partly | works | works | partly | None |
-| Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | works | partly | The `DEX` page has no evolutions or egg groups; the guide has no trainer or wild tables |
+| Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | works | partly | None. Its `DEX` has `EVOLVE`, `AREA` and `MOVES`, and its guide reads its trainers' teams and wild tables |
 | Emerald Rogue | 2.2.1 EX; SHA-1 7600af1f | works | works | works | works | no | no | No `DEX` tab (no guide on Android either) |
 | SoulGold | 1.1.4, 1.2 (3 builds), 1.2.1 (2 builds) | works | works | partly | works | no | partly | No `DEX` tab |
 | R.O.W.E. | 2.1.9.1 Experimental; SHA-1 81bd0f4b | works | works | partly | works | partly | partly | GUIDE has HERE but no NEXT BOSS (its gyms come in any order), as on Android |

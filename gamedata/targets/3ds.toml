@@ -181,6 +181,8 @@ trainerMonMovesOff = 'guideTables.trainerMon.movesOff'
 trainerMonSpeciesOff = 'guideTables.trainerMon.speciesOff'
 trainerMonItemOff = 'guideTables.trainerMon.itemOff'
 trainerMonLevelOff = 'guideTables.trainerMon.levelOff'
+trainerMonStrides = 'guideTables.trainerMonStrides'
+trainerMonHeader = 'guideTables.trainerMonHeader'
 trainers = 'guideTables.trainers'
 trainerStride = 'guideTables.trainerStride'
 trainerNameOff = 'guideTables.trainerNameOff'
@@ -846,13 +848,15 @@ values = { partyMenu = 0x0203B0A0, partyMenuGrid = true }
 
 [config.monomyth]
 name = 'MONOMYTH'
-parts = ['ram', 'foes', 'icons', 'dex', 'battle', 'engine', 'boxes']
-values = { partyMenuGrid = true }
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes', 'dexsec']
+# EVOLVE: eight rows a species, its own methods past vanilla's (DexDetails.kt's EvoScheme.MONOMYTH).
+values = { partyMenuGrid = true, dexEvoPerMon = 8, dexEvoScheme = 1 }
 
 [config.monomyth_v1_1]
 name = 'MONOMYTH_V1_1'
-parts = ['ram', 'foes', 'icons', 'dex', 'battle', 'engine', 'boxes']
-values = { partyMenuGrid = true }
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes', 'dexsec']
+# EVOLVE: eight rows a species, its own methods past vanilla's (DexDetails.kt's EvoScheme.MONOMYTH).
+values = { partyMenuGrid = true, dexEvoPerMon = 8, dexEvoScheme = 1 }
 
 [config.soulgold_v1_2_1]
 name = 'SOULGOLD_V1_2_1'
