@@ -106,7 +106,7 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | FireRed Rocket Edition | the one release | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
 | Ash Gray | 4.5.3, Fork Bug Fix 1.0 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
 | Ghost Grey | 1.0.1, 1.0.2, 1.0.4 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
-| Let's Go | English (4 builds) | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
+| Let's Go | English (4 builds) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Sword and Shield Ultimate Plus | 1.2.1.2 + its 3 patches | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | GS Chronicles | 2.7.6 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
@@ -323,6 +323,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   from the app's own data for that build (it played with no companion before).
 - **Modern Emerald 3.6** on the desktop host and the 3DS port: PARTY, BAG, BATTLE and MAP, as in the app, with its types
   and type chart following the settings the save picked (MODERN TYPES, FAIRY TYPE, TYPE CHART, the randomizer's types).
+- **Let's Go's DEX** on the desktop host and the 3DS port, from the app's tables for it (its own numbering, Kanto first,
+  and the seen / caught bits the game keeps outside its save blocks).
 - **Petalburg Dynasty 1.12.2**: a new supported hack (pokeemerald-expansion 1.16.4, its sha1 only): PARTY, BAG, BATTLE
   with the foe's team and the battle buttons, MAP place names and the GUIDE's wild Pokemon on the desktop, the 3DS port
   and Android, and its DEX on all three.

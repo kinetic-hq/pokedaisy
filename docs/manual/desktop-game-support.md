@@ -39,10 +39,10 @@ foe team is listed as a gap even then.
 
 Of the 72 rows:
 
-- **62** get the companion at the same level as on Android, every tab
+- **63** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **10** get a companion that falls short of Android's somewhere.
+- **9** get a companion that falls short of Android's somewhere.
 - **None** is left with no companion.
 
 By tab:
@@ -53,7 +53,7 @@ By tab:
 | `BAG` | 72 | 0 | 0 |
 | `BATTLE` | 6 | 66 | 0 |
 | `MAP` | 71 | 1 | 0 |
-| `DEX` | 63 | 1 | 8 |
+| `DEX` | 64 | 1 | 7 |
 | `GUIDE` | 37 | 28 | 7 |
 
 ## Game by game
@@ -104,7 +104,7 @@ By tab:
 | FireRed Rocket Edition | The one release; SHA-1 033d0537 | works | works | partly | works | works | works | None |
 | Ash Gray | 4.5.3 (SHA-1 1ee1557d), Fork Bug Fix 1.0 (92ed8214) | works | works | partly | works | works | works | None |
 | Ghost Grey | 1.0.1, 1.0.2, 1.0.4; SHA-1 20dfaea1, 74337272, 0dafc011 | works | works | partly | works | works | works | None |
-| Let's Go | English, both versions, each with a Translation Only build (4 builds) | works | works | partly | works | no | works | No `DEX` tab |
+| Let's Go | English, both versions, each with a Translation Only build (4 builds) | works | works | partly | works | works | works | None (its `DEX` reads the app's own tables for it; not yet run on a PC) |
 | Sword and Shield Ultimate Plus | 1.2.1.2 and its 3 patches (4 builds) | works | works | partly | works | works | works | None |
 | GS Chronicles | 2.7.6; SHA-1 25f8840e | works | works | partly | works | works | works | None |
 | Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | works | works | partly | works | works | works | None |
@@ -145,9 +145,9 @@ By tab:
   The other languages and the French and Spanish Platinum carts get no
   companion yet.
 - **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow, Dreamstone
-  Mysteries, Lazarus, Monomyth and Petalburg Dynasty now have their `DEX` on the desktop, read from
+  Mysteries, Lazarus, Monomyth, Petalburg Dynasty and Let's Go now have their `DEX` on the desktop, read from
   each game's own data. The other games built the same way get it too once the
-  desktop sees that data in the game. Let's Go, Emerald Rogue and SoulGold still
+  desktop sees that data in the game. Emerald Rogue and SoulGold still
   have no `DEX` tab on the desktop, though the app shows one.
 - **No foe team in battle.** In the German, French, Italian and Japanese FireRed
   and LeafGreen carts, the battle panes show your side and the Pokémon you face,
