@@ -106,6 +106,38 @@ static void round_trip(const char *spec, const char *scratch) {
     CHECK(!o->set_mon(e, SE_PARTY, 0, &bad, err, sizeof err));
   }
 
+  /* Legal moves: in a retail game a new move must be one it could learn; one it can is taken. */
+  if (o->learnable) {
+    static uint16_t ok[512];
+    bool complete = false;
+    int count = o->learnable(e, again.species, again.level, ok, 512, &complete);
+    printf("  %d moves it can learn%s\n", count, complete ? " (retail lists)" : "");
+    CHECK(count > 0);
+    if (complete) {
+      int no = 0, yes = 0;
+      for (int mv = 1; mv <= 354 && (!no || !yes); mv++) {
+        bool can = false, knows = false;
+        for (int k = 0; k < count; k++)
+          can |= ok[k] == mv;
+        for (int k = 0; k < 4; k++)
+          knows |= again.moves[k] == mv;
+        if (!knows && !can && !no)
+          no = mv;
+        if (!knows && can && !yes)
+          yes = mv;
+      }
+      bad = again;
+      bad.moves[3] = no;
+      CHECK(no && !o->set_mon(e, SE_PARTY, 0, &bad, err, sizeof err));
+      printf("  refused: %s\n", err);
+      want = again;
+      want.moves[3] = yes;
+      want.ppUps[3] = 0;
+      CHECK(yes && (o->set_mon(e, SE_PARTY, 0, &want, err, sizeof err) || (fprintf(stderr, "%s\n", err), 0)));
+      CHECK(o->mon(e, SE_PARTY, 0, &again) && again.moves[3] == yes);
+    }
+  }
+
   /* A stack in the first pocket: one fewer (or one more). */
   struct se_item it;
   int slot = -1;
