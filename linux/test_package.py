@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
     assert archive.exists() and Path(result.stdout.strip())==archive
     with zipfile.ZipFile(archive) as z:
         assert z.testzip() is None
-        names=z.namelist();assert len(names)==13+extra,names
+        names=z.namelist();assert len(names)==14+extra,names
         assert name+'/licenses/xBRZ.txt' in names
         assert name+'/licenses/rcheevos-MIT.txt' in names
         if '--melonds' in options:
@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
     result=subprocess.run([sys.executable,str(script),'--portmaster',*options,str(binary),d],capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     with zipfile.ZipFile(Path(d)/(pm+'.zip')) as z:
-        names=z.namelist();assert len(names)==11+extra,names
+        names=z.namelist();assert len(names)==12+extra,names
         assert z.getinfo(pm+'/PokeDaisy.sh').external_attr>>16 & 0o111
         assert z.read(pm+'/pokedaisy/pokedaisy-linux')==binary.read_bytes()
         assert z.getinfo(pm+'/pokedaisy/pokedaisy-linux').external_attr>>16 & 0o111
