@@ -19,6 +19,14 @@ screen: your party, bag, map, battle matchups, Pokedex and a spoiler-free guide.
   <img src="docs/images/desktop/settings.png" alt="SETTINGS, grouped like the Android app's" width="49%">
 </p>
 
+<p>
+  <img src="docs/images/desktop/onexplayer-3-1920x1200.png" alt="The game list on a OneXPlayer 3's 1920 x 1200 screen" width="49%">
+  <img src="docs/images/desktop/rog-xbox-ally-1920x1080.png" alt="The game list on a ROG Xbox Ally's 1920 x 1080 screen" width="49%">
+</p>
+
+The same build on two handhelds: a OneXPlayer 3 (left, 1920 x 1200, 16:10) and a ROG Xbox Ally (right, 1920 x 1080,
+16:9). Everything fits itself to the screen's shape.
+
 ## Install and update
 
 1. Download `PokeDaisy-<version>-windows-x86_64.zip` (or `PokeDaisy-<version>-linux-x86_64.zip`) from the top `desktop-v` release on the
