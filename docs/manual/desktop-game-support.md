@@ -39,10 +39,10 @@ foe team is listed as a gap even then.
 
 Of the 72 rows:
 
-- **67** get the companion at the same level as on Android, every tab
+- **68** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **5** get a companion that falls short of Android's somewhere.
+- **4** get a companion that falls short of Android's somewhere.
 - **None** is left with no companion.
 
 By tab:
@@ -53,7 +53,7 @@ By tab:
 | `BAG` | 72 | 0 | 0 |
 | `BATTLE` | 6 | 66 | 0 |
 | `MAP` | 71 | 1 | 0 |
-| `DEX` | 67 | 1 | 4 |
+| `DEX` | 68 | 1 | 3 |
 | `GUIDE` | 37 | 28 | 7 |
 
 ## Game by game
@@ -130,7 +130,7 @@ By tab:
 | Dreamstone Mysteries | The one release; SHA-1 20e91aec | works | works | partly | works | works | partly | None |
 | Monomyth | 1.0 (SHA-1 ae1c4be9), 1.1 (eb660caf) | works | works | partly | works | works | partly | None. Its `DEX` has `EVOLVE`, `AREA` and `MOVES`, and its guide reads its trainers' teams and wild tables |
 | Emerald Rogue | 2.2.1 EX; SHA-1 7600af1f | works | works | works | works | no | no | No `DEX` tab (no guide on Android either) |
-| SoulGold | 1.1.4, 1.2 (3 builds), 1.2.1 (2 builds) | works | works | partly | works | no | partly | No `DEX` tab |
+| SoulGold | 1.1.4, 1.2 (3 builds), 1.2.1 (2 builds) | works | works | partly | works | works | partly | None (its `DEX` was checked on a 1.2.1 cart; the other builds read the app's own tables for them) |
 | R.O.W.E. | 2.1.9.1 Experimental; SHA-1 81bd0f4b | works | works | partly | works | partly | partly | GUIDE has HERE but no NEXT BOSS (its gyms come in any order), as on Android |
 
 ## What the gaps come from
@@ -145,10 +145,10 @@ By tab:
   The other languages and the French and Spanish Platinum carts get no
   companion yet.
 - **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow, Dreamstone
-  Mysteries, Lazarus, Monomyth, Petalburg Dynasty, Let's Go, Emerald Seaglass, Too Many Types 2 and Emerald Imperium now have their `DEX` on the desktop, read from
+  Mysteries, Lazarus, Monomyth, Petalburg Dynasty, Let's Go, Emerald Seaglass, Too Many Types 2, Emerald Imperium and SoulGold now have their `DEX` on the desktop, read from
   each game's own data. The other games built the same way get it too once the
-  desktop sees that data in the game. Emerald Rogue and SoulGold still
-  have no `DEX` tab on the desktop, though the app shows one.
+  desktop sees that data in the game. Emerald Rogue still
+  has no `DEX` tab on the desktop, though the app shows one.
 - **No foe team in battle.** In the German, French, Italian and Japanese FireRed
   and LeafGreen carts, the battle panes show your side and the Pokémon you face,
   but not the rest of the foe's team.
