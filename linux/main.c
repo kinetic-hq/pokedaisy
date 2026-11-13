@@ -3136,7 +3136,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   bool itemsOk = game.cfg && c->platform(c) == mPLATFORM_GBA && field_items_supported(game.cfg, romdata, (size_t)len);
   bool pcOk = itemsOk && pc_supported(game.cfg, romdata, (size_t)len);
   bool bikeOk = itemsOk && bike_supported(game.cfg);
-  enum { JOB_NONE, JOB_PC, JOB_REPEL, JOB_BIKE, JOB_BIKE_WAIT, JOB_BIKE_RESTORE } job = JOB_NONE;
+  enum { JOB_NONE, JOB_PC, JOB_REPEL, JOB_BIKE, JOB_BIKE_WAIT, JOB_BIKE_RESTORE, JOB_EVOLVE } job = JOB_NONE;
   int jobItem = 0, jobFrames = 0, jobTries = 0, repelSel = 0, repelKinds[REPEL_KINDS], repelKindCount = 0;
   bool repelList = false, bikeWasRiding = false, bikeTook = false;
   uint16_t bikeOld = 0;
@@ -3174,6 +3174,13 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     // Radical Red's, Unbound's and SoulGold's own TMs never run out.
     host.reusableTmsBuiltIn = game.guide == PD_GUIDE_RADICAL_RED || game.guide == PD_GUIDE_UNBOUND || game.guide == PD_GUIDE_SOULGOLD;
   }
+  // TRADE EVOLUTIONS: retail English FireRed rev 1, LeafGreen and Emerald, where the config has the game's evolution
+  // functions and their code is where it says (TradeEvolution.kt). Who gets EVOLVE is asked of the game between frames.
+  bool tradeOk = c->platform(c) == mPLATFORM_GBA && game.cfg && trade_evo_supported(game.cfg, romdata, (size_t)len);
+  host.hasTradeEvos = c->platform(c) == mPLATFORM_GBA;
+  host.tradeEvoFits = tradeOk;
+  uint32_t evolvePers[6] = {0}, evolveSign = 0;
+  int evolveSlot = -1, evolveTick = 0;
   host.hasResume = true;
   host.hasRumble = true;
   host.hasPerGame = true;
@@ -3676,6 +3683,16 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         case PD_ACTION_LEAVE_GAME:
           leave = true;
           break;
+        case PD_ACTION_TRADE_EVOLVE:
+          // The game's evolution plays on the field: the companion closes and the job waits for a safe frame.
+          if (ui.summarySlot >= 0 && ui.summarySlot < 6 && host.evolveTarget[ui.summarySlot] > 0) {
+            evolveSlot = ui.summarySlot;
+            job = JOB_EVOLVE;
+            jobFrames = 0;
+            pd_ui_back(&ui);
+            companion = false;
+          }
+          break;
         case PD_ACTION_TOGGLE_FF:
           ff = !ff;
           break;
@@ -3836,7 +3853,15 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         notice(fly_reason(FLY_FAILED));
     }
     bool safe = job != JOB_NONE && !companion && pk_call_safe(c);
-    if (job == JOB_PC && safe) {
+    if (job == JOB_EVOLVE && safe) {
+      job = JOB_NONE;
+      enum item_result r = trade_evolve(c, game.cfg, romdata, (size_t)len, evolveSlot, evolvePers[evolveSlot], flyBusy, flyBattle);
+      if (r != ITEM_USED)
+        notice(item_reason(r));
+      for (int i = 0; i < 6; i++)
+        host.evolveTarget[i] = 0;
+      evolveSign = 0;
+    } else if (job == JOB_PC && safe) {
       job = JOB_NONE;
       enum item_result r = pc_open(c, game.cfg, romdata, (size_t)len, flyBusy, flyBattle);
       if (r != ITEM_USED)
@@ -3881,9 +3906,19 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     } else if (job == JOB_BIKE_RESTORE && ++jobFrames >= 20) {
       job = JOB_NONE;
       bike_restore(c, game.cfg, jobItem, bikeOld);
-    } else if ((job == JOB_PC || job == JOB_REPEL || job == JOB_BIKE) && !companion && ++jobFrames > 120) {
+    } else if ((job == JOB_PC || job == JOB_REPEL || job == JOB_BIKE || job == JOB_EVOLVE) && !companion && ++jobFrames > 120) {
       job = JOB_NONE;
       notice(item_reason(ITEM_FAILED));
+    }
+    // TRADE EVOLUTIONS: who'd evolve by trade, asked again when the party changes (not every frame: each slot is a
+    // call into the game).
+    if (tradeOk && settings.tradeEvolutions && job == JOB_NONE && !companion && !flyBattle && ++evolveTick >= 30) {
+      evolveTick = 0;
+      uint32_t sign = 2166136261u ^ (uint32_t)snap.partyCount;
+      for (int i = 0; i < snap.partyCount && i < 6; i++)
+        sign = (sign ^ snap.party[i].personality ^ (uint32_t)snap.party[i].species << 8 ^ (uint32_t)snap.party[i].heldItem << 20) * 16777619u;
+      if (sign != evolveSign && pk_call_safe(c) && trade_evo_targets(c, game.cfg, romdata, (size_t)len, host.evolveTarget, evolvePers))
+        evolveSign = sign;
     }
     bool viewBattle = snap.inBattle || (fieldFlags & PK_FIELD_BATTLE);
     // With the companion open the game stands still, so the view keeps a companion open only while it is drawn.

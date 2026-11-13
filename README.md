@@ -245,6 +245,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   order, so there's no NEXT BOSS.
 - **Petalburg Dynasty's Tera type**: BATTLE shows a Terastallized Pokémon's Tera type, and the verdicts and weaknesses
   that go with it, on Android, the desktop host and the 3DS port. A Stellar Tera keeps its own types.
+- **TRADE EVOS on the desktop**: in the English FireRed (rev 1), LeafGreen and Emerald, a party Pokémon that would
+  evolve by trading gets `EVOLVE` on its summary, and the game plays its own evolution, as on Android.
 - **INSTANT TEXT and REUSABLE TMS on the desktop**: the two `GAMEPLAY` settings from the Android app, found in the
   ROM's own code the same way, so they fit the same GBA games and show `N/A` elsewhere.
 - **DS double battles on the desktop**: Black, White, Black 2 and White 2 show the BATTLE tab in a double battle too,

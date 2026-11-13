@@ -176,8 +176,89 @@ void bike_restore(struct mCore *core, const struct pd_config *cfg, int item, uin
     core->busWrite16(core, sb1 + cfg->moneyOff + 6, old);
 }
 
+#define MON_SIZE 100u
+#define MON_DATA_PERSONALITY 0u
+#define MON_DATA_IS_EGG 45u
+#define EVO_MODE_TRADE 1u
+
+bool trade_evo_supported(const struct pd_config *cfg, const uint8_t *rom, size_t len) {
+  if (!field_items_supported(cfg, rom, len) || !cfg->tradeEvoTarget || !cfg->partyFns)
+    return false;
+  const uint32_t fns[4] = {cfg->tradeEvoTarget, cfg->tradeEvoScene, cfg->tradeReturnToField, cfg->tradeLockControls};
+  for (int i = 0; i < 4; i++)
+    if (!crc_is(rom, len, fns[i], cfg->tradeCrcs[i]))
+      return false;
+  return true;
+}
+
+static bool call4(struct mCore *core, uint32_t fn, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t *r0) {
+  const uint32_t args[4] = {a0, a1, a2, a3};
+  uint32_t got = 0;
+  if (!pk_call(core, fn, args, &got))
+    return false;
+  if (r0)
+    *r0 = got;
+  return true;
+}
+
+bool trade_evo_targets(struct mCore *core, const struct pd_config *cfg, const uint8_t *rom, size_t len,
+                       int target[6], uint32_t personality[6]) {
+  for (int i = 0; i < 6; i++)
+    target[i] = 0, personality[i] = 0;
+  if (!trade_evo_supported(cfg, rom, len) || !pk_call_safe(core))
+    return false;
+  const struct pd_party_fns *p = cfg->partyFns;
+  unsigned count = core->busRead8(core, p->partyCount);
+  if (count > 6)
+    count = 6;
+  for (unsigned slot = 0; slot < count; slot++) {
+    uint32_t mon = p->party + slot * MON_SIZE, egg = 1, to = 0;
+    if (!call(core, p->getMonData, mon, MON_DATA_IS_EGG + (uint32_t)p->monFieldShift, &egg) || egg)
+      continue;
+    uint8_t saved[MON_SIZE];
+    for (uint32_t i = 0; i < MON_SIZE; i++)
+      saved[i] = (uint8_t)core->busRead8(core, mon + i);
+    bool ok = call4(core, cfg->tradeEvoTarget, mon, EVO_MODE_TRADE, 0, 0, &to);
+    for (uint32_t i = 0; i < MON_SIZE; i++)
+      core->busWrite8(core, mon + i, saved[i]);
+    if (!ok || !(to & 0xFFFF))
+      continue;
+    target[slot] = (int)(to & 0xFFFF);
+    call(core, p->getMonData, mon, MON_DATA_PERSONALITY, &personality[slot]);
+  }
+  return true;
+}
+
+enum item_result trade_evolve(struct mCore *core, const struct pd_config *cfg, const uint8_t *rom, size_t len,
+                              int slot, uint32_t personality, bool busy, bool battle) {
+  if (!trade_evo_supported(cfg, rom, len))
+    return ITEM_FAILED;
+  enum item_result g = gate(core, cfg, rom, len, busy, battle);
+  if (g != ITEM_USED)
+    return g;
+  const struct pd_party_fns *p = cfg->partyFns;
+  unsigned count = core->busRead8(core, p->partyCount);
+  if (slot < 0 || slot >= 6 || (unsigned)slot >= count)
+    return ITEM_MOVED;
+  uint32_t mon = p->party + (uint32_t)slot * MON_SIZE, got = 0, egg = 1, to = 0;
+  if (!call(core, p->getMonData, mon, MON_DATA_PERSONALITY, &got) || got != personality)
+    return ITEM_MOVED;
+  if (!call(core, p->getMonData, mon, MON_DATA_IS_EGG + (uint32_t)p->monFieldShift, &egg) || egg)
+    return ITEM_NO_EVOLUTION;
+  // The real thing from here: a held-item evolution's item is used up, as in a trade.
+  if (!call4(core, cfg->tradeEvoTarget, mon, EVO_MODE_TRADE, 0, 0, &to) || !(to & 0xFFFF))
+    return ITEM_NO_EVOLUTION;
+  core->busWrite32(core, cfg->tradeAfterEvolution, cfg->tradeReturnToField | 1u);
+  call(core, cfg->tradeLockControls, 0, 0, NULL);
+  if (!call4(core, cfg->tradeEvoScene, mon, to & 0xFFFF, 0, (uint32_t)slot, NULL))
+    return ITEM_FAILED;
+  return ITEM_USED;
+}
+
 const char *item_reason(enum item_result r) {
   switch (r) {
+  case ITEM_NO_EVOLUTION: return "It won't evolve by trading right now.";
+  case ITEM_MOVED: return "Your party changed: open the summary again.";
   case ITEM_STILL_ACTIVE: return "The last one is still working.";
   case ITEM_NOT_NOW: return "Not now: close the game's menus and battles first.";
   case ITEM_IN_BATTLE: return "You can't do that during a battle.";

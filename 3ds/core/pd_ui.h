@@ -108,6 +108,7 @@ struct pd_settings {
     bool runIndoors; // RUN INDOORS: every map lets the player run
     bool instantText; // INSTANT TEXT: a text box's words appear at once (pd_rom_tweaks.c)
     bool reusableTms; // REUSABLE TMS: a TM stays in the bag after it teaches a move
+    bool tradeEvolutions; // TRADE EVOS: a Pokémon that evolves by trading gets EVOLVE on its summary
     int batterySaver; // BATTERY SAVER: enum pd_battery_saver
     bool rumble;      // RUMBLE: the controller buzzes as a battle starts, harder for a shiny foe, and for rumble carts
     bool resumeGames; // RESUME GAMES: a state on leaving a game, offered back (CONTINUE) at its next start
@@ -215,6 +216,7 @@ enum pd_action {
     PD_ACTION_FLY_ASK,   // MAP's FLY: where it can go is wanted
     PD_ACTION_FLY_TO,    // ... and the pick: ui.flyPick
     PD_ACTION_PER_GAME,  // THIS GAME ONLY flipped (host->perGame says which way it was)
+    PD_ACTION_TRADE_EVOLVE, // TRADE EVOLUTIONS: EVOLVE on ui.summarySlot's Pokémon
 };
 
 // A party slot in USE / GIVE's pick: dimmed, or which of its moves it would help.
@@ -290,6 +292,9 @@ struct pd_host_info {
     bool instantTextFits;    // the ROM's text code is known
     bool reusableTmsFits;    // the ROM's code that uses a TM up is known
     bool reusableTmsBuiltIn; // the game's own TMs never run out: ON, greyed
+    bool hasTradeEvos;       // the host shows TRADE EVOS (N/A unless tradeEvoFits)
+    bool tradeEvoFits;       // the game's evolution code is known
+    int evolveTarget[6];     // what each party slot would become by trade now (0 = no EVOLVE)
     int slotSelected;
 };
 
@@ -516,6 +521,7 @@ struct pd_ui {
     bool summaryInfo;  // INFO (EXP, held item, type matchups) replaces them
     // BOXES: what the host read (NULL = the tab isn't here), the box asked for, the picked slot and the box summary.
     const struct pd_boxes* boxes;
+    bool summaryEvolve; // the open summary's Pokémon gets EVOLVE (set from host->evolveTarget)
     bool boxMoves;   // WITHDRAW / DEPOSIT / SWAP work here
     int boxShown, boxSlot, boxSummary, boxPartySlot, boxTarget;
     bool boxSwapPick, boxDepositing;
