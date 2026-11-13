@@ -254,7 +254,9 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     if (host->hasPerf) setting(ui, c, ix, &y, iw, SETTING_PERF, "FPS / CPU", on_off(st->showPerf));
 
     group(c, ix, &y, "COMPANION");
+    setting(ui, c, ix, &y, iw, SETTING_BATTLE_INFO, "BATTLE INFO", on_off(st->battleInfo));
     setting(ui, c, ix, &y, iw, SETTING_HINTS, "BATTLE HINTS", on_off(!st->hideHints));
+    setting(ui, c, ix, &y, iw, SETTING_BATTLE_VIEW, "BATTLE VIEW", st->battleViewInfo ? "INFO" : "BUTTONS");
     setting(ui, c, ix, &y, iw, SETTING_ONE_TAP, "ONE-TAP MOVES", on_off(st->oneTapMoves));
     setting(ui, c, ix, &y, iw, SETTING_FOE_IVS, "FOE IVS", on_off(st->foeIvs));
     snprintf(buf, sizeof(buf), "%d TABS", ui_bar_count(ui));
@@ -516,7 +518,9 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
             if (pd_themes[i].id == st->theme) themeName = pd_themes[i].label;
         setting(ui, c, ix, &y, iw, SETTING_THEME, "THEME", themeName);
         group(c, ix, &y, "COMPANION");
+        setting(ui, c, ix, &y, iw, SETTING_BATTLE_INFO, "BATTLE INFO", st->battleInfo ? "ON" : "OFF");
         setting(ui, c, ix, &y, iw, SETTING_HINTS, "BATTLE HINTS", st->hideHints ? "OFF" : "ON");
+        setting(ui, c, ix, &y, iw, SETTING_BATTLE_VIEW, "BATTLE VIEW", st->battleViewInfo ? "INFO" : "BUTTONS");
         setting(ui, c, ix, &y, iw, SETTING_ONE_TAP, "ONE-TAP MOVES", st->oneTapMoves ? "ON" : "OFF");
         setting(ui, c, ix, &y, iw, SETTING_FOE_IVS, "FOE IVS", st->foeIvs ? "ON" : "OFF");
     }

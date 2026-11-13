@@ -139,6 +139,8 @@ enum setting_row {
     SETTING_HINTS,
     SETTING_ONE_TAP,
     SETTING_FOE_IVS,
+    SETTING_BATTLE_INFO,
+    SETTING_BATTLE_VIEW,
     SETTING_NUZLOCKE,
     SETTING_RESTART,
     SETTING_VIEW,      // hosts with hasCompanionView: opens its pick-list
@@ -250,6 +252,7 @@ void ui_card_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g,
 bool ui_card_tick(struct pd_ui* ui, unsigned ms);
 
 // BATTLE's touch controls (pd_ui_battle_controls.c): whether they show now, the pane, a tap on it.
+bool ui_battle_info_on(const struct pd_ui* ui); // BATTLE INFO
 bool ui_battle_controls_usable(const struct pd_ui* ui, const struct pd_snapshot* s);
 void ui_battle_controls(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s);
 bool ui_battle_controls_act(struct pd_ui* ui, int id, const struct pd_snapshot* s);

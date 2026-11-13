@@ -55,11 +55,11 @@ When you move the game's cursor with your buttons, the battle buttons show where
 
 ### BATTLE INFO
 
-Want to work the battle out yourself? Turn off `BATTLE INFO` in SETTINGS (COMPANION group). The `BATTLE` tab then has only your battle buttons: no `INFO`, no `SUGGESTIONS` and no ratings on your moves. In a double battle, or in the window over the game, it just reminds you to use the game's own menu.
+Want to work the battle out yourself? Turn off `BATTLE INFO` in SETTINGS (COMPANION group). The `BATTLE` tab then has only your battle buttons: no `INFO`, no `SUGGESTIONS` and no ratings on your moves. In a double battle, or in the window over the game, it just reminds you to use the game's own menu. On Windows and Linux it's in the same `COMPANION` group, and the battle wing beside the game keeps showing the map instead of the battle.
 
 ### BATTLE VIEW
 
-The `BATTLE` tab opens on your battle buttons. If you'd rather read about the fight first and use the game's own menu, set `BATTLE VIEW` to `INFO` in SETTINGS (COMPANION group). `BACK` on `INFO` still brings the buttons up.
+The `BATTLE` tab opens on your battle buttons. If you'd rather read about the fight first and use the game's own menu, set `BATTLE VIEW` to `INFO` in SETTINGS (COMPANION group). `BACK` on `INFO` still brings the buttons up. On Windows and Linux, `BATTLE VIEW` is in the same `COMPANION` group, and the `<` button on `INFO` brings the buttons up.
 
 ### ONE-TAP MOVES
 

@@ -1835,6 +1835,8 @@ static void draw_game_blur(SDL_Rect room, int side) {
   SDL_SetTextureColorMod(bezelGlow, 255, 255, 255);
   SDL_SetTextureAlphaMod(bezelGlow, 255);
 }
+/* BATTLE INFO off: the right wing keeps its map in a battle rather than the battle's info. */
+static bool wingBattleInfo = true;
 static void draw_panel(int which, struct view_rect r, const struct pd_game *g, const struct pd_snapshot *s,
                        bool battle) {
   if (r.w < 8 || r.h < 8)
@@ -1974,7 +1976,7 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     pd_ui_panel_moving = false;
     if (which == PANEL_LEFT)
       pd_ui_party_panel(&pc, g, s);
-    else if (which == PANEL_RIGHT && battle)
+    else if (which == PANEL_RIGHT && battle && wingBattleInfo)
       pd_ui_battle_panel(&pc, g, s, NULL);
     else if (which == PANEL_RIGHT)
       pd_ui_map_panel(&pc, g, s, false);
@@ -4081,6 +4083,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         evolveSign = sign;
     }
     bool viewBattle = snap.inBattle || (fieldFlags & PK_FIELD_BATTLE);
+    wingBattleInfo = settings.battleInfo;
     // With the companion open the game stands still, so the view keeps a companion open only while it is drawn.
     view_update(&settings, companion && (!menuOpen || menuOpen == 4), viewBattle, gw, gh);
     gameView = &viewShown;

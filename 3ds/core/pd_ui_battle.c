@@ -442,6 +442,14 @@ void ui_battle_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* 
         return;
     }
     bool controls = ui_battle_controls_usable(ui, s);
+    if (!ui_battle_info_on(ui)) {
+        // BATTLE INFO off: the buttons alone, or a word to use the game's own menu.
+        ui->battlePane = 0;
+        ui->battleInfoOpen = false;
+        if (controls) ui_battle_controls(ui, c, g, s);
+        else ui_notice(c, "BATTLE INFO IS OFF", "Use the game's own menu.", "SETTINGS turns it back on.");
+        return;
+    }
     if (controls && !ui->battleInfoOpen && !ui->battlePane) {
         ui_battle_controls(ui, c, g, s);
         return;
@@ -511,7 +519,12 @@ int ui_out_slots(const struct pd_snapshot* s) {
     return bits;
 }
 
+bool ui_battle_info_on(const struct pd_ui* ui) {
+    return !ui->settings || ui->settings->battleInfo;
+}
+
 bool ui_battle_act(struct pd_ui* ui, int id) {
+    if ((id == HIT_BATTLE_SUGGEST || id == HIT_BATTLE_INFO || id == HIT_BATTLE_STATS) && !ui_battle_info_on(ui)) return true;
     if (id == HIT_BATTLE_SUGGEST || id == HIT_BATTLE_INFO || id == HIT_BATTLE_STATS) {
         ui->battlePane = id == HIT_BATTLE_SUGGEST ? 1 : id == HIT_BATTLE_STATS ? 2 : 0;
         ui->battleInfoOpen = true;

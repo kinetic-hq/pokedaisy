@@ -290,7 +290,9 @@ bool ui_battle_controls_usable(const struct pd_ui* ui, const struct pd_snapshot*
 
 void ui_battle_controls(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s) {
     bool busy = busy_now(ui);
-    bool hints = !ui->settings || !ui->settings->hideHints;
+    // BATTLE INFO off takes the moves' ratings too.
+    bool info = ui_battle_info_on(ui);
+    bool hints = info && (!ui->settings || !ui->settings->hideHints);
     bool canSwitch = ui->battleInput && pd_binput_can_switch(ui->battleInput);
     enum pd_battle_state state = s->battleState;
     bool picking = (state == PD_BATTLE_ACTION && ui->battleChoosingMon) || (state == PD_BATTLE_PARTY_OPEN && canSwitch);
@@ -301,10 +303,12 @@ void ui_battle_controls(struct pd_ui* ui, struct pd_canvas* c, const struct pd_g
         ball_row(c, s->party, s->partyCount, MARGIN, y + 1, 22, false);
         if (s->isTrainer && s->foeCount > 0) ball_row(c, s->foes, s->foeCount, c->w - MARGIN - 6 * 15 + 2, y + 5, 11, true);
         y += STRIP_H + 4;
-        int infoW = 64, suggestW = 104, btnH = 20, rowX = (c->w - infoW - suggestW - 6) / 2;
-        button(ui, c, rowX, y, infoW, btnH, "INFO", 1, 0x9068D0, 0x5C3C98, HIT_BATTLE_INFO, true);
-        button(ui, c, rowX + infoW + 6, y, suggestW, btnH, "SUGGESTIONS", 1, 0xE8B830, 0xA87C10, HIT_BATTLE_SUGGEST, true);
-        y += btnH + 4;
+        if (info) {
+            int infoW = 64, suggestW = 104, btnH = 20, rowX = (c->w - infoW - suggestW - 6) / 2;
+            button(ui, c, rowX, y, infoW, btnH, "INFO", 1, 0x9068D0, 0x5C3C98, HIT_BATTLE_INFO, true);
+            button(ui, c, rowX + infoW + 6, y, suggestW, btnH, "SUGGESTIONS", 1, 0xE8B830, 0xA87C10, HIT_BATTLE_SUGGEST, true);
+            y += btnH + 4;
+        }
         int bottom = c->h - 2;
         if (state == PD_BATTLE_MOVE || (state == PD_BATTLE_ACTION && ui->battleChoosingMove)) {
             move_grid(ui, c, g, s, y, bottom, busy, hints);
