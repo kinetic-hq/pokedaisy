@@ -105,7 +105,8 @@ struct pd_settings {
     int hudSize;     // enum pd_hud_size (FieldHudSize)
     // plorpOS (its in-game menu writes these too):
     int scaling;     // enum pd_scaling, ASPECT ORIGINAL's picture
-    bool ffAudio;    // the game's sound sped up under fast-forward, else silent
+    bool ffAudio;    // FF MUSIC: sound under fast-forward (STEADY or SPED-UP), else OFF
+    bool ffSteady;   // with ffAudio: STEADY, the song at its normal speed where the host has it; else SPED-UP
     bool rewind;     // REWIND: the last ~20 s kept for the rewind hotkey
     bool runIndoors; // RUN INDOORS: every map lets the player run
     bool instantText; // INSTANT TEXT: a text box's words appear at once (pd_rom_tweaks.c)
@@ -283,6 +284,7 @@ struct pd_host_info {
     // rows this host does something with: these say which (the desktop host's).
     bool androidMenus;
     bool hasGameSpeed, hasSound, hasAutoRun, hasFfMode, hasRewind, hasFfMusic;
+    bool hasSteady; // FF MUSIC offers STEADY
     bool wildSupported, fieldSupported; // WILD ENCOUNTERS / the field read works on this game
     // SCENE SPEEDS (androidMenus): the rows shown, and which scenes this game can be read in (else N/A).
     bool hasSceneSpeeds;
@@ -576,6 +578,7 @@ struct pd_ui {
 
     enum pd_overlay overlay;
     int sceneRow; // PD_OVERLAY_PICK_SCENE: which scene (PD_SCENE_*)
+    bool steadyOffered; // FF MUSIC's row last drawn offered STEADY
     bool moreOpened; // the open tab came from MORE (BACK doesn't send the CARD to SETTINGS then)
     int settingsNavId, settingsNavCount, settingsNavHeight;
     struct { int id, top; } settingsNav[PD_UI_MAX_HITS];

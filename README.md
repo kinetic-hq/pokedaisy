@@ -245,6 +245,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
   order, so there's no NEXT BOSS.
 - **Petalburg Dynasty's Tera type**: BATTLE shows a Terastallized Pokémon's Tera type, and the verdicts and weaknesses
   that go with it, on Android, the desktop host and the 3DS port. A Stellar Tera keeps its own types.
+- **FF MUSIC's STEADY on the desktop**: in GBA games, each song is recorded on its own on a second core the first time
+  the game plays it, cut where the sound engine loops, and plays at its normal speed while the game races, as on
+  Android. It's the default for new setups. Clips are WAVs in `ffmusic/` beside the saves, 1.5 GB at most; there's no
+  background pass over every song.
 - **SCENE SPEEDS on the desktop, and GAME SPEED that works there**: `SPEED OPTIONS` gets `BATTLE`, `TEXT`, `MENU`,
   `BIKE` and `SURF SPEED` in Game Boy and GBA games, as on Android (`MENU SPEED` where `EXPAND` reads the screen).
   `GAME SPEED` was shown on the desktop but never applied; it now sets the pace in between.

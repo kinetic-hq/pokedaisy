@@ -625,7 +625,11 @@ static void act(struct pd_ui* ui, int id) {
         ui->settings->rewind = !ui->settings->rewind;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_FF_MUSIC) {
-        ui->settings->ffAudio = !ui->settings->ffAudio;
+        // STEADY, SPED-UP, OFF and round (STEADY only where the host has it).
+        struct pd_settings* st = ui->settings;
+        if (!st->ffAudio) st->ffAudio = st->ffSteady = true;
+        else if (st->ffSteady && ui->steadyOffered) st->ffSteady = false;
+        else st->ffAudio = false;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_UPDATES) {
         ui->settings->updateCheck = !ui->settings->updateCheck;

@@ -41,8 +41,9 @@ the fork's README.
   back paddles and extra buttons can each get a job.
 - **Shaders**: `SHARP`, `xBRZ`, the `HANDHELD` and `OLED` colours, `BRIGHTNESS`,
   and black backgrounds made for OLED screens.
-- **Fast forward music**: `FF MUSIC` plays the game's own sound sped up
-  (`SPED-UP`) or turns it off; there's no `STEADY` music yet.
+- **Fast forward music**: `FF MUSIC`'s `STEADY` works in GBA games. Each song is
+  recorded the first time the game plays it, rather than all at once in the
+  background, and Game Boy and DS games play `SPED-UP` instead.
 - **Save editing**: `EDIT SAVE` in a game's options changes money, the bag and
   your Pokemon in the GBA games and English HeartGold, SoulSilver and Platinum, with a
   backup first. Trading between two saves stays on Android.
@@ -59,7 +60,6 @@ and Berry Pots.
 
 - RetroAchievements, and the `ACHIEVEMENTS` tab with it.
 - The `NUZLOCKE` tab.
-- `STEADY` fast forward music.
 - `LINK PLAY`, `PATCH A ROM` and `TRADE SAVES`.
 - The `MAKEOVER` group: `PLAYER LOOK`, `TEXT LOOK`, `FOLLOWER`, `DAY AND NIGHT`.
 - `BATTLE BUTTONS` over the game (the desktop's `BATTLE WINGS` keep the battle

@@ -24,7 +24,8 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->hudLook = PD_HUD_GLASS;
     s->hudSize = PD_HUD_NORMAL;
     s->scaling = PD_SCALE_INTEGER;
-    s->ffAudio = false;
+    s->ffAudio = true;
+    s->ffSteady = true;
     s->rewind = false;
     s->runIndoors = false;
     s->levelCap = false;
@@ -202,7 +203,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         }
         else {
             int on;
-            bool* b = !strcmp(key, "ffaudio") ? &s->ffAudio : !strcmp(key, "rewind") ? &s->rewind
+            bool* b = !strcmp(key, "ffaudio") ? &s->ffAudio : !strcmp(key, "ffsteady") ? &s->ffSteady : !strcmp(key, "rewind") ? &s->rewind
                     : !strcmp(key, "runindoors") ? &s->runIndoors : !strcmp(key, "nohints") ? &s->hideHints
                     : !strcmp(key, "onetap") ? &s->oneTapMoves : !strcmp(key, "mute") ? &s->gameMuted
                     : !strcmp(key, "aspectpicked") ? &s->aspectPicked : !strcmp(key, "autorun") ? &s->autoRun : !strcmp(key, "updatecheck") ? &s->updateCheck
@@ -229,6 +230,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->hud ? 1 : 0, s->hudHidden, s->quickGrid ? 1 : 0, s->lcdFilter ? 1 : 0);
     fprintf(f, "hudlayout=%d\nhudlook=%d\nhudsize=%d\n", s->hudLayout, s->hudLook, s->hudSize);
     fprintf(f, "view=%d\npanellock=%d\n", s->companionView, s->panelLocked ? 1 : 0);
+    fprintf(f, "ffsteady=%d\n", s->ffSteady ? 1 : 0);
     fprintf(f, "scaling=%d\nffaudio=%d\nrewind=%d\nrunindoors=%d\n", s->scaling, s->ffAudio ? 1 : 0,
             s->rewind ? 1 : 0, s->runIndoors ? 1 : 0);
     fprintf(f, "battlespeed=%d\ntextspeed=%d\nmenuspeed=%d\nbikespeed=%d\nsurfspeed=%d\n", s->sceneSpeed[0], s->sceneSpeed[1],

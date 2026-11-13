@@ -230,7 +230,7 @@ static void desktop_settings(struct preview* p, struct pd_host_info* host, struc
     host->hasExpand = host->hasHud = host->hasCompanionView = host->hasUpdateCheck = host->hasShaders = true;
     host->hasFullscreen = host->hasButtonLayout = host->hasOrientation = host->hasGameTouch = true;
     host->hasDisplayFilter = host->hasQuickMenu = host->hasButtonRows = host->hasPerf = true;
-    host->hasRewind = host->hasFfMusic = host->hasSceneSpeeds = true;
+    host->hasRewind = host->hasFfMusic = host->hasSceneSpeeds = host->hasSteady = true;
     for (int k = 0; k < PD_SCENE_COUNT; k++) host->sceneKnown[k] = k != PD_SCENE_SURF; // one N/A row
     host->batteryPct = -1;
     host->layouts = PREVIEW_LAYOUTS;
@@ -243,6 +243,7 @@ static void desktop_settings(struct preview* p, struct pd_host_info* host, struc
     shot(p->out, p->name, "desktop-settings", p->c->px);
     if (has_hit(p, HIT_SETTING + SETTING_PAGE_SPEED)) {
         settings->sceneSpeed[PD_SCENE_BATTLE] = 3;
+        settings->ffAudio = settings->ffSteady = true;
         tap(p, HIT_SETTING + SETTING_PAGE_SPEED, 0);
         shot(p->out, p->name, "desktop-speed-options", p->c->px);
         tap(p, HIT_SETTING + SETTING_SCENE + PD_SCENE_TEXT, 0);

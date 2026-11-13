@@ -17,6 +17,7 @@
 #include "host_io.h"
 #include "rom_list.h"
 #include "field_items.h"
+#include "ff_music.h"
 #include "fly.h"
 #include "display_filter.h"
 #include "updater.h"
@@ -3058,6 +3059,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   }
   char sav[1024], ss[1024];
   struct pocket_save_status saveStatus = {0};
+  struct ffm *ffMusic = NULL; // FF MUSIC's STEADY recorder (GBA games)
+  struct ffm_clip ffClip = {0};
   const char *name = strrchr(path, '/');
 #ifdef _WIN32
   // A Windows path may use either separator: the save / state is named after the file alone, as on Linux.
@@ -3206,6 +3209,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   host.hasTradeEvos = c->platform(c) == mPLATFORM_GBA;
   // SCENE SPEEDS: BATTLE everywhere, TEXT where the field read works, MENU where EXPAND reads the screen, BIKE and
   // SURF once the field read has found the player's own state (below). GAME SPEED's pace in between.
+  // FF MUSIC's STEADY: each song a GBA game plays is recorded on its own, on a second core, as the game starts it
+  // (ff_music.c); while the game races, that recording plays at its normal speed instead of the game's sound.
+  if (c->platform(c) == mPLATFORM_GBA)
+    ffMusic = ffm_start(romdata, (size_t)len, crc, root);
+  host.hasSteady = ffMusic != NULL;
+  uint32_t songKey = 0, songAsked = 0;
+  Uint32 songAt = 0;
+  bool clipOn = false;
   host.hasSceneSpeeds = true;
   host.sceneKnown[PD_SCENE_BATTLE] = true;
   host.sceneKnown[PD_SCENE_TEXT] = fieldKnown;
@@ -3798,7 +3809,36 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       if (fieldFlags & PK_FIELD_AVATAR)
         host.sceneKnown[PD_SCENE_BIKE] = host.sceneKnown[PD_SCENE_SURF] = true;
       double pace = fast || rewinding ? 1 : scene_pace(&settings, &host, scene_now(fieldFlags, fieldKnown, &snap));
-      muted = ((fast || pace > 1) && !settings.ffAudio) || rewinding;
+      // FF MUSIC: STEADY plays the song's recording while the game races (silent until it's made); SPED-UP the game's
+      // own sound; OFF nothing. A song STEADY can't record plays sped up.
+      bool racing = (fast || pace > 1) && !rewinding;
+      bool steady = ffMusic && settings.ffAudio && settings.ffSteady;
+      uint32_t key = ffMusic ? ffm_key(c) : 0;
+      if (key != songKey) {
+        songKey = key;
+        songAt = SDL_GetTicks();
+      }
+      enum ffm_state songState = steady && key ? ffm_state(ffMusic, key) : FFM_NEVER;
+      if (!steady)
+        songAsked = 0;
+      else if (key && (key != songAsked || songState == FFM_COMING)) {
+        songAsked = key;
+        ffm_request(ffMusic, key);
+      }
+      bool useClip = racing && songState == FFM_READY;
+      if (useClip && ffClip.key != key) {
+        ffm_clip_free(&ffClip);
+        clipOn = false;
+        useClip = ffm_load(ffMusic, key, &ffClip);
+      }
+      if (useClip != clipOn) {
+        // Where the song is by now: from the top for one just started, further on otherwise.
+        ffClip.at = (uint64_t)(SDL_GetTicks() - songAt) * FFM_RATE / 1000;
+        clipOn = useClip;
+        if (audio)
+          SDL_ClearQueuedAudio(audio);
+      }
+      muted = rewinding || clipOn || (racing && songState == FFM_COMING) || (racing && !settings.ffAudio);
       c->setKeys(c, ((quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023) | (gameKeyFrames > 0 ? gameKeys : 0));
       int count = 1;
       if (fast) {
@@ -3844,6 +3884,13 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       }
       if (fast)
         frameCost = frameCost * 0.8 + 0.2 * ms_since(runStart) / count;
+      if (clipOn && audio) {
+        int16_t clipBuf[1024 * 2];
+        while (SDL_GetQueuedAudioSize(audio) < FFM_RATE * 4 / 10) {
+          ffm_clip_fill(&ffClip, clipBuf, 1024);
+          SDL_QueueAudio(audio, clipBuf, sizeof clipBuf);
+        }
+      }
     }
     // The companion's data: fresh when it opens (it pauses the game), else twice a
     // second - read through the bus byte by byte, every frame cost frame time.
@@ -4102,6 +4149,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   if (audio)
     SDL_ClearQueuedAudio(audio);
 cleanup:
+  ffm_clip_free(&ffClip);
+  ffm_stop(ffMusic);
   rewind_follow(false);
   rumble(0, 0, 0); // a rumble cart left buzzing stops with the game
   gameConfig[0] = 0; // the game list writes settings.ini again
