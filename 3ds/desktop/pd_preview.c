@@ -233,7 +233,9 @@ static void desktop_settings(struct preview* p, struct pd_host_info* host, struc
     host->hasDisplayFilter = host->hasQuickMenu = host->hasButtonRows = host->hasPerf = true;
     host->hasRewind = host->hasFfMusic = host->hasSceneSpeeds = host->hasSteady = true;
     host->hasShinyOdds = host->shinyOddsFits = true;
+    host->expandGame = host->hasLookAround = true; // ASPECT and LOOK AROUND's rows
     settings->shinyOdds = 3;
+    settings->aspect = PD_ASPECT_EXPAND;
     for (int k = 0; k < PD_SCENE_COUNT; k++) host->sceneKnown[k] = k != PD_SCENE_SURF; // one N/A row
     host->batteryPct = -1;
     host->layouts = PREVIEW_LAYOUTS;

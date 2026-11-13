@@ -93,6 +93,7 @@ static unsigned wideW, wideH;
 static int wideBoxW, wideBoxH; // the game's area beside the wings (0: the whole screen), EXPAND's window sized to it
 static struct wide_camera wideCam; // EXPAND's zoom (wide_camera.h)
 static float wideScale = 1;        // screen pixels per game pixel of the window now
+static float wideShiftX, wideShiftY; // LOOK AROUND: the window's centre past the view's, game px (under one)
 static float wideLevels[WIDE_CAMERA_LEVELS];
 static int wideLevelCount = 1, wideCamAspect = -1;
 static SDL_AudioDeviceID audio;
@@ -1322,10 +1323,41 @@ static void wide_tick(struct mCore *c, bool skip, const struct pd_settings *s) {
     wideCamAspect = s->aspect;
     wideCam.level = s->aspect == PD_ASPECT_ZOOM_OUT ? 1 : 0;
   }
-  wideScale = wide_camera_frame(&wideCam, pk_wide_scene(), s->autoZoom, wideLevels, wideLevelCount, SDL_GetTicks() | 1);
+  uint32_t now = SDL_GetTicks() | 1;
+  wideScale = wide_camera_frame(&wideCam, pk_wide_scene(), s->autoZoom, wideLevels, wideLevelCount, now);
+  // LOOK AROUND: the right stick of any pad (the one pushed furthest), walking = a direction held.
+  float sx = 0, sy = 0;
+  for (int i = 0; s->lookAround && i < padCount; i++) {
+    float x = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_RIGHTX) / 32767.0f;
+    float y = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_RIGHTY) / 32767.0f;
+    if (x * x + y * y > sx * sx + sy * sy)
+      sx = x, sy = y;
+  }
+  // POCKET_LOOK="x,y": a right stick held for headless looks.
+  static const char *script;
+  static bool scriptRead;
+  if (!scriptRead)
+    script = getenv("POCKET_LOOK"), scriptRead = true;
+  if (script && s->lookAround && sx == 0 && sy == 0 && sscanf(script, "%f,%f", &sx, &sy) != 2)
+    sx = sy = 0;
+  bool walking = held & (1u << UP | 1u << DOWN | 1u << LEFT | 1u << RIGHT);
+  wide_camera_look(&wideCam, sx, sy, walking, ow, oh, (int)fw, (int)fh, wideLevels[0], now);
   wide_camera_window(ow, oh, (int)fw, (int)fh, PK_WIDE_MAX_VIEW_W, PK_WIDE_MAX_VIEW_H, wideScale, &wideW, &wideH);
   struct PkWideView v = {((int)fw - (int)wideW) / 2, ((int)fh - (int)wideH) / 2,
                          (int)wideW, (int)wideH};
+  wideShiftX = wideShiftY = 0;
+  if (wideCam.lookX != 0 || wideCam.lookY != 0) {
+    // Off the player: a game pixel more each side, so the view can sit between whole pixels and glide.
+    if (wideW + 2 <= PK_WIDE_MAX_VIEW_W)
+      wideW += 2;
+    if (wideH + 2 <= PK_WIDE_MAX_VIEW_H)
+      wideH += 2;
+    float cx = (float)fw / 2 + wideCam.lookX, cy = (float)fh / 2 + wideCam.lookY;
+    v = (struct PkWideView){(int)floorf(cx - (float)wideW / 2), (int)floorf(cy - (float)wideH / 2), (int)wideW,
+                            (int)wideH};
+    wideShiftX = (float)v.x + (float)wideW / 2 - cx;
+    wideShiftY = (float)v.y + (float)wideH / 2 - cy;
+  }
   // Like the app's EXPAND, the window shows whatever the scene: the map past
   // the edges on the overworld (text boxes and the START menu too), the
   // battle's own scenery, and off the map a glow from the frame's own edge
@@ -1413,6 +1445,8 @@ static bool render_game(unsigned gw, unsigned gh) {
     lastGameRect = placed ? (SDL_Rect){gameView->game.x + (gameView->game.w - dw) / 2,
                                        gameView->game.y + (gameView->game.h - dh) / 2, dw, dh}
                           : (SDL_Rect){(ow - dw) / 2, (oh - dh) / 2, dw, dh};
+    lastGameRect.x += (int)lroundf(wideShiftX * fs);
+    lastGameRect.y += (int)lroundf(wideShiftY * fs);
     if (SDL_UpdateTexture(wideTexture, &(SDL_Rect){0, 0, (int)gw, (int)gh},
                           wideFrame, (int)gw * 4) < 0) {
       notice(SDL_GetError());
@@ -3236,7 +3270,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   double frameCost = 0;
   uint64_t lastStart = 0;
   struct pd_snapshot snap = {0};
-  struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
+  struct pd_host_info host = {.hideScreenMode = true, .hasExpand = true, .hasLookAround = true, .hasFfChip = true, .hasQuickMenu = true, .hasDisplayFilter = true, .hasHud = c->platform(c) == mPLATFORM_GBA,
                               .expandGame = wideSupported, .hasCompanionView = true, .hasUpdateCheck = true, .hasShaders = true, .hasSavesBeside = !saveFile, .hasFullscreen = true, .hasButtonLayout = true, .hasOrientation = true, .hasGameTouch = true, .count = 1, .labels = {"HOST"},
                               .fullSettings = true, .androidMenus = true, .hasRewind = true, .hasFfMusic = true,
                               .batteryPct = -1, .layouts = companion_layouts(), .layoutCount = POCKET_VIEWS};

@@ -19,7 +19,7 @@ the fork's README.
 - **The companion's tabs**: `PARTY`, `BAG`, `MAP`, `GUIDE`, the Pokedex,
   `BATTLE` (with `INFO`, `SUGGESTIONS`, `ONE-TAP MOVES`, `FOE IVS`' `STATS`, `BATTLE INFO`, `BATTLE VIEW` and `BATTLE FOCUS`), the `TRAINER CARD`,
   `BOXES`, `STATES` and `SETTINGS`, with `TAB BAR` and `MORE`.
-- **The field**: `ASPECT` `EXPAND` with zoom and `AUTO ZOOM IN`, the `HUD`, and
+- **The field**: `ASPECT` `EXPAND` with zoom, `AUTO ZOOM IN` and `LOOK AROUND`, the `HUD`, and
   the `QUICK MENU` with PC, FLY, the keep-away spray, `BIKE`, `WILD ENCOUNTERS`,
   states, fast forward and the companion.
 - **Speed**: `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `FF MODE`, and `SCENE SPEEDS`

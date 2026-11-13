@@ -694,6 +694,9 @@ static void act(struct pd_ui* ui, int id) {
     } else if (id == HIT_SETTING + SETTING_AUTO_ZOOM) {
         ui->settings->autoZoom = !ui->settings->autoZoom;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_LOOK_AROUND) {
+        ui->settings->lookAround = !ui->settings->lookAround;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id >= HIT_SETTING && id <= HIT_SETTING + SETTING_ASPECT) {
         static const enum pd_overlay OPENS[] = {
             [SETTING_SCREEN] = PD_OVERLAY_PICK_SCREEN,

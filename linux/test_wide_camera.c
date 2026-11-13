@@ -55,6 +55,43 @@ int main(void) {
   assert(w >= 1920 / 4.5f - 1 && (w - 240) % 2 == 0 && (h - 160) % 2 == 0);
   wide_camera_window(1920, 1080, 240, 160, 800, 800, 1, &w, &h);
   assert(w == 800 && h == 800);
+  // LOOK AROUND: standing, the stick moves the view and it stays; walking glides it back; a close view brings it home.
+  struct wide_camera k = {0};
+  uint32_t t = 1;
+  run(&k, WIDE_SCENE_FIELD, true, l, n, &t, 1300);
+  for (int i = 0; i < 30; i++) {
+    t += 16;
+    wide_camera_frame(&k, WIDE_SCENE_FIELD, true, l, n, t);
+    wide_camera_look(&k, 1, 0, false, 1920, 1080, 240, 160, l[0], t);
+  }
+  assert(k.lookX > 40 && k.lookY == 0);
+  float kept = k.lookX;
+  for (int i = 0; i < 30; i++) {
+    t += 16;
+    wide_camera_frame(&k, WIDE_SCENE_FIELD, true, l, n, t);
+    wide_camera_look(&k, 0.1f, 0, false, 1920, 1080, 240, 160, l[0], t); // inside the dead zone
+  }
+  assert(k.lookX == kept);
+  for (int i = 0; i < 120; i++) {
+    t += 16;
+    wide_camera_frame(&k, WIDE_SCENE_FIELD, true, l, n, t);
+    wide_camera_look(&k, 0, 0, true, 1920, 1080, 240, 160, l[0], t);
+  }
+  assert(k.lookX == 0);
+  // Walking with the stick held: it follows the stick, the player kept on screen.
+  for (int i = 0; i < 120; i++) {
+    t += 16;
+    wide_camera_frame(&k, WIDE_SCENE_FIELD, true, l, n, t);
+    wide_camera_look(&k, -1, 0, true, 1920, 1080, 240, 160, l[0], t);
+  }
+  assert(k.lookX < 0 && k.lookX >= -(1920 / k.scale / 2 - WIDE_CAMERA_PLAYER_KEEP) - 0.01f);
+  // A battle: back to the player.
+  for (int i = 0; i < 120; i++) {
+    t += 16;
+    wide_camera_frame(&k, WIDE_SCENE_OFF, true, l, n, t);
+    wide_camera_look(&k, -1, 0, false, 1920, 1080, 240, 160, l[0], t);
+  }
+  assert(k.lookX == 0);
   puts("PASS wide camera");
   return 0;
 }

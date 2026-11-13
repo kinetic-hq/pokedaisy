@@ -1,5 +1,5 @@
 #pragma once
-/* EXPAND's camera on the desktop host: the app's WideCamera (app/.../WideCamera.kt) without the look-around.
+/* EXPAND's camera on the desktop host: the app's WideCamera (app/.../WideCamera.kt).
  * - Zoom levels: the game's whole scale that fits the screen first (1x, the closest), then the whole scales below it
  *   that each show at least WIDE_CAMERA_MIN_STEP more of the map and fit pk_wide's largest window. ZOOM IN / ZOOM OUT
  *   step through them; ASPECT ZOOM OUT starts one step out.
@@ -8,6 +8,9 @@
  *   field (FireRed's map preview) decides nothing. The level picked comes back half a second after the close view.
  * - Every change is one timed ease-in-out in log space (the same feel at every step): a pull-in in 420 ms (550 ms into
  *   a battle), the way back out in 650 ms.
+ * - LOOK AROUND (the right stick, wide_camera_look): standing, it moves the view, which stays where it's left;
+ *   walking glides it back to the player, or with the stick held follows the stick, the player kept on screen. A
+ *   close view (a battle, a menu) brings it back to the player.
  * Integer scales only (the app's 1x fills the screen's height at any scale): every settled view has whole pixels. */
 #include <math.h>
 #include <stdbool.h>
@@ -19,6 +22,11 @@
 #define WIDE_CAMERA_PULL_IN_BATTLE_MS 550u
 #define WIDE_CAMERA_ZOOM_OUT_MS 650u
 #define WIDE_CAMERA_RETURN_DELAY_MS 500u
+#define WIDE_CAMERA_LOOK_TAU 0.12f     // s: the view following the stick, or going back for a close view
+#define WIDE_CAMERA_RETURN_TAU 0.18f   // s: the view gliding back to a player who starts walking
+#define WIDE_CAMERA_LOOK_SPEED 150.0f  // game px a second at full stick, at 1x
+#define WIDE_CAMERA_PLAYER_KEEP 28.0f  // game px: the player stays at least this far inside the view
+#define WIDE_CAMERA_DEAD_ZONE 0.2f
 
 enum { WIDE_SCENE_FIELD, WIDE_SCENE_TEXT, WIDE_SCENE_OVERLAY, WIDE_SCENE_BATTLE_START, WIDE_SCENE_OFF,
        WIDE_SCENE_FADE, WIDE_SCENE_MENU }; // pk_wide.h's PK_WIDE_SCENE_*
@@ -29,6 +37,9 @@ struct wide_camera {
   float from, target;      // the motion under way
   uint32_t start, length;  // its start and length, ms
   uint32_t closeOverSince; // when the last close view ended (0 = still close)
+  bool close;              // the last frame wanted the close view
+  float lookX, lookY;      // LOOK AROUND: the view's centre off the game's own, game px
+  uint32_t lookMs;         // the last look step's time (0 = none yet)
 };
 
 /* The scales for an ow x oh screen and a fw x fh game, closest first; returns how many (at least 1). */
@@ -52,6 +63,8 @@ static inline void wide_camera_reset(struct wide_camera *c) {
   c->scale = 0;
   c->target = 0;
   c->closeOverSince = 0;
+  c->lookX = c->lookY = 0;
+  c->lookMs = 0;
 }
 
 static inline float wide_camera_smoothstep(float p) { return p * p * (3 - 2 * p); }
@@ -73,6 +86,7 @@ static inline float wide_camera_frame(struct wide_camera *c, int scene, bool aut
   else if (!c->closeOverSince)
     c->closeOverSince = now;
   bool close = !c->closeOverSince || now - c->closeOverSince < WIDE_CAMERA_RETURN_DELAY_MS;
+  c->close = close;
   float target = close ? levels[0] : levels[c->level];
   if (target != c->target) {
     c->from = c->scale <= 0 ? target : c->scale;
@@ -90,6 +104,53 @@ static inline float wide_camera_frame(struct wide_camera *c, int scene, bool aut
   if (fabsf(c->scale - c->target) < 0.002f)
     c->scale = c->target;
   return c->scale;
+}
+
+static inline float wide_camera_dead(float v) {
+  float a = fabsf(v);
+  if (a < WIDE_CAMERA_DEAD_ZONE)
+    return 0;
+  if (a > 1)
+    a = 1;
+  return (a - WIDE_CAMERA_DEAD_ZONE) / (1 - WIDE_CAMERA_DEAD_ZONE) * (v < 0 ? -1 : 1);
+}
+
+static inline void wide_camera_spring(struct wide_camera *c, float tx, float ty, float dt, float tau) {
+  float k = 1 - expf(-dt / tau);
+  c->lookX += (tx - c->lookX) * k;
+  c->lookY += (ty - c->lookY) * k;
+  if (hypotf(c->lookX - tx, c->lookY - ty) < 0.05f)
+    c->lookX = tx, c->lookY = ty;
+}
+
+/* After wide_camera_frame: LOOK AROUND's step, the right stick at (sx, sy) (-1..1, right and down positive), walking =
+ * a direction held, an ow x oh screen, a fw x fh game, fit = the closest level's scale. now is in ms (never 0). */
+static inline void wide_camera_look(struct wide_camera *c, float sx, float sy, bool walking, int ow, int oh, int fw,
+                                    int fh, float fit, uint32_t now) {
+  float dt = c->lookMs ? (float)(now - c->lookMs) / 1000.0f : 0;
+  if (dt > 0.1f)
+    dt = 0.1f;
+  c->lookMs = now;
+  float s = c->scale > 0 ? c->scale : 1, vw = (float)ow / s, vh = (float)oh / s;
+  sx = wide_camera_dead(sx);
+  sy = wide_camera_dead(sy);
+  bool stick = sx != 0 || sy != 0;
+  if (c->close) {
+    wide_camera_spring(c, 0, 0, dt, WIDE_CAMERA_LOOK_TAU);
+  } else if (walking && stick) {
+    float maxX = fmaxf(0, vw / 2 - WIDE_CAMERA_PLAYER_KEEP), maxY = fmaxf(0, vh / 2 - WIDE_CAMERA_PLAYER_KEEP);
+    wide_camera_spring(c, sx * maxX, sy * maxY, dt, WIDE_CAMERA_LOOK_TAU);
+  } else if (walking) {
+    wide_camera_spring(c, 0, 0, dt, WIDE_CAMERA_RETURN_TAU);
+  } else if (stick) {
+    float speed = WIDE_CAMERA_LOOK_SPEED * fmaxf(1, fit / s); // further out, the view travels faster
+    c->lookX += sx * speed * dt;
+    c->lookY += sy * speed * dt;
+  }
+  // As far as a screen's worth of map past the game's own view each way.
+  float limX = fmaxf(vw, (float)fw), limY = fmaxf(vh, (float)fh);
+  c->lookX = fminf(fmaxf(c->lookX, -limX), limX);
+  c->lookY = fminf(fmaxf(c->lookY, -limY), limY);
 }
 
 /* The window for scale s: the screen's size over it (whole pixels up), never smaller than the game nor larger than
