@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy, filter, lcd, lcd paper, scanlines, crt, subpixel, grid, gba colors, audio effects, equalizer]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy, filter, lcd, lcd paper, scanlines, crt, subpixel, grid, gba colors, audio effects, equalizer, link play, link cable, cable club, start link, add a game]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -135,6 +135,8 @@ Press `X`, right click or hold a finger on a game for its options:
 - **`EDIT SAVE`** changes the game's save file: see "Editing a save" below.
 - **`TRADE SAVES`** (GBA games) moves Pokemon between this game's save and
   another's: see "Trading between saves" below.
+- **`LINK PLAY`** (GBA games) runs this game with up to three others, joined
+  as if by a link cable: see "Link play" below.
 
 ## Games in other folders
 
@@ -304,6 +306,37 @@ It works with the same GBA saves as `EDIT SAVE`.
   each backed up first and checked the same way as `EDIT SAVE`. If the second
   can't be written, the first is put back.
 
+### Link play
+
+`LINK PLAY` in a GBA game's options, or `SETTINGS` > `LIBRARY` > `LINK PLAY`,
+runs two to four GBA games side by side in the window, joined as if by a link
+cable. You trade, battle and mix records through the games' own Pokemon
+Centers, as [Link play](link-play.md) explains.
+
+1. That game is `GAME 1` (from `SETTINGS`, pick it with `ADD A GAME`).
+   `ADD A GAME` adds the next one, up to four. A game's row swaps it for another
+   or removes it.
+2. `START LINK` starts them all.
+
+Each game plays its own save, backed up first as when you open it. The same
+game picked twice plays a second save next to the first, named after it with
+`(link 2)`. It starts empty: start a new game in it, or copy a save there.
+
+While the link runs:
+
+- One game has the buttons and the sound, in an orange frame. The others keep
+  running behind a dim.
+- `L2` / `R2` (`1` / `2` on the keyboard), a stick click or `X` (`Tab`) moves
+  the buttons to the previous or next game. A click on a game picks it.
+- The `FF TOGGLE` hotkey fast-forwards every game at once, four times the
+  normal speed, with the sound off.
+- `MENU` (`Esc`) asks `KEEP PLAYING` or `LEAVE`. Save in each game first: a
+  game in the middle of saving finishes before it closes, and anything after a
+  game's last save is lost, as when you turn a console off.
+
+Link play is only the games: no companion, `EXPAND`, HUD, rewind or states
+while it runs.
+
 ## Full screen and controllers
 
 Press F11 or Alt+Enter to switch between full screen and a window, any time: in
@@ -373,7 +406,7 @@ SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
 The game list's `SETTINGS` (in the bar at its top, or `Y`) is in the app's groups: `SCREEN`
 (`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE`, `LAYOUT` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
-`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `TRADE SAVES`, `BOX ART DOWNLOAD`,
+`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `TRADE SAVES`, `LINK PLAY`, `BOX ART DOWNLOAD`,
 `STEAMGRIDDB KEY`, `BOX ART LOCATION`), `CONTROLS` (`GAME BUTTONS`,
 `HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `RUN SETUP`, `VERSION`). The companion's
 `SETTINGS` has the same rows (see "Where the settings are" below).
