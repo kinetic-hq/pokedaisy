@@ -194,6 +194,13 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
         if (host->hasAutoRun) muted_row(c, ix, &y, iw, "AUTO-RUN", "N/A");
         muted_row(c, ix, &y, iw, "RUN INDOORS", "N/A");
     }
+    if (host->hasRomTweaks) {
+        if (host->instantTextFits) setting(ui, c, ix, &y, iw, SETTING_INSTANT_TEXT, "INSTANT TEXT", on_off(st->instantText));
+        else muted_row(c, ix, &y, iw, "INSTANT TEXT", "N/A");
+        if (host->reusableTmsBuiltIn) muted_row(c, ix, &y, iw, "REUSABLE TMS", "ON");
+        else if (host->reusableTmsFits) setting(ui, c, ix, &y, iw, SETTING_REUSABLE_TMS, "REUSABLE TMS", on_off(st->reusableTms));
+        else muted_row(c, ix, &y, iw, "REUSABLE TMS", "N/A");
+    }
     setting(ui, c, ix, &y, iw, SETTING_LEVEL_CAP, "LEVEL CAP", on_off(st->levelCap));
     if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", on_off(st->cheats));
 
@@ -392,6 +399,13 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         } else {
             muted_row(c, ix, &y, iw, "AUTO-RUN", "N/A");
             muted_row(c, ix, &y, iw, "RUN INDOORS", "N/A");
+        }
+        if (host->hasRomTweaks) {
+            if (host->instantTextFits) setting(ui, c, ix, &y, iw, SETTING_INSTANT_TEXT, "INSTANT TEXT", st->instantText ? "ON" : "OFF");
+            else muted_row(c, ix, &y, iw, "INSTANT TEXT", "N/A");
+            if (host->reusableTmsBuiltIn) muted_row(c, ix, &y, iw, "REUSABLE TMS", "ON");
+            else if (host->reusableTmsFits) setting(ui, c, ix, &y, iw, SETTING_REUSABLE_TMS, "REUSABLE TMS", st->reusableTms ? "ON" : "OFF");
+            else muted_row(c, ix, &y, iw, "REUSABLE TMS", "N/A");
         }
         setting(ui, c, ix, &y, iw, SETTING_LEVEL_CAP, "LEVEL CAP", st->levelCap ? "ON" : "OFF");
         if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", st->cheats ? "ON" : "OFF");
