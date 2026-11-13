@@ -80,7 +80,26 @@ box of a sequel or a spin off. Spaces and "and" don't count, so "Ash Gray" finds
 steamgriddb.com (Preferences, API), copy it, then pick `SETTINGS` > `LIBRARY` >
 `STEAMGRIDDB KEY` > `PASTE THE KEY FROM THE CLIPBOARD`. A ROM hack nobody has art
 for gets the box of the game it was made from, with the hack's name on an orange
-banner across the bottom. Box art is kept in `DATA\boxart`.
+banner across the bottom.
+
+The art you choose is kept as a plain picture you can see and change yourself.
+`SETTINGS` > `LIBRARY` > `BOX ART LOCATION` says where:
+
+- `BESIDE GAMES` (the default): a `boxart` folder in each folder of games. It is
+  made only when the first picture is saved there, and it holds only pictures.
+- `ONE FOLDER`: a folder you pick, with a folder per console inside it (`gba`,
+  `gbc`, `gb` and `nds`). A picture straight in the folder, outside the console
+  folders, is used too, unless two consoles have a game of that name.
+
+A picture is named after the game as its options show it, for example
+`Pokemon Emerald.png`. Capital letters don't matter, and the name works with or
+without the accent and with or without the "Pokemon " in front. PNG and JPG
+files are read (WebP isn't). `Pokemon Emerald 1.png`, `Pokemon Emerald 2.png` and
+so on are alternates: you can add your own, and they show up when the program
+starts or after `SYNC BOX ART`. When you choose new art, the old picture becomes
+the next free alternate, so nothing is ever overwritten. Art you chose in an
+older version is copied into the folder once, and the old copy stays in
+`DATA\boxart`, where downloads that aren't your choice are kept too.
 
 `SYNC BOX ART` looks for every game at once, with its progress along the bottom
 of the screen. `MISSING ONLY` tries the games that have no art yet, even those it
@@ -92,19 +111,20 @@ Press `X`, right click or hold a finger on a game for its options:
 
 - **`COMPANION`** says how much of the companion the game gets and, for
   `PARTLY` and `PLAY ONLY`, what's missing.
-- **`BOX ART`** shows every cover found for the game as a grid, so you can pick
-  the one you like. The cover from libretro and the base game's box come first,
-  then every cover SteamGridDB has for the game (with your key), loaded as you
-  scroll. Each tile says where the cover comes from and its size. Press `A` on
-  one to use it. Your pick stays, and `SYNC BOX ART` never replaces it. Along the
-  top bar:
+- **`CHOOSE BOX ART`** shows every cover for the game as a grid, so you can pick
+  the one you like. The pictures in its box art folder come first (marked
+  `IN FOLDER`: its box art now, then the alternates), then the cover from
+  libretro and the base game's box, then every cover SteamGridDB has for the
+  game (with your key), loaded as you scroll. Each tile says where the cover
+  comes from and its size. Press `A`, click or tap one to use it: an alternate
+  swaps names with the box art, and any other cover is saved as the new box art.
+  Your pick stays, and `SYNC BOX ART` never replaces it. Along the top bar:
   - `SEARCH AGAIN` (or `Y`): type another name, then pick the right game from
     SteamGridDB's list to see its covers.
   - `SHAPE` (or `X`): box shaped covers only, or every shape.
-  - `CHOOSE FILE`: copy a PNG or JPG file's path, or an https link to one, then
-    pick `USE THE COPIED PATH OR LINK`. You can also drop an image on the window
-    to set the selected game's art.
-  - `AUTOMATIC`: drops your pick and lets the program look for a cover again.
+  - `FROM URL`: use a copied https link to a PNG or JPG, or type one.
+  - `FROM FILE`: browse your folders for a PNG or JPG. You can also drop an image
+    on the window to set the selected game's art.
 
   Without a SteamGridDB key the grid shows the libretro covers only, and says
   where to add a key.
@@ -330,7 +350,7 @@ The game list's `SETTINGS` (in the bar at its top, or `Y`) is in the app's group
 (`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
 `GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `TRADE SAVES`, `BOX ART DOWNLOAD`,
-`STEAMGRIDDB KEY`), `CONTROLS` (`GAME BUTTONS`,
+`STEAMGRIDDB KEY`, `BOX ART LOCATION`), `CONTROLS` (`GAME BUTTONS`,
 `HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `RUN SETUP`, `VERSION`). The companion's
 `SETTINGS` has the same rows (see "Where the settings are" below).
 

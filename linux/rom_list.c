@@ -318,8 +318,15 @@ static void dir_each(const char *name, void *user) {
     return;
   char path[POCKET_FOLDER_MAX + 300];
   rom_dir_join(path, sizeof path, n->dir, name);
-  size_t len = strlen(name), el = n->ext ? strlen(n->ext) : 0;
-  if (pocket_is_dir(path) || (el && len > el && !strcasecmp(name + len - el, n->ext)))
+  // EXT may list several, split by '|' (".png|.jpg").
+  bool match = false;
+  size_t len = strlen(name);
+  for (const char *e = n->ext; e && *e && !match;) {
+    size_t el = strcspn(e, "|");
+    match = el && len > el && !strncasecmp(name + len - el, e, el);
+    e += el + (e[el] == '|');
+  }
+  if (match || pocket_is_dir(path))
     push(n, name);
 }
 static int by_name(const void *a, const void *b) {

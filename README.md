@@ -223,7 +223,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
   a picker for `COMPANION VIEW` and `DS LAYOUT` that draws every choice, from the companion or the game list.
 - **Game grid with box art** on the desktop host: the game list is a grid of box art (libretro thumbnails, then
   SteamGridDB with your own key; your own picture wins), each game with its system, `ORIGINAL` / `ROM HACK` and its
-  version; `GAME FOLDERS` and `SETTINGS` in a slim top bar; `BOX ART` (a picker over every cover found, see below) and
+  version; `GAME FOLDERS` and `SETTINGS` in a slim top bar; `CHOOSE BOX ART` (a picker over every cover found, see below) and
   `RENAME` from `X`, a right click or a long press; D-pad, mouse, wheel and touch.
   Tiles are box shaped (3:4) with the art filling them, long names wrap to up to three lines, `SYNC BOX ART` fetches
   every game's art with progress (`MISSING ONLY` or `ALL AGAIN`), an original under any file name gets its box from
@@ -274,11 +274,18 @@ Every change, one line each (a pull request that changes what the fork adds upda
   the companion's own detection (`COMPANION` in a game's options says what's missing), `ROMHACK` on every hack's tile,
   SteamGridDB art only for the same name and in English (its escaped "Pok\u00e9mon" read as the word it is, spaces and
   "and" not counting, and a hack left on its base game's box looked for again once), and dialogs drawn over the dimmed art.
-- **BOX ART picker** on the desktop host: a game's `BOX ART` option shows every cover found as a grid, like
-  SteamGridDB's own picker in Steam's Big Picture: libretro's cover and the base game's box, then every SteamGridDB grid for
-  the game, a page at a time as you scroll, each tagged with its source and size. `SHAPE` shows box shaped covers or
-  all of them, `SEARCH AGAIN` types another name and picks SteamGridDB's game from a list, `CHOOSE FILE` takes a path
-  or link, `AUTOMATIC` drops the pick. A pick is the game's own art: `SYNC BOX ART` never replaces it.
+- **CHOOSE BOX ART picker** on the desktop host: a game's `CHOOSE BOX ART` option shows every cover as a grid, like
+  SteamGridDB's own picker in Steam's Big Picture: the pictures in its box art folder first (its box art, then the
+  alternates), libretro's cover and the base game's box, then every SteamGridDB grid for the game, a page at a time as
+  you scroll, each tagged with its source and size. `SHAPE` shows box shaped covers or all of them, `SEARCH AGAIN`
+  types another name and picks SteamGridDB's game from a list, `FROM URL` takes a copied or typed link and `FROM FILE`
+  browses for a PNG or JPG. A pick is the game's own art: `SYNC BOX ART` never replaces it.
+- **Box art folders** on the desktop host: a game's chosen art is a plain picture named after the game
+  (`Pokemon Emerald.png`, any case, with or without the é or the "Pokemon "), in a `boxart` folder beside the ROMs
+  (`BOX ART LOCATION` > `BESIDE GAMES`, made only when the first picture is saved) or in one folder of your own with a
+  folder per console (`ONE FOLDER`). `Name 1.png`, `Name 2.png` and so on are alternates, yours or kept by the program:
+  a new pick turns the old one into the next free alternate, nothing is ever overwritten, and picking an alternate
+  swaps the names. Art picked in an older version is copied over once and left where it was.
 - **Black, White, Black 2 and White 2 on the desktop host**: the USA / Europe carts (any dump with their header) get the
   whole DS companion (`PARTY`, `BAG`, `DEX`, their own Town Map in `MAP`, `GUIDE`, `BATTLE`), the party and facts wings,
   the HUD and EXPAND, on the app's Gen 5 reader and field reads.
