@@ -257,6 +257,16 @@ static void info_page(struct pd_canvas* c, const struct pd_dex_entry* e, int ix,
         int aw = pd_text(c, ix, dy, "ABILITY", PD_MUTED, PD_MUTED_SHADOW);
         pd_text_fit(c, ix + aw + 6, dy, iw - aw - 6, ab, PD_LABEL, PD_LABEL_SHADOW);
     }
+    // The egg groups (Gen 3 on), as the app's page shows them.
+    if (e->eggGroups[0][0]) {
+        char eg[32];
+        if (e->eggGroups[1][0]) snprintf(eg, sizeof(eg), "%s / %s", e->eggGroups[0], e->eggGroups[1]);
+        else snprintf(eg, sizeof(eg), "%s", e->eggGroups[0]);
+        dy += 15;
+        lines--;
+        int ew = pd_text(c, ix, dy, "EGG GROUP", PD_MUTED, PD_MUTED_SHADOW);
+        pd_text_fit(c, ix + ew + 6, dy, iw - ew - 6, eg, PD_LABEL, PD_LABEL_SHADOW);
+    }
     pd_text_wrap(c, ix, dy + 16, iw, 15, lines - 1, e->description, PD_LABEL, PD_LABEL_SHADOW);
 }
 

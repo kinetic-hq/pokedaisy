@@ -293,6 +293,17 @@ void pd_ability_name(const struct pd_game* g, int id, char* out, size_t outLen) 
     pd_gen3_text(at, len, out, outLen);
 }
 
+// EGG_GROUP_* as the games' own summary screens name them (the app's EGG_GROUP_NAMES), the same ids in Gen 3 and 4.
+static const char* const EGG_GROUPS[] = { NULL, "MONSTER", "WATER 1", "BUG", "FLYING", "FIELD", "FAIRY", "GRASS",
+    "HUMAN-LIKE", "WATER 3", "MINERAL", "AMORPHOUS", "WATER 2", "DITTO", "DRAGON", "UNDISCOVERED" };
+
+static void egg_groups(int a, int b, struct pd_dex_entry* out) {
+    int ids[2] = { a, b == a ? 0 : b }, n = 0;
+    for (int i = 0; i < 2; i++)
+        if (ids[i] > 0 && ids[i] < (int) (sizeof(EGG_GROUPS) / sizeof(*EGG_GROUPS)))
+            snprintf(out->eggGroups[n++], sizeof(out->eggGroups[0]), "%s", EGG_GROUPS[ids[i]]);
+}
+
 // The page of an expansion game (the app's readExpansionEntry): everything is in the species' gSpeciesInfo entry.
 static bool expansion_entry(const struct pd_game* g, int national, int species, struct pd_dex_entry* out) {
     const struct pd_config* cfg = g->cfg;
@@ -314,6 +325,7 @@ static bool expansion_entry(const struct pd_game* g, int national, int species, 
     int a1 = u16(b + x->abilitiesOff), a2 = u16(b + x->abilitiesOff + 2);
     if (a1) pd_ability_name(g, a1, out->ability1, sizeof(out->ability1));
     if (a2 && a2 != a1) pd_ability_name(g, a2, out->ability2, sizeof(out->ability2));
+    if (x->eggGroupsOff > 0) egg_groups(b[x->eggGroupsOff], b[x->eggGroupsOff + 1], out);
     return true;
 }
 
@@ -370,6 +382,11 @@ bool pd_dex_entry(const struct pd_game* g, int national, struct pd_dex_entry* ou
         }
         if (a1) pd_ability_name(g, a1, out->ability1, sizeof(out->ability1));
         if (a2 && a2 != a1) pd_ability_name(g, a2, out->ability2, sizeof(out->ability2));
+        if (bs->eggGroupsOff > 0 && bs->eggGroupsOff + 1 < bs->stride) {
+            int e1 = b[bs->eggGroupsOff];
+            if (bs->eggGroupsPacked) egg_groups(e1 >> 4, e1 & 0x0F, out);
+            else egg_groups(e1, b[bs->eggGroupsOff + 1], out);
+        }
     }
     return true;
 }
