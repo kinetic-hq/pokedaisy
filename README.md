@@ -114,7 +114,7 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | FireRed Rocket Edition | the one release | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
 | Ash Gray | 4.5.3, Fork Bug Fix 1.0 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
 | Ghost Grey | 1.0.1, 1.0.2, 1.0.4 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
-| Let's Go | English (4 builds) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Let's Go | English (4 builds) | GBA | ROM hack | ✅ | ✅ FULL | Run on copy (Pikachu) |
 | Sword and Shield Ultimate Plus | 1.2.1.2 + its 3 patches | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | GS Chronicles | 2.7.6 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
