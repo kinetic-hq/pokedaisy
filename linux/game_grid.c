@@ -276,6 +276,23 @@ static int draw_logo(struct pd_canvas *c, int x, int y) {
   return 16;
 }
 
+/* DARK MODE's switch, 12 x 12: a crescent moon or a sun. '#' is the ink. */
+static const char *const MOON[12] = {
+    "....####....", "..####......", ".####.......", ".###........", "####........", "####........",
+    "####........", "####.......#", ".####.....##", ".#########..", "..#######...", "....####....",
+};
+static const char *const SUN[12] = {
+    ".....##.....", ".#...##...#.", "..#......#..", "....####....", "...######...", "##.######.##",
+    "##.######.##", "...######...", "....####....", "..#......#..", ".#...##...#.", ".....##.....",
+};
+static void draw_icon(struct pd_canvas *c, int x, int y, bool moon, uint32_t ink) {
+  const char *const *rows = moon ? MOON : SUN;
+  for (int r = 0; r < 12; r++)
+    for (int col = 0; col < 12; col++)
+      if (rows[r][col] == '#')
+        pd_fill(c, x + col, y + r, 1, 1, ink);
+}
+
 static void draw_bar(struct game_grid *g, struct pd_canvas *c, const struct palette *p) {
   pd_fill(c, 0, 0, c->w, BAR_H, p->bar);
   pd_fill(c, 0, BAR_H, c->w, 1, p->barEdge);
@@ -285,12 +302,17 @@ static void draw_bar(struct game_grid *g, struct pd_canvas *c, const struct pale
   g->barH = BAR_H - 8;
   int right = c->w - PAD;
   for (int i = g->barCount - 1; i >= 0 && i < 8; i--) {
-    int w = pd_text_width(g->bar[i]) + 14;
+    bool icon = g->bar[i][0] == '\x01';
+    int w = icon ? g->barH + 4 : pd_text_width(g->bar[i]) + 14;
     int x = right - w;
     bool on = g->focus == GAME_GRID_BAR && i == g->barSelected;
     pd_round_rect(c, x, g->barY, w, g->barH, 5, on ? RING : p->tileEdge);
     pd_round_rect(c, x + 1, g->barY + 1, w - 2, g->barH - 2, 4, on ? RING : p->tile);
-    pd_text(c, x + 7, g->barY - 1, g->bar[i], on ? 0xFFFFFF : p->text, PD_NO_SHADOW);
+    if (icon)
+      draw_icon(c, x + (w - 12) / 2, g->barY + (g->barH - 12) / 2, !strcmp(g->bar[i] + 1, "MOON"),
+                on ? 0xFFFFFF : pd_dark ? 0xF2D46A : 0x4A5568);
+    else
+      pd_text(c, x + 7, g->barY - 1, g->bar[i], on ? 0xFFFFFF : p->text, PD_NO_SHADOW);
     g->barX[i] = x;
     g->barW[i] = w;
     right = x - 6;

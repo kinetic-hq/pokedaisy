@@ -479,5 +479,8 @@ void pd_game_detect(struct pd_game* g, const uint8_t* header, size_t romSize);
 // the app's RetailDumps) keeps detect's, and anything else is an unknown hack: unsupported rather than read with
 // retail's addresses.
 void pd_game_identify(struct pd_game* g);
+// pd_game_identify without its side effect on the shared look (pd_look_apply): for a ROM looked at but not played (the
+// desktop's game list support tags, the save editor), so the screen's DARK MODE and theme stay as they are.
+void pd_game_identify_quiet(struct pd_game* g);
 
 #endif

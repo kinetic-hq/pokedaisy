@@ -761,15 +761,16 @@ static void overlay(struct pd_game* g, const struct pd_config* add) {
     g->cfg = &merged;
 }
 
-void pd_game_identify(struct pd_game* g) {
+void pd_game_identify_quiet(struct pd_game* g) {
     g->entry = NULL;
     identify(g);
-    if (!g->rom || !g->sha1[0]) {
-        pd_look_apply(g, NULL);
-        return;
-    }
+    if (!g->rom || !g->sha1[0]) return;
     g->entry = pd_game_entry_for(g->sha1);
     if (g->entry && g->entry->language) g->language = g->entry->language;
     if (g->entry && g->entry->fieldCfg && g->cfg && !g->cfg->gb) overlay(g, g->entry->fieldCfg);
+}
+
+void pd_game_identify(struct pd_game* g) {
+    pd_game_identify_quiet(g);
     pd_look_apply(g, NULL); // the game's windows until the host applies its settings
 }

@@ -1144,7 +1144,7 @@ struct save_edit *se_open_gen3(const uint8_t *save, size_t saveSize, const uint8
   pd_game_detect(&g->game, rom, romSize);
   g->game.rom = rom;
   g->game.romSize = romSize;
-  pd_game_identify(&g->game);
+  pd_game_identify_quiet(&g->game);
   const char *code = g->game.code, *why = NULL;
   if (code[3] == 'J')
     why = "Japanese saves aren't covered yet";
