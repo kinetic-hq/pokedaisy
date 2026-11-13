@@ -48,6 +48,97 @@ listed on the site. Each tile in the game list carries a tag:
 `PARTLY` and `PLAY ONLY` are steps on the way to `FULL`, not where a game stops.
 [desktop-game-support.md](docs/manual/desktop-game-support.md) lists each game's state and what's left.
 
+### Game compatibility
+
+Every game the companion knows, on Android and on Windows / Linux. The Android column comes from
+[PokeDaisy's own table](https://github.com/lidor30/pokedaisy#supported-games), where a game is ✅ when it has every
+tab there and ◐ when one is missing. The Windows / Linux column is the tag the game list shows, with what's missing
+when it's `PARTLY`. "Real save" means the game was checked on the desktop against a save from a real playthrough, "Run
+on copy" that it was run on a copy of the game, and "Not yet" that it hasn't been run on the desktop yet. Any other
+Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
+
+✅ works · ◐ partly · ❌ play only
+
+| Game | Version | Platform | Original or ROM hack | Android | Windows / Linux | Tested on desktop |
+| --- | --- | :-: | --- | :-: | --- | --- |
+| Red / Blue (GB) | USA/Europe | GB | Original | ✅ | ✅ FULL | Not yet |
+| PureRed / PureBlue (GB) | 2.7.6 | GB | ROM hack | ◐ | ◐ PARTLY: no GUIDE | Not yet |
+| Yellow (GB) | USA/Europe | GB | Original | ✅ | ✅ FULL | Not yet |
+| Yellow (GB) | DE / FR / IT / ES | GB | Original | ✅ | ✅ FULL | Not yet |
+| Yellow Legacy (GB) | 1.0.10 | GB | ROM hack | ✅ | ✅ FULL | Not yet |
+| Gold / Silver (GBC) | USA/Europe | GBC | Original | ◐ | ◐ PARTLY: no GUIDE | Not yet |
+| Crystal (GBC) | USA, USA/Europe rev 1, AU | GBC | Original | ✅ | ✅ FULL | Not yet |
+| Crystal Legacy (GBC) | 1.3.1 | GBC | ROM hack | ✅ | ✅ FULL | Not yet |
+| Crystal Clear (GBC) | 2.5.11, 2.6.0 (4 builds) | GBC | ROM hack | ◐ | ◐ PARTLY: no GUIDE | Not yet |
+| Prism (GBC) | 0.95 build 254 | GBC | ROM hack | ◐ | ◐ PARTLY: no GUIDE | Not yet |
+| Polished Crystal (GBC) | 3.2.0-3.2.3 (16 builds) | GBC | ROM hack | ✅ | ✅ FULL | Not yet |
+| FireRed | USA/Europe, rev 0 and 1 | GBA | Original | ✅ | ✅ FULL | Real save |
+| FireRed | ES / DE / FR / IT / JP | GBA | Original | ✅ | ◐ PARTLY: no GUIDE on the Japanese cart; no foe team in the DE / FR / IT / JP carts | Not yet |
+| LeafGreen | USA/Europe, rev 0 and 1 | GBA | Original | ✅ | ✅ FULL | Not yet |
+| LeafGreen | ES / DE / FR / IT / JP | GBA | Original | ✅ | ◐ PARTLY: no GUIDE on the Japanese cart; no foe team in the DE / FR / IT / JP carts | Not yet |
+| Emerald | USA/Europe | GBA | Original | ✅ | ✅ FULL | Real save |
+| Emerald | ES / DE / FR / IT / JP | GBA | Original | ✅ | ◐ PARTLY: no GUIDE on the Japanese cart | Not yet |
+| FireRed / Emerald, randomized | UPR ZX 4.6.1, USA/Europe | GBA | Randomized | ✅ | ✅ FULL | Not yet |
+| Ruby | USA, rev 0, 1 and 2 | GBA | Original | ✅ | ✅ FULL | Not yet |
+| Ruby | ES/DE/FR/IT/JP, rev 0-1 | GBA | Original | ✅ | ◐ PARTLY: no GUIDE on the Japanese cart | Not yet |
+| Sapphire | USA, rev 0, 1 and 2 | GBA | Original | ✅ | ✅ FULL | Not yet |
+| Sapphire | ES/DE/FR/IT/JP, rev 0-1 | GBA | Original | ✅ | ◐ PARTLY: no GUIDE on the Japanese cart | Not yet |
+| Platinum (DS) | USA rev 1, FR/ES rev 0 | NDS | Original | ✅ | ✅ FULL (USA cart) | Real save |
+| HeartGold (DS) | USA, EU, every language | NDS | Original | ◐ | ✅ FULL (USA cart) | Not yet |
+| SoulSilver (DS) | USA, EU, every language | NDS | Original | ◐ | ✅ FULL (USA cart) | Real save |
+| Black (DS) | USA/Europe, every language | NDS | Original | ✅ | ✅ FULL (USA / Europe cart) | Real save |
+| White (DS) | USA/Europe, every language | NDS | Original | ✅ | ✅ FULL (USA / Europe cart) | Not yet |
+| Black 2 (DS) | USA/Europe, every language | NDS | Original | ✅ | ✅ FULL (USA / Europe cart) | Not yet |
+| White 2 (DS) | USA/Europe, every language | NDS | Original | ✅ | ✅ FULL (USA / Europe cart) | Real save |
+| Origin HeartGold (DS) | 4.0.3 English 1.0.0 | NDS | ROM hack | ◐ | ◐ PARTLY: GUIDE has HERE and NEXT BOSS | Run on copy |
+| Renegade Platinum (DS) | 1.2.0, 1.3.0 (+ Classic) | NDS | ROM hack | ◐ | ◐ PARTLY: GUIDE has HERE and NEXT BOSS | Run on copy |
+| HeartFelt Gold (DS) | hg-engine release | NDS | ROM hack | Desktop only | ◐ PARTLY: GUIDE has HERE and NEXT BOSS | Run on copy |
+| Unbound | 2.1.1.1 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
+| Unbound | 2.1.1.1 French | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Radical Red | 4.1 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Gaia | 3.2 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
+| Odyssey | 4.1.1 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
+| Heart and Soul | 2.0.6 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
+| Amethyst | 1.3.0, 1.4.1, 1.4.3 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
+| Celia's Stupid Romhack | 1.1.4 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Orange Islands | Beta 5.7, an older beta | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
+| Ultra Violet | 1.22 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| FireRed Rocket Edition | the one release | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
+| Ash Gray | 4.5.3, Fork Bug Fix 1.0 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
+| Ghost Grey | 1.0.1, 1.0.2, 1.0.4 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Let's Go | English (4 builds) | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
+| Sword and Shield Ultimate Plus | 1.2.1.2 + its 3 patches | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| GS Chronicles | 2.7.6 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Emerald Legacy | 1.1.4 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Lazarus | 2.0 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
+| Emerald Seaglass | 3.0 | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
+| Too Many Types 2 | 1.5.2 | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
+| Glazed | 9.2.0 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
+| Emerald Imperium | 1.3.1 | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
+| Quetzal | English Alpha 9 v0 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Quetzal | Spanish Alpha 9 v0 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Quetzal | Alpha 9 v1 (EN / ES) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Quetzal | Alpha 0.8.4 (EN / ES) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Moemon Quetzal | Alpha 0.8.4 Hotfix (EN/ES) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Super Mariomon | 1.2.1-1.3, 1.5.1, 1.5.2 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Recharged Emerald | 2.2.5, 2.2.8, Rebalanced | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Modern Emerald | 3.6 | GBA | ROM hack | ◐ | ❌ PLAY ONLY | Not yet |
+| Elite Redux | 2.65.3b, 2.65.4.1b | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
+| Team Rocket Dragonsden | 1.5 | GBA | ROM hack | ◐ | ◐ PARTLY: no DEX | Not yet |
+| Team Rocket Dragonsden | 2026 3.0.9 (Spanish) | GBA | ROM hack | ✅ | ❌ PLAY ONLY | Not yet |
+| Wishes of Tomorrow | 1.2.6 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
+| Petalburg Dynasty | 1.12.2 | GBA | ROM hack | ✅ (not in its table) | ✅ FULL | Run on copy |
+| Dreamstone Mysteries | the one release | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
+| Monomyth | 1.0, 1.1 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
+| Emerald Rogue | 2.2.1-EX | GBA | ROM hack | ◐ | ◐ PARTLY: no DEX; no GUIDE | Not yet |
+| SoulGold | 1.1.4, 1.2 (3), 1.2.1 (2) | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
+| R.O.W.E. | 2.1.9.1 Experimental | GBA | ROM hack | ◐ | ✅ FULL | Run on copy |
+
+On the DS, the desktop's companion reads the USA carts of Platinum, HeartGold and SoulSilver and the USA / Europe
+carts of Black, White, Black 2 and White 2; the other languages play without it for now. HeartFelt Gold isn't
+supported on Android. [desktop-game-support.md](docs/manual/desktop-game-support.md) goes through each tab, game by game.
+
 ## OLED handhelds (OneXPlayer 3, Legion Go 2)
 
 An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everything around the game dark:
@@ -69,6 +160,7 @@ An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everythi
 | Controls | Hot plugged controllers (several at once), `NINTENDO` / `XBOX` layouts, hotkeys for paddles and extra buttons, touch and mouse, rumble |
 | Games and saves | A box art game grid, your own game folders with saves beside the games, ten state slots, resume, per-game settings, `EDIT SAVE` |
 | Play | Level cap, low PP warning, battery saver |
+| Games | HeartFelt Gold on the DS, and a [game compatibility](#game-compatibility) table comparing Android with Windows / Linux |
 
 Every change, one line each (a pull request that changes what the fork adds updates this list):
 
@@ -307,6 +399,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   change. Desktop builds are a beta: every one goes up as a GitHub pre-release until one is called stable, and the
   update check counts pre-releases.
 - **Upstream mirroring**: a daily job opens a pull request bringing PokeDaisy's own changes in.
+- **Game compatibility**: the README's [table](#game-compatibility) puts each game's Android and Windows / Linux
+  support side by side, with how far it was tested on the desktop, the games only the desktop supports included.
 
 </details>
 
