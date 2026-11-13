@@ -64,6 +64,9 @@ The `SPEED CYCLE` hotkey (L2 on a controller, or the = key) steps through `1×`,
 
 Each one is `SAME` (the default: it follows `GAME SPEED`, like walking around does) or `1×` up to `4×`. These apply while fast-forward is off; turn fast-forward on and it wins everywhere. A sped-up scene's music follows `FF MUSIC`, the same as fast-forward's.
 
+> [!NOTE]
+> On Windows and Linux, `SCENE SPEEDS` is on the same `SPEED OPTIONS` page and works in Game Boy and GBA games. There, `MENU SPEED` needs a game `EXPAND` works in, and shows `N/A` in the others. DS games keep to `GAME SPEED`.
+
 `TEXT SPEED` shows `N/A` on a game PokeDaisy can't read text boxes in yet. `BIKE SPEED` and `SURF SPEED` show `N/A` until you've walked around for a moment in a game, and stay that way on hacks where PokeDaisy can't tell yet whether you're riding or surfing: Heart and Soul, SoulGold, Too Many Types 2, Emerald Rogue and Quetzal.
 
 ## Instant text

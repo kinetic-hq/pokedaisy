@@ -58,6 +58,8 @@ enum pd_aspect {
 
 #define PD_FF_MIN 2
 #define PD_FF_MAX 4
+// SCENE SPEEDS: SAME (GAME SPEED's) or 1x ... 4x, for each scene in this order.
+enum { PD_SCENE_BATTLE, PD_SCENE_TEXT, PD_SCENE_MENU, PD_SCENE_BIKE, PD_SCENE_SURF, PD_SCENE_COUNT };
 // plorpOS: the fast-forward speeds offered (the app's RATES less 1.5x), 0 = MAX: as many frames as a
 // screen refresh has time for.
 #define PD_FF_CHOICES 8
@@ -121,6 +123,7 @@ struct pd_settings {
     bool hideHints;  // BATTLE HINTS off
     bool oneTapMoves; // ONE-TAP MOVES: the moves on the action menu where FIGHT is
     int gameSpeed;   // GAME SPEED: an index into PD_GAME_SPEEDS
+    int sceneSpeed[PD_SCENE_COUNT]; // SCENE SPEEDS (BATTLE, TEXT, MENU, BIKE, SURF): an index into PD_SCENE_SPEEDS, 0 = SAME
     int gameVolume;  // GAME VOLUME: 20 ... 100
     bool gameMuted;  // MUTE GAME
     bool autoRun;    // AUTO-RUN: B held for the player while walking
@@ -179,6 +182,8 @@ enum pd_button { PD_BTN_X, PD_BTN_Y, PD_BTN_L2, PD_BTN_R2, PD_BTN_NONE, PD_BUTTO
 
 // GAME SPEED's steps, as the app's SPEED_STEPS: the old five, then the slow two.
 #define PD_GAME_SPEED_COUNT 7
+#define PD_SCENE_SPEED_COUNT 6
+extern const char* const PD_SCENE_SPEEDS[PD_SCENE_SPEED_COUNT];
 extern const char* const PD_GAME_SPEEDS[PD_GAME_SPEED_COUNT];
 
 // TAB BAR: at most this many tabs beside the gear (the app's MAX_BAR_TABS).
@@ -279,6 +284,9 @@ struct pd_host_info {
     bool androidMenus;
     bool hasGameSpeed, hasSound, hasAutoRun, hasFfMode, hasRewind, hasFfMusic;
     bool wildSupported, fieldSupported; // WILD ENCOUNTERS / the field read works on this game
+    // SCENE SPEEDS (androidMenus): the rows shown, and which scenes this game can be read in (else N/A).
+    bool hasSceneSpeeds;
+    bool sceneKnown[PD_SCENE_COUNT];
     int batteryPct;     // -1 = unknown
     bool flyReady;      // MAP's FLY button: someone in the party can
     bool canTake;       // the summary's TAKE
@@ -327,6 +335,7 @@ enum pd_overlay {
     PD_OVERLAY_FLY,     // MAP's FLY: the towns
     PD_OVERLAY_PICK_VIEW, // COMPANION VIEW's pick-list
     PD_OVERLAY_LAYOUT,    // COMPANION VIEW's drawn picker (host->layouts)
+    PD_OVERLAY_PICK_SCENE, // a SCENE SPEEDS row's pick-list (ui->sceneRow)
 };
 
 // Optional presentation data for another emulator; IDs stay native to that backend.
@@ -566,6 +575,7 @@ struct pd_ui {
     unsigned cardColonMs;
 
     enum pd_overlay overlay;
+    int sceneRow; // PD_OVERLAY_PICK_SCENE: which scene (PD_SCENE_*)
     bool moreOpened; // the open tab came from MORE (BACK doesn't send the CARD to SETTINGS then)
     int settingsNavId, settingsNavCount, settingsNavHeight;
     struct { int id, top; } settingsNav[PD_UI_MAX_HITS];

@@ -159,6 +159,8 @@ enum setting_row {
     SETTING_RUMBLE,    // hosts with hasRumble: flips in place
     SETTING_PER_GAME,  // hosts with hasPerGame: PD_ACTION_PER_GAME
     SETTING_SAVER,     // hosts with hasSaver: AUTO / ON / OFF in turn
+    SETTING_SCENE,     // hasSceneSpeeds: SETTING_SCENE + PD_SCENE_*, each opens its pick-list
+    SETTING_SCENE_END = SETTING_SCENE + PD_SCENE_COUNT - 1,
 };
 // SETTINGS' pages (ui->settingsPage): HOME, then one per SETTING_PAGE_* row in their order.
 enum settings_page { PAGE_HOME, PAGE_SPEED, PAGE_DISPLAY, PAGE_BUTTONS, PAGE_HOTKEYS, PAGE_QUICK };

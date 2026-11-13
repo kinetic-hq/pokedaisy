@@ -2690,7 +2690,7 @@ static void tweak_apply(struct mCore *c, const uint8_t *rom, const struct pd_twe
       c->rawWrite8(c, 0x08000000u + p->writes[i].at + (uint32_t)b, -1, on ? p->writes[i].value[b] : rom[p->writes[i].at + (uint32_t)b]);
 }
 
-static void audio_rate(struct mCore *c, double gameHz, int speed) {
+static void audio_rate(struct mCore *c, double gameHz, double speed) {
   double rate = 32768;
   if (vsyncPaced && audio && screenHz > 0) {
     double queued = SDL_GetQueuedAudioSize(audio) / 4.0, target = 32768 * 0.06;
@@ -2766,6 +2766,32 @@ static void rewind_follow(bool on) {
     pk_rewind_init(&rewindRing, 600);
   rewindOn = on;
   rewindTick = 0;
+}
+/* SCENE SPEEDS: what's on screen (PD_SCENE_*, -1 = the plain field or a scene not told apart), as the app has it:
+ * a menu screen (a battle's own bag and party screens too), a battle, a text box on the field, riding or surfing with
+ * the controls free. Menus come from EXPAND's screen read, the rest from the field read (fieldFlags). */
+static bool sceneFieldSeen; // the map has been on screen since the game started: the title screens aren't menus
+static int scene_now(int flags, bool fieldKnown, const struct pd_snapshot *snap) {
+  int mode = wideSupported ? pk_wide_last_mode() : -1;
+  if (mode == PK_WIDE_MODE_MAP)
+    sceneFieldSeen = true;
+  if (mode == PK_WIDE_MODE_MENU && sceneFieldSeen && pk_wide_scene() != PK_WIDE_SCENE_FADE)
+    return PD_SCENE_MENU;
+  if ((flags & PK_FIELD_BATTLE) || (!fieldKnown && snap->inBattle) || mode == PK_WIDE_MODE_BATTLE)
+    return PD_SCENE_BATTLE;
+  if (flags & PK_FIELD_TEXT)
+    return PD_SCENE_TEXT;
+  if ((flags & (PK_FIELD_LOCKED | PK_FIELD_AVATAR)) == PK_FIELD_AVATAR)
+    return flags & PK_FIELD_SURF ? PD_SCENE_SURF : flags & PK_FIELD_BIKE ? PD_SCENE_BIKE : -1;
+  return -1;
+}
+/* The speed with fast-forward off: the scene's SCENE SPEEDS pick, else GAME SPEED's. */
+static double scene_pace(const struct pd_settings *s, const struct pd_host_info *h, int scene) {
+  static const double GAME_X[PD_GAME_SPEED_COUNT] = {1, 1.5, 2, 3, 4, 0.5, 0.25};
+  static const double SCENE_X[PD_SCENE_SPEED_COUNT] = {0, 1, 1.5, 2, 3, 4};
+  if (scene >= 0 && h->sceneKnown[scene] && s->sceneSpeed[scene] > 0)
+    return SCENE_X[s->sceneSpeed[scene]];
+  return GAME_X[s->gameSpeed];
 }
 /* plorpOS: fast-forward's frames this refresh - its speed, or for MAX as many as ~80% of a frame's time fits
  * (frameMs: what one cost lately). */
@@ -3178,6 +3204,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   // functions and their code is where it says (TradeEvolution.kt). Who gets EVOLVE is asked of the game between frames.
   bool tradeOk = c->platform(c) == mPLATFORM_GBA && game.cfg && trade_evo_supported(game.cfg, romdata, (size_t)len);
   host.hasTradeEvos = c->platform(c) == mPLATFORM_GBA;
+  // SCENE SPEEDS: BATTLE everywhere, TEXT where the field read works, MENU where EXPAND reads the screen, BIKE and
+  // SURF once the field read has found the player's own state (below). GAME SPEED's pace in between.
+  host.hasSceneSpeeds = true;
+  host.sceneKnown[PD_SCENE_BATTLE] = true;
+  host.sceneKnown[PD_SCENE_TEXT] = fieldKnown;
+  host.sceneKnown[PD_SCENE_MENU] = wideSupported;
+  double paceAcc = 0;
+  sceneFieldSeen = false;
   host.tradeEvoFits = tradeOk;
   uint32_t evolvePers[6] = {0}, evolveSign = 0;
   int evolveSlot = -1, evolveTick = 0;
@@ -3761,12 +3795,23 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       }
     } else {
       bool fast = (ff || ffHeld) && !rewinding;
-      muted = (fast && !settings.ffAudio) || rewinding;
+      if (fieldFlags & PK_FIELD_AVATAR)
+        host.sceneKnown[PD_SCENE_BIKE] = host.sceneKnown[PD_SCENE_SURF] = true;
+      double pace = fast || rewinding ? 1 : scene_pace(&settings, &host, scene_now(fieldFlags, fieldKnown, &snap));
+      muted = ((fast || pace > 1) && !settings.ffAudio) || rewinding;
       c->setKeys(c, ((quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023) | (gameKeyFrames > 0 ? gameKeys : 0));
-      int count = fast ? ff_frames(&settings, hz, frameCost) : 1;
+      int count = 1;
+      if (fast) {
+        count = ff_frames(&settings, hz, frameCost);
+      } else {
+        // GAME SPEED / SCENE SPEEDS: whole frames this refresh, the fraction carried (1.5x: 1, 2, 1, 2 ...).
+        paceAcc += pace;
+        count = (int)paceAcc;
+        paceAcc -= count;
+      }
       if (saving && count > 3)
         count = 3;
-      audio_rate(c, hz, count);
+      audio_rate(c, hz, fast ? count : pace);
       if ((settings.instantText && textPatch.count > 0) != textOn) {
         textOn = !textOn;
         tweak_apply(c, romdata, &textPatch, textOn);
