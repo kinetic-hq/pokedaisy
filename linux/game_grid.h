@@ -11,6 +11,9 @@
 #define GAME_GRID_ART_MAX 128
 
 enum { GAME_GRID_TILES, GAME_GRID_BAR };
+/* A bar entry drawn as an icon instead of words: DARK MODE's switch (a moon while dark, a sun while light). */
+#define GAME_GRID_ICON_MOON "\x01MOON"
+#define GAME_GRID_ICON_SUN "\x01SUN"
 
 struct game_grid_item {
   const char *name;    // what the list calls it

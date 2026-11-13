@@ -11,6 +11,8 @@
 // The desktop host's ASPECT default: EXPAND (so AUTO ZOOM IN works from the start) where the app's is ORIGINAL. Set
 // before any load; a settings file's ORIGINAL then counts only if the player picked it (aspectpicked=1).
 extern bool pd_settings_expand_default;
+// DARK MODE's default where the file doesn't say (the desktop host: on).
+extern bool pd_settings_dark_default;
 void pd_settings_defaults(struct pd_settings* s);
 // Missing file = defaults (and false).
 bool pd_settings_load(struct pd_settings* s, const char* path);

@@ -401,6 +401,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Upstream mirroring**: a daily job opens a pull request bringing PokeDaisy's own changes in.
 - **Game compatibility**: the README's [table](#game-compatibility) puts each game's Android and Windows / Linux
   support side by side, with how far it was tested on the desktop, the games only the desktop supports included.
+- **Dark by default, with a LIGHT / DARK button** on the desktop host: the game list starts dark until you pick
+  light, keeps your choice from the very first frame (an update no longer flashes it back to light), and a sun /
+  moon button at the right end of its top bar switches it by controller, mouse or touch.
 
 </details>
 

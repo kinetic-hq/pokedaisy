@@ -5799,7 +5799,7 @@ static void grid_set_art(const char *stem, const char *source) {
   else
     notice(*err ? err : "Couldn't use that picture");
 }
-enum { GRID_BAR_SYNC, GRID_BAR_FOLDERS, GRID_BAR_SETTINGS };
+enum { GRID_BAR_SYNC, GRID_BAR_FOLDERS, GRID_BAR_SETTINGS, GRID_BAR_THEME };
 struct library {
   struct rom_list games;
   struct game_grid_item *items;
@@ -5809,7 +5809,8 @@ struct library {
   struct game_grid grid;
   int count;
 };
-static const char *const LIBRARY_BAR[] = {"SYNC BOX ART", "GAME FOLDERS", "SETTINGS"};
+/* The bar's buttons; the last is DARK MODE's switch, a moon while dark (GAME_GRID_ICON_MOON) and a sun while light. */
+static const char *LIBRARY_BAR[] = {"SYNC BOX ART", "GAME FOLDERS", "SETTINGS", GAME_GRID_ICON_MOON};
 static void library_free(struct library *l) {
   for (int i = 0; i < l->count; i++)
     free(l->stems[i]);
@@ -5865,7 +5866,7 @@ static void library_load(struct library *l) {
   l->grid.scrollY = scroll;
   l->grid.title = "PokeDaisy"; // the platform stays in the window title and SETTINGS' HOST row
   l->grid.bar = LIBRARY_BAR;
-  l->grid.barCount = 3;
+  l->grid.barCount = 4;
   l->grid.hint = "A PLAY   X OPTIONS   Y SETTINGS   B QUIT";
   l->grid.emptyPath = ROMS_PATH;
   char path[1100];
@@ -5873,6 +5874,7 @@ static void library_load(struct library *l) {
   struct pd_settings st;
   pd_settings_load(&st, path);
   pd_look_apply(NULL, &st); // DARK MODE on the landing page too
+  LIBRARY_BAR[GRID_BAR_THEME] = st.darkMode ? GAME_GRID_ICON_MOON : GAME_GRID_ICON_SUN;
   // Never from a headless check unless asked (POCKET_BOXART): those don't go online.
   if (st.boxartAuto && (!menuFrames || getenv("POCKET_BOXART")))
     boxart_queue(l->art, count);
@@ -6943,6 +6945,17 @@ static void library_screen(void) {
         syncing = true;
         notice("Looking for box art...");
       }
+    } else if (bar == GRID_BAR_THEME) {
+      // LIGHT / DARK: DARK MODE itself (the companion's SETTINGS has the same switch), saved at once.
+      char ini[1100];
+      snprintf(ini, sizeof ini, "%s/settings.ini", root);
+      struct pd_settings st;
+      pd_settings_load(&st, ini);
+      st.darkMode = !st.darkMode;
+      pd_settings_save(&st, ini);
+      pd_look_apply(NULL, &st);
+      LIBRARY_BAR[GRID_BAR_THEME] = st.darkMode ? GAME_GRID_ICON_MOON : GAME_GRID_ICON_SUN;
+      notice(st.darkMode ? "Dark mode" : "Light mode");
     } else if (bar == GRID_BAR_FOLDERS) {
       if (folders_screen())
         library_load(&lib);
@@ -6983,6 +6996,7 @@ static void library_screen(void) {
 
 int main(int argc, char **argv) {
   pd_settings_expand_default = true; // ASPECT EXPAND unless the player picked another (pd_settings.h)
+  pd_settings_dark_default = true;   // DARK MODE on unless the player turned it off
   const char *rom = NULL, *shot = NULL;
   int frames = 0;
 #ifdef POCKET_DS

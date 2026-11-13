@@ -8,6 +8,7 @@
 #endif
 
 bool pd_settings_expand_default = false;
+bool pd_settings_dark_default = false;
 
 void pd_settings_defaults(struct pd_settings* s) {
     // Everything not set below starts at 0 / off (SHINY ODDS NORMAL, SCENE SPEEDS SAME, INSTANT TEXT, REUSABLE TMS, DAY
@@ -51,7 +52,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->gameVolume = 100;
     s->gameMuted = false;
     s->autoRun = false;
-    s->darkMode = false;
+    s->darkMode = pd_settings_dark_default;
     s->ffNormal = false;
     s->cheats = false;
     s->theme = 8; // POKéDAISY

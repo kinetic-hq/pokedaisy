@@ -115,7 +115,7 @@ int game_support_of_rom(const char *path, char *detail, size_t size) {
   pd_game_detect(&g, rom, (size_t)len);
   g.rom = rom;
   g.romSize = (size_t)len;
-  pd_game_identify(&g);
+  pd_game_identify_quiet(&g); // (a thread: the screen's look isn't this game's business)
   int level;
   if (!g.cfg) {
     // (pd_game.c's reasons were written for the 3DS port; on the desktop a hack it doesn't know just runs.)
