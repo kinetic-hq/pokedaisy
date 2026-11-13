@@ -289,15 +289,19 @@ doesn't check out, is refused and left alone.
   `SEARCH ALL MOVES` finds any other. In a retail GBA game a new move it
   couldn't learn there is refused; a move it already knows stays. In a ROM hack
   the list comes from the hack's own tables and nothing is refused.
-  `PRESETS` on a Pokemon lists the battle sets you imported for it (see below)
-  from this game's generation, with `OTHER GENERATIONS` for the rest. Picking
+  `PRESETS` on a Pokemon lists its battle sets (see below) from this game's
+  generation, with `OTHER GENERATIONS` for the rest. Picking
   one fills in its moves, nature, EVs, IVs, held item and ability, and lists
   what the game can't do: a move it can't learn or that the game doesn't have,
   an ability it doesn't have, an item the game doesn't have. A move whose type
   comes from the IVs gets IVs that give the set's type. `PASTE SET` does the
   same with a set you copied, as Showdown exports it. Nothing is kept until
   `KEEP THESE CHANGES`.
-- `PRESETS` > `IMPORT SETS` picks a file of battle sets: Showdown's text export,
+- The first time you open a Pokemon's `PRESETS` with no sets yet, PokeDaisy
+  downloads Smogon's sets for every generation, as the pkmn project publishes
+  them, into the `presets` folder in your data folder. `PRESETS` > `GET SETS`
+  downloads them again, for newer ones.
+- `PRESETS` > `IMPORT SETS` adds your own: pick a file of battle sets: Showdown's text export,
   a `.csv` or `.json` list, or a `.zip` or `.rar` holding them. It's copied
   into the `presets` folder in your data folder (an archive is unpacked there),
   and the same set found in several files is listed once. `SETS` shows how many

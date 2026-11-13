@@ -108,6 +108,13 @@ static void parsers(void) {
         !strcmp(p->name, "Specially Defensive"));
   CHECK(!strcmp(p->moves[1], "Sleep Powder") && p->ivs[1] == 2 && p->ivSet[4] && p->evs[5] == 224 && p->evs[3] == 32);
   presets_free(&l);
+  /* GET SETS' files (the pkmn project's genN.json): the tera type as teraType, an item given as alternatives. */
+  CHECK(parse("gen9.json",
+              "{\"Ivysaur\": {\"ou\": {\"Bulky\": {\"moves\": [\"Synthesis\"], \"item\": [\"Leftovers\", \"Black "
+              "Sludge\"], \"teraType\": \"Water\"}}}}",
+              0, &l) == 1);
+  CHECK(l.v[0].gen == 9 && !strcmp(l.v[0].tera, "Water") && !strcmp(l.v[0].item, "Leftovers"));
+  presets_free(&l);
   printf("PASS presets read Showdown text (both spellings), CSV and both JSON shapes\n");
 }
 

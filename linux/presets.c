@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "http.h"
 #include "pocket_os.h"
 
 #ifdef _WIN32
@@ -558,7 +559,7 @@ static void jset(const struct jv *o, struct preset *p) {
     copyz(p->ability, sizeof p->ability, s);
   if ((s = jstr(jget(o, "nature"))))
     copyz(p->nature, sizeof p->nature, s);
-  if ((s = jstr(jget(o, "tera_type"))) || (s = jstr(jget(o, "teratypes"))))
+  if ((s = jstr(jget(o, "tera_type"))) || (s = jstr(jget(o, "teratypes"))) || (s = jstr(jget(o, "teraType"))))
     copyz(p->tera, sizeof p->tera, s);
   jstats(jget(o, "evs"), p->evs, NULL);
   jstats(jget(o, "ivs"), p->ivs, p->ivSet);
@@ -878,6 +879,52 @@ bool presets_import(const char *file, const char *dir, char *msg, size_t n) {
   presets_free(&after);
   snprintf(msg, n, added > 0 ? "Imported %d new sets" : "No new sets in that file", added);
   return added > 0;
+}
+
+/* GET SETS: Smogon's sets for every generation, as the pkmn project publishes them (the lists Showdown's teambuilder
+ * reads), each file parsed before it replaces the one kept from last time. */
+#define SETS_URL "https://pkmn.github.io/smogon/data/sets/gen%d.json"
+int presets_fetch(const char *dir, void (*progress)(int gen, void *ctx), void *ctx, char *msg, size_t n) {
+  char sub[1200];
+  snprintf(sub, sizeof sub, "%s/smogon", dir);
+  if (!pocket_mkdir(dir) || !pocket_mkdir(sub)) {
+    snprintf(msg, n, "Couldn't make the presets folder");
+    return -1;
+  }
+  int got = 0, sets = 0, failed = 0;
+  for (int gen = 1; gen <= PRESETS_GENS; gen++) {
+    if (progress)
+      progress(gen, ctx);
+    char url[96], name[32], path[1300], tmp[1310];
+    snprintf(url, sizeof url, SETS_URL, gen);
+    snprintf(name, sizeof name, "gen%d.json", gen);
+    size_t len = 0;
+    char *body = http_get(url, NULL, 16u << 20, &len);
+    struct preset_list one = {0};
+    int count = body ? presets_parse(name, body, len, gen, &one) : 0;
+    presets_free(&one);
+    snprintf(path, sizeof path, "%s/%s", sub, name);
+    snprintf(tmp, sizeof tmp, "%s.part", path);
+    FILE *f = count > 0 ? fopen(tmp, "wb") : NULL;
+    bool ok = f && fwrite(body, 1, len, f) == len;
+    if (f && fclose(f))
+      ok = false;
+    ok = ok && pocket_replace(tmp, path);
+    if (!ok && f)
+      pocket_remove(tmp);
+    free(body);
+    if (ok)
+      got++, sets += count;
+    else if (++failed, !got)
+      break; // the first one didn't come: offline, so don't wait out every generation's timeout
+  }
+  if (!got)
+    snprintf(msg, n, "Couldn't get the sets: check the connection and try again");
+  else if (failed)
+    snprintf(msg, n, "Got %d sets for %d generations; %d didn't come through, so try again later", sets, got, failed);
+  else
+    snprintf(msg, n, "Got %d sets, generations 1 to %d", sets, PRESETS_GENS);
+  return got ? sets : -1;
 }
 
 /* ---- filling a Pokemon ---------------------------------------------------------------------------------------- */

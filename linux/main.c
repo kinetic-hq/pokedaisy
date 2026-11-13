@@ -6493,6 +6493,33 @@ static struct preset_list *presets_all(bool reload) {
   }
   return &presetSets;
 }
+/* GET SETS' progress: a screen drawn once before each generation's download (it blocks the frame while it runs). */
+static void presets_progress(int gen, void *ctx) {
+  (void)ctx;
+  static char hint[96];
+  snprintf(hint, sizeof hint, "Generation %d of %d. Smogon's sets, as the pkmn project publishes them.", gen,
+           PRESETS_GENS);
+  struct pd_menu m;
+  pd_menu_init(&m, "GETTING SETS", NULL, 0);
+  m.hint = hint;
+  companion_canvas();
+  pd_menu_draw(&m, &canvas);
+  present();
+}
+/* Downloads every generation's sets into <data>/presets/smogon and reloads them. Headless looks stay offline unless
+ * POCKET_PRESETS_ONLINE is set. */
+static void presets_get(bool quiet) {
+  if (menuFrames && !getenv("POCKET_PRESETS_ONLINE")) {
+    if (!quiet)
+      notice("Headless looks don't go online");
+    return;
+  }
+  char dir[1100], msg[120];
+  presets_folder(dir, sizeof dir);
+  presets_fetch(dir, presets_progress, NULL, msg, sizeof msg);
+  presets_all(true);
+  notice(msg); // a toast: the key that started it would close a message at once
+}
 /* P filled into M as far as the game allows, and a list of what it couldn't. */
 static void editor_fill(struct save_edit *e, const struct preset *p, struct se_mon *m) {
   struct se_mon next = *m;
@@ -6513,6 +6540,10 @@ static void editor_fill(struct save_edit *e, const struct preset *p, struct se_m
 /* M's sets for this game's generation (OTHER GENERATIONS for the rest); one picked fills M in. */
 static void editor_presets(struct save_edit *e, struct se_mon *m) {
   struct preset_list *all = presets_all(false);
+  if (!all->count) { // nothing imported yet: the sets come down by themselves the first time
+    presets_get(true);
+    all = presets_all(false);
+  }
   int gen = se_generation(e);
   char species[32];
   const char *s = e->ops->species_name(e, m->species);
@@ -6551,7 +6582,8 @@ static void editor_presets(struct save_edit *e, struct se_mon *m) {
     }
     if (!here && !elsewhere) {
       editor_say("PRESETS", all->count ? "No sets for this Pokemon yet. EDIT SAVE > PRESETS > IMPORT SETS adds more."
-                                       : "No sets yet. EDIT SAVE > PRESETS > IMPORT SETS adds them.");
+                                       : "No sets yet. EDIT SAVE > PRESETS > GET SETS downloads them, and IMPORT "
+                                         "SETS adds your own.");
       return;
     }
     if (!others && !here) {
@@ -7062,12 +7094,18 @@ static void save_editor(const char *rom, const char *gameName) {
           here += all->v[i].gen == gen;
         char info[96];
         snprintf(info, sizeof info, "SETS\t%d, %d FOR GEN %d", all->count, here, gen);
-        const char *prow[] = {"IMPORT SETS\t.TXT .CSV .JSON .ZIP .RAR", info};
-        at = menu_pick_hint("PRESETS", "A Pokemon's PRESETS row fills a set in; PASTE SET there takes a copied one.", prow,
-                            2, at);
+        const char *prow[] = {"GET SETS\tSMOGON, GENERATIONS 1 TO 9", "IMPORT SETS\t.TXT .CSV .JSON .ZIP .RAR", info};
+        at = menu_pick_hint("PRESETS",
+                            "A Pokemon's PRESETS row fills a set in; PASTE SET there takes a copied one. GET SETS "
+                            "downloads Smogon's sets again.",
+                            prow, 3, at);
         if (at < 0)
           break;
-        if (at != 0)
+        if (at == 0) {
+          presets_get(false);
+          continue;
+        }
+        if (at != 1)
           continue;
         char path[1024], dir[1100], msg[160];
         if (!browse_path(path, sizeof path, ".txt|.csv|.json|.zip|.rar", "PICK A FILE OF SETS"))

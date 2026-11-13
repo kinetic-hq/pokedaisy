@@ -34,6 +34,11 @@ void presets_free(struct preset_list *list);
 /* FILE copied into DIR, or an archive (.zip, .rar) unpacked into DIR/<its name>. MSG says what happened. */
 bool presets_import(const char *file, const char *dir, char *msg, size_t n);
 
+/* GET SETS: Smogon's sets for generations 1 to PRESETS_GENS, downloaded into DIR/smogon (PROGRESS called before each
+ * generation). Returns how many sets came, -1 when none did; MSG says what happened. */
+#define PRESETS_GENS 9
+int presets_fetch(const char *dir, void (*progress)(int gen, void *ctx), void *ctx, char *msg, size_t n);
+
 /* P is a set for the species named SPECIES (a form's set counts for its base species). */
 bool preset_for(const struct preset *p, const char *species);
 /* The species P names in E's game (forms fall back to the base species), or -1. */
