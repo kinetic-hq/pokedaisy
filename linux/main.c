@@ -18,6 +18,7 @@
 #include "rom_list.h"
 #include "field_items.h"
 #include "ff_music.h"
+#include "shiny_odds.h"
 #include "fly.h"
 #include "display_filter.h"
 #include "updater.h"
@@ -3224,6 +3225,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   double paceAcc = 0;
   sceneFieldSeen = false;
   host.tradeEvoFits = tradeOk;
+  // SHINY ODDS: retail and the hacks the app checked, by hash; each new wild foe looked at as the game makes it.
+  struct shiny_target shinyTarget;
+  static struct shiny_roller shinyRoller;
+  bool shinyOk = c->platform(c) == mPLATFORM_GBA && shiny_target_for(&game, &shinyTarget);
+  if (shinyOk)
+    shiny_roller_init(&shinyRoller, &shinyTarget, (uint64_t)SDL_GetPerformanceCounter() ^ (uint64_t)time(NULL) << 32);
+  host.hasShinyOdds = c->platform(c) == mPLATFORM_GBA;
+  host.shinyOddsFits = shinyOk;
   uint32_t evolvePers[6] = {0}, evolveSign = 0;
   int evolveSlot = -1, evolveTick = 0;
   host.hasResume = true;
@@ -3875,6 +3884,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           c->setKeys(c, (quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023);
         if (c->platform(c) == mPLATFORM_GBA)
           pk_rest_note(c);
+        if (shinyOk && settings.shinyOdds > 0 && shiny_tick(&shinyRoller, SHINY_ODDS[settings.shinyOdds], c))
+          fprintf(stderr, "shiny odds: foe made shiny (1 in %d)\n", SHINY_ODDS[settings.shinyOdds]);
         if (fieldKnown)
           fieldFlags = pk_field_state(c, settings.runIndoors, wildSwitch && settings.wildOff ? 0 : 100);
         emuMs += ms_since(t);

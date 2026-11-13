@@ -14,6 +14,7 @@
 static const char* const SCREEN_NAMES[PD_SCREEN_MODES] = { "PIXEL 1x", "SHARP 1.25x", "SHARP 1.5x", "STRETCH" };
 static const char* const ASPECT_NAMES[PD_ASPECTS] = { "ORIGINAL", "EXPAND", "ZOOM OUT" };
 const char* const PD_GAME_SPEEDS[PD_GAME_SPEED_COUNT] = { "1x", "1.5x", "2x", "3x", "4x", "0.5x", "0.25x" };
+const char* const PD_SHINY_LABELS[PD_SHINY_CHOICES] = { "NORMAL", "1 IN 4096", "1 IN 1024", "1 IN 512", "1 IN 128" };
 const char* const PD_SCENE_SPEEDS[PD_SCENE_SPEED_COUNT] = { "SAME", "1x", "1.5x", "2x", "3x", "4x" };
 static const char* const SCENE_NAMES[PD_SCENE_COUNT] = { "BATTLE SPEED", "TEXT SPEED", "MENU SPEED", "BIKE SPEED", "SURF SPEED" };
 static const char* const VOLUMES[5] = { "20%", "40%", "60%", "80%", "100%" };
@@ -218,6 +219,10 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     if (host->hasTradeEvos) {
         if (host->tradeEvoFits) setting(ui, c, ix, &y, iw, SETTING_TRADE_EVOS, "TRADE EVOS", on_off(st->tradeEvolutions));
         else muted_row(c, ix, &y, iw, "TRADE EVOS", "N/A");
+    }
+    if (host->hasShinyOdds) {
+        if (host->shinyOddsFits) setting(ui, c, ix, &y, iw, SETTING_SHINY_ODDS, "SHINY ODDS", PD_SHINY_LABELS[st->shinyOdds]);
+        else muted_row(c, ix, &y, iw, "SHINY ODDS", "N/A");
     }
     setting(ui, c, ix, &y, iw, SETTING_LEVEL_CAP, "LEVEL CAP", on_off(st->levelCap));
     if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", on_off(st->cheats));
@@ -428,6 +433,10 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         if (host->hasTradeEvos) {
             if (host->tradeEvoFits) setting(ui, c, ix, &y, iw, SETTING_TRADE_EVOS, "TRADE EVOS", st->tradeEvolutions ? "ON" : "OFF");
             else muted_row(c, ix, &y, iw, "TRADE EVOS", "N/A");
+        }
+        if (host->hasShinyOdds) {
+            if (host->shinyOddsFits) setting(ui, c, ix, &y, iw, SETTING_SHINY_ODDS, "SHINY ODDS", PD_SHINY_LABELS[st->shinyOdds]);
+            else muted_row(c, ix, &y, iw, "SHINY ODDS", "N/A");
         }
         setting(ui, c, ix, &y, iw, SETTING_LEVEL_CAP, "LEVEL CAP", st->levelCap ? "ON" : "OFF");
         if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", st->cheats ? "ON" : "OFF");
@@ -691,6 +700,9 @@ void ui_overlay(struct pd_ui* ui, struct pd_canvas* c) {
         break;
     case PD_OVERLAY_PICK_SPEED:
         pick_list(ui, c, "GAME SPEED", PD_GAME_SPEEDS, PD_GAME_SPEED_COUNT, ui->settings->gameSpeed);
+        break;
+    case PD_OVERLAY_PICK_SHINY:
+        pick_list(ui, c, "SHINY ODDS", PD_SHINY_LABELS, PD_SHINY_CHOICES, ui->settings->shinyOdds);
         break;
     case PD_OVERLAY_PICK_SCENE:
         pick_list(ui, c, SCENE_NAMES[ui->sceneRow], PD_SCENE_SPEEDS, PD_SCENE_SPEED_COUNT, ui->settings->sceneSpeed[ui->sceneRow]);

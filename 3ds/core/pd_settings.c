@@ -151,6 +151,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "companionbtn")) int_in(value, 0, PD_BTN_L2 + 1, &s->companionBtn);
         else if (!strcmp(key, "hudbtn")) int_in(value, 0, PD_BUTTONS - 1, &s->hudBtn);
         else if (!strcmp(key, "speed")) int_in(value, 0, PD_GAME_SPEED_COUNT - 1, &s->gameSpeed);
+        else if (!strcmp(key, "shinyodds")) int_in(value, 0, PD_SHINY_CHOICES - 1, &s->shinyOdds);
         else if (!strcmp(key, "battlespeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_BATTLE]);
         else if (!strcmp(key, "textspeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_TEXT]);
         else if (!strcmp(key, "menuspeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_MENU]);
@@ -230,6 +231,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->hud ? 1 : 0, s->hudHidden, s->quickGrid ? 1 : 0, s->lcdFilter ? 1 : 0);
     fprintf(f, "hudlayout=%d\nhudlook=%d\nhudsize=%d\n", s->hudLayout, s->hudLook, s->hudSize);
     fprintf(f, "view=%d\npanellock=%d\n", s->companionView, s->panelLocked ? 1 : 0);
+    fprintf(f, "shinyodds=%d\n", s->shinyOdds);
     fprintf(f, "ffsteady=%d\n", s->ffSteady ? 1 : 0);
     fprintf(f, "scaling=%d\nffaudio=%d\nrewind=%d\nrunindoors=%d\n", s->scaling, s->ffAudio ? 1 : 0,
             s->rewind ? 1 : 0, s->runIndoors ? 1 : 0);

@@ -441,6 +441,7 @@ struct pd_game {
     // The game's shiny check (the app's NativeConfig.shinyBelow, set by hash): shiny when the shiny value is below it;
     // 0 = the party layout's own rule, if any.
     int shinyBelow;
+    int shinyFlags; // PD_SHINY_* from the same table
     // A Game Boy game: no map-section names yet (the GBA hacks' come from pd_text.mapsecs / the ROM).
     bool hackMaps;
     // What the app shows of this ROM beyond its config (pd_games_gen.c, by SHA-1): its look, its PC's moves; NULL = none.
@@ -450,7 +451,9 @@ struct pd_game {
 };
 
 // The ROMs whose shiny check is known (pd_shiny_gen.c, from ShinyOdds.kt), NULL-terminated.
-struct pd_shiny_rom { const char* sha1; int below; };
+// flags: the hack's species ids are National Dex numbers / its boxes are plaintext (SHINY ODDS, the app's ShinyOdds).
+enum { PD_SHINY_NATIONAL = 1, PD_SHINY_PLAIN = 2 };
+struct pd_shiny_rom { const char* sha1; int below; int flags; };
 extern const struct pd_shiny_rom pd_shiny_roms[];
 
 // Which ROM the tabs' caches were built from: 0 = none, else new for every
