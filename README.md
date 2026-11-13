@@ -327,6 +327,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   units** on the `DEX` page of every GBA game whose cart uses them (Monomyth, the European and Japanese carts), as in the app.
 - **EGG GROUP on the DEX page** on the desktop host for the GBA games, read from each game's own base stats (Monomyth's
   packed into one byte), as the app shows them.
+- **Amethyst 1.4.3's DEX** opens on the desktop host: the check that its tables are where we think now reads the first
+  Pokemon's entry under the game's own number (No. 301 there) instead of assuming No. 1.
 - **Modern Emerald's DEX tab** on the desktop host, which the app doesn't have: its 215 Hoenn and 432 National, with SEEN / OWN
   from its own save layout.
 - **Emerald Seaglass's DEX tab** on the desktop host, in the game's own numbering (Hoenn first), read from its species data.

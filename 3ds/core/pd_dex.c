@@ -206,17 +206,23 @@ static void build(const struct pd_game* g) {
         available = true;
         return;
     }
-    // The app's pokedexMatchesRom: entry 1 reads as the game's first Pokémon, and so do the species tables.
+    // The app's pokedexMatchesRom: the probe species' entry reads as the game's first Pokémon, and so do the species
+    // tables. Its entry is the one under its own number: No. 1 in most games, but a game that numbers its dex its own
+    // way puts it elsewhere (Amethyst 1.4.3: No. 301).
     size_t eLen = (size_t) cfg->entryHeightOff + 4;
     if (eLen < 0x10) eLen = 0x10;
-    const uint8_t* e1 = pd_rom_at(g, cfg->dexEntries + cfg->dexEntryStride, eLen);
     const uint8_t* nat = pd_rom_at(g, cfg->speciesToNational, (size_t) (speciesCount - 1) * 2);
     const uint8_t* pic = pd_rom_at(g, cfg->frontPics + 8u * (uint32_t) cfg->probeSpecies + 6, 2);
-    if (!e1 || !nat || !pic) return;
+    if (!nat || !pic) return;
+    int probeNo = u16(nat + (cfg->probeSpecies - 1) * 2);
+    if (probeNo < 1 || probeNo > nationalCount) return;
+    int probeAt = cfg->entriesBySpecies ? cfg->probeSpecies : probeNo;
+    const uint8_t* e1 = pd_rom_at(g, cfg->dexEntries + (uint32_t) probeAt * cfg->dexEntryStride, eLen);
+    if (!e1) return;
     char category[24];
     entry_category(g, e1, category, sizeof(category));
     if (!same_text(category, cfg->probeCategory) || u16(e1 + cfg->entryHeightOff) != cfg->probeHeight ||
-        u16(e1 + cfg->entryHeightOff + 2) != cfg->probeWeight || u16(nat + (cfg->probeSpecies - 1) * 2) != 1 ||
+        u16(e1 + cfg->entryHeightOff + 2) != cfg->probeWeight ||
         u16(pic) != cfg->probeSpecies) {
         return;
     }
