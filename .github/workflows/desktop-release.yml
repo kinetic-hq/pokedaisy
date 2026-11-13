@@ -101,7 +101,7 @@ jobs:
             mingw-w64-ucrt-x86_64-SDL2
             mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-pkgconf
-      - run: git config --global --add safe.directory "$(pwd)" && git submodule update --init third_party/mgba third_party/melonds
+      - run: git config --global --add safe.directory "$(pwd)" && git submodule update --init third_party/rcheevos third_party/mgba third_party/melonds
       - name: Build and test
         run: |
           cmake -S linux -B linux/build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_LTO=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DPOCKET_MELONDS=ON -DPOCKET_VERSION=${{ needs.plan.outputs.version }}
@@ -121,7 +121,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - run: git submodule update --init third_party/mgba
+      - run: git submodule update --init third_party/rcheevos third_party/mgba
       - run: bash .github/scripts/apt-install.sh cmake libsdl2-dev
       - name: Build and test
         run: |
