@@ -5009,6 +5009,7 @@ static bool get_started(void) {
  * HOTKEYS. COMPANION VIEW and DS LAYOUT open the LAYOUT pickers. Saved to DATA/settings.ini (DS LAYOUT:
  * DATA/ds-settings.ini) at once. Returns the rail item to open next (RAIL_GAMES), or -1 when the app closes;
  * *foldersChanged says the game list needs reading again. */
+static void trade_saves(const char *firstRom, const char *firstName);
 enum { PAGE_SET_HOME, PAGE_SET_DISPLAY, PAGE_SET_BUTTONS, PAGE_SET_HOTKEYS, PAGE_SET_BEZEL };
 enum {
   ROW_VIEW = 1,
@@ -5017,6 +5018,7 @@ enum {
   ROW_DISPLAY,
   ROW_FOLDERS,
   ROW_PATCH,
+  ROW_TRADE,
   ROW_BOXART,
   ROW_SGDB,
   ROW_BUTTONS,
@@ -5089,6 +5091,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(0, PD_MENU_GROUP "LIBRARY");
       ROW(ROW_FOLDERS, "GAME FOLDERS" PD_MENU_PAGE);
       ROW(ROW_PATCH, "PATCH A ROM" PD_MENU_PAGE);
+      ROW(ROW_TRADE, "TRADE SAVES" PD_MENU_PAGE);
       ROW(ROW_BOXART, "BOX ART DOWNLOAD	%s", st.boxartAuto ? "ON" : "OFF");
       {
         char key[80];
@@ -5255,6 +5258,10 @@ static int settings_page(bool *foldersChanged) {
       save = false;
       break;
     }
+    case ROW_TRADE:
+      trade_saves(NULL, NULL);
+      save = false;
+      break;
     case ROW_UPDATES:
       st.updateCheck = !st.updateCheck;
       break;
@@ -6098,6 +6105,16 @@ static void editor_save_path(const char *rom, char *out, size_t size) {
       snprintf(out, size, "%s", beside);
   }
 }
+/* A resume state from before an edit would bring the old save back with CONTINUE: set it aside. <0 when it couldn't. */
+static int editor_set_aside(const char *rom) {
+  char states[1100];
+  const char *file = rom;
+  for (const char *s = rom; *s; s++)
+    if (*s == '/' || *s == '\\')
+      file = s + 1;
+  snprintf(states, sizeof states, "%s/states", root);
+  return se_set_resume_aside(states, file, time(NULL));
+}
 static void save_editor(const char *rom, const char *gameName) {
   char save[1024], err[200] = "";
   editor_save_path(rom, save, sizeof save);
@@ -6184,14 +6201,7 @@ static void save_editor(const char *rom, const char *gameName) {
       }
       char backup[1100];
       if (se_save(e, backup, sizeof backup, err, sizeof err)) {
-        /* A resume state from before the edit would bring the old save back with CONTINUE: set it aside. */
-        char states[1100];
-        const char *file = rom;
-        for (const char *s = rom; *s; s++)
-          if (*s == '/' || *s == '\\')
-            file = s + 1;
-        snprintf(states, sizeof states, "%s/states", root);
-        int aside = se_set_resume_aside(states, file, time(NULL));
+        int aside = editor_set_aside(rom);
         char done[1400];
         snprintf(done, sizeof done,
                  aside < 0 ? "Saved. The old save is kept as %s. Start the game from its save (not CONTINUE) to see "
@@ -6206,6 +6216,231 @@ static void save_editor(const char *rom, const char *gameName) {
     }
   }
   se_close(e);
+}
+/* ---- TRADE SAVES (save_edit.h's se_trade): two GBA games' saves, a PC box Pokemon each way, the games' own rules ---- */
+static bool trade_is_gba(const char *path) {
+  const char *ext = strrchr(path, '.');
+  return ext && !strcasecmp(ext, ".gba");
+}
+/* A GBA game from the list (not NOT): its path and name, false for B. */
+static bool trade_pick_game(const char *title, const char *not, char *path, size_t pathSize, char *name,
+                            size_t nameSize) {
+  struct rom_list l = {0};
+  rom_list_load(&l, root, false);
+  const char **rows = calloc(l.count ? l.count : 1, sizeof *rows);
+  int *ids = calloc(l.count ? l.count : 1, sizeof *ids), n = 0;
+  for (int i = 0; rows && ids && i < l.count; i++)
+    if (trade_is_gba(l.paths[i]) && !(not && same_path(not, l.paths[i])))
+      rows[n] = l.names[i], ids[n++] = i;
+  bool ok = false;
+  if (!n)
+    editor_say(title, "TRADE SAVES needs a second GBA game in your list.");
+  else {
+    int pick = menu_pick(title, rows, n, 0);
+    if (pick >= 0) {
+      snprintf(path, pathSize, "%s", l.paths[ids[pick]]);
+      snprintf(name, nameSize, "%s", l.names[ids[pick]]);
+      ok = true;
+    }
+  }
+  free(rows);
+  free(ids);
+  rom_list_free(&l);
+  return ok;
+}
+/* A PC box slot of E's (a Pokemon or an empty one): false for B. */
+static bool trade_pick_slot(struct save_edit *e, const char *who, int *box, int *slot) {
+  static char names[32][16];
+  const char *boxes[32];
+  int count = e->ops->boxes(e), b = *box >= 0 ? *box : 0;
+  if (count > 32)
+    count = 32;
+  for (int i = 0; i < count; i++) {
+    snprintf(names[i], sizeof names[i], "BOX %d", i + 1);
+    boxes[i] = names[i];
+  }
+  while (running && (b = menu_pick(who, boxes, count, b)) >= 0) {
+    static char text[32][80];
+    const char *rows[32];
+    int slots = e->ops->box_slots(e);
+    if (slots > 32)
+      slots = 32;
+    for (int s = 0; s < slots; s++) {
+      struct se_mon m;
+      int k = se_trade_slot(e, b, s);
+      if (k == 0)
+        snprintf(text[s], 80, "%d  (EMPTY)", s + 1);
+      else if (k < 0 || !e->ops->mon(e, b, s, &m))
+        snprintf(text[s], 80, "%d  BAD EGG", s + 1);
+      else if (m.egg)
+        snprintf(text[s], 80, "%d  EGG", s + 1);
+      else
+        snprintf(text[s], 80, "%d  %s  Lv%d", s + 1, m.nick, m.level);
+      rows[s] = text[s];
+    }
+    int s = menu_pick(boxes[b], rows, slots, *box == b && *slot >= 0 ? *slot : 0);
+    if (s >= 0) {
+      *box = b, *slot = s;
+      return true;
+    }
+  }
+  return false;
+}
+static void trade_slot_text(struct save_edit *e, int box, int slot, char *out, size_t size) {
+  struct se_mon m;
+  if (slot < 0)
+    snprintf(out, size, "PICK A SLOT");
+  else if (se_trade_slot(e, box, slot) == 0)
+    snprintf(out, size, "BOX %d #%d (EMPTY)", box + 1, slot + 1);
+  else if (se_trade_slot(e, box, slot) < 0 || !e->ops->mon(e, box, slot, &m))
+    snprintf(out, size, "BOX %d #%d BAD EGG", box + 1, slot + 1);
+  else
+    snprintf(out, size, "BOX %d #%d %.40s", box + 1, slot + 1, m.egg ? "EGG" : m.nick);
+}
+static struct save_edit *trade_open(const char *rom, char *save, size_t size) {
+  char err[200] = "";
+  editor_save_path(rom, save, size);
+  struct save_edit *e = se_open(save, rom, err, sizeof err);
+  if (!e)
+    editor_say("TRADE SAVES", err);
+  else if (!se_trade_ready(e)) {
+    editor_say("TRADE SAVES", "TRADE SAVES works with FireRed, LeafGreen, Ruby, Sapphire, Emerald and the hacks that "
+                              "keep their Pokemon the same way. This game's save isn't one of them.");
+    se_close(e);
+    e = NULL;
+  }
+  return e;
+}
+/* FIRST (NULL: picked here) and a second GBA game picked here. Nothing is written until SAVE BOTH. */
+static void trade_saves(const char *firstRom, const char *firstName) {
+  char romA[1024], nameA[256], romB[1024], nameB[256], saveA[1024], saveB[1024];
+  if (firstRom) {
+    snprintf(romA, sizeof romA, "%s", firstRom);
+    snprintf(nameA, sizeof nameA, "%s", firstName);
+  } else if (!trade_pick_game("TRADE FROM WHICH GAME?", NULL, romA, sizeof romA, nameA, sizeof nameA))
+    return;
+  if (!trade_pick_game("TRADE WITH WHICH GAME?", romA, romB, sizeof romB, nameB, sizeof nameB))
+    return;
+  struct save_edit *a = trade_open(romA, saveA, sizeof saveA);
+  if (!a)
+    return;
+  struct save_edit *b = trade_open(romB, saveB, sizeof saveB);
+  if (!b) {
+    se_close(a);
+    return;
+  }
+  if (same_path(saveA, saveB)) {
+    editor_say("TRADE SAVES", "Both games use the same save file. Pick two games with saves of their own.");
+    se_close(a);
+    se_close(b);
+    return;
+  }
+  int boxA = -1, slotA = -1, boxB = -1, slotB = -1, selected = 0;
+  while (running) {
+    enum { T_A, T_B, T_TRADE, T_UNDO, T_SAVE };
+    static char text[3][200];
+    char a1[80], b1[80];
+    trade_slot_text(a, boxA, slotA, a1, sizeof a1);
+    trade_slot_text(b, boxB, slotB, b1, sizeof b1);
+    snprintf(text[0], sizeof text[0], "%.60s\t%s", nameA, a1);
+    snprintf(text[1], sizeof text[1], "%.60s\t%s", nameB, b1);
+    bool fullA = slotA >= 0 && se_trade_slot(a, boxA, slotA) != 0, fullB = slotB >= 0 && se_trade_slot(b, boxB, slotB) != 0;
+    snprintf(text[2], sizeof text[2], "%s", fullA && fullB ? "TRADE" : "SEND");
+    const char *rows[5] = {text[0], text[1], text[2], "UNDO ALL", "SAVE BOTH"};
+    static char why[200];
+    const char *hint = se_trade_link_blocker(a, b, why, sizeof why);
+    if (!hint && slotA >= 0 && slotB >= 0) {
+      if (!fullA && !fullB)
+        hint = "Pick a Pokemon on one side or both.";
+      else if (fullA && (hint = se_trade_blocker(a, boxA, slotA, b, why, sizeof why)))
+        ;
+      else if (fullB)
+        hint = se_trade_blocker(b, boxB, slotB, a, why, sizeof why);
+    }
+    if (!hint)
+      hint = a->dirty || b->dirty ? "Traded: SAVE BOTH writes both saves (each old save is kept as a backup)."
+                                  : "Pick a PC box slot in each game, then trade. An empty slot sends one over.";
+    char title[160];
+    snprintf(title, sizeof title, "TRADE SAVES");
+    int pick = menu_pick_hint(title, hint, rows, 5, selected);
+    if (pick < 0) {
+      if (!a->dirty && !b->dirty)
+        break;
+      static const char *const leave[] = {"KEEP TRADING", "LEAVE WITHOUT SAVING"};
+      if (menu_pick("THE TRADES AREN'T SAVED", leave, 2, 0) == 1)
+        break;
+      continue;
+    }
+    selected = pick;
+    char err[200] = "";
+    switch (pick) {
+    case T_A:
+      trade_pick_slot(a, nameA, &boxA, &slotA);
+      break;
+    case T_B:
+      trade_pick_slot(b, nameB, &boxB, &slotB);
+      break;
+    case T_TRADE: {
+      if (slotA < 0 || slotB < 0) {
+        editor_say("TRADE SAVES", "Pick a slot in each game first.");
+        break;
+      }
+      bool evolve = false;
+      int evoA = fullA ? se_trade_evolution(a, boxA, slotA, b) : 0, evoB = fullB ? se_trade_evolution(b, boxB, slotB, a) : 0;
+      if (evoA || evoB) {
+        char line[200];
+        const char *to = evoA ? b->ops->species_name(b, evoA) : a->ops->species_name(a, evoB);
+        snprintf(line, sizeof line, "It evolves into %.60s when it arrives, as a link trade would.", to ? to : "?");
+        static const char *const ask[] = {"EVOLVE", "DON'T EVOLVE"};
+        int k = menu_pick_hint("EVOLVING!", line, ask, 2, 0);
+        if (k < 0)
+          break;
+        evolve = k == 0;
+      }
+      if (se_trade(a, boxA, slotA, b, boxB, slotB, evolve, err, sizeof err))
+        notice(fullA && fullB ? "Traded: SAVE BOTH writes it" : "Sent: SAVE BOTH writes it");
+      else
+        editor_say("CAN'T TRADE", err);
+      break;
+    }
+    case T_UNDO: {
+      if (!a->dirty && !b->dirty) {
+        notice("Nothing to undo");
+        break;
+      }
+      char e2[200] = "";
+      struct save_edit *na = se_open(saveA, romA, e2, sizeof e2), *nb = na ? se_open(saveB, romB, e2, sizeof e2) : NULL;
+      if (!na || !nb) {
+        if (na)
+          se_close(na);
+        editor_say("CAN'T UNDO", e2);
+        break;
+      }
+      se_close(a);
+      se_close(b);
+      a = na, b = nb;
+      notice("Back to the saves as they are");
+      break;
+    }
+    case T_SAVE: {
+      if (!a->dirty && !b->dirty) {
+        notice("Nothing to save");
+        break;
+      }
+      if (!se_save_both(a, b, err, sizeof err)) {
+        editor_say("NOT SAVED", err);
+        break;
+      }
+      int asideA = editor_set_aside(romA), asideB = editor_set_aside(romB);
+      editor_say("SAVED", asideA < 0 || asideB < 0
+                              ? "Saved both, old saves kept as backups. Start each from its save, not CONTINUE."
+                              : "Saved both, old saves kept as backups. Each game starts from its new save.");
+      break;
+    }
+    }
+  }
+  se_close(a);
+  se_close(b);
 }
 /* BOX ART: every cover found for a game as a grid, like SteamGridDB's own picker: libretro's cover and the base
  * game's first, then each grid SteamGridDB has for the game (box shaped ones only until SHAPE shows them all), a page
@@ -6420,7 +6655,7 @@ static bool boxart_picker(struct library *l, int g) {
 }
 /* A game's options. Returns the game to play, else -1; *reload when the list changed; *finding when a search started. */
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
-  enum { OPT_PLAY, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_SUPPORT };
+  enum { OPT_PLAY, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_SUPPORT };
   const char *stem = l->stems[g], *label = l->games.labels[g];
   char custom[256];
   bool hasName = game_custom_name(root, label, custom, sizeof custom);
@@ -6439,6 +6674,8 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   if (hasName)
     OPT(OPT_RESET, "USE THE FILE'S NAME");
   OPT(OPT_EDIT, "EDIT SAVE");
+  if (trade_is_gba(l->games.paths[g]))
+    OPT(OPT_TRADE, "TRADE SAVES");
   if (game_support_word(support)) { // the companion's support, and what it lacks (A shows it whole)
     snprintf(supportRow, sizeof supportRow, "COMPANION\t%s", game_support_word(support));
     OPT(OPT_SUPPORT, supportRow);
@@ -6478,6 +6715,9 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     break;
   case OPT_EDIT:
     save_editor(l->games.paths[g], l->games.names[g]);
+    break;
+  case OPT_TRADE:
+    trade_saves(l->games.paths[g], l->games.names[g]);
     break;
   default:
     break;

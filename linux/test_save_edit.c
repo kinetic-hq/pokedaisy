@@ -125,6 +125,86 @@ static void round_trip(const char *spec, const char *scratch) {
   printf("PASS save editor round trip on %s\n", rom);
 }
 
+/* TRADE SAVES on copies of two real games' saves (POCKET_SAVE_TRADE="<romA>|<saveA>|<romB>|<saveB>"): A's first
+ * Pokemon in its boxes sent to B's first empty slot, both written, read back, then sent home again. */
+static bool first_slot(struct save_edit *e, int want, int *box, int *slot) {
+  for (int b = 0; b < 14; b++)
+    for (int s = 0; s < 30; s++)
+      if (se_trade_slot(e, b, s) == want) {
+        *box = b, *slot = s;
+        return true;
+      }
+  return false;
+}
+static void trade_round(const char *spec, const char *scratch) {
+  char part[4][1024];
+  const char *p = spec;
+  for (int i = 0; i < 4; i++) {
+    const char *bar = i < 3 ? strchr(p, '|') : p + strlen(p);
+    CHECK(bar);
+    snprintf(part[i], sizeof part[i], "%.*s", (int)(bar - p), p);
+    p = bar + 1;
+  }
+  char saveA[1100], saveB[1100], err[200] = "";
+  snprintf(saveA, sizeof saveA, "%s/trade-test-a.sav", scratch);
+  snprintf(saveB, sizeof saveB, "%s/trade-test-b.sav", scratch);
+  copy_file(part[1], saveA);
+  copy_file(part[3], saveB);
+  struct save_edit *a = se_open(saveA, part[0], err, sizeof err), *b = se_open(saveB, part[2], err, sizeof err);
+  if (!a || !b)
+    fprintf(stderr, "%s\n", err);
+  CHECK(a && b && se_trade_ready(a) && se_trade_ready(b));
+  CHECK(!se_trade(a, 0, 0, a, 0, 1, true, err, sizeof err));
+  int ab, as, bb, bs;
+  CHECK(first_slot(a, 1, &ab, &as) && first_slot(b, 0, &bb, &bs));
+  char why[200];
+  const char *block = se_trade_blocker(a, ab, as, b, why, sizeof why);
+  printf("trade: %s box %d slot %d -> %s box %d slot %d%s%s\n", a->ops->title(a), ab + 1, as + 1,
+         b->ops->title(b), bb + 1, bs + 1, block ? ": " : "", block ? block : "");
+  if (block) {
+    CHECK(!se_trade(a, ab, as, b, bb, bs, false, err, sizeof err));
+    CHECK(se_trade_slot(a, ab, as) == 1 && se_trade_slot(b, bb, bs) == 0);
+  } else {
+    struct se_mon sent, got;
+    CHECK(a->ops->mon(a, ab, as, &sent));
+    CHECK(se_trade(a, ab, as, b, bb, bs, false, err, sizeof err));
+    CHECK(se_trade_slot(a, ab, as) == 0 && se_trade_slot(b, bb, bs) == 1);
+    CHECK(se_save_both(a, b, err, sizeof err));
+    se_close(a);
+    se_close(b);
+    a = se_open(saveA, part[0], err, sizeof err);
+    b = se_open(saveB, part[2], err, sizeof err);
+    CHECK(a && b && se_trade_slot(a, ab, as) == 0 && b->ops->mon(b, bb, bs, &got));
+    CHECK(got.species == sent.species && got.level == sent.level && !strcmp(got.nick, sent.nick) &&
+          !memcmp(got.ivs, sent.ivs, sizeof got.ivs));
+    /* Home again. */
+    CHECK(se_trade(b, bb, bs, a, ab, as, false, err, sizeof err));
+    CHECK(se_save_both(a, b, err, sizeof err));
+    printf("PASS trade there and back (%s)\n", got.nick);
+  }
+  /* A save written behind the trade's back: refused. */
+  CHECK(first_slot(a, 1, &ab, &as) && first_slot(b, 0, &bb, &bs));
+  if (!se_trade_blocker(a, ab, as, b, why, sizeof why)) {
+    CHECK(se_trade(a, ab, as, b, bb, bs, false, err, sizeof err));
+    copy_file(part[1], saveA);
+    struct save_edit *fresh = se_open(saveA, part[0], err, sizeof err);
+    CHECK(fresh);
+    fresh->dirty = true;
+    se_close(fresh);
+    FILE *f = fopen(saveA, "r+b");
+    CHECK(f);
+    fseek(f, 0x1FFFF, SEEK_SET);
+    fputc(0x5A, f);
+    fclose(f);
+    CHECK(!se_save_both(a, b, err, sizeof err) && strstr(err, "changed"));
+    puts("PASS a save changed underneath is left alone");
+  }
+  se_close(a);
+  se_close(b);
+  remove(saveA);
+  remove(saveB);
+}
+
 int main(void) {
 #ifdef POCKET_SAVE_EDIT_DS
   se_gen4_opener = se_open_gen4;
@@ -195,5 +275,8 @@ int main(void) {
     round_trip(gba, scratch);
   if (nds && *nds)
     round_trip(nds, scratch);
+  const char *trade = getenv("POCKET_SAVE_TRADE");
+  if (trade && *trade)
+    trade_round(trade, scratch);
   return 0;
 }

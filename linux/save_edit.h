@@ -102,6 +102,24 @@ struct save_edit *se_open_gen4(const uint8_t *save, size_t saveSize, const uint8
 
 const char *se_nature_name(int nature);
 
+/* TRADE SAVES (Gen 3 saves only), PC box to PC box with the games' own rules; nothing is written until se_save_both.
+ * se_trade_ready: a save the trade works with. se_trade_slot: 1 a Pokemon, 0 empty, -1 unreadable (a Bad Egg). */
+bool se_trade_ready(struct save_edit *e);
+int se_trade_slot(struct save_edit *e, int box, int slot);
+/* Why FireRed / LeafGreen and Ruby / Sapphire / Emerald can't link yet, or NULL (BUF holds the text). */
+const char *se_trade_link_blocker(struct save_edit *a, struct save_edit *b, char *buf, size_t n);
+/* Why the Pokemon at FROM's BOX / SLOT can't go to TO, or NULL. */
+const char *se_trade_blocker(struct save_edit *from, int box, int slot, struct save_edit *to, char *buf, size_t n);
+/* The species it becomes on arriving in TO (a trade evolution), or 0. */
+int se_trade_evolution(struct save_edit *from, int box, int slot, struct save_edit *to);
+/* The trade: A's slot and B's swap (one may be empty: a Pokemon sent over), each evolving on arrival when EVOLVE.
+ * Refused, with nothing changed, when the games wouldn't. */
+bool se_trade(struct save_edit *a, int boxA, int slotA, struct save_edit *b, int boxB, int slotB, bool evolve,
+              char *err, size_t n);
+/* Writes both (se_save each, after checking neither file changed since it was read); if the second can't be
+ * written, the first is put back from its backup. */
+bool se_save_both(struct save_edit *a, struct save_edit *b, char *err, size_t n);
+
 #ifdef __cplusplus
 }
 #endif

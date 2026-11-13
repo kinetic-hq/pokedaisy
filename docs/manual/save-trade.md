@@ -21,6 +21,8 @@ Tap `TOOLS` in the library, then `SAVE EDITOR`, and pick a game. Or open a game'
 
 Tap `TOOLS` in the library, then `TRADE SAVES`, and pick the game to trade from and then the one to trade with. `BACK` on the second pick lets you choose the first game again, and `BACK` from the trade takes you back to `TOOLS`. (In a game's `SAVE EDITOR`, `TRADE` starts a trade from that game, and `BACK` returns to its boxes.) The two games' boxes are side by side: pick a slot on each side, a Pokémon for a Pokémon, or one for an empty slot. `SAVE` writes both saves together.
 
+On Windows and Linux, pick `TRADE SAVES` in a GBA game's options in the game list (press `X`, right click or hold a finger on the game) and then the game to trade with, or pick `SETTINGS` > `LIBRARY` > `TRADE SAVES` and choose both games. Each game's row picks a slot: a box, then a slot in it. `TRADE` swaps the two (it reads `SEND` when one slot is empty), `UNDO ALL` drops every trade you haven't saved, and `SAVE BOTH` writes both saves together. The line at the bottom says why a trade can't happen.
+
 The games' own trade rules apply. FireRed and LeafGreen only trade with Ruby, Sapphire and Emerald after the island part of their story, and a game without its National Pokédex yet only takes Pokémon from its own regional one. A Pokémon that evolves when traded evolves when it arrives, as it would with a cable. If you'd rather trade inside the games themselves, see [Link play](link-play.md).
 
 ## Your saves stay safe

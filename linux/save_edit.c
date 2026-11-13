@@ -2,6 +2,8 @@
  * app's Gen3SaveFile.kt / Gen3BoxMon.kt (pokeruby / pokeemerald / pokefirered's save.c and global.h); the tables are
  * the companion's (3ds/core), read for the ROM the save belongs to. */
 #include "save_edit.h"
+#include "save_dex.h"
+#include <ctype.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1192,6 +1194,323 @@ struct save_edit *se_open_gen3(const uint8_t *save, size_t saveSize, const uint8
   snprintf(g->title, sizeof g->title, "%s", g->game.title ? g->game.title : g->f->label);
   e->ops = &G3_OPS;
   return e;
+}
+
+/* ---- TRADE SAVES (Gen 3): the Android app's Gen3Trade, with the games' own rules (pret's trade.c
+ * CanTradeSelectedMon / GetUnionRoomTradeMessageId, link.c) and what a trade does afterwards
+ * (UpdatePokedexForReceivedMon, trade evolutions, Ruby / Sapphire's National Dex). PC box to PC box. ---- */
+
+#define SPECIES_MEW 151
+#define SPECIES_DEOXYS 410
+#define SPECIES_SPINDA 308
+#define ITEM_EVERSTONE 195
+#define ITEM_ENIGMA_BERRY 175
+#define DEX_OFF 0x18 /* SaveBlock2.pokedex */
+
+/* SaveBlock1's flags / vars, its two copies of the dex's seen bits, IsNationalPokedexEnabled's three parts and
+ * FireRed / LeafGreen's FLAG_SYS_CAN_LINK_WITH_RS (the decomps' global.h and constants). */
+struct g3_dex {
+  int flagsOff, varsOff, seen1Off, seen2Off, magicOff, magic, natVar, natVarValue, natFlag, linkRs;
+  bool kanto;
+};
+static const struct g3_dex DEX_RS = {0x1220, 0x1340, 0x938, 0x3A8C, 0x1A, 0xDA, 0x4046, 0x302, 0x836, -1, false};
+static const struct g3_dex DEX_E = {0x1270, 0x139C, 0x988, 0x3B24, 0x1A, 0xDA, 0x4046, 0x302, 0x896, -1, false};
+static const struct g3_dex DEX_FRLG = {0xEE0, 0x1000, 0x5F8, 0x3A18, 0x1B, 0xB9, 0x404E, 0x6258, 0x840, 0x844, true};
+static const struct g3_dex *dex_of(struct g3 *g) { return g->f == &G3_RS ? &DEX_RS : g->f == &G3_E ? &DEX_E : &DEX_FRLG; }
+
+/* gEvolutionTable's trade evolutions: species, the item it must hold (0 = none; used up), what it becomes. */
+static const struct {
+  int species, item, into;
+} TRADE_EVOS[] = {{61, 187, 186}, {64, 0, 65},     {67, 0, 68},     {75, 0, 76},     {79, 187, 199},  {93, 0, 94},
+                  {95, 199, 208}, {117, 201, 230}, {123, 199, 212}, {137, 218, 233}, {373, 192, 374}, {373, 193, 375}};
+
+bool se_trade_ready(struct save_edit *e) { return e && e->ops == &G3_OPS; }
+
+static bool flag_on(struct g3 *g, int id) { return id >= 0 && (g->sb1[dex_of(g)->flagsOff + id / 8] >> (id % 8) & 1); }
+static int var_of(struct g3 *g, int id) { return rd16(g->sb1 + dex_of(g)->varsOff + (id - 0x4000) * 2); }
+static bool national_dex(struct g3 *g) {
+  const struct g3_dex *d = dex_of(g);
+  return g->sb2[d->magicOff] == d->magic && var_of(g, d->natVar) == d->natVarValue && flag_on(g, d->natFlag);
+}
+static bool in_regional(int species, bool kanto) {
+  if (kanto)
+    return species >= 1 && species <= 151;
+  return species > 0 && species < 412 && SPECIES_HOENN[species] >= 1 && SPECIES_HOENN[species] <= 202;
+}
+static bool dex_bit(const uint8_t *base, int off, int n) { return base[off + (n - 1) / 8] >> ((n - 1) % 8) & 1; }
+static void set_dex_bit(uint8_t *base, int off, int n) { base[off + (n - 1) / 8] |= (uint8_t)(1 << ((n - 1) % 8)); }
+/* UpdatePokedexForReceivedMon: seen in all three copies, then caught, with Unown's / Spinda's personality kept when it's
+ * the first one caught. */
+static void mark_caught(struct g3 *g, int species, uint32_t pid) {
+  int n = species > 0 && species < 412 ? SPECIES_NATIONAL[species] : 0;
+  if (n < 1 || n > 386)
+    return;
+  const struct g3_dex *d = dex_of(g);
+  int owned = DEX_OFF + 0x10, seen = DEX_OFF + 0x44;
+  bool first = !(dex_bit(g->sb2, owned, n) && dex_bit(g->sb2, seen, n) && dex_bit(g->sb1, d->seen1Off, n) &&
+                 dex_bit(g->sb1, d->seen2Off, n));
+  set_dex_bit(g->sb2, seen, n);
+  set_dex_bit(g->sb1, d->seen1Off, n);
+  set_dex_bit(g->sb1, d->seen2Off, n);
+  if (first) {
+    set_dex_bit(g->sb2, owned, n);
+    if (species == SPECIES_UNOWN)
+      wr32(g->sb2 + DEX_OFF + 0x04, pid);
+    if (species == SPECIES_SPINDA)
+      wr32(g->sb2 + DEX_OFF + 0x08, pid);
+  }
+}
+/* Ruby / Sapphire's EnableNationalPokedex: what a trade with FireRed / LeafGreen / Emerald does for them. */
+static void enable_national(struct g3 *g) {
+  const struct g3_dex *d = dex_of(g);
+  g->sb2[d->magicOff] = (uint8_t)d->magic;
+  wr16(g->sb1 + d->varsOff + (d->natVar - 0x4000) * 2, (unsigned)d->natVarValue);
+  g->sb1[d->flagsOff + d->natFlag / 8] |= (uint8_t)(1 << (d->natFlag % 8));
+  g->sb2[DEX_OFF + 1] = 1; /* mode: national */
+  g->sb2[DEX_OFF] = 0;     /* order: numerical */
+}
+
+int se_trade_slot(struct save_edit *e, int box, int slot) {
+  if (!se_trade_ready(e) || box < 0)
+    return -1;
+  const uint8_t *r = record(G(e), box, slot);
+  if (!r)
+    return -1;
+  struct box_mon m;
+  decode_box(r, &m);
+  if (!m.ok || (m.head[0x13] & 1))
+    return -1;
+  return rd16(m.data) ? 1 : 0;
+}
+
+const char *se_trade_link_blocker(struct save_edit *a, struct save_edit *b, char *buf, size_t n) {
+  struct g3 *ga = G(a), *gb = G(b);
+  if ((ga->f == &G3_FRLG) == (gb->f == &G3_FRLG))
+    return NULL;
+  struct save_edit *side = ga->f == &G3_FRLG ? a : b;
+  if (flag_on(G(side), DEX_FRLG.linkRs))
+    return NULL;
+  snprintf(buf, n, "%s links with Ruby, Sapphire and Emerald only after the Sevii Islands", G(side)->title);
+  return buf;
+}
+
+static const char *mon_blocker(struct box_mon *m, struct save_edit *from, struct save_edit *to, char *buf, size_t n) {
+  int species = rd16(m->data);
+  if (!species)
+    return NULL;
+  const char *link = se_trade_link_blocker(from, to, buf, n);
+  if (link)
+    return link;
+  bool egg = (rd32(m->data + 40) >> 30) & 1;
+  struct save_edit *sides[2] = {from, to};
+  for (int i = 0; i < 2; i++) {
+    struct g3 *g = G(sides[i]);
+    if (g->f == &G3_RS || national_dex(g))
+      continue;
+    if (egg) {
+      snprintf(buf, n, "%s has no National Dex yet, so no eggs", g->title);
+      return buf;
+    }
+    if (!in_regional(species, dex_of(g)->kanto)) {
+      const char *name = g3_species_name(from, species);
+      snprintf(buf, n, "%s has no National Dex yet, so no %s", g->title, name ? name : "Pokemon from outside it");
+      return buf;
+    }
+  }
+  if ((species == SPECIES_MEW || species == SPECIES_DEOXYS) && !(m->data[47] & 0x80)) {
+    const char *name = g3_species_name(from, species);
+    snprintf(buf, n, "This %s isn't from an event, so the games won't trade it", name ? name : "Pokemon");
+    return buf;
+  }
+  int held = rd16(m->data + 2);
+  if ((held >= 121 && held <= 132) || held == ITEM_ENIGMA_BERRY) {
+    snprintf(buf, n, "Mail and Enigma Berries stay with their save: take it off in the game first");
+    return buf;
+  }
+  return NULL;
+}
+
+const char *se_trade_blocker(struct save_edit *from, int box, int slot, struct save_edit *to, char *buf, size_t n) {
+  if (!se_trade_ready(from) || !se_trade_ready(to))
+    return "Trades are between GBA Pokemon saves";
+  int kind = se_trade_slot(from, box, slot);
+  if (kind < 0) {
+    snprintf(buf, n, "A Bad Egg can't be traded");
+    return buf;
+  }
+  if (!kind)
+    return NULL;
+  struct box_mon m;
+  decode_box(record(G(from), box, slot), &m);
+  return mon_blocker(&m, from, to, buf, n);
+}
+
+static int evolution_of(struct box_mon *m, struct save_edit *to) {
+  int species = rd16(m->data), held = rd16(m->data + 2);
+  if (!species || ((rd32(m->data + 40) >> 30) & 1) || held == ITEM_EVERSTONE)
+    return -1;
+  /* English text: a trade evolution renames by the English species name, so only English games evolve on arrival. */
+  if (G(to)->game.code[3] != 'E')
+    return -1;
+  for (size_t i = 0; i < sizeof TRADE_EVOS / sizeof TRADE_EVOS[0]; i++)
+    if (TRADE_EVOS[i].species == species && (!TRADE_EVOS[i].item || TRADE_EVOS[i].item == held))
+      return (int)i;
+  return -1;
+}
+
+int se_trade_evolution(struct save_edit *from, int box, int slot, struct save_edit *to) {
+  if (se_trade_slot(from, box, slot) != 1 || !se_trade_ready(to))
+    return 0;
+  struct box_mon m;
+  decode_box(record(G(from), box, slot), &m);
+  int i = evolution_of(&m, to);
+  return i >= 0 ? TRADE_EVOS[i].into : 0;
+}
+
+static bool same_name(const char *a, const char *b) {
+  while (*a && *b && toupper((unsigned char)*a) == toupper((unsigned char)*b))
+    a++, b++;
+  return !*a && !*b;
+}
+
+/* M's record as it lands in TO: evolved when it trade-evolves and EVOLVE (the item it needed used up, renamed when its
+ * name was the species' own), and TO's Pokedex told. */
+static void arrive(struct box_mon *m, struct save_edit *from, struct save_edit *to, bool evolve, uint8_t out[BOX_MON]) {
+  struct g3 *g = G(to);
+  uint32_t pid = rd32(m->head);
+  bool egg = (rd32(m->data + 40) >> 30) & 1;
+  int species = rd16(m->data);
+  if (!egg)
+    mark_caught(g, species, pid);
+  int i = evolve ? evolution_of(m, to) : -1;
+  if (i >= 0) {
+    char nick[32], oldName[64];
+    pd_gen3_text(m->head + 8, 10, nick, sizeof nick);
+    const char *old = g3_species_name(from, species);
+    snprintf(oldName, sizeof oldName, "%s", old ? old : "");
+    int into = TRADE_EVOS[i].into;
+    wr16(m->data, (unsigned)into);
+    if (TRADE_EVOS[i].item)
+      wr16(m->data + 2, 0);
+    const char *newName = g3_species_name(to, into);
+    if (*oldName && same_name(nick, oldName) && newName) {
+      char upper[64];
+      size_t k = 0;
+      for (; newName[k] && k + 1 < sizeof upper; k++)
+        upper[k] = (char)toupper((unsigned char)newName[k]);
+      upper[k] = 0;
+      uint8_t name[10];
+      if (encode_name(upper, name, 10)) {
+        /* As gSpeciesNames keeps it: the name, its end, then zeros. */
+        bool ended = false;
+        for (int c = 0; c < 10; c++) {
+          if (ended)
+            name[c] = 0;
+          else if (name[c] == 0xFF)
+            ended = true;
+        }
+        memcpy(m->head + 8, name, 10);
+      }
+    }
+    mark_caught(g, into, pid);
+  }
+  encode_box(m, out);
+}
+
+bool se_trade(struct save_edit *a, int boxA, int slotA, struct save_edit *b, int boxB, int slotB, bool evolve,
+              char *err, size_t n) {
+  if (!se_trade_ready(a) || !se_trade_ready(b) || a == b) {
+    say(err, n, "Trades are between two GBA Pokemon saves");
+    return false;
+  }
+  int ka = se_trade_slot(a, boxA, slotA), kb = se_trade_slot(b, boxB, slotB);
+  if (ka < 0 || kb < 0) {
+    say(err, n, "A Bad Egg can't be traded");
+    return false;
+  }
+  if (!ka && !kb) {
+    say(err, n, "There's no Pokemon there");
+    return false;
+  }
+  uint8_t *ra = record(G(a), boxA, slotA), *rb = record(G(b), boxB, slotB);
+  struct box_mon ma, mb;
+  decode_box(ra, &ma);
+  decode_box(rb, &mb);
+  const char *why = ka ? mon_blocker(&ma, a, b, err, n) : NULL;
+  if (!why && kb)
+    why = mon_blocker(&mb, b, a, err, n);
+  if (why) {
+    if (why != err)
+      say(err, n, why);
+    return false;
+  }
+  /* Every check passed: now both sides change. */
+  uint8_t toB[BOX_MON], toA[BOX_MON];
+  memset(toB, 0, sizeof toB);
+  memset(toA, 0, sizeof toA);
+  if (ka)
+    arrive(&ma, a, b, evolve, toB);
+  if (kb)
+    arrive(&mb, b, a, evolve, toA);
+  memcpy(rb, toB, BOX_MON);
+  memcpy(ra, toA, BOX_MON);
+  /* Ruby / Sapphire get their National Dex from any trade with FireRed / LeafGreen / Emerald (pokeruby trade.c). */
+  struct save_edit *sides[2] = {a, b};
+  for (int i = 0; i < 2; i++) {
+    struct g3 *g = G(sides[i]), *other = G(sides[1 - i]);
+    if (g->f == &G3_RS && other->f != &G3_RS && !national_dex(g))
+      enable_national(g);
+  }
+  a->dirty = b->dirty = true;
+  return true;
+}
+
+/* The file is still the one the editor read (nothing saved it since). */
+static bool unchanged(struct save_edit *e) {
+  size_t size = 0;
+  uint8_t *now = read_file(e->path, &size, 2 * 1024 * 1024);
+  bool same = now && size == G(e)->rawSize && !memcmp(now, G(e)->raw, size);
+  free(now);
+  return same;
+}
+
+bool se_save_both(struct save_edit *a, struct save_edit *b, char *err, size_t n) {
+  if (!se_trade_ready(a) || !se_trade_ready(b)) {
+    say(err, n, "Trades are between two GBA Pokemon saves");
+    return false;
+  }
+  if (!unchanged(a) || !unchanged(b)) {
+    say(err, n, "A save changed since it was read (the game saved?); nothing written. Open the trade again.");
+    return false;
+  }
+  /* Both built and checked before either is written. */
+  uint8_t *oa = NULL, *ob = NULL;
+  size_t sa = 0, sb = 0;
+  bool built = a->ops->build(a, &oa, &sa, err, n) && b->ops->build(b, &ob, &sb, err, n);
+  free(oa);
+  free(ob);
+  if (!built)
+    return false;
+  char backA[1100];
+  if (!se_save(a, backA, sizeof backA, err, n))
+    return false;
+  char backB[1100];
+  if (se_save(b, backB, sizeof backB, err, n))
+    return true;
+  /* The second couldn't be written: the first goes back, so no Pokemon is lost or copied. */
+  size_t bs = 0;
+  uint8_t *back = read_file(backA, &bs, 2 * 1024 * 1024);
+  char tmp[1100];
+  snprintf(tmp, sizeof tmp, "%s.tmp", a->path);
+  bool restored = back && write_file(tmp, back, bs) && replace_file(tmp, a->path);
+  free(back);
+  char why[200];
+  snprintf(why, sizeof why, "%s", err ? err : "");
+  if (err && n)
+    snprintf(err, n, restored ? "%s. The first save was put back, so nothing changed."
+                              : "%s. The first save was written but couldn't be put back: its backup is beside it.",
+             why);
+  return false;
 }
 
 struct save_edit *(*se_gen4_opener)(const uint8_t *, size_t, const uint8_t *, size_t, char *, size_t);

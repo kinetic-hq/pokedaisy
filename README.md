@@ -257,6 +257,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **NUZLOCKE on the desktop**: the Android app's tracker and its tab (under `MORE`): one encounter per area, fainted
   Pokémon out for good, fixes by hand, `DUPES CLAUSE`, `WARNINGS` and `NEW RUN`, in the same GBA games. Each game's run
   is kept in `nuzlocke/` beside the saves, in the app's own format.
+- **TRADE SAVES on the desktop**: a GBA game's options (or `SETTINGS` > `LIBRARY` > `TRADE SAVES`) trade or send
+  a PC box Pokemon between two games' saves with the games' own rules (the islands link gate, the regional dex,
+  trade evolutions), as the Android app does. `SAVE BOTH` backs up and checks both saves, and puts the first back
+  if the second can't be written.
 - **PATCH A ROM on the desktop**: `SETTINGS` > `LIBRARY` > `PATCH A ROM` (or a `.bps` dropped on the game list)
   finds the game the patch is for in the game folders by its size and CRC32, shows what it will do, and writes the
   patched game beside the player's games of its kind, named after the patch, as the Android app does. The base game
