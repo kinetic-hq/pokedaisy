@@ -29,6 +29,23 @@ int main(void) {
   assert(!strcmp(page, "https://github.com/kinetic-hq/pokedaisy/releases/tag/desktop-v1.2.3"));
   assert(strstr(zip, "/pokedaisy-windows-x86_64.zip"));
   assert(strstr(sums, "/SHA256SUMS.txt"));
+  // 1.18.2 on: the release's PokeDaisy-<version>-windows-x86_64.zip is taken whatever its case (the old name too);
+  // the DS experiment's zip and the Linux one never are.
+  const char *renamed =
+      "{\"html_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/tag/desktop-v1.18.2\","
+      "\"tag_name\":\"desktop-v1.18.2\",\"assets\":["
+      "{\"browser_download_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/download/desktop-v1.18.2/"
+      "PokeDaisy-1.18.2-linux-x86_64.zip\"},"
+      "{\"browser_download_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/download/desktop-v1.18.2/"
+      "PokeDaisy-1.18.2-windows-x86_64-ds-experiment.zip\"},"
+      "{\"browser_download_url\":\"https://github.com/kinetic-hq/pokedaisy/releases/download/desktop-v1.18.2/"
+      "POKEDAISY-1.18.2-Windows-X86_64.ZIP\"}]}";
+  assert(updater_parse(renamed, version, sizeof version, zip, sizeof zip, sums, sizeof sums, page, sizeof page));
+  assert(strstr(zip, "/POKEDAISY-1.18.2-Windows-X86_64.ZIP") && !sums[0]);
+  // The checksum is looked up under the asset's own name.
+  const char *sumsList = "ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789  POKEDAISY-1.18.2-Windows-X86_64.ZIP\n";
+  char sumHex[65];
+  assert(updater_sum_for(sumsList, strrchr(zip, '/') + 1, sumHex));
   // The Android app's tags (v*) and anything off GitHub are never taken.
   assert(!updater_parse("{\"tag_name\":\"v1.5.0\",\"html_url\":\"https://github.com/x\"}", version, sizeof version,
                         zip, sizeof zip, sums, sizeof sums, page, sizeof page));

@@ -1,8 +1,13 @@
-"""Package pokedaisy.exe as a portable Windows zip, never game data.
+"""Package the Windows build as a portable zip, never game data.
 
-pokedaisy-windows-x86_64/: pokedaisy.exe, the DLLs it needs that aren't Windows' own
+PokeDaisy-windows-x86_64/: PokeDaisy.exe, the DLLs it needs that aren't Windows' own
 (SDL2.dll: found with objdump beside the compiler), README, licenses, the source
-record and an empty DATA/roms, DATA/saves and DATA/states."""
+record and an empty DATA/roms, DATA/saves and DATA/states.
+
+With --version the zip is PokeDaisy-<version>-windows-x86_64.zip. --updater-copy also
+writes the same zip as pokedaisy-windows-x86_64.zip: the name 1.18.1 and older look
+for (exactly, case and all) when they update themselves. The folder inside keeps the
+name those versions copy from (Windows matches it whatever its case)."""
 from pathlib import Path
 import argparse, os, shutil, subprocess, zipfile
 
@@ -14,6 +19,8 @@ p.add_argument('--melonds', action='store_true', help='a POCKET_MELONDS build: D
 p.add_argument('--dll-dir', type=Path, action='append', default=[],
                help='where to look for DLLs (default: beside objdump / gcc on PATH)')
 p.add_argument('--version', default='', help="the release's version, written to VERSION.txt in the zip")
+p.add_argument('--updater-copy', action='store_true',
+               help='also write pokedaisy-windows-x86_64.zip, the name older versions update from (needs --version)')
 a = p.parse_args()
 repo = Path(__file__).resolve().parents[2]
 data = a.exe.read_bytes()
@@ -22,11 +29,15 @@ if data[:2] != b'MZ' or data[pe:pe + 4] != b'PE\0\0':
     p.error('Expected a Windows executable')
 if int.from_bytes(data[pe + 4:pe + 6], 'little') != 0x8664:
     p.error('Supported package target: x86_64')
-name = 'pokedaisy-windows-x86_64'
+if a.updater_copy and not a.version:
+    p.error('--updater-copy needs --version (the two names differ only in case otherwise)')
+name = 'PokeDaisy-windows-x86_64'
+experiment = ''
 if a.dsperate:
     if b'DSperate %s' not in data:
         p.error('Expected a POCKET_DSPERATE build')
-    name += '-ds-experiment'
+    experiment = '-ds-experiment'
+    name += experiment
 if a.melonds:
     if b'.melonds' not in data:
         p.error('Expected a POCKET_MELONDS build')
@@ -72,7 +83,7 @@ while todo:
 a.output.mkdir(parents=True, exist_ok=True)
 top = a.output / name
 top.mkdir()  # Refuse to overwrite an earlier package.
-shutil.copy2(a.exe, top / 'pokedaisy.exe')
+shutil.copy2(a.exe, top / 'PokeDaisy.exe')
 for path in ship.values():
     shutil.copy2(path, top / path.name)
 for source, target in [(repo / 'linux/windows/README.md', 'README.md'),
@@ -120,7 +131,9 @@ if a.melonds:
                 'with third_party/patches/melonds-pokedaisy.patch at this commit\n')
 if a.version:
     (top / 'VERSION.txt').write_text(a.version + '\n')
-archive = a.output / (name + '.zip')
+archive = a.output / (f'PokeDaisy-{a.version}-windows-x86_64{experiment}.zip' if a.version else name + '.zip')
+if archive.exists():
+    p.error(f'{archive} exists already')
 empty = ['DATA/', 'DATA/roms/', 'DATA/saves/', 'DATA/states/']
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
     for f in sorted(top.rglob('*')):
@@ -132,3 +145,7 @@ with zipfile.ZipFile(archive) as z:
     assert z.testzip() is None
     assert not any(n.lower().endswith(('.gb', '.gbc', '.gba', '.nds', '.sav', '.ss', '.srm', '.bin')) for n in z.namelist())
 print(archive)
+if a.updater_copy:
+    legacy = a.output / 'pokedaisy-windows-x86_64.zip'
+    shutil.copy2(archive, legacy)
+    print(legacy)

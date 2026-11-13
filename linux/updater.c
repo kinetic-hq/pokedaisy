@@ -74,13 +74,25 @@ static bool safe_url(const char *u) {
   return true;
 }
 
-static bool asset_url(const char *json, const char *name, char *out, size_t size) {
+static bool ends_with_nocase(const char *s, const char *end) {
+  size_t n = strlen(s), m = strlen(end);
+  return n >= m && !SDL_strcasecmp(s + n - m, end);
+}
+
+/* A release asset by its file name: exactly `name`, or with windowsZip any pokedaisy*windows-x86_64.zip whatever its
+ * case (PokeDaisy-1.18.2-windows-x86_64.zip; the DS experiment's zip isn't one). */
+static bool asset_url(const char *json, const char *name, bool windowsZip, char *out, size_t size) {
   for (const char *p = json; (p = strstr(p, "\"browser_download_url\"")); p++) {
     char url[1024];
     if (!json_string(json, "browser_download_url", p, url, sizeof url))
       return false;
-    size_t n = strlen(url), m = strlen(name);
-    if (n > m && url[n - m - 1] == '/' && !strcmp(url + n - m, name) && safe_url(url) && strlen(url) < size) {
+    const char *file = strrchr(url, '/');
+    if (!file)
+      continue;
+    file++;
+    bool match = windowsZip ? !SDL_strncasecmp(file, "pokedaisy", 9) && ends_with_nocase(file, "windows-x86_64.zip")
+                            : !strcmp(file, name);
+    if (match && safe_url(url) && strlen(url) < size) {
       strcpy(out, url);
       return true;
     }
@@ -101,9 +113,9 @@ bool updater_parse(const char *json, char *version, size_t versionSize, char *zi
   strcpy(version, tag + prefix);
   if (!json_string(json, "html_url", NULL, page, pageSize) || !safe_url(page))
     return false;
-  if (!asset_url(json, UPDATER_WINDOWS_ZIP, zip, zipSize))
+  if (!asset_url(json, NULL, true, zip, zipSize))
     zip[0] = 0;
-  if (!asset_url(json, UPDATER_SUMS, sums, sumsSize))
+  if (!asset_url(json, UPDATER_SUMS, false, sums, sumsSize))
     sums[0] = 0;
   return true;
 }
@@ -336,7 +348,8 @@ static int download_thread(void *unused) {
   char *sums = fetch(sumsUrl, &sumsSize);
   char *zip = sums ? fetch(zipUrl, &zipSize) : NULL;
   char want[65], got[65];
-  bool ok = zip && zipSize > 4 && !memcmp(zip, "PK\3\4", 4) && updater_sum_for(sums, UPDATER_WINDOWS_ZIP, want);
+  // The checksum under the asset's own name (the URL's last part).
+  bool ok = zip && zipSize > 4 && !memcmp(zip, "PK\3\4", 4) && updater_sum_for(sums, strrchr(zipUrl, '/') + 1, want);
   if (ok) {
     updater_sha256((const uint8_t *)zip, zipSize, got);
     ok = !strcmp(want, got);
@@ -372,6 +385,32 @@ void updater_download(void) {
     SDL_DetachThread(t);
   else
     SDL_AtomicSet(&state, UPDATER_FAILED);
+}
+
+void updater_own_name(void) {
+#ifdef _WIN32
+  wchar_t self[MAX_PATH], to[MAX_PATH], version[MAX_PATH];
+  DWORD n = GetModuleFileNameW(NULL, self, MAX_PATH);
+  if (n == 0 || n >= MAX_PATH)
+    return;
+  wchar_t *base = wcsrchr(self, L'\\');
+  if (!base || wcscmp(base + 1, L"pokedaisy.exe")) // exactly the old name: PokeDaisy.exe or a renamed copy stay
+    return;
+  size_t dir = (size_t)(base + 1 - self);
+  if (dir + 16 > MAX_PATH)
+    return;
+  memcpy(version, self, dir * sizeof *self);
+  wcscpy(version + dir, L"VERSION.txt");
+  if (GetFileAttributesW(version) == INVALID_FILE_ATTRIBUTES) // a build folder, not an install
+    return;
+  memcpy(to, self, dir * sizeof *self);
+  wcscpy(to + dir, L"PokeDaisy.exe");
+  // The same file in Windows' eyes: only its case changes (a running program's file can be renamed).
+  if (MoveFileW(self, to))
+    fprintf(stderr, "Renamed pokedaisy.exe to PokeDaisy.exe\n");
+  else
+    fprintf(stderr, "Couldn't rename pokedaisy.exe to PokeDaisy.exe (%lu)\n", (unsigned long)GetLastError());
+#endif
 }
 
 void updater_finish(void) {
@@ -419,7 +458,7 @@ void updater_finish(void) {
           "if exist staging rmdir /s /q staging\r\n"
           "mkdir staging\r\n"
           "\"%%SYS%%\\tar.exe\" -xf " UPDATER_WINDOWS_ZIP " -C staging >>apply.log 2>&1 || goto failed\r\n"
-          "\"%%SYS%%\\Robocopy.exe\" \"staging\\pokedaisy-windows-x86_64\" \"%s\" /E /XD DATA /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >>apply.log 2>&1\r\n"
+          "\"%%SYS%%\\Robocopy.exe\" \"staging\\PokeDaisy-windows-x86_64\" \"%s\" /E /XD DATA /R:5 /W:1 /NFL /NDL /NJH /NJS /NP >>apply.log 2>&1\r\n"
           "if errorlevel 8 goto failed\r\n"
           "rmdir /s /q staging\r\n"
           "del " UPDATER_WINDOWS_ZIP "\r\n"

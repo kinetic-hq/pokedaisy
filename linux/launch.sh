@@ -20,7 +20,10 @@ if [ "${POCKET_CPU:-}" != keep ] && [ -x "$CPUFREQ" ] && [ -r "$CPU/scaling_gove
   "$CPUFREQ" ondemand 5 8 >> launch.log 2>&1 || restore=""
 fi
 status=0
-./pokedaisy-linux --data "$PAK_DIR" "$@" >> "$PAK_DIR/launch.log" 2>&1 || status=$?
+# The program: PokeDaisy since 1.18.2, pokedaisy-linux in older folders.
+program=./PokeDaisy
+[ -x "$program" ] || program=./pokedaisy-linux
+"$program" --data "$PAK_DIR" "$@" >> "$PAK_DIR/launch.log" 2>&1 || status=$?
 if [ -n "$restore" ]; then
   # shellcheck disable=SC2086 # three words, split on purpose
   set -- $restore
