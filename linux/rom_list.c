@@ -296,6 +296,7 @@ struct names {
   char **names;
   int count, cap;
   const char *dir;
+  const char *ext; // files ending in it are listed too (NULL = folders only)
 };
 static void push(struct names *n, const char *s) {
   if (n->count == n->cap) {
@@ -317,15 +318,18 @@ static void dir_each(const char *name, void *user) {
     return;
   char path[POCKET_FOLDER_MAX + 300];
   rom_dir_join(path, sizeof path, n->dir, name);
-  if (pocket_is_dir(path))
+  size_t len = strlen(name), el = n->ext ? strlen(n->ext) : 0;
+  if (pocket_is_dir(path) || (el && len > el && !strcasecmp(name + len - el, n->ext)))
     push(n, name);
 }
 static int by_name(const void *a, const void *b) {
   return strcasecmp(*(char *const *)a, *(char *const *)b);
 }
 
-int rom_dir_entries(const char *dir, char ***out) {
-  struct names n = {.dir = dir};
+int rom_dir_entries(const char *dir, char ***out) { return rom_dir_entries_with(dir, NULL, out); }
+
+int rom_dir_entries_with(const char *dir, const char *ext, char ***out) {
+  struct names n = {.dir = dir, .ext = ext};
   if (!*dir)
     pocket_roots(root_each, &n);
   else {

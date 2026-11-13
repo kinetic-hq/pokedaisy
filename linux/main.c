@@ -26,6 +26,7 @@
 #include "wing_look.h"
 #include "wide_camera.h"
 #include "day_night.h"
+#include "bps.h"
 #include "bezel.h"
 #include "wing_toast.h"
 #include "shader.h"
@@ -4437,12 +4438,16 @@ static int layout_pick(const char *title, const struct pd_layout_option *options
   return -1;
 }
 /* ADD A FOLDER's browser: the drives, then folders; A opens one, USE THIS FOLDER picks the one you're in, B goes up
- * (at the drives, back out). True with the folder in OUT. */
-static bool browse_folder(char *out, size_t size) {
-  char dir[POCKET_FOLDER_MAX] = "", from[POCKET_FOLDER_MAX] = "";
+ * (at the drives, back out). True with the folder in OUT. With EXT (".bps") it picks a file instead: the folders and
+ * the files ending in it, A on a file picks it. */
+static bool browse_path(char *out, size_t size, const char *ext, const char *title) {
+  static char dir[POCKET_FOLDER_MAX]; // a second look starts where the last one was
+  char from[POCKET_FOLDER_MAX] = "";
+  if (!ext || (*dir && !pocket_is_dir(dir)))
+    dir[0] = 0;
   while (running) {
     char **names;
-    int n = rom_dir_entries(dir, &names), extra = *dir ? 1 : 0, selected = 0;
+    int n = rom_dir_entries_with(dir, ext, &names), extra = *dir && !ext ? 1 : 0, selected = 0;
     const char **items = malloc(sizeof *items * (size_t)(n + 1));
     if (!items) {
       rom_dir_entries_free(names, n);
@@ -4455,7 +4460,7 @@ static bool browse_folder(char *out, size_t size) {
       if (*from && !strcmp(names[i], from))
         selected = i + extra; // back up: the folder you came from
     }
-    int pick = menu_pick(*dir ? dir : "PICK A GAME FOLDER", items, n + extra, selected);
+    int pick = menu_pick(*dir ? dir : title, items, n + extra, selected);
     bool done = false, ok = false;
     from[0] = 0;
     if (pick < 0) {
@@ -4478,7 +4483,11 @@ static bool browse_folder(char *out, size_t size) {
         rom_dir_join(next, sizeof next, dir, names[pick - extra]);
       else
         snprintf(next, sizeof next, "%s", names[pick]);
-      snprintf(dir, sizeof dir, "%s", next);
+      if (ext && *dir && !pocket_is_dir(next)) {
+        snprintf(out, size, "%s", next);
+        done = ok = true;
+      } else
+        snprintf(dir, sizeof dir, "%s", next);
     }
     free(items);
     rom_dir_entries_free(names, n);
@@ -4486,6 +4495,247 @@ static bool browse_folder(char *out, size_t size) {
       return ok;
   }
   return false;
+}
+static bool browse_folder(char *out, size_t size) { return browse_path(out, size, NULL, "PICK A GAME FOLDER"); }
+/* A whole file, up to MAX bytes (NULL past it or when it can't be read). */
+static uint8_t *read_all(const char *path, size_t max, size_t *len) {
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return NULL;
+  uint8_t *data = NULL;
+  long n = fseek(f, 0, SEEK_END) == 0 ? ftell(f) : -1;
+  if (n >= 0 && (size_t)n <= max && fseek(f, 0, SEEK_SET) == 0 && (data = malloc((size_t)n + 1)) &&
+      fread(data, 1, (size_t)n, f) != (size_t)n) {
+    free(data);
+    data = NULL;
+  }
+  fclose(f);
+  if (data)
+    *len = (size_t)n;
+  return data;
+}
+static long file_length(const char *path) {
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return -1;
+  long n = fseek(f, 0, SEEK_END) == 0 ? ftell(f) : -1;
+  fclose(f);
+  return n;
+}
+/* The first N characters of two paths alike, '/' and '\' as one and case aside (the game list joins with '/'). */
+static bool path_prefix(const char *a, const char *b, size_t n) {
+  for (size_t i = 0; i < n; i++) {
+    char x = a[i] == '\\' ? '/' : (char)tolower((unsigned char)a[i]);
+    char y = b[i] == '\\' ? '/' : (char)tolower((unsigned char)b[i]);
+    if (x != y || !x)
+      return false;
+  }
+  return true;
+}
+static bool path_under(const char *path, const char *dir) {
+  size_t n = strlen(dir);
+  while (n && (dir[n - 1] == '/' || dir[n - 1] == '\\'))
+    n--;
+  return path_prefix(path, dir, n) && (path[n] == 0 || path[n] == '/' || path[n] == '\\');
+}
+static bool same_path(const char *a, const char *b) { return strlen(a) == strlen(b) && path_prefix(a, b, strlen(a)); }
+/* Where a patched game of kind PLAT goes, as the app's RomPatcher.outputDir: a game folder named for its kind (gba,
+ * gb / gbc, nds), or such a folder right inside one, the base game's own first; else the base game's folder when it's
+ * in a game folder; else DATA/roms. */
+static void patch_output_dir(char *out, size_t size, enum bps_platform plat, const char *base) {
+  static char roots[POCKET_FOLDERS_MAX + 1][POCKET_FOLDER_MAX];
+  snprintf(roots[0], sizeof roots[0], "%s/roms", root);
+  int n = 1 + rom_folders_read(root, roots + 1, POCKET_FOLDERS_MAX);
+  static const char *const KINDS[][2] = {{"gba", NULL}, {"gb", "gbc"}, {"gbc", "gb"}, {"nds", NULL}};
+  char baseDir[POCKET_FOLDER_MAX];
+  snprintf(baseDir, sizeof baseDir, "%s", base);
+  char *cut = NULL;
+  for (char *p = baseDir; *p; p++)
+    if (*p == '/' || *p == '\\')
+      cut = p;
+  if (cut)
+    *cut = 0;
+  char first[POCKET_FOLDER_MAX] = "";
+  for (int k = 0; k < 2; k++) {
+    const char *kind = KINDS[plat][k];
+    for (int r = 0; kind && r < n; r++) {
+      // The game folder itself, then the folders right inside it.
+      char **names;
+      int m = rom_dir_entries(roots[r], &names);
+      for (int i = -1; i < m; i++) {
+        char cand[POCKET_FOLDER_MAX];
+        if (i < 0) {
+          const char *leaf = roots[r];
+          for (const char *p = roots[r]; *p; p++)
+            if ((*p == '/' || *p == '\\') && p[1])
+              leaf = p + 1;
+          if (strncasecmp(leaf, kind, strlen(kind)) || (leaf[strlen(kind)] && leaf[strlen(kind)] != '/' &&
+                                                         leaf[strlen(kind)] != '\\'))
+            continue;
+          snprintf(cand, sizeof cand, "%.*s", (int)sizeof cand - 1, roots[r]);
+        } else if (!strcasecmp(names[i], kind)) {
+          rom_dir_join(cand, sizeof cand, roots[r], names[i]);
+        } else
+          continue;
+        if (path_under(baseDir, cand)) {
+          snprintf(out, size, "%s", cand);
+          rom_dir_entries_free(names, m);
+          return;
+        }
+        if (!*first)
+          snprintf(first, sizeof first, "%s", cand);
+      }
+      rom_dir_entries_free(names, m);
+    }
+  }
+  if (*first) {
+    snprintf(out, size, "%s", first);
+    return;
+  }
+  for (int r = 0; r < n; r++)
+    if (cut && path_under(baseDir, roots[r])) {
+      snprintf(out, size, "%s", baseDir);
+      return;
+    }
+  pocket_mkdir(roots[0]);
+  snprintf(out, size, "%s", roots[0]);
+}
+static const char *file_leaf(const char *path) {
+  const char *leaf = path;
+  for (const char *p = path; *p; p++)
+    if (*p == '/' || *p == '\\')
+      leaf = p + 1;
+  return leaf;
+}
+/* PATCH A ROM, as the app's: the .bps at PATCH read, the game it was made for found in the game list by its size and
+ * CRC32 (no picking), a look at what will happen, then the patched game written beside the player's other games of its
+ * kind, named after the patch. The base game is never touched; nothing is left behind on a failure. True with the new
+ * game's path in MADE. */
+static bool patch_rom(const char *patch, char *made, size_t madeSize) {
+  size_t plen = 0;
+  uint8_t *pb = read_all(patch, BPS_MAX_BYTES, &plen);
+  if (!pb) {
+    notice("Couldn't read the patch");
+    return false;
+  }
+  struct bps p;
+  enum bps_result r = bps_parse(&p, pb, plen);
+  if (r == BPS_OK && p.sourceSize + p.targetSize > BPS_MAX_BYTES)
+    r = BPS_TOO_BIG;
+  if (r != BPS_OK) {
+    notice(bps_reason(r));
+    free(pb);
+    return false;
+  }
+  // The game it's for: only same-sized files are read.
+  struct rom_list l = {0};
+  rom_list_load(&l, root, true);
+  char base[POCKET_FOLDER_MAX] = "";
+  uint8_t *src = NULL;
+  size_t slen = 0;
+  for (int i = 0; i < l.count && !src; i++) {
+    if (file_length(l.paths[i]) != (long)p.sourceSize)
+      continue;
+    size_t len = 0;
+    uint8_t *d = read_all(l.paths[i], (size_t)p.sourceSize, &len);
+    if (d && len == p.sourceSize && bps_crc32(0, d, len) == p.sourceCrc) {
+      src = d;
+      slen = len;
+      snprintf(base, sizeof base, "%s", l.paths[i]);
+    } else
+      free(d);
+  }
+  rom_list_free(&l);
+  if (!src) {
+    const char *known = bps_known_base(p.sourceCrc);
+    char msg[128];
+    snprintf(msg, sizeof msg, "BASE ROM NOT FOUND: the patch needs %.80s", known ? known : "a game your list doesn't have");
+    notice(msg);
+    free(pb);
+    return false;
+  }
+  enum bps_platform plat = bps_platform_of(src, slen);
+  static const char *const EXT[] = {"gba", "gb", "gbc", "nds"};
+  const char *ext = EXT[plat], *dot = strrchr(file_leaf(base), '.');
+  if ((plat == BPS_GB || plat == BPS_GBC) && dot && (!strcasecmp(dot, ".gb") || !strcasecmp(dot, ".gbc")))
+    ext = dot + 1; // Yellow is a .gb that's also a Color cart
+  char dir[POCKET_FOLDER_MAX], name[300];
+  patch_output_dir(dir, sizeof dir, plat, base);
+  bps_output_name(name, sizeof name, file_leaf(patch), ext);
+  char rows[5][POCKET_FOLDER_MAX + 40];
+  snprintf(rows[0], sizeof rows[0], "PATCH\t" PD_MENU_MUTED "%s", file_leaf(patch));
+  snprintf(rows[1], sizeof rows[1], "GAME\t" PD_MENU_MUTED "%s", file_leaf(base));
+  snprintf(rows[2], sizeof rows[2], "SAVED IN\t" PD_MENU_MUTED "%s", dir);
+  snprintf(rows[3], sizeof rows[3], "APPLY PATCH");
+  snprintf(rows[4], sizeof rows[4], "CANCEL");
+  const char *items[5] = {rows[0], rows[1], rows[2], rows[3], rows[4]};
+  char hint[400];
+  snprintf(hint, sizeof hint, "Makes %s. Your game stays as it is.", name);
+  if (menu_pick_hint("PATCH A ROM", hint, items, 5, 3) != 3) {
+    free(src);
+    free(pb);
+    return false;
+  }
+  uint8_t *out = NULL;
+  size_t olen = 0;
+  r = bps_apply(&p, src, slen, &out, &olen);
+  free(src);
+  free(pb);
+  if (r != BPS_OK) {
+    notice(bps_reason(r));
+    return false;
+  }
+  // A free name (" (2)" and on); the same game made before is kept as it is.
+  char path[POCKET_FOLDER_MAX + 320], stem[300];
+  snprintf(stem, sizeof stem, "%s", name);
+  char *sd = strrchr(stem, '.');
+  if (sd)
+    *sd = 0;
+  rom_dir_join(path, sizeof path, dir, name);
+  for (int k = 2; pocket_exists(path); k++) {
+    size_t have = 0;
+    uint8_t *there = file_length(path) == (long)olen ? read_all(path, olen, &have) : NULL;
+    bool same = there && have == olen && !memcmp(there, out, olen);
+    free(there);
+    if (same) {
+      free(out);
+      snprintf(made, madeSize, "%s", path);
+      char msg[128];
+      snprintf(msg, sizeof msg, "%.100s is there already", file_leaf(path));
+      notice(msg);
+      return true;
+    }
+    char numbered[340];
+    snprintf(numbered, sizeof numbered, "%s (%d).%s", stem, k, ext);
+    rom_dir_join(path, sizeof path, dir, numbered);
+  }
+  char tmp[sizeof path + 8];
+  {
+    char part[360];
+    snprintf(part, sizeof part, ".%.300s.part", file_leaf(path));
+    rom_dir_join(tmp, sizeof tmp, dir, part);
+  }
+  FILE *f = fopen(tmp, "wb");
+  bool ok = f && fwrite(out, 1, olen, f) == olen;
+  if (f)
+    ok = fclose(f) == 0 && ok;
+  ok = ok && pocket_replace(tmp, path);
+  free(out);
+  if (!ok) {
+    pocket_remove(tmp);
+    notice("Couldn't save the patched game there");
+    return false;
+  }
+  snprintf(made, madeSize, "%s", path);
+  char msg[128];
+  snprintf(msg, sizeof msg, "Saved %.110s", file_leaf(path));
+  notice(msg);
+  return true;
+}
+/* PATCH A ROM's start: a .bps picked in the browser. */
+static bool patch_rom_pick(char *made, size_t madeSize) {
+  char patch[POCKET_FOLDER_MAX];
+  return browse_path(patch, sizeof patch, ".bps", "PICK A .BPS PATCH") && patch_rom(patch, made, madeSize);
 }
 /* GAME FOLDERS: the folders the game list reads besides DATA/roms (DATA/roms-folders.txt). True when it changed. */
 static bool folders_screen(void) {
@@ -4766,6 +5016,7 @@ enum {
   ROW_DS_SIDE,
   ROW_DISPLAY,
   ROW_FOLDERS,
+  ROW_PATCH,
   ROW_BOXART,
   ROW_SGDB,
   ROW_BUTTONS,
@@ -4837,6 +5088,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_DISPLAY, "DISPLAY OPTIONS" PD_MENU_PAGE);
       ROW(0, PD_MENU_GROUP "LIBRARY");
       ROW(ROW_FOLDERS, "GAME FOLDERS" PD_MENU_PAGE);
+      ROW(ROW_PATCH, "PATCH A ROM" PD_MENU_PAGE);
       ROW(ROW_BOXART, "BOX ART DOWNLOAD	%s", st.boxartAuto ? "ON" : "OFF");
       {
         char key[80];
@@ -4996,6 +5248,13 @@ static int settings_page(bool *foldersChanged) {
         *foldersChanged = true;
       save = false;
       break;
+    case ROW_PATCH: {
+      char made[POCKET_FOLDER_MAX + 320];
+      if (patch_rom_pick(made, sizeof made))
+        *foldersChanged = true;
+      save = false;
+      break;
+    }
     case ROW_UPDATES:
       st.updateCheck = !st.updateCheck;
       break;
@@ -6242,6 +6501,9 @@ static void library_screen(void) {
     if (get_started())
       library_load(&lib);
   }
+  // POCKET_DROP=<file>: as if the file were dropped on the window (a headless look at PATCH A ROM, a box art).
+  if (getenv("POCKET_DROP") && !droppedFile)
+    droppedFile = strdup(getenv("POCKET_DROP"));
   struct game_grid *grid = &lib.grid;
   uint32_t touchAt = 0;
   bool wasTouching = false, finding = false, syncing = false;
@@ -6314,8 +6576,19 @@ static void library_screen(void) {
       }
     }
     if (droppedFile) {
+      size_t dl = strlen(droppedFile);
+      char made[POCKET_FOLDER_MAX + 320];
+      if (dl > 4 && !strcasecmp(droppedFile + dl - 4, ".bps")) {
+        // A .bps dropped on the window: PATCH A ROM, and the new game picked in the list.
+        if (patch_rom(droppedFile, made, sizeof made)) {
+          library_load(&lib);
+          for (int i = 0; i < lib.games.count; i++)
+            if (same_path(lib.games.paths[i], made))
+              grid->selected = i;
+        }
+      }
       // An image dropped on the window: the selected game's box art.
-      if (lib.count && grid->selected >= 0 && grid->selected < lib.count)
+      else if (lib.count && grid->selected >= 0 && grid->selected < lib.count)
         grid_set_art(lib.stems[grid->selected], droppedFile);
       free(droppedFile);
       droppedFile = NULL;
