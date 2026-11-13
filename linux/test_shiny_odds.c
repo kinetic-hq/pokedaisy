@@ -30,7 +30,7 @@ static const char ORDER[24][5] = {"GAEM", "GAME", "GEAM", "GEMA", "GMAE", "GMEA"
                                   "EGAM", "EGMA", "EAGM", "EAMG", "EMGA", "EMAG", "MGAE", "MGEA", "MAGE", "MAEG", "MEGA", "MEAG"};
 static int logical(char c) { return c == 'G' ? 0 : c == 'A' ? 1 : c == 'E' ? 2 : 3; }
 // The box's 48 bytes in logical order, through its personality and OT ID (decrypt == encrypt).
-static void crypt(const uint8_t *box, const uint8_t *in, uint8_t *out, bool toBox) {
+static void box_crypt(const uint8_t *box, const uint8_t *in, uint8_t *out, bool toBox) {
   uint32_t p = le32(box), key = p ^ le32(box + 4);
   const char *order = ORDER[p % 24];
   for (int slot = 0; slot < 4; slot++)
@@ -72,7 +72,7 @@ int main(void) {
   for (int i = 0; i < 24; i++)
     sum += data[i * 2] | data[i * 2 + 1] << 8;
   box[0x1C] = (uint8_t)sum, box[0x1D] = (uint8_t)(sum >> 8);
-  crypt(box, data, box + 0x20, true);
+  box_crypt(box, data, box + 0x20, true);
   assert(!shiny(old, ot));
 
   struct mCore core;
@@ -86,14 +86,14 @@ int main(void) {
   uint32_t now = le32(box);
   assert(now != old && shiny(now, ot) && now % 25 == old % 25 && (now & 0xFF) == (old & 0xFF));
   uint8_t back[48];
-  crypt(box, box + 0x20, back, false);
+  box_crypt(box, box + 0x20, back, false);
   assert(!memcmp(back, data, sizeof data));
   // Once is enough: the same foe isn't touched again.
   assert(shiny_tick(&r, 1, &core) == 0 && shiny_tick(&r, 1, &core) == 0 && le32(box) == now);
 
   // A foe met with a battle under way already (a trainer's next one) is left alone.
   put32(box, old);
-  crypt(box, data, box + 0x20, true);
+  box_crypt(box, data, box + 0x20, true);
   ewram[0x30000] = 2;
   shiny_roller_init(&r, &t, 7);
   shiny_tick(&r, 1, &core);

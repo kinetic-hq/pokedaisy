@@ -459,8 +459,10 @@ static void test_wide_window(void) {
     assert((w-cases[i].fw)%2==0 && (h-cases[i].fh)%2==0);
   }
 }
-// The companion's canvas: the largest whole scale keeping 320x240.
+// The companion's canvas: the largest whole scale keeping 320x240 (UI SIZE LARGE; MEDIUM, the default, keeps 427x320).
 static void test_companion_size(void) {
+  int savedUi = uiSize;
+  uiSize = 2;
   static const struct {int ow,oh,w,h;} cases[]={
     {640,480,320,240},{1280,720,426,240},{1024,768,341,256},{1920,1080,480,270},{720,720,360,360},
     {750,560,375,280},{960,544,480,272},{512,384,512,384},{320,240,320,240},{300,200,320,240},
@@ -470,6 +472,7 @@ static void test_companion_size(void) {
     if(w!=cases[i].w||h!=cases[i].h)fprintf(stderr,"%dx%d: %dx%d\n",cases[i].ow,cases[i].oh,w,h);
     assert(w==cases[i].w&&h==cases[i].h);
   }
+  uiSize = savedUi;
 }
 // A pad plugged in and out while running (SDL's virtual joystick, which SDL
 // maps as a game controller): opened on its own, its buttons are the game's
