@@ -28,7 +28,8 @@ static bool ends_with(const char *s, const char *tail) {
 }
 
 /* DS: the carts the desktop's DS companion reads (linux/dsperate/frontend.cpp): Platinum (USA, CPUE: Renegade
- * Platinum too) and HeartGold / SoulSilver (USA rev 0). Everything else plays without one. */
+ * Platinum too), HeartGold / SoulSilver (USA rev 0) and Black / White / Black 2 / White 2 (USA / Europe rev 0).
+ * Everything else plays without one. */
 static int ds_support(const char *path, char *detail, size_t size) {
   FILE *f = fopen(path, "rb");
   unsigned char head[0x30] = {0}, mark[4] = {0}, originMark[4] = {0};
@@ -74,6 +75,13 @@ static int ds_support(const char *path, char *detail, size_t size) {
     snprintf(detail, size, "Read as %s by its header: a hack's changes aren't followed", head[15] == 'E' && head[14] == 'K' ? "HeartGold" : "SoulSilver");
     return GAME_SUPPORT_PARTLY;
   }
+  // Black, White, Black 2 and White 2 (USA / Europe rev 0): the Gen 5 companion (frontend.cpp's unova carts).
+  static const char *const UNOVA[] = {"IRBO", "IRAO", "IREO", "IRDO"};
+  for (int i = 0; i < 4; i++)
+    if (!memcmp(head + 12, UNOVA[i], 4) && !head[30]) {
+      snprintf(detail, size, "Every companion tab");
+      return GAME_SUPPORT_FULL;
+    }
   snprintf(detail, size, "No DS companion for this cart (%.4s) yet: the game runs", (const char *)head + 12);
   return GAME_SUPPORT_PLAY;
 }
@@ -262,7 +270,7 @@ void game_support_start(const char *root, const char *const *list, int n, const 
     lock = SDL_CreateMutex();
   snprintf(cachePath, sizeof cachePath, "%s/support-cache.tsv", root);
   // The rules' own revision too, so a build that changes them looks again within a version.
-  snprintf(stampText, sizeof stampText, "pokedaisy %s rules 5", stamp ? stamp : "?");
+  snprintf(stampText, sizeof stampText, "pokedaisy %s rules 6", stamp ? stamp : "?");
   entries = calloc((size_t)n + 1, sizeof *entries);
   paths = calloc((size_t)n + 1, sizeof *paths);
   if (!entries || !paths || !lock)
