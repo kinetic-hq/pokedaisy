@@ -180,8 +180,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
   reach them too), a thin grey gutter at the game's border, still wings dimmed after a minute and moved a pixel
   every few minutes against burn in. The wings fill the screen's height: the party as tall cards, the map round
   the player with badges, play time and money under it. Bezel bars above and below the game where there's room
-  (`BEZEL STYLE` `BLACK` / `GLOW` / `THEME`, each of six places picked in `BEZEL BARS`, the foe and matchups in a
-  battle).
+  (`BEZEL STYLE` `BLACK` / `GLOW` / `THEME`, what they show picked in `LAYOUT`, the foe and matchups in a battle).
 - **More in the bezel bars** on the desktop host: `NEXT BOSS AND CAP`, `CAUGHT HERE`, `LEAD POKEMON` (HP and EXP to
   go) and `LAST SAVED` (a warning after 30 minutes), the bottom bar starting on lead / next boss / money; an empty
   place borrows something neither bar shows, larger text, and the bars now show on 16:9 screens with the wings.
@@ -340,6 +339,14 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **NUZLOCKE on the desktop**: the Android app's tracker and its tab (under `MORE`): one encounter per area, fainted
   Pokémon out for good, fixes by hand, `DUPES CLAUSE`, `WARNINGS` and `NEW RUN`, in the same GBA games. Each game's run
   is kept in `nuzlocke/` beside the saves, in the app's own format.
+- **LAYOUT** on the desktop host (`SETTINGS` > `SCREEN` > `LAYOUT`, replacing `BEZEL BARS`): the top bar, the bottom
+  bar and the right wing are each an ordered list you turn items on and off in and reorder. Defaults: top = place,
+  clock, battery (on battery only), badges, play time, money, next leader, level cap; bottom = caught and seen, zoom %
+  (3 s after a change), game speed (when not 1x), the spray's steps (while active), area encounter (Nuzlocke used /
+  free, else caught here); right wing = map, next boss (its team with levels and type pills), here, quick bag, tip or
+  party weaknesses, state buttons. A full bar shortens the place, then drops play time, then money; the wing drops
+  from the bottom, the buttons staying. New wing sections: items here, TMs here, ready to evolve, Nuzlocke. Party
+  cards get type pills (`PARTY TYPES`). Kept per user, not per game.
 - **The desktop's WINGS polish**: the right wing lists this area's wild kinds (`HERE`: icon, levels, a tick once
   caught) and a `QUICK BAG` (balls, healing, repellents and the steps left on one), with `SAVE STATE` and
   `CLOSE GAME` buttons at its foot (the close asks first, `Cancel` picked). The bezel bars never say a thing twice

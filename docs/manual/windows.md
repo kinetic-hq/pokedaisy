@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -347,7 +347,7 @@ SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
 ### Screen, touch and orientation
 
 The game list's `SETTINGS` (in the bar at its top, or `Y`) is in the app's groups: `SCREEN`
-(`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE` and `DISPLAY OPTIONS`, which has
+(`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE`, `LAYOUT` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
 `GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `TRADE SAVES`, `BOX ART DOWNLOAD`,
 `STEAMGRIDDB KEY`, `BOX ART LOCATION`), `CONTROLS` (`GAME BUTTONS`,
@@ -505,27 +505,44 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   gets a gold glow round its card, a new badge's dot pops, your money counts
   up or down to the new sum, and the bars fade from old words to new ones.
   Turn this on and all of it changes at once instead.
-- **`BEZEL STYLE`** and **`BEZEL BARS`**: where the screen has room above and
-  below the game (a 16:9 screen with the wings has just enough), a bar sits in
-  each. Its text is sized to the bar, a step smaller when all three places wouldn't fit side by side. `BLACK` is near black with light text (the default with a `BLACK` or
-  `DARK` background, so with `OLED` and `DARK MODE`), `GLOW` is a soft, faint
-  glow of the game's own colours, `THEME` the theme's window. `BEZEL BARS`
-  picks what each of the six places shows, or `NONE`: the place, the clock and
-  battery, badges and play time, button hints (they fade when you leave the
-  controls alone), fast forward, the zoom (as a share of the game's picture,
-  `ZOOM 75%`) and a `SAVED` mark, the keep-away spray's
-  steps or your money, `NEXT BOSS AND CAP` (the next leader to beat and their
-  top level), `CAUGHT HERE` (how many of this area's wild Pokemon you have),
-  `LEAD POKEMON` (its HP and the EXP to its next level) and `LAST SAVED` (it
-  warns you after half an hour without a save). The top bar starts on the
-  place, the clock and the next boss with its level cap, the bottom one on your
-  badges (`BADGES 3/8`), your play time and your money. A place with nothing to
-  say borrows something useful neither bar shows yet, so a bar is never half
-  empty, and the bottom bar never repeats what the top one says; `NONE` stays
-  empty. In a battle the
-  bottom bar shows the foe, how your moves do against it, and for a wild one
-  how likely a ball is to work. Anything your game doesn't tell the app is left
-  out.
+- **`BEZEL STYLE`**: where the screen has room above and below the game (a
+  16:9 screen with the wings has just enough), a bar sits in each. Its text is
+  sized to the bar. `BLACK` is near black with light text (the default with a
+  `BLACK` or `DARK` background, so with `OLED` and `DARK MODE`), `GLOW` is a
+  soft, faint glow of the game's own colours, `THEME` the theme's window.
+- **`LAYOUT`** (in `SETTINGS` > `SCREEN`, beside `DISPLAY OPTIONS`): picks what the bars and the right wing show, in order.
+  `TOP BAR`, `BOTTOM BAR` and `RIGHT WING` each open a list: pick a row to turn
+  it on or off, move it up or down, or move it to the top, and `RESET TO
+  DEFAULT` puts the list back. Your choice is kept for every game.
+  - The top bar starts on the place, the clock, the battery (only while the
+    device runs on its battery), your badges (`BADGES 3/8`), the play time,
+    your money, `NEXT LEADER` and `LEVEL CAP`.
+  - The bottom bar starts on `CAUGHT AND SEEN`, `ZOOM` (as a share of the
+    game's picture, shown for 3 seconds after you zoom), `GAME SPEED` (only
+    when the game doesn't run at its normal speed), the keep-away spray's
+    steps (only while one works) and `AREA ENCOUNTER`. With a `NUZLOCKE` run
+    on, that last one says whether this area's encounter is used or free;
+    without one, how many of its wild kinds you have caught.
+  - Other items you can turn on: `LAST SAVED` (it warns you after half an
+    hour without a save), `LEAD POKEMON` (its HP and the EXP to its next
+    level), `CAUGHT HERE`, `NUZLOCKE DEATHS` and `BUTTON HINTS` (they fade when
+    you leave the controls alone).
+  - When a bar runs out of room, the place is cut short first, then the play
+    time goes, then the money. `NEXT LEADER` and `LEVEL CAP` always stay. The
+    two bars never show the same thing.
+  - The right wing starts on `MAP`, `NEXT BOSS` (the leader's name and the
+    type most of their team shares, then each of their team with its level
+    and types), `HERE`, `QUICK BAG`, `TIP OR WEAKNESSES` (the guide's next
+    tip for this area, or your party's shared weaknesses when there is no
+    tip) and `STATE BUTTONS`. You can add `ITEMS HERE`, `TMS HERE`,
+    `READY TO EVOLVE`, `NUZLOCKE`, `CAUGHT / SEEN`, `BADGES`, `PLAY TIME`,
+    `MONEY` and more. What doesn't fit is dropped from the bottom of the
+    list. `MAP` always sits at the top and `STATE BUTTONS` at the foot.
+  - `PARTY TYPES` (on) puts each party card's types on it in the left wing.
+
+  In a battle the bottom bar shows the foe, how your moves do against it, and
+  for a wild one how likely a ball is to work. Anything your game doesn't tell
+  the app is left out.
 - **Wings**: the party fills the left wing top to bottom, a card a Pokemon with
   its level, status, HP and a thin blue EXP bar to its next level (an outlined
   card with a ball for each place still free). A long name gets the room the
