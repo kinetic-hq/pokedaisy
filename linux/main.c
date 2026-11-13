@@ -2037,7 +2037,7 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     }
     if (which == PANEL_RIGHT)
       rightWingMap = !(battle && wingBattleInfo);
-    else
+    else if (strip) // the party's wing is its own: a bar's strip never goes over it
       pd_ui_strip(&pc, a, b, c);
     pocket_wing_look_end(&wl);
     SDL_UpdateTexture(panelTexture[which], &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);

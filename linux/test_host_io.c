@@ -161,7 +161,21 @@ static void test_replace(void) {
   assert(!strcmp(pocket_strsep(&next, ","), "640x480") && !*pocket_strsep(&next, ","));
   assert(!strcmp(pocket_strsep(&next, ","), "1280x720") && !next);
 }
+/* 1.18.0's blank screen: defaults left SCENE SPEEDS, SHINY ODDS, INSTANT TEXT, DAY AND NIGHT... as the stack had them.
+ * Whatever the struct held before, the defaults must give the same settings. */
+static void test_defaults_clean(void) {
+  struct pd_settings a, b;
+  memset(&a, 0xA5, sizeof a);
+  memset(&b, 0x5A, sizeof b);
+  pd_settings_defaults(&a);
+  pd_settings_defaults(&b);
+  assert(!memcmp(&a, &b, sizeof a));
+  for (int i = 0; i < PD_SCENE_COUNT; i++)
+    assert(a.sceneSpeed[i] == 0);
+  assert(a.shinyOdds == 0 && !a.instantText && !a.reusableTms && !a.dayNight && !a.showPerf);
+}
 int main(void) {
+  test_defaults_clean();
   test_backups();
   test_replace();
   struct pocket_save_status status;

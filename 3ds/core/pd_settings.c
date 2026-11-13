@@ -10,6 +10,9 @@
 bool pd_settings_expand_default = false;
 
 void pd_settings_defaults(struct pd_settings* s) {
+    // Everything not set below starts at 0 / off (SHINY ODDS NORMAL, SCENE SPEEDS SAME, INSTANT TEXT, REUSABLE TMS, DAY
+    // AND NIGHT off...): a host's settings live on its stack, so nothing may be left as it was.
+    memset(s, 0, sizeof(*s));
     s->screenMode = PD_SCREEN_SHARP;
     s->ffSpeed = PD_FF_MIN;
     s->guideNotice = 0;
