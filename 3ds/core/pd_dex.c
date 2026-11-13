@@ -325,13 +325,18 @@ static bool expansion_entry(const struct pd_game* g, int national, int species, 
     int a1 = u16(b + x->abilitiesOff), a2 = u16(b + x->abilitiesOff + 2);
     if (a1) pd_ability_name(g, a1, out->ability1, sizeof(out->ability1));
     if (a2 && a2 != a1) pd_ability_name(g, a2, out->ability2, sizeof(out->ability2));
+    int hidden = x->abilitiesOff + 6 <= x->stride ? u16(b + x->abilitiesOff + 4) : 0;
+    if (hidden && hidden != a1 && hidden != a2) pd_ability_name(g, hidden, out->hiddenAbility, sizeof(out->hiddenAbility));
     if (x->eggGroupsOff > 0) egg_groups(b[x->eggGroupsOff], b[x->eggGroupsOff + 1], out);
+    if (x->genderOff > 0) out->genderRatio = b[x->genderOff];
+    if (x->catchRateOff > 0) out->catchRate = b[x->catchRateOff];
     return true;
 }
 
 bool pd_dex_entry(const struct pd_game* g, int national, struct pd_dex_entry* out) {
     memset(out, 0, sizeof(*out));
     out->statCount = 6;
+    out->genderRatio = out->catchRate = -1;
     const struct pd_config* cfg = g->cfg;
     if (cfg && cfg->gb) {
         out->heightIn = out->weightLbs10 = -1; // a metric cart has no feet / pounds (the app's Gen1Dex / Gen2Dex)
@@ -382,11 +387,16 @@ bool pd_dex_entry(const struct pd_game* g, int national, struct pd_dex_entry* ou
         }
         if (a1) pd_ability_name(g, a1, out->ability1, sizeof(out->ability1));
         if (a2 && a2 != a1) pd_ability_name(g, a2, out->ability2, sizeof(out->ability2));
+        int h = cfg->hiddenAbilityOff;
+        int hidden = h > 0 && h + 2 <= bs->stride ? (bs->abilityU16 ? u16(b + h) : b[h]) : 0;
+        if (hidden) pd_ability_name(g, hidden, out->hiddenAbility, sizeof(out->hiddenAbility));
         if (bs->eggGroupsOff > 0 && bs->eggGroupsOff + 1 < bs->stride) {
             int e1 = b[bs->eggGroupsOff];
             if (bs->eggGroupsPacked) egg_groups(e1 >> 4, e1 & 0x0F, out);
             else egg_groups(e1, b[bs->eggGroupsOff + 1], out);
         }
+        if (bs->genderOff > 0 && bs->genderOff < bs->stride) out->genderRatio = b[bs->genderOff];
+        if (bs->catchRateOff > 0 && bs->catchRateOff < bs->stride) out->catchRate = b[bs->catchRateOff];
     }
     return true;
 }

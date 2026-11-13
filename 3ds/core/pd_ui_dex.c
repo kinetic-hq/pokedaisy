@@ -267,6 +267,43 @@ static void info_page(struct pd_canvas* c, const struct pd_dex_entry* e, int ix,
         int ew = pd_text(c, ix, dy, "EGG GROUP", PD_MUTED, PD_MUTED_SHADOW);
         pd_text_fit(c, ix + ew + 6, dy, iw - ew - 6, eg, PD_LABEL, PD_LABEL_SHADOW);
     }
+    // The rest of the app's INFO (HIDDEN, GENDER, CATCH RATE, TOTAL), where the page has room for them and still three
+    // lines of the dex text (a desktop window; the 3DS's page keeps its text).
+    char row[48];
+    if (e->hiddenAbility[0] && lines >= 5) {
+        dy += 15;
+        lines--;
+        int hw = pd_text(c, ix, dy, "HIDDEN", PD_MUTED, PD_MUTED_SHADOW);
+        pd_text_fit(c, ix + hw + 6, dy, iw - hw - 6, e->hiddenAbility, PD_LABEL, PD_LABEL_SHADOW);
+    }
+    if (e->genderRatio >= 0 && lines >= 5) {
+        if (e->genderRatio == 255) snprintf(row, sizeof(row), "UNKNOWN");
+        else if (e->genderRatio == 254) snprintf(row, sizeof(row), "♀ ONLY");
+        else if (e->genderRatio == 0) snprintf(row, sizeof(row), "♂ ONLY");
+        else {
+            // PERCENT_FEMALE(x) is x * 255 / 100, every ratio a multiple of 12.5%: rounded back to it (31 is 12.5%).
+            int female = (e->genderRatio * 1000 / 255 + 62) / 125 * 125, male = 1000 - female;
+            snprintf(row, sizeof(row), "♂ %d%s  ♀ %d%s", male / 10, male % 10 ? ".5%" : "%", female / 10,
+                     female % 10 ? ".5%" : "%");
+        }
+        dy += 15;
+        lines--;
+        int gw = pd_text(c, ix, dy, "GENDER", PD_MUTED, PD_MUTED_SHADOW);
+        pd_text_fit(c, ix + gw + 6, dy, iw - gw - 6, row, PD_LABEL, PD_LABEL_SHADOW);
+    }
+    if (e->catchRate >= 0 && lines >= 5) {
+        int total = 0;
+        for (int i = 0; i < e->statCount; i++) total += e->stats[i];
+        dy += 15;
+        lines--;
+        int cw = pd_text(c, ix, dy, "CATCH RATE", PD_MUTED, PD_MUTED_SHADOW);
+        snprintf(row, sizeof(row), "%d", e->catchRate);
+        pd_text(c, ix + cw + 6, dy, row, PD_LABEL, PD_LABEL_SHADOW);
+        snprintf(row, sizeof(row), "%d", total);
+        int tx = ix + iw - pd_text_width(row);
+        pd_text(c, tx, dy, row, PD_LABEL, PD_LABEL_SHADOW);
+        pd_text(c, tx - 6 - pd_text_width("TOTAL"), dy, "TOTAL", PD_MUTED, PD_MUTED_SHADOW);
+    }
     pd_text_wrap(c, ix, dy + 16, iw, 15, lines - 1, e->description, PD_LABEL, PD_LABEL_SHADOW);
 }
 

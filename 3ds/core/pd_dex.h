@@ -21,6 +21,9 @@ struct pd_dex_entry {
     int statCount; // stats[]' count: 5 on a Gen 1 page (gen1Stats), else 6
     char ability1[16], ability2[16];
     char eggGroups[2][14]; // "MONSTER", "DRAGON"; "" = none (a single group fills only the first)
+    char hiddenAbility[16]; // an expansion game's third ability; "" = none
+    int genderRatio;        // 0 all male .. 254 all female, 255 unknown; -1 = not read (Game Boy)
+    int catchRate;          // -1 = not read
     // A Game Boy page (Gen 1): the cart's own feet / inches and pounds x 10 (0 = from dm / hg), five stats (HP, ATTACK,
     // DEFENSE, SPEED, SPECIAL in stats[0..4]) and no abilities.
     int heightIn, weightLbs10;

@@ -165,6 +165,7 @@ struct pd_base_stats {
     bool abilityU16, statsU16; // ability ids are u16; base stats are u16
     int eggGroupsOff;          // the two egg groups, a byte each (0 = not mapped) ...
     bool eggGroupsPacked;      // ... or a nibble each of one byte (Monomyth's)
+    int genderOff, catchRateOff; // the gender ratio and catch rate bytes (0 = not mapped)
 };
 
 // An expansion game's gSpeciesInfo page (the app's SpeciesInfoDex): the offsets inside one entry; -1 = none.
@@ -295,6 +296,7 @@ struct pd_config {
     int entryHeightOff, entryDescOff, descriptionPage2Off; // -1 = one page
     int abilityNameLength, abilityNameStride; // 0 stride = the length
     bool abilityNamePtr;       // each ability record starts with a pointer to the name
+    int hiddenAbilityOff;      // gBaseStats' hidden ability (a byte, or a u16 with abilityU16); -1 = none
     const struct pd_base_stats* baseStats;
     const struct pd_dex_x* expansion; // NULL = the vanilla-shaped tables above
     const char *probeCategory; // entry 1's category in this game's own language, and its height / weight
