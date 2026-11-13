@@ -112,7 +112,7 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Emerald Legacy | 1.1.4 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Lazarus | 2.0 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
-| Emerald Seaglass | 3.0 | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
+| Emerald Seaglass | 3.0 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
 | Too Many Types 2 | 1.5.2 | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
 | Glazed | 9.2.0 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
 | Emerald Imperium | 1.3.1 | GBA | ROM hack | ✅ | ◐ PARTLY: no DEX | Not yet |
@@ -319,6 +319,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
   units** on the `DEX` page of every GBA game whose cart uses them (Monomyth, the European and Japanese carts), as in the app.
 - **EGG GROUP on the DEX page** on the desktop host for the GBA games, read from each game's own base stats (Monomyth's
   packed into one byte), as the app shows them.
+- **Emerald Seaglass's DEX tab** on the desktop host, in the game's own numbering (Hoenn first), read from its species data.
 - **HIDDEN ability, GENDER ratio, CATCH RATE and stat TOTAL on the DEX page** on the desktop host for the GBA
   games, on a window big enough for them (the 3DS page keeps its old lines), as the app shows them.
 - **Monomyth's DEX sections and GUIDE** on the desktop host: `EVOLVE` (its own eight-row evolution table and methods),
