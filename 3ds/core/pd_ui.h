@@ -124,6 +124,7 @@ struct pd_settings {
     // The 3DS's (the companion's SETTINGS rows on hosts that show them):
     bool hideHints;  // BATTLE HINTS off
     bool oneTapMoves; // ONE-TAP MOVES: the moves on the action menu where FIGHT is
+    bool foeIvs;      // FOE IVS: battle INFO's STATS, the foe's IVs, EVs and nature beside yours
     int gameSpeed;   // GAME SPEED: an index into PD_GAME_SPEEDS
     int sceneSpeed[PD_SCENE_COUNT]; // SCENE SPEEDS (BATTLE, TEXT, MENU, BIKE, SURF): an index into PD_SCENE_SPEEDS, 0 = SAME
     int gameVolume;  // GAME VOLUME: 20 ... 100

@@ -401,6 +401,16 @@ int main(int argc, char** argv) {
         shot(out, name, "battle-suggest", px);
         tap(&p, HIT_BATTLE_INFO, 0);
     }
+    // FOE IVS: INFO's STATS, yours beside the foe's.
+    settings.foeIvs = true;
+    draw(&p);
+    shot(out, name, "battle-foeivs", px);
+    if (has_hit(&p, HIT_BATTLE_STATS)) {
+        tap(&p, HIT_BATTLE_STATS, 0);
+        shot(out, name, "battle-stats", px);
+        tap(&p, HIT_BATTLE_INFO, 0);
+    }
+    settings.foeIvs = false;
     // The desktop host's battle wing (pd_ui_battle_panel), at a wing's size: PD_PREVIEW_WING=WxH.
     const char* wing = getenv("PD_PREVIEW_WING");
     int wingW, wingH;

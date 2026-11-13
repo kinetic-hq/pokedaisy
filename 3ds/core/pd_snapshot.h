@@ -109,6 +109,9 @@ struct pd_snapshot {
     int foeCount;
     struct pd_mon foes[PD_PARTY_SIZE];
     int foeActive, foeNext;
+    // A wild battle's foes (gEnemyParty's first two), for FOE IVS' STATS; a trainer's are in foes.
+    int wildFoeCount;
+    struct pd_mon wildFoes[2];
     int partyActive; // Optional player party index, -1 when unknown in native Gen 2.
     int mapsec;
     long money; // -1 = unknown

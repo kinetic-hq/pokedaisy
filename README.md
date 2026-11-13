@@ -254,6 +254,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   `GAME SPEED` was shown on the desktop but never applied; it now sets the pace in between.
 - **TRADE EVOS on the desktop**: in the English FireRed (rev 1), LeafGreen and Emerald, a party Pokémon that would
   evolve by trading gets `EVOLVE` on its summary, and the game plays its own evolution, as on Android.
+- **FOE IVS on the desktop**: the `COMPANION` setting from the Android app. Battle `INFO` gets `STATS`, your Pokémon and
+  the foe side by side with each stat's IV and EV and the nature, in wild and trainer battles.
 - **SHINY ODDS on the desktop**: `GAMEPLAY` gets `SHINY ODDS` (`NORMAL` up to `1 IN 128`) in the same GBA games and
   hacks as on Android. A wild foe is made shiny as the game creates it, keeping its nature, gender and ability.
 - **INSTANT TEXT and REUSABLE TMS on the desktop**: the two `GAMEPLAY` settings from the Android app, found in the

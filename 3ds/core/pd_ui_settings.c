@@ -252,6 +252,7 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     group(c, ix, &y, "COMPANION");
     setting(ui, c, ix, &y, iw, SETTING_HINTS, "BATTLE HINTS", on_off(!st->hideHints));
     setting(ui, c, ix, &y, iw, SETTING_ONE_TAP, "ONE-TAP MOVES", on_off(st->oneTapMoves));
+    setting(ui, c, ix, &y, iw, SETTING_FOE_IVS, "FOE IVS", on_off(st->foeIvs));
     snprintf(buf, sizeof(buf), "%d TABS", ui_bar_count(ui));
     setting(ui, c, ix, &y, iw, SETTING_TAB_BAR, "TAB BAR", buf);
 
@@ -509,6 +510,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         group(c, ix, &y, "COMPANION");
         setting(ui, c, ix, &y, iw, SETTING_HINTS, "BATTLE HINTS", st->hideHints ? "OFF" : "ON");
         setting(ui, c, ix, &y, iw, SETTING_ONE_TAP, "ONE-TAP MOVES", st->oneTapMoves ? "ON" : "OFF");
+        setting(ui, c, ix, &y, iw, SETTING_FOE_IVS, "FOE IVS", st->foeIvs ? "ON" : "OFF");
     }
     snprintf(buf, sizeof(buf), "%d TABS", ui_bar_count(ui));
     setting(ui, c, ix, &y, iw, SETTING_TAB_BAR, "TAB BAR", buf);

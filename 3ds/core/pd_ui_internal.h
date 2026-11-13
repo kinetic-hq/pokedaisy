@@ -83,6 +83,7 @@ enum {
     HIT_NOTICE_BACK = 2902,
     HIT_BATTLE_SUGGEST = 3000,
     HIT_BATTLE_INFO = 3001,
+    HIT_BATTLE_STATS = 3002, // FOE IVS' STATS
     HIT_FOE_SLOT = 3010,   // + foe party index
     HIT_BAG_ROW = 20000,   // + item index
     HIT_BAG_ROW_END = HIT_BAG_ROW + PD_POCKET_COUNT * PD_POCKET_SLOTS,
@@ -134,6 +135,7 @@ enum setting_row {
     SETTING_TRADE_EVOS,
     SETTING_HINTS,
     SETTING_ONE_TAP,
+    SETTING_FOE_IVS,
     SETTING_RESTART,
     SETTING_VIEW,      // hosts with hasCompanionView: opens its pick-list
     SETTING_UPDATES,   // hosts with hasUpdateCheck: flips in place
@@ -250,6 +252,8 @@ bool ui_battle_controls_act(struct pd_ui* ui, int id, const struct pd_snapshot* 
 // The party's slot SUGGESTIONS would send in (not one already out), or -1; a bit per party slot on the field.
 int ui_recommended_switch(const struct pd_snapshot* s);
 int ui_out_slots(const struct pd_snapshot* s);
+// The summary's STATS table (stat, IV bar, EV, nature, hidden power) for [m], [w] wide from (x, y); its bottom.
+int ui_mon_stats(struct pd_canvas* c, const struct pd_mon* m, int x, int y, int w);
 // PARTY's grid in the canvas; with [out] / [best] its picker: those slots tagged, tapping sends a Pokémon in.
 void ui_party_grid(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, int best, int out);
 // A beveled colour button (PlatinumButton), id < 0 = not tappable.

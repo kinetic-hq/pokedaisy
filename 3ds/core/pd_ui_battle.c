@@ -26,6 +26,8 @@
 #define SUGGEST_GOLD_DARK 0xA87C10
 #define INFO_PURPLE 0x9068D0
 #define INFO_PURPLE_DARK 0x5C3C98
+#define STATS_PURPLE 0x9070D0
+#define STATS_PURPLE_DARK 0x5C4490
 #define VERDICT_GREY 0x8C8C94
 #define OUT_GREEN 0x48A858
 
@@ -372,6 +374,66 @@ static void info(struct pd_canvas* c, const struct battle_data* d, const struct 
     }
 }
 
+// --- STATS (FOE IVS: BattleStatsScreen.kt) ---
+
+// Yours: the party Pokemon out on the left. The foe: the FOE TEAM's shown one (else the one out), or the wild one.
+static const struct pd_mon* stats_you(const struct pd_snapshot* s) {
+    const struct pd_battle_mon* b = &s->battlers[PD_POS_PLAYER_LEFT];
+    for (int i = 0; i < s->partyCount; i++)
+        if (b->species && s->party[i].species == b->species && s->party[i].level == b->level && s->party[i].maxHp == b->maxHp)
+            return &s->party[i];
+    return NULL;
+}
+static const struct pd_mon* stats_foe(const struct pd_ui* ui, const struct pd_snapshot* s) {
+    if (s->isTrainer) {
+        int shown = ui->foeShown >= 0 && ui->foeShown < s->foeCount ? ui->foeShown : s->foeActive;
+        return shown >= 0 && shown < s->foeCount ? &s->foes[shown] : NULL;
+    }
+    return s->wildFoeCount > 0 ? &s->wildFoes[0] : NULL;
+}
+// FOE IVS on and the foe's IVs read: INFO gets STATS.
+static bool stats_offered(const struct pd_ui* ui, const struct pd_snapshot* s) {
+    const struct pd_mon* foe = stats_foe(ui, s);
+    return ui->settings && ui->settings->foeIvs && foe && foe->stats.hasIvs;
+}
+
+// [roomy]: the icon on a line of its own above; else the side, name and level share one line (a short pane).
+static void stats_column(struct pd_canvas* c, const struct battle_data* d, const struct pd_mon* m, const char* side, int x,
+                         int y, int w, bool roomy) {
+    int sw = pd_text(c, x, y, side, PD_VALUE, PD_VALUE_SHADOW) + 6;
+    if (roomy || !m) y += 15;
+    if (!m) {
+        pd_text_fit(c, x, y, w, "NO STATS FOR THIS ONE", PD_MUTED, PD_MUTED_SHADOW);
+        return;
+    }
+    char name[32], lv[12];
+    snprintf(lv, sizeof(lv), "Lv%d", m->level);
+    int lw = pd_text_width(lv), nx = x + sw;
+    const char* shown = *m->nickname ? m->nickname : species_name(d, m->species, name, sizeof(name));
+    if (roomy) {
+        pd_round_rect(c, x, y, PD_ICON + 4, PD_ICON + 4, 2, PD_LIST_FILL);
+        draw_icon(d, c, m->species, m->shiny, x + 2, y + 2, false);
+        nx = x + PD_ICON + 8;
+    }
+    pd_text_fit(c, nx, roomy ? y + 2 : y, x + w - lw - 4 - nx, shown, PD_LABEL, PD_LABEL_SHADOW);
+    pd_text_right(c, x + w, roomy ? y + 2 : y, lv, PD_VALUE, PD_VALUE_SHADOW);
+    y += roomy ? PD_ICON + 8 : 15;
+    if (m->stats.hasIvs || m->stats.hasEvs || m->stats.hasNature) ui_mon_stats(c, m, x, y, w);
+    else pd_text_fit(c, x, y, w, "NO STATS FOR THIS ONE", PD_MUTED, PD_MUTED_SHADOW);
+}
+
+static void stats_pane(struct pd_ui* ui, struct pd_canvas* c, const struct battle_data* d, const struct pd_snapshot* s,
+                       int ix, int iy, int iw, int ih) {
+    int gap = 6, cw = (iw - gap) / 2;
+    bool roomy = ih >= 15 + PD_ICON + 8 + 167; // the table: its head, six stats, the totals, nature and hidden power
+    int cx0 = c->cx0, cy0 = c->cy0, cx1 = c->cx1, cy1 = c->cy1;
+    pd_clip(c, ix, iy, iw, ih);
+    stats_column(c, d, stats_you(s), "YOU", ix, iy, cw, roomy);
+    pd_fill(c, ix + cw + gap / 2, iy, 1, ih, PD_MUTED);
+    stats_column(c, d, stats_foe(ui, s), s->isTrainer ? "FOE" : "WILD", ix + cw + gap, iy, iw - cw - gap, roomy);
+    c->cx0 = cx0, c->cy0 = cy0, c->cx1 = cx1, c->cy1 = cy1;
+}
+
 void ui_battle_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s) {
     const struct battle_data data = {g, ui->battleSource};
     const struct pd_battle_mon* youB = &s->battlers[PD_POS_PLAYER_LEFT];
@@ -402,7 +464,10 @@ void ui_battle_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* 
     int h = barY - 4 - CONTENT_Y;
     int f = pd_title_box(c, x, CONTENT_Y, w, h, PD_TITLE_FILL);
     int ix = x + f + 4, iy = CONTENT_Y + f + 2, iw = w - 2 * (f + 4), ih = h - 2 * (f + 2);
-    if (ui->battlePane) suggestions(c, &data, s, foe, foeState, ix, iy, iw, ih);
+    bool statsOk = stats_offered(ui, s);
+    if (ui->battlePane == 2 && !statsOk) ui->battlePane = 0;
+    if (ui->battlePane == 2) stats_pane(ui, c, &data, s, ix, iy, iw, ih);
+    else if (ui->battlePane) suggestions(c, &data, s, foe, foeState, ix, iy, iw, ih);
     else info(c, &data, s, foe, foeState, &you, ix, iy, iw, ih);
 
     // The bar: the other pane's button, then the FOE TEAM.
@@ -411,13 +476,19 @@ void ui_battle_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* 
     int bw = pd_text_width("SUGGESTIONS") + 20;
     if (ui->battlePane) nav_button(ui, c, x, barY, bw, BAR_H, label, INFO_PURPLE, INFO_PURPLE_DARK, HIT_BATTLE_INFO);
     else nav_button(ui, c, x, barY, bw, BAR_H, label, SUGGEST_GOLD, SUGGEST_GOLD_DARK, HIT_BATTLE_SUGGEST);
+    int stripX = x + bw + 8;
+    if (statsOk && !ui->battlePane) {
+        int sw = pd_text_width("STATS") + 20;
+        nav_button(ui, c, stripX - 4, barY, sw, BAR_H, "STATS", STATS_PURPLE, STATS_PURPLE_DARK, HIT_BATTLE_STATS);
+        stripX += sw + 4;
+    }
     int right = x + w;
     // Back to the controls, while there are any to go back to.
     if (controls) {
         right -= BAR_H + 2;
         nav_button(ui, c, right + 2, barY, BAR_H, BAR_H, "<", 0x4890D8, 0x2860A0, HIT_BATTLE_CONTROLS);
     }
-    foe_strip(ui, c, &data, s, x + bw + 8, barY, right);
+    foe_strip(ui, c, &data, s, stripX, barY, right);
 }
 
 // The pick of ui_battle_tab's SUGGESTIONS, for the POKéMON pane: recommendedSwitch.
@@ -441,8 +512,8 @@ int ui_out_slots(const struct pd_snapshot* s) {
 }
 
 bool ui_battle_act(struct pd_ui* ui, int id) {
-    if (id == HIT_BATTLE_SUGGEST || id == HIT_BATTLE_INFO) {
-        ui->battlePane = id == HIT_BATTLE_SUGGEST;
+    if (id == HIT_BATTLE_SUGGEST || id == HIT_BATTLE_INFO || id == HIT_BATTLE_STATS) {
+        ui->battlePane = id == HIT_BATTLE_SUGGEST ? 1 : id == HIT_BATTLE_STATS ? 2 : 0;
         ui->battleInfoOpen = true;
         return true;
     }
