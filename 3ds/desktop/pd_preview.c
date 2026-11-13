@@ -412,6 +412,11 @@ int main(int argc, char** argv) {
         tap(&p, HIT_BATTLE_INFO, 0);
     }
     settings.foeIvs = false;
+    // BATTLE INFO off: the buttons alone, or a word to use the game's menu.
+    settings.battleInfo = false;
+    draw(&p);
+    shot(out, name, "battle-infooff", px);
+    settings.battleInfo = true;
     // The desktop host's battle wing (pd_ui_battle_panel), at a wing's size: PD_PREVIEW_WING=WxH.
     const char* wing = getenv("PD_PREVIEW_WING");
     int wingW, wingH;

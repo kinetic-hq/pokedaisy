@@ -126,6 +126,8 @@ struct pd_settings {
     bool hideHints;  // BATTLE HINTS off
     bool oneTapMoves; // ONE-TAP MOVES: the moves on the action menu where FIGHT is
     bool foeIvs;      // FOE IVS: battle INFO's STATS, the foe's IVs, EVs and nature beside yours
+    bool battleInfo;  // BATTLE INFO (on): off, the BATTLE tab is the battle buttons only, with no ratings
+    bool battleViewInfo; // BATTLE VIEW: INFO, the BATTLE tab opens on INFO rather than the buttons
     int gameSpeed;   // GAME SPEED: an index into PD_GAME_SPEEDS
     int sceneSpeed[PD_SCENE_COUNT]; // SCENE SPEEDS (BATTLE, TEXT, MENU, BIKE, SURF): an index into PD_SCENE_SPEEDS, 0 = SAME
     int gameVolume;  // GAME VOLUME: 20 ... 100

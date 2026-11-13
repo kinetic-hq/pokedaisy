@@ -201,7 +201,8 @@ void pd_ui_update(struct pd_ui* ui, const struct pd_snapshot* s) {
         ui->summarySlot = -1;
         ui->overlay = PD_OVERLAY_NONE;
         ui->battlePane = 0;
-        ui->battleInfoOpen = false;
+        // BATTLE VIEW: INFO opens on INFO, the buttons a BACK away.
+        ui->battleInfoOpen = ui->settings && ui->settings->battleViewInfo && ui_battle_info_on(ui);
         ui->foeSeen = 0;
         ui->foeSelected = -1;
         ui->lastFoeActive = ui->lastFoeNext = -1;
@@ -575,7 +576,8 @@ static void act(struct pd_ui* ui, int id) {
                id == HIT_SETTING + SETTING_RUN_INDOORS || id == HIT_SETTING + SETTING_HINTS || id == HIT_SETTING + SETTING_ONE_TAP ||
                id == HIT_SETTING + SETTING_LEVEL_CAP || id == HIT_SETTING + SETTING_INSTANT_TEXT ||
                id == HIT_SETTING + SETTING_REUSABLE_TMS || id == HIT_SETTING + SETTING_TRADE_EVOS ||
-               id == HIT_SETTING + SETTING_FOE_IVS) {
+               id == HIT_SETTING + SETTING_FOE_IVS || id == HIT_SETTING + SETTING_BATTLE_INFO ||
+               id == HIT_SETTING + SETTING_BATTLE_VIEW) {
         struct pd_settings* st = ui->settings;
         bool* flag = id == HIT_SETTING + SETTING_MUTE ? &st->gameMuted : id == HIT_SETTING + SETTING_WILD ? &st->wildOff
             : id == HIT_SETTING + SETTING_AUTO_RUN ? &st->autoRun : id == HIT_SETTING + SETTING_RUN_INDOORS ? &st->runIndoors
@@ -583,7 +585,8 @@ static void act(struct pd_ui* ui, int id) {
             : id == HIT_SETTING + SETTING_LEVEL_CAP ? &st->levelCap : id == HIT_SETTING + SETTING_INSTANT_TEXT ? &st->instantText
             : id == HIT_SETTING + SETTING_REUSABLE_TMS ? &st->reusableTms
             : id == HIT_SETTING + SETTING_TRADE_EVOS ? &st->tradeEvolutions
-            : id == HIT_SETTING + SETTING_FOE_IVS ? &st->foeIvs : &st->oneTapMoves;
+            : id == HIT_SETTING + SETTING_FOE_IVS ? &st->foeIvs : id == HIT_SETTING + SETTING_BATTLE_INFO ? &st->battleInfo
+            : id == HIT_SETTING + SETTING_BATTLE_VIEW ? &st->battleViewInfo : &st->oneTapMoves;
         *flag = !*flag;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_FF) {
