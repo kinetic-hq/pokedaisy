@@ -10,6 +10,14 @@
 # The flag arrays are 58 bytes (owned +0x2C, seen +0x66): in the `modern_emerald` fixture the owned bits are the six
 # Pokémon its save was given (183, 252, 282, 303, 399, 416), and the battle fixture's seen bits add its foe (263), as
 # the SaveBlock1 copies do.
+#
+# The DEX sections' tables (set as values on 3ds.toml's modern_emerald config), matched against the game's source
+# (resetes12/pokeemerald): gEvolutionTable 0x088F0100 (EVOS_PER_MON 8, 64 bytes a species: BULBASAUR -> IVYSAUR at
+# Lv16 at +0x40); gLevelUpLearnsets 0x088F7480 and gLevelUpLearnsets_Original 0x088F7BB8 after it (both start with
+# BULBASAUR's list twice; CHARMANDER's modern one is two moves longer); gTMHMLearnsets 0x088E2DB4 and
+# gTMHMLearnsets_Old 0x088E3C24 (58 bits a species, ARBOK / KRABBY / TYPHLOSION as each source table has them);
+# sTMHMMoves 0x088C4784; gWildMonHeaders 0x08BDD874 (20 bytes, ROUTE 101 first); gMapGroups 0x08CDEC28 (group 0's
+# maps in PETALBURG .. SOOTOPOLIS's MAPSEC order).
 [record.MODERN_EMERALD_DEX_FLAGS]
 schema = 'gen3_dexflags'
 kotlin = false

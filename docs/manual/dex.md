@@ -72,6 +72,6 @@ That also means what you see depends on the game:
 - **Pokémon Prism** shows its own Pokédex: its 253 Pokémon in the game's order, numbered the way the game numbers them, with heights and weights in meters and kilograms as the game shows them by default. Like Crystal, the page has no abilities or egg groups, and no `EVOLVE`, `AREA` or `MOVES` yet.
 
 - **Emerald Seaglass** has every section on Windows and Linux. Its `MOVES` lists the moves each Pokémon can be taught, under `TEACHABLE MOVES`, instead of TMs and HMs.
-- **Modern Emerald** has its `DEX` on Windows and Linux only for now: its Hoenn and National lists and each entry's page, but no `EVOLVE`, `AREA` or `MOVES` yet.
+- **Modern Emerald** has its `DEX` on Windows and Linux only for now: its Hoenn and National lists and each entry's page with every section. `MOVES` shows the moves your game's `POKéMON MOVEPOOL` setting gives, the newer lists or the original ones. If your game randomizes moves or evolutions, `MOVES` and `EVOLVE` still show the game's lists from before the shuffle.
 
 If a game has no Pokédex data at all, the `DEX` tab doesn't appear.

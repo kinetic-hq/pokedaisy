@@ -9,6 +9,7 @@
 
 #include "pd_gb.h"
 #include "pd_map.h"
+#include "pd_modern_emerald.h"
 #include "pd_romart.h"
 #include "pd_smol.h"
 #include "pd_snapshot.h"
@@ -29,7 +30,7 @@ static uint32_t u32(const uint8_t* p) {
 int pd_level_moves(const struct pd_game* g,int species,struct pd_level_move* out,int capacity){
     const struct pd_config* cfg=g->cfg;
     if(!cfg || !cfg->learnsets || species<=0)return 0;
-    const uint8_t* ptr=pd_rom_at(g,cfg->learnsets+(uint32_t)species*4,4);
+    const uint8_t* ptr=pd_rom_at(g,pd_modern_emerald_learnsets(g,cfg->learnsets)+(uint32_t)species*4,4);
     if(!ptr)return 0;
     const uint32_t at=u32(ptr);
     const int stride=cfg->learnsetPairs?4:cfg->learnsetCfru?3:2;
@@ -129,7 +130,7 @@ int pd_machine_moves(const struct pd_game* g, int species, struct pd_machine_mov
     if (!cfg->dexTmhm || !cfg->dexTmhmMoves) return -1;
     const uint8_t* moves = pd_rom_at(g, cfg->dexTmhmMoves, 58 * 2);
     const uint8_t* probe = pd_rom_at(g, cfg->dexTmhm + 8, 8);
-    const uint8_t* bits = pd_rom_at(g, cfg->dexTmhm + (uint32_t) species * 8, 8);
+    const uint8_t* bits = pd_rom_at(g, pd_modern_emerald_tmhm(g, cfg->dexTmhm) + (uint32_t) species * 8, 8);
     if (!moves || !probe || !bits) return -1;
     // DexDetails.tmhmChecks: the first four TMs, Cut and Bulbasaur's compatibility.
     static const uint8_t bulbasaur[] = {0x20, 0x07, 0x35, 0x84, 0x08, 0x1E, 0xE4, 0};

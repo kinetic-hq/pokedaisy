@@ -21,3 +21,7 @@ bool pd_modern_emerald(const struct pd_game* g);
 bool pd_modern_emerald_types(const struct pd_game* g, int species, int* t1, int* t2);
 // Its chart under the settings (the "Gen VI+" or the "Modern" one, random matchups passed through): false when G isn't it.
 bool pd_modern_emerald_pct(const struct pd_game* g, int atk, int def, int* pct);
+// The level-up and TM tables the save's POKeMON MOVEPOOL (tx_Mode_Modern_Moves) picks: DEF (the config's, the modern ones) with it on, else the
+// original ones. DEF unchanged for any other game.
+uint32_t pd_modern_emerald_learnsets(const struct pd_game* g, uint32_t def);
+uint32_t pd_modern_emerald_tmhm(const struct pd_game* g, uint32_t def);

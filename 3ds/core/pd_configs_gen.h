@@ -7797,6 +7797,15 @@ static const struct pd_config PD_CONFIG_MODERN_EMERALD = {
     .actionCursor = 0x02001870,
     .moveCursor = 0x02001874,
     .partyMenu = 0x0201D7BC,
+    .dexEvolutions = 0x088F0100,
+    .dexEvoPerMon = 8,
+    .dexEvoScheme = 2,
+    .dexTmhm = 0x088E2DB4,
+    .dexTmhmMoves = 0x088C4784,
+    .learnsets = 0x088F7480,
+    .wildHeaders = 0x08BDD874,
+    .dexMapGroups = 0x08CDEC28,
+    .dexSpeciesCount = 462,
     .text = &pd_text_modern_emerald,
 };
 
