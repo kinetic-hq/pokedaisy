@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - run: git submodule update --init third_party/mgba ${{ matrix.target == 'melonds' && 'third_party/melonds' || 'third_party/dsperate' }}
+      - run: git submodule update --init third_party/rcheevos third_party/mgba ${{ matrix.target == 'melonds' && 'third_party/melonds' || 'third_party/dsperate' }}
       - run: bash .github/scripts/apt-install.sh cmake libsdl2-dev qemu-user-static pkg-config
       - name: Native build and tests
         if: matrix.target == 'native'

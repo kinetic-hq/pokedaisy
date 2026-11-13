@@ -33,7 +33,7 @@ jobs:
             mingw-w64-ucrt-x86_64-SDL2
             mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-pkgconf
-      - run: git config --global --add safe.directory "$(pwd)" && git submodule update --init third_party/mgba third_party/melonds
+      - run: git config --global --add safe.directory "$(pwd)" && git submodule update --init third_party/rcheevos third_party/mgba third_party/melonds
       - name: Build the host and its tests
         run: |
           cmake -S linux -B linux/build-win -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_LTO=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DPOCKET_MELONDS=ON
