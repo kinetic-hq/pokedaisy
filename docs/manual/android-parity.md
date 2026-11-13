@@ -23,7 +23,8 @@ the fork's README.
   the `QUICK MENU` with PC, FLY, the keep-away spray, `BIKE`, `WILD ENCOUNTERS`,
   states, fast forward and the companion.
 - **Speed**: `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `FF MODE`.
-- **Gameplay**: `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `CHEATS`.
+- **Gameplay**: `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`,
+  `REUSABLE TMS`, `CHEATS`.
 - **Look**: `THEME` and `DARK MODE`.
 - **Saves**: a backup of your save each time a game starts, `RESUME GAMES`, and
   states that never hold the save.
@@ -60,7 +61,7 @@ and Berry Pots.
 - `STEADY` fast forward music.
 - `LINK PLAY`, `PATCH A ROM` and `TRADE SAVES`.
 - The `MAKEOVER` group: `PLAYER LOOK`, `TEXT LOOK`, `FOLLOWER`, `DAY AND NIGHT`.
-- `TRADE EVOLUTIONS`, `INSTANT TEXT` and `REUSABLE TMS`.
+- `TRADE EVOLUTIONS`.
 - `BATTLE BUTTONS` over the game (the desktop's `BATTLE WINGS` keep the battle
   beside it instead), `OVERLAY` frames and touch control skins.
 - Feature tips and the app's other languages: the desktop version is in English.

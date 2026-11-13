@@ -73,7 +73,7 @@ Turn on `INSTANT TEXT` in the companion's `SETTINGS`, `GAMEPLAY` group, and the 
 It changes the game while it runs, never your ROM file or your save, and you can switch it off at any time.
 
 > [!NOTE]
-> `INSTANT TEXT` works in FireRed, LeafGreen, Emerald, Ruby and Sapphire and in many hacks built on their code. Where it can't work the row shows `N/A`.
+> `INSTANT TEXT` works in FireRed, LeafGreen, Emerald, Ruby and Sapphire and in many hacks built on their code. Where it can't work the row shows `N/A`. On Windows and Linux it's in the same place and works in the same games.
 
 ## Slow motion
 

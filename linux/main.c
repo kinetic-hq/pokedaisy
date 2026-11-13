@@ -9,6 +9,7 @@
 #include "view_layout.h"
 #include "pd_romart.h"
 #include "pd_settings.h"
+#include "pd_rom_tweaks.h"
 #include "pd_ui.h"
 #include "pd_experience.h"
 #include "pd_ui_internal.h"
@@ -2681,6 +2682,14 @@ static void pacing_check(double frameMs) {
   count = 0;
 }
 /* plorpOS: speed > 1 is fast-forward with its sound: as many samples as one frame's, so it plays sped up. */
+// INSTANT TEXT / REUSABLE TMS onto the ROM, or the file's bytes back (pd_rom_tweaks.c). mGBA copies the ROM before
+// its first write, so the file and the bytes the game was named and hashed by stay as they were.
+static void tweak_apply(struct mCore *c, const uint8_t *rom, const struct pd_tweak_patch *p, bool on) {
+  for (int i = 0; i < p->count; i++)
+    for (int b = 0; b < p->writes[i].len; b++)
+      c->rawWrite8(c, 0x08000000u + p->writes[i].at + (uint32_t)b, -1, on ? p->writes[i].value[b] : rom[p->writes[i].at + (uint32_t)b]);
+}
+
 static void audio_rate(struct mCore *c, double gameHz, int speed) {
   double rate = 32768;
   if (vsyncPaced && audio && screenHz > 0) {
@@ -3153,6 +3162,18 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                               .batteryPct = -1, .layouts = companion_layouts(), .layoutCount = POCKET_VIEWS};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   host.hasStates = true; // STATES: slot 0 (the old one state file) is picked to begin with
+  // INSTANT TEXT and REUSABLE TMS: found in the ROM's own code, GBA games only (as on Android).
+  struct pd_tweak_patch textPatch = {0}, tmPatch = {0};
+  bool textOn = false, tmsOn = false;
+  if (c->platform(c) == mPLATFORM_GBA) {
+    pd_instant_text_find(romdata, (size_t)len, &textPatch);
+    pd_reusable_tms_find(romdata, (size_t)len, &tmPatch);
+    host.hasRomTweaks = true;
+    host.instantTextFits = textPatch.count > 0;
+    host.reusableTmsFits = tmPatch.count > 0;
+    // Radical Red's, Unbound's and SoulGold's own TMs never run out.
+    host.reusableTmsBuiltIn = game.guide == PD_GUIDE_RADICAL_RED || game.guide == PD_GUIDE_UNBOUND || game.guide == PD_GUIDE_SOULGOLD;
+  }
   host.hasResume = true;
   host.hasRumble = true;
   host.hasPerGame = true;
@@ -3729,6 +3750,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       if (saving && count > 3)
         count = 3;
       audio_rate(c, hz, count);
+      if ((settings.instantText && textPatch.count > 0) != textOn) {
+        textOn = !textOn;
+        tweak_apply(c, romdata, &textPatch, textOn);
+      }
+      if ((settings.reusableTms && tmPatch.count > 0 && !host.reusableTmsBuiltIn) != tmsOn) {
+        tmsOn = !tmsOn;
+        tweak_apply(c, romdata, &tmPatch, tmsOn);
+      }
       uint64_t runStart = SDL_GetPerformanceCounter();
       for (int i = 0; i < count; i++) {
         uint64_t t = SDL_GetPerformanceCounter();

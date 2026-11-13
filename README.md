@@ -245,6 +245,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   order, so there's no NEXT BOSS.
 - **Petalburg Dynasty's Tera type**: BATTLE shows a Terastallized Pokémon's Tera type, and the verdicts and weaknesses
   that go with it, on Android, the desktop host and the 3DS port. A Stellar Tera keeps its own types.
+- **INSTANT TEXT and REUSABLE TMS on the desktop**: the two `GAMEPLAY` settings from the Android app, found in the
+  ROM's own code the same way, so they fit the same GBA games and show `N/A` elsewhere.
 - **DS double battles on the desktop**: Black, White, Black 2 and White 2 show the BATTLE tab in a double battle too,
   with the foe on the left and your Pokémon on the left, as a GBA double does. Before, the tab didn't appear at all.
 - **Petalburg Dynasty's MAP picture** on the desktop host, the 3DS port and Android: the game keeps Emerald's own map,

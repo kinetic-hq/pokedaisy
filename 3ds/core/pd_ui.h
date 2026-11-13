@@ -106,6 +106,8 @@ struct pd_settings {
     bool ffAudio;    // the game's sound sped up under fast-forward, else silent
     bool rewind;     // REWIND: the last ~20 s kept for the rewind hotkey
     bool runIndoors; // RUN INDOORS: every map lets the player run
+    bool instantText; // INSTANT TEXT: a text box's words appear at once (pd_rom_tweaks.c)
+    bool reusableTms; // REUSABLE TMS: a TM stays in the bag after it teaches a move
     int batterySaver; // BATTERY SAVER: enum pd_battery_saver
     bool rumble;      // RUMBLE: the controller buzzes as a battle starts, harder for a shiny foe, and for rumble carts
     bool resumeGames; // RESUME GAMES: a state on leaving a game, offered back (CONTINUE) at its next start
@@ -284,6 +286,10 @@ struct pd_host_info {
     struct pd_state_slot slots[PD_STATE_SLOTS];
     bool undoSave, undoLoad; // STATES' UNDO has something to put back
     bool hasCheats;          // the game has a .cheats file
+    bool hasRomTweaks;       // the host can patch the ROM: the INSTANT TEXT and REUSABLE TMS rows
+    bool instantTextFits;    // the ROM's text code is known
+    bool reusableTmsFits;    // the ROM's code that uses a TM up is known
+    bool reusableTmsBuiltIn; // the game's own TMs never run out: ON, greyed
     int slotSelected;
 };
 
