@@ -238,6 +238,8 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
             setting(ui, c, ix, &y, iw, SETTING_ASPECT, "ASPECT", pd_aspect_name(st->aspect));
             if (st->aspect == PD_ASPECT_ZOOM_OUT)
                 setting(ui, c, ix, &y, iw, SETTING_AUTO_ZOOM, "AUTO ZOOM IN", on_off(st->autoZoom));
+            if (host->hasLookAround && st->aspect != PD_ASPECT_ORIGINAL)
+                setting(ui, c, ix, &y, iw, SETTING_LOOK_AROUND, "LOOK AROUND", on_off(st->lookAround));
         } else {
             muted_row(c, ix, &y, iw, "ASPECT", "N/A");
         }
@@ -467,6 +469,8 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
             // ZOOM OUT has anything to step back from.
             if (st->aspect == PD_ASPECT_ZOOM_OUT)
                 setting(ui, c, ix, &y, iw, SETTING_AUTO_ZOOM, "AUTO ZOOM IN", st->autoZoom ? "ON" : "OFF");
+            if (host->hasLookAround && st->aspect != PD_ASPECT_ORIGINAL)
+                setting(ui, c, ix, &y, iw, SETTING_LOOK_AROUND, "LOOK AROUND", st->lookAround ? "ON" : "OFF");
         } else {
             // This game's overworld can't be rebuilt: shown, not tappable.
             muted_row(c, ix, &y, iw, "ASPECT", "N/A");

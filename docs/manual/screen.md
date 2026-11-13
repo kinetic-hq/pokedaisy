@@ -53,6 +53,8 @@ With `EXPAND` on, the `ZOOM` hotkey steps the view out so you see further around
 
 The **right stick** looks around (turn off `LOOK AROUND` in the `SCREEN` group if you'd rather it didn't). Push it and the view moves; let go and it stays put until you walk, then glides back to you. Hold it while you walk and the camera looks ahead in that direction, keeping your character on screen.
 
+On Windows and Linux the right stick of any controller looks around the same way, in Game Boy and GBA games with `ASPECT` on `EXPAND` or `ZOOM OUT`. `LOOK AROUND` sits under `ASPECT` in the `SCREEN` group. A battle or a menu brings the view back to you.
+
 ## DS resolution: sharper 3D
 
 The DS games (Platinum, HeartGold and SoulSilver) draw their world in 3D, and the DS drew it small: 256 by 192 pixels, so on a big screen the edges look jagged. `DS RESOLUTION` draws that 3D at more pixels instead.

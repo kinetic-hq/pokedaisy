@@ -96,6 +96,7 @@ struct pd_settings {
     int aspect;      // enum pd_aspect (hosts with hasExpand only)
     bool aspectPicked; // ASPECT chosen by the player (pd_settings_expand_default leaves a chosen ORIGINAL alone)
     bool autoZoom;   // AUTO ZOOM IN: ZOOM OUT steps back in off the plain overworld
+    bool lookAround; // LOOK AROUND (on): with EXPAND, the right stick moves the view (hasLookAround hosts)
     bool wildOff;    // WILD ENCOUNTERS off (hosts that can: the Linux host's quick menu)
     int tabBar;      // TAB BAR: a bit per enum pd_tab on the bar (PARTY .. DEX, CARD); the rest open from MORE
     bool showPerf;   // FPS / CPU in the corner of the game (hosts with hasPerf)
@@ -261,6 +262,7 @@ struct pd_host_info {
     bool hasExpand;      // Optional: the host can EXPAND (ASPECT / AUTO ZOOM IN rows) ...
     bool expandGame;     // ... and does for this game (else ASPECT reads N/A)
     bool hasHud;         // Optional: the host draws the HUD over the game (its SETTINGS row)
+    bool hasLookAround;  // Optional: the host's EXPAND follows the right stick (LOOK AROUND's row)
     bool hasCompanionView; // Optional: COMPANION VIEW's row (settings.companionView) ...
     // ... opening LAYOUT's drawn picker when the host hands its layouts over (else a plain pick-list), one per
     // enum pd_companion_view in order (pd_layout_pick.h).
