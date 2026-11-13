@@ -409,6 +409,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   `PokeDaisy-<version>-linux-x86_64.zip` (its program `PokeDaisy`). Each release keeps a
   `pokedaisy-windows-x86_64.zip` copy so 1.18.1 and older still update themselves, and an updated install's
   `pokedaisy.exe` renames itself `PokeDaisy.exe` on its first start.
+- **The right wing's buttons take their own clicks**: `SAVE STATE` and `CLOSE GAME` read where the click or
+  tap landed, not where the mouse went after it, so they no longer open the companion instead.
 
 </details>
 
