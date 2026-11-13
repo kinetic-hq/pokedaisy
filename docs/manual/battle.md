@@ -124,7 +124,7 @@ On the desktop, a double battle in Black, White, Black 2 or White 2 brings up th
 
 ### Foe IVs
 
-The foe's IVs, EVs and nature are hidden by default, since knowing them is a bit of a peek. Turn on `FOE IVS` in SETTINGS and `INFO` gets a `STATS` button: your Pokémon and the foe side by side, each stat with its IV and EV, plus `NATURE` and `HIDDEN POWER`. It's the same view as the [STATS page in a summary](party.md).
+The foe's IVs, EVs and nature are hidden by default, since knowing them is a bit of a peek. Turn on `FOE IVS` in SETTINGS and `INFO` gets a `STATS` button: your Pokémon and the foe side by side, each stat with its IV and EV, plus `NATURE` and `HIDDEN POWER`. It's the same view as the [STATS page in a summary](party.md). On Windows and Linux, `FOE IVS` is in the `COMPANION` group of the settings and works in wild battles and trainer battles alike. In a trainer battle, `STATS` shows the foe picked in the team bar.
 
 ## The foe's team
 

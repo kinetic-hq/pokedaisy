@@ -568,14 +568,16 @@ static void act(struct pd_ui* ui, int id) {
     } else if (id == HIT_SETTING + SETTING_MUTE || id == HIT_SETTING + SETTING_WILD || id == HIT_SETTING + SETTING_AUTO_RUN ||
                id == HIT_SETTING + SETTING_RUN_INDOORS || id == HIT_SETTING + SETTING_HINTS || id == HIT_SETTING + SETTING_ONE_TAP ||
                id == HIT_SETTING + SETTING_LEVEL_CAP || id == HIT_SETTING + SETTING_INSTANT_TEXT ||
-               id == HIT_SETTING + SETTING_REUSABLE_TMS || id == HIT_SETTING + SETTING_TRADE_EVOS) {
+               id == HIT_SETTING + SETTING_REUSABLE_TMS || id == HIT_SETTING + SETTING_TRADE_EVOS ||
+               id == HIT_SETTING + SETTING_FOE_IVS) {
         struct pd_settings* st = ui->settings;
         bool* flag = id == HIT_SETTING + SETTING_MUTE ? &st->gameMuted : id == HIT_SETTING + SETTING_WILD ? &st->wildOff
             : id == HIT_SETTING + SETTING_AUTO_RUN ? &st->autoRun : id == HIT_SETTING + SETTING_RUN_INDOORS ? &st->runIndoors
             : id == HIT_SETTING + SETTING_HINTS ? &st->hideHints
             : id == HIT_SETTING + SETTING_LEVEL_CAP ? &st->levelCap : id == HIT_SETTING + SETTING_INSTANT_TEXT ? &st->instantText
             : id == HIT_SETTING + SETTING_REUSABLE_TMS ? &st->reusableTms
-            : id == HIT_SETTING + SETTING_TRADE_EVOS ? &st->tradeEvolutions : &st->oneTapMoves;
+            : id == HIT_SETTING + SETTING_TRADE_EVOS ? &st->tradeEvolutions
+            : id == HIT_SETTING + SETTING_FOE_IVS ? &st->foeIvs : &st->oneTapMoves;
         *flag = !*flag;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_FF) {

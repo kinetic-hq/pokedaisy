@@ -870,7 +870,7 @@ static int chips_of(struct pd_canvas* c, const char* heading, int t1, int t2, in
     return y + 14;
 }
 
-static void summary_stats(struct pd_canvas* c, const struct pd_mon* m, int x, int y, int w) {
+int ui_mon_stats(struct pd_canvas* c, const struct pd_mon* m, int x, int y, int w) {
     const struct pd_mon_stats* st = &m->stats;
     char buf[32];
     int labelW = w * 36 / 100, statW = 26, evW = 24;
@@ -925,7 +925,9 @@ static void summary_stats(struct pd_canvas* c, const struct pd_mon* m, int x, in
         int vw = pd_text_width(buf);
         if (vw > w - lw - 8) vw = w - lw - 8;
         pd_text_fit(c, x + w - vw, y, vw, buf, PD_LABEL, PD_LABEL_SHADOW);
+        y += 15;
     }
+    return y;
 }
 
 // INFO (dev's pane, in the window's right half here): the EXP bar, the held item and its description, the type matchups
@@ -1478,7 +1480,7 @@ void ui_mon_summary(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game*
         } else if (ui->summaryInfo) {
             summary_info(c, g, m, rx, iy, rw, iy + ih, true);
         } else if (ui->summaryStats && m->stats.valid) {
-            summary_stats(c, m, rx, iy, rw);
+            ui_mon_stats(c, m, rx, iy, rw);
         } else {
             summary_moves(ui, c, g, m, rx, iy, rw, ih);
         }

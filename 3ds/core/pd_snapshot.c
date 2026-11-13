@@ -380,6 +380,7 @@ static void decode_battle_mon(const uint8_t* raw, const struct pd_battle_layout*
 static void read_save_fields(struct pd_snapshot* s, const struct pd_game* g, pd_read_fn read, void* ctx,
                              uint32_t sb1, uint32_t sb2);
 static void read_foes(struct pd_snapshot* s, const struct pd_config* cfg, pd_read_fn read, void* ctx, int foeBattler);
+static void read_wild_foes(struct pd_snapshot* s, const struct pd_config* cfg, pd_read_fn read, void* ctx);
 
 
 static bool read_u32(pd_read_fn read, void* ctx, uint32_t addr, uint32_t* out) {
@@ -563,6 +564,7 @@ void pd_snapshot_read(struct pd_snapshot* s, const struct pd_game* g, pd_read_fn
             }
         }
         if (s->isTrainer && cfg->enemyParty) read_foes(s, cfg, read, ctx, foeBattler);
+        else if (cfg->enemyParty) read_wild_foes(s, cfg, read, ctx);
         if (cfg->activeGimmickOff) read_tera(s, cfg, read, ctx, n, pos);
     }
 
@@ -968,6 +970,14 @@ const char* pd_status_label(uint32_t status) {
     if (status & (1 << 7)) return "TOX";
     if (status & (1 << 3)) return "PSN";
     return "";
+}
+
+static void read_wild_foes(struct pd_snapshot* s, const struct pd_config* cfg, pd_read_fn read, void* ctx) {
+    const struct pd_party_layout* lay = cfg->partyLayout ? cfg->partyLayout : &pd_party_layout_vanilla;
+    uint8_t raw[2 * MON_SIZE_MAX];
+    if (!read(ctx, cfg->enemyParty, raw, 2 * lay->size)) return;
+    for (int i = 0; i < 2; i++)
+        if (pd_decode_party_mon_c(raw + i * lay->size, lay, cfg, &s->wildFoes[s->wildFoeCount])) s->wildFoeCount++;
 }
 
 // The trainer's party and which of it is out / next (readNativeTelemetry's

@@ -17,7 +17,7 @@ the fork's README.
 - **The games**: Game Boy, Game Boy Color, GBA and Nintendo DS, the retail
   games and the ROM hacks the companion knows.
 - **The companion's tabs**: `PARTY`, `BAG`, `MAP`, `GUIDE`, the Pokedex,
-  `BATTLE` (with `INFO`, `SUGGESTIONS` and `ONE-TAP MOVES`), the `TRAINER CARD`,
+  `BATTLE` (with `INFO`, `SUGGESTIONS`, `ONE-TAP MOVES` and `FOE IVS`' `STATS`), the `TRAINER CARD`,
   `BOXES`, `STATES` and `SETTINGS`, with `TAB BAR` and `MORE`.
 - **The field**: `ASPECT` `EXPAND` with zoom and `AUTO ZOOM IN`, the `HUD`, and
   the `QUICK MENU` with PC, FLY, the keep-away spray, `BIKE`, `WILD ENCOUNTERS`,
