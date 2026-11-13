@@ -285,6 +285,17 @@ pcScript = '@items.pc.script'
 # The battle's touch controls (BattleInputController): the handlers that say what the battle waits for, the menus'
 # cursors, gPartyMenu. The app keeps gPartyMenu and its grid in PokeDaisyActivity.switchAddrsFor where its config
 # doesn't: a config's `values` give them here. No partyMenu = no POKéMON switch on that game, as in the app.
+# TRADE EVOLUTIONS (TradeEvolution.kt's TradeEvoFns): GetEvolutionTargetSpecies, BeginEvolutionScene,
+# gCB2_AfterEvolution, CB2_ReturnToField, LockPlayerFieldControls and those functions' first 32 bytes' CRC32
+# (all but gCB2_AfterEvolution, in that order). The configs that have one name it `trade` in their records.
+[part.trade]
+tradeEvoTarget = '@trade.getEvolutionTarget'
+tradeEvoScene = '@trade.beginEvolutionScene'
+tradeAfterEvolution = '@trade.afterEvolution'
+tradeReturnToField = '@trade.returnToField'
+tradeLockControls = '@trade.lockControls'
+tradeCrcs = '@trade.codeCrcs'
+
 [part.battle]
 inBattleOff = 'inBattleOff'
 battlerControllerFuncs = 'battlerControllerFuncs'
@@ -332,8 +343,8 @@ dexMapGroups = 'guideTables.mapGroups'
 # its quick menu from FIELD_ITEMS_PORTS["BPRE0"] (fieldItemsFor).
 [config.firered_rev1]
 name = 'FIRERED_REV1'
-parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec']
-records = { items = 'FIELD_ITEMS_FIRERED_REV1' }
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec', 'trade']
+records = { items = 'FIELD_ITEMS_FIRERED_REV1', trade = 'TRADE_EVO_FIRERED_REV1' }
 values = { partyMenu = 0x0203B0A0, pokemonStoragePtr = 0x03005010 }
 
 [config.firered_rev0_retail]
@@ -344,18 +355,18 @@ values = { pokemonStoragePtr = 0x03005010 }
 
 [config.leafgreen_rev0_retail]
 name = 'LEAFGREEN_REV0'
-parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec']
-records = { items = 'FIELD_ITEMS_LEAFGREEN_REV0' }
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec', 'trade']
+records = { items = 'FIELD_ITEMS_LEAFGREEN_REV0', trade = 'TRADE_EVO_LEAFGREEN_REV0' }
 
 [config.leafgreen_rev1]
 name = 'LEAFGREEN_REV1'
-parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec']
-records = { items = 'FIELD_ITEMS_LEAFGREEN_REV1' }
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec', 'trade']
+records = { items = 'FIELD_ITEMS_LEAFGREEN_REV1', trade = 'TRADE_EVO_LEAFGREEN_REV1' }
 
 [config.emerald_retail]
 name = 'EMERALD'
-parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec']
-records = { items = 'FIELD_ITEMS_EMERALD' }
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'card', 'fly', 'field', 'battle', 'engine', 'boxes', 'dexsec', 'trade']
+records = { items = 'FIELD_ITEMS_EMERALD', trade = 'TRADE_EVO_EMERALD' }
 values = { partyMenu = 0x0203CEC8, pokemonStoragePtr = 0x03005D94 }
 
 # plorpOS's Linux port: the hacks, as their records reach gen3/records/c_hacks.toml. Emerald Legacy v1.1.4: retail's

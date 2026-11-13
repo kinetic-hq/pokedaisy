@@ -227,6 +227,7 @@ void ui_boxes_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g
     }
     if (ui->boxSummary >= 0 && b->has[ui->boxSummary]) {
         int shown = 0, n = fill_column(b, ui->boxSummary, &shown);
+        ui->summaryEvolve = false;
         ui_mon_summary(ui, c, g, s, &b->mons[ui->boxSummary], column, n, shown, false, ui->boxMoves ? "PC" : NULL);
         if (*ui->boxMessage) ui_box_message(ui, c);
         return;

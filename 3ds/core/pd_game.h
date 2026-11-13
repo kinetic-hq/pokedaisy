@@ -394,6 +394,10 @@ struct pd_config {
     uint32_t pcSetupScript;
     int pcSpecial;
     uint32_t pcSpecials, pcFn, pcCrcs[2], pcScript;
+    // TRADE EVOLUTIONS (TradeEvolution.kt): GetEvolutionTargetSpecies, BeginEvolutionScene, gCB2_AfterEvolution,
+    // CB2_ReturnToField, LockPlayerFieldControls; tradeCrcs: the four functions' first 32 bytes. 0 = none.
+    uint32_t tradeEvoTarget, tradeEvoScene, tradeAfterEvolution, tradeReturnToField, tradeLockControls;
+    uint32_t tradeCrcs[4];
 };
 
 // GLAZED: Emerald's card with its own badges, pics, font and regional dex.

@@ -1519,6 +1519,13 @@ void ui_mon_summary(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game*
         int bw = pd_text_width("MOVES") + 16;
         ui_platinum(ui, c, bx, by, bw, btnH, 0x4890D8, 0x2860A0, HIT_SUMMARY_INFO);
         pd_text(c, bx + (bw - pd_text_width(label)) / 2, pd_text_y(by, btnH), label, 0xFFFFFF, 0x383838);
+        bx += bw + 3;
+    }
+    if (ui->summaryEvolve && !egg && !pcLabel) {
+        // TRADE EVOLUTIONS: the game's own evolution, as after a trade (the host's PD_ACTION_TRADE_EVOLVE).
+        int bw = pd_text_width("EVOLVE") + 16;
+        ui_platinum(ui, c, bx, by, bw, btnH, 0x3070E0, 0x1848A0, HIT_SUMMARY_EVOLVE);
+        pd_text(c, bx + (bw - pd_text_width("EVOLVE")) / 2, pd_text_y(by, btnH), "EVOLVE", 0xFFFFFF, 0x383838);
     }
 }
 
@@ -1538,6 +1545,8 @@ void ui_party_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g
         }
         const struct pd_mon* column[PD_PARTY_SIZE];
         for (int i = 0; i < s->partyCount; i++) column[i] = &s->party[i];
+        ui->summaryEvolve = host && ui->settings && ui->settings->tradeEvolutions && host->tradeEvoFits &&
+                            ui->summarySlot < 6 && host->evolveTarget[ui->summarySlot] > 0;
         ui_mon_summary(ui, c, g, s, &s->party[ui->summarySlot], column, s->partyCount, ui->summarySlot, host && host->canTake,
                        ui->boxMoves ? "PC" : NULL);
         if (*ui->boxMessage) ui_box_message(ui, c);

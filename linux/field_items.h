@@ -18,6 +18,8 @@ enum item_result {
   ITEM_IN_BATTLE,
   ITEM_NONE_LEFT,
   ITEM_FAILED,       // the game's code isn't where the config says, or a call didn't return
+  ITEM_NO_EVOLUTION, // TRADE EVOLUTIONS: it doesn't evolve by trading now
+  ITEM_MOVED,        // ... the party changed under the summary
 };
 
 /* REPEL's kinds, weakest first (QuickMenuSettings.kt's REPEL_KINDS): item id, steps. */
@@ -53,6 +55,16 @@ enum item_result bike_register(struct mCore *core, const struct pd_config *cfg, 
 void bike_restore(struct mCore *core, const struct pd_config *cfg, int item, uint16_t old);
 /* Whether the field's controls are held now (ArePlayerFieldControlsLocked; true if it can't be asked). */
 bool field_locked(struct mCore *core, const struct pd_config *cfg);
+/* TRADE EVOLUTIONS (TradeEvolution.kt): this ROM has the config's evolution functions where they're expected. */
+bool trade_evo_supported(const struct pd_config *cfg, const uint8_t *rom, size_t len);
+/* What each party slot would become by trade right now (0 = nothing), asked of the game on each slot with its bytes
+ * put back after, so a held item isn't spent by asking; [personality] gets each slot's. Between frames only. */
+bool trade_evo_targets(struct mCore *core, const struct pd_config *cfg, const uint8_t *rom, size_t len,
+                       int target[6], uint32_t personality[6]);
+/* Evolves party slot [slot] as a trade would: the game's checks again, then its own evolution scene, which hands the
+ * field back when it ends. */
+enum item_result trade_evolve(struct mCore *core, const struct pd_config *cfg, const uint8_t *rom, size_t len,
+                              int slot, uint32_t personality, bool busy, bool battle);
 /* What happened, in the app's words (ItemsScreen.kt's itemUseMessage). */
 const char *item_reason(enum item_result r);
 

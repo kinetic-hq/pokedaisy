@@ -35,6 +35,7 @@ enum {
     HIT_SUMMARY_STATS = 301,
     HIT_SUMMARY_INFO = 302,
     HIT_SUMMARY_LEARN = 303,
+    HIT_SUMMARY_EVOLVE = 304,
     HIT_BAG_TAB = 400,     // + the bag's pocket tab (ALL first)
     HIT_BAG_LIST = 410,
     HIT_SETTINGS_LIST = 411, // the SETTINGS list (a drag scrolls it)
@@ -130,6 +131,7 @@ enum setting_row {
     SETTING_RUN_INDOORS,
     SETTING_INSTANT_TEXT,
     SETTING_REUSABLE_TMS,
+    SETTING_TRADE_EVOS,
     SETTING_HINTS,
     SETTING_ONE_TAP,
     SETTING_RESTART,
