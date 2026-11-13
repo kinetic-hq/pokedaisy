@@ -423,6 +423,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **LINK PLAY** on the desktop host: two to four GBA games side by side in one window on the app's own link cable
   (`pk_link.c`), from a GBA game's options or `SETTINGS` > `LIBRARY`. Saves go through the desktop's checked save
   with a backup first; a second copy of a game plays `<save> (link 2)`.
+- **EDIT SAVE's bag** on the desktop host lists each pocket's items from the game's own item table to scroll through (`SEARCH BY NAME`
+  narrows it), and `ADD ANY ITEM` puts an item in its own pocket, onto the stack you already carry.
 
 </details>
 

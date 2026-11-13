@@ -99,6 +99,41 @@ static void round_trip(const char *spec, const char *scratch) {
       CHECK(!o->set_item(e, p, 0, 0, 0, err, sizeof err));
       break;
     }
+
+  /* The game's own pockets (BAG's ADD ANY ITEM): every item it names goes in one pocket or none; one of the third
+   * pocket's (the balls in Gen 3) not in the bag yet goes in, and into the first pocket it's refused. */
+  int addId = -1, addPocket = o->pockets(e) > 2 ? 2 : 0, addSlot = -1;
+  if (o->item_pocket) {
+    int sorted = 0;
+    for (int id = 1; id <= o->item_max(e); id++) {
+      int p = o->item_pocket(e, id);
+      CHECK(p >= -1 && p < o->pockets(e));
+      if (p < 0)
+        continue;
+      sorted++;
+      bool inBag = false;
+      for (int i = 0; i < o->pocket_slots(e, p) && !inBag; i++)
+        inBag = o->pocket_item(e, p, i, &it) && it.id == id;
+      if (p == addPocket && !inBag && addId < 0)
+        addId = id;
+    }
+    printf("  %d items sorted into pockets\n", sorted);
+    CHECK(sorted > 100);
+    for (int i = 0; i < o->pocket_slots(e, addPocket) && addSlot < 0; i++)
+      if (o->pocket_item(e, addPocket, i, &it) && !it.id)
+        addSlot = i;
+    if (addId > 0 && addSlot >= 0) {
+      int empty0 = -1;
+      for (int i = 0; i < o->pocket_slots(e, 0) && empty0 < 0; i++)
+        if (o->pocket_item(e, 0, i, &it) && !it.id)
+          empty0 = i;
+      if (addPocket != 0 && empty0 >= 0)
+        CHECK(!o->set_item(e, 0, empty0, addId, 1, err, sizeof err));
+      CHECK(o->set_item(e, addPocket, addSlot, addId, 3, err, sizeof err) || (fprintf(stderr, "%s\n", err), 0));
+      CHECK(o->pocket_item(e, addPocket, addSlot, &it) && it.id == addId && it.count == 3);
+      printf("  added %s x3 to %s\n", o->item_name(e, addId), o->pocket_name(e, addPocket));
+    }
+  }
   o->heal(e);
 
   char backup[1100];
@@ -118,6 +153,8 @@ static void round_trip(const char *spec, const char *scratch) {
   if (slot >= 0) {
     CHECK(o->pocket_item(e, 0, slot, &it) && it.count == count);
   }
+  if (addId > 0 && addSlot >= 0)
+    CHECK(o->pocket_item(e, addPocket, addSlot, &it) && it.id == addId && it.count == 3);
   se_close(e);
   remove(backup);
   if (!getenv("POCKET_SAVE_EDIT_KEEP")) /* kept: a headless boot of the game checks it loads */

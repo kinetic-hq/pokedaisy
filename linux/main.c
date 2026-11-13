@@ -6594,6 +6594,90 @@ static void editor_box(struct save_edit *e, int box, const char *title) {
       editor_mon(e, box, ids[pick]);
   }
 }
+/* An item for pocket P from the game's own list (P -1: any that goes in a pocket the editor changes): the pocket's
+ * items to scroll through, SEARCH BY NAME first to narrow them. A game that can't tell its pockets searches every
+ * item instead. The item, or -1. */
+static int editor_pick_item(struct save_edit *e, int p, const char *title) {
+  if (!e->ops->item_pocket)
+    return editor_search(e, title, e->ops->item_name, e->ops->item_max(e), false);
+  enum { CAP = 1024 };
+  static const char *rows[CAP + 1];
+  static int ids[CAP + 1];
+  char query[32] = "";
+  bool searched = false;
+  while (running) {
+    int n = 0, max = e->ops->item_max(e);
+    if (!searched)
+      rows[n] = "SEARCH BY NAME", ids[n++] = -1;
+    for (int id = 1; id <= max && n < CAP; id++) {
+      int ip = e->ops->item_pocket(e, id);
+      if (ip < 0 || (p >= 0 ? ip != p : e->ops->pocket_locked(e, ip) != NULL))
+        continue;
+      const char *s = e->ops->item_name(e, id);
+      if (s && (!searched || editor_contains(s, query)))
+        rows[n] = s, ids[n++] = id;
+    }
+    if (n == (searched ? 0 : 1)) {
+      editor_say(title, searched ? "Nothing here goes by that name." : "This game has no items for that pocket.");
+      if (!searched)
+        return -1;
+      searched = false;
+      continue;
+    }
+    int pick = menu_pick(title, rows, n, 0);
+    if (pick < 0) {
+      if (!searched)
+        return -1;
+      searched = false; // B from a search: the whole list again
+      continue;
+    }
+    if (ids[pick] >= 0)
+      return ids[pick];
+    query[0] = 0;
+    searched = text_entry(title, query, sizeof query) && *query;
+  }
+  return -1;
+}
+/* ID into pocket P: onto its stack when the bag has one (up to a full stack), else into the first empty slot. */
+static void editor_add_item(struct save_edit *e, int p, int id) {
+  char err[160] = "", line[128];
+  const char *name = e->ops->item_name(e, id);
+  int slots = e->ops->pocket_slots(e, p), have = -1, empty = -1, max = e->ops->item_max_count(e, p, id);
+  struct se_item it;
+  for (int i = 0; i < slots; i++)
+    if (e->ops->pocket_item(e, p, i, &it)) {
+      if (it.id == id && have < 0)
+        have = i;
+      else if (!it.id && empty < 0)
+        empty = i;
+    }
+  long v;
+  int count;
+  if (have >= 0) {
+    e->ops->pocket_item(e, p, have, &it);
+    if (it.count >= max) {
+      editor_say(name ? name : "CAN'T ADD IT", "That stack is full already.");
+      return;
+    }
+    if (!editor_number("ADD HOW MANY?", 1, 1, max - it.count, &v))
+      return;
+    count = it.count + (int)v;
+  } else if (empty < 0) {
+    editor_say("CAN'T ADD IT", "That pocket is full: take something out first.");
+    return;
+  } else {
+    if (!editor_number("HOW MANY?", 1, 1, max, &v))
+      return;
+    count = (int)v;
+  }
+  if (!e->ops->set_item(e, p, have >= 0 ? have : empty, id, count, err, sizeof err)) {
+    editor_say("CAN'T ADD IT", err);
+    return;
+  }
+  snprintf(line, sizeof line, "%.40s x%d in %.20s: SAVE CHANGES writes it", name ? name : "?", count,
+           e->ops->pocket_name(e, p));
+  notice(line);
+}
 static void editor_pocket(struct save_edit *e, int p) {
   const char *title = e->ops->pocket_name(e, p), *locked = e->ops->pocket_locked(e, p);
   int selected = 0;
@@ -6628,19 +6712,9 @@ static void editor_pocket(struct save_edit *e, int p) {
     char err[160] = "";
     long v;
     if (ids[pick] < 0) {
-      int id = editor_search(e, "ADD WHICH ITEM?", e->ops->item_name, e->ops->item_max(e), false);
-      if (id <= 0 || !editor_number("HOW MANY?", 1, 1, e->ops->item_max_count(e, p, id), &v))
-        continue;
-      int empty = -1;
-      for (int i = 0; i < slots && empty < 0; i++) {
-        struct se_item it;
-        if (e->ops->pocket_item(e, p, i, &it) && !it.id)
-          empty = i;
-      }
-      if (empty < 0)
-        editor_say("CAN'T ADD IT", "That pocket is full.");
-      else if (!e->ops->set_item(e, p, empty, id, (int)v, err, sizeof err))
-        editor_say("CAN'T ADD IT", err);
+      int id = editor_pick_item(e, p, "ADD WHICH ITEM?");
+      if (id > 0)
+        editor_add_item(e, p, id);
       continue;
     }
     struct se_item it;
@@ -6738,12 +6812,23 @@ static void save_editor(const char *rom, const char *gameName) {
         editor_say("COINS", err);
       break;
     case E_BAG: {
-      const char *pockets[SE_POCKETS_MAX];
-      int count = e->ops->pockets(e), p = 0;
+      const char *pockets[SE_POCKETS_MAX + 1];
+      int count = e->ops->pockets(e), rows = count, p = 0;
       for (int i = 0; i < count; i++)
         pockets[i] = e->ops->pocket_name(e, i);
-      while (running && (p = menu_pick("BAG", pockets, count, p)) >= 0)
-        editor_pocket(e, p);
+      // ADD ANY ITEM: the game's whole list, each item put in its own pocket.
+      if (e->ops->item_pocket)
+        pockets[rows++] = "ADD ANY ITEM\tINTO ITS OWN POCKET";
+      while (running && (p = menu_pick("BAG", pockets, rows, p)) >= 0) {
+        if (p < count) {
+          editor_pocket(e, p);
+          continue;
+        }
+        int id = editor_pick_item(e, -1, "ADD WHICH ITEM?");
+        int into = id > 0 ? e->ops->item_pocket(e, id) : -1;
+        if (into >= 0)
+          editor_add_item(e, into, id);
+      }
       break;
     }
     case E_PARTY:
