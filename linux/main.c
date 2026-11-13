@@ -5087,6 +5087,7 @@ enum {
   ROW_TRADE,
   ROW_BOXART,
   ROW_SGDB,
+  ROW_BOXART_WHERE,
   ROW_BUTTONS,
   ROW_HOTKEYS,
   ROW_UPDATES,
@@ -5163,6 +5164,10 @@ static int settings_page(bool *foldersChanged) {
         char key[80];
         boxart_key(key, sizeof key);
         ROW(ROW_SGDB, "STEAMGRIDDB KEY	%s", *key ? "SET" : "NONE");
+        int where;
+        char folder[1024];
+        boxart_location(&where, folder, sizeof folder);
+        ROW(ROW_BOXART_WHERE, "BOX ART LOCATION\t%s", where == BOXART_ONE_FOLDER ? "ONE FOLDER" : "BESIDE GAMES");
       }
       ROW(0, PD_MENU_GROUP "CONTROLS");
       ROW(ROW_BUTTONS, "GAME BUTTONS" PD_MENU_PAGE);
@@ -5374,6 +5379,29 @@ static int settings_page(bool *foldersChanged) {
       } else if (k == 1) {
         boxart_key_save("");
         notice("SteamGridDB key removed");
+      }
+      save = false;
+      break;
+    }
+    case ROW_BOXART_WHERE: {
+      int where;
+      char folder[POCKET_FOLDER_MAX];
+      boxart_location(&where, folder, sizeof folder);
+      static const char *const whereRows[] = {"BESIDE GAMES\tA BOXART FOLDER IN EACH GAME FOLDER",
+                                              "ONE FOLDER\tPICK A FOLDER"};
+      int w = menu_pick_hint("BOX ART LOCATION",
+                             "Where each game's pictures are kept: Name.png is its box art, Name 1.png and so on its "
+                             "alternates. Put your own there too; SYNC BOX ART picks them up.",
+                             whereRows, 2, where);
+      if (w == BOXART_BESIDE_GAMES && boxart_location_set(BOXART_BESIDE_GAMES, NULL)) {
+        notice("Box art: beside the games");
+        *foldersChanged = true;
+      } else if (w == BOXART_ONE_FOLDER && browse_path(folder, sizeof folder, NULL, "PICK THE BOX ART FOLDER")) {
+        if (boxart_location_set(BOXART_ONE_FOLDER, folder)) {
+          notice("Box art: in that folder, by console (gba, gbc, gb, nds)");
+          *foldersChanged = true;
+        } else
+          notice("Couldn't save that");
       }
       save = false;
       break;
@@ -5846,6 +5874,15 @@ static void library_load(struct library *l) {
     grid_stem(label, l->art[i].stem, sizeof l->art[i].stem);
     snprintf(l->art[i].title, sizeof l->art[i].title, "%s", l->games.names[i]);
     l->art[i].system = grid_system(label);
+    // The ROM's folder: BOX ART LOCATION's BESIDE GAMES keeps its art in a "boxart" folder there.
+    snprintf(l->art[i].dir, sizeof l->art[i].dir, "%s", l->games.paths[i]);
+    char *cut = strrchr(l->art[i].dir, '/'), *back = strrchr(l->art[i].dir, '\\');
+    if (back > cut)
+      cut = back;
+    if (cut)
+      *cut = 0;
+    else
+      l->art[i].dir[0] = 0;
     l->stems[i] = strdup(l->art[i].stem);
     if (!l->stems[i]) {
       count = i;
@@ -5858,6 +5895,10 @@ static void library_load(struct library *l) {
                                           boxart_is_base(l->stems[i]), GAME_SUPPORT_UNKNOWN, NULL, 0};
   }
   l->count = count;
+  // The art folders (and older versions' art copied into them, once); then which tiles show a base game's box.
+  boxart_games(l->art, count);
+  for (int i = 0; i < count; i++)
+    l->items[i].banner = boxart_is_base(l->stems[i]);
   // FULL / PARTLY / PLAY ONLY, worked out in the background (cached in DATA).
   game_support_start(root, (const char *const *)l->games.paths, count, POCKET_VERSION);
   game_grid_init(&l->grid, l->items, count);
@@ -6510,12 +6551,13 @@ static void trade_saves(const char *firstRom, const char *firstName) {
   se_close(a);
   se_close(b);
 }
-/* BOX ART: every cover found for a game as a grid, like SteamGridDB's own picker: libretro's cover and the base
- * game's first, then each grid SteamGridDB has for the game (box shaped ones only until SHAPE shows them all), a page
- * at a time as you scroll. A picks one, kept as the game's own art (SYNC never replaces it); SEARCH AGAIN types
- * another name and picks SteamGridDB's game from a list; CHOOSE FILE takes a path or link; AUTOMATIC lets SYNC
- * choose again. Returns true when the game's art changed. */
-enum { PICK_BAR_SEARCH, PICK_BAR_SHAPE, PICK_BAR_FILE, PICK_BAR_AUTO };
+/* CHOOSE BOX ART: every cover for a game as a grid, like SteamGridDB's own picker: the game's own pictures in its
+ * art folder first (its box art, then its alternates), libretro's cover and the base game's, then each grid
+ * SteamGridDB has for the game (box shaped ones only until SHAPE shows them all), a page at a time as you scroll. A
+ * picks one: an alternate swaps names with the box art, anything else is saved in the folder as the box art (the old
+ * one becomes an alternate). SEARCH AGAIN types another name and picks SteamGridDB's game from a list; FROM URL and
+ * FROM FILE take a link or a file. Returns true when the game's art changed. */
+enum { PICK_BAR_SEARCH, PICK_BAR_SHAPE, PICK_BAR_URL, PICK_BAR_FILE };
 static bool boxart_picker(struct library *l, int g) {
   const char *stem = l->stems[g];
   struct boxart_game game = l->art[g];
@@ -6526,8 +6568,9 @@ static bool boxart_picker(struct library *l, int g) {
   static int itemOf[400];          // a tile's candidate
   static char stems[400][16], *stemPtr[400];
   static char sizes[400][24];
-  static const char *const BAR_BOX[] = {"SEARCH AGAIN", "SHAPE: BOX", "CHOOSE FILE", "AUTOMATIC"};
-  static const char *const BAR_ALL[] = {"SEARCH AGAIN", "SHAPE: ALL", "CHOOSE FILE", "AUTOMATIC"};
+  static const char *const BAR_BOX[] = {"SEARCH AGAIN", "SHAPE: BOX", "FROM URL", "FROM FILE"};
+  static const char *const BAR_ALL[] = {"SEARCH AGAIN", "SHAPE: ALL", "FROM URL", "FROM FILE"};
+  static char labels[400][32];
   bool allShapes = false, changed = false, done = false;
   char title[300], hint[400], entry[128];
   memset(&grid, 0, sizeof grid);
@@ -6564,13 +6607,16 @@ static bool boxart_picker(struct library *l, int g) {
           snprintf(sizes[n], sizeof sizes[n], "%d x %d", it.w, it.h);
         else
           sizes[n][0] = 0;
-        static const char *const SOURCE[] = {"STEAMGRIDDB", "LIBRETRO", "BASE GAME"};
-        static const uint32_t SOURCE_COLOR[] = {0x3A6EA5, 0x2E9E6A, 0xB7791F};
-        items[n] = (struct game_grid_item){it.source == BOXART_PICK_BASE ? "The base game's box"
-                                           : it.source == BOXART_PICK_LIBRETRO ? "libretro's cover"
-                                                                               : "SteamGridDB",
-                                           sizes[n], l->art[g].system, false, false, 0,
-                                           SOURCE[it.source], SOURCE_COLOR[it.source]};
+        static const char *const SOURCE[] = {"STEAMGRIDDB", "LIBRETRO", "BASE GAME", "IN FOLDER"};
+        static const uint32_t SOURCE_COLOR[] = {0x3A6EA5, 0x2E9E6A, 0xB7791F, 0x8E44AD};
+        if (it.source == BOXART_PICK_LOCAL)
+          snprintf(labels[n], sizeof labels[n], it.local ? "Alternate %d" : "Its box art now", it.local);
+        else
+          snprintf(labels[n], sizeof labels[n], "%s", it.source == BOXART_PICK_BASE      ? "The base game's box"
+                                                      : it.source == BOXART_PICK_LIBRETRO ? "libretro's cover"
+                                                                                          : "SteamGridDB");
+        items[n] = (struct game_grid_item){labels[n], sizes[n], l->art[g].system, false, false, 0,
+                                           SOURCE[it.source & 3], SOURCE_COLOR[it.source & 3]};
         n++;
       }
       grid.items = items;
@@ -6583,8 +6629,9 @@ static bool boxart_picker(struct library *l, int g) {
         grid.selected = n ? n - 1 : 0;
     }
     int state = boxart_pick_state(entry, sizeof entry);
-    snprintf(title, sizeof title, "BOX ART: %s", l->games.names[g]);
-    snprintf(hint, sizeof hint, "%s%s%s",
+    snprintf(title, sizeof title, "CHOOSE BOX ART: %s", l->games.names[g]);
+    snprintf(hint, sizeof hint, "%s%s%s%s",
+             boxart_name_shared(stem) ? "Another game has this name: its pictures go in its console's folder. " : "",
              state == BOXART_PICK_NO_KEY ? "Add a SteamGridDB key in SETTINGS > LIBRARY > STEAMGRIDDB KEY for more covers. "
              : state == BOXART_PICK_LOADING ? "Looking... "
                                             : "",
@@ -6637,7 +6684,7 @@ static bool boxart_picker(struct library *l, int g) {
       menu_frame();
       char err[120];
       if (boxart_pick_choose(stem, itemOf[use], err, sizeof err)) {
-        notice("Box art set");
+        notice("Box art set: the one it had is now an alternate");
         changed = done = true;
       } else
         notice(err);
@@ -6683,26 +6730,32 @@ static bool boxart_picker(struct library *l, int g) {
           }
         }
       }
-    } else if (bar == PICK_BAR_FILE) {
-      static const char *const from[] = {"USE THE COPIED PATH OR LINK"};
+    } else if (bar == PICK_BAR_URL) {
+      static const char *const from[] = {"USE THE COPIED LINK", "TYPE A LINK"};
       gridStems = savedStems;
       gridOverlay = NULL;
-      int f = menu_pick_hint("CHOOSE FILE",
-                             "Copy an image file's path (PNG or JPG) or an https link to one, then pick this. Or drop "
-                             "an image on the window.",
-                             from, 1, 0);
+      int f = menu_pick_hint("FROM URL",
+                             "Copy an https link to a PNG or JPG picture, then pick USE THE COPIED LINK. It's saved in "
+                             "the game's box art folder as its box art; the one it had becomes an alternate.",
+                             from, 2, 0);
+      char link[1024] = "https://";
+      int gen = boxart_generation();
       if (f == 0) {
         char *clip = SDL_HasClipboardText() ? SDL_GetClipboardText() : NULL;
         grid_set_art(stem, clip ? clip : "");
         if (clip)
           SDL_free(clip);
-        changed = done = boxart_has_custom(stem);
-      }
-    } else if (bar == PICK_BAR_AUTO) {
-      boxart_clear_custom(stem);
-      boxart_find(&l->art[g]);
-      notice("Automatic: looking for box art...");
-      changed = done = true;
+      } else if (f == 1 && text_entry("FROM URL", link, sizeof link))
+        grid_set_art(stem, link);
+      changed = done = boxart_generation() != gen;
+    } else if (bar == PICK_BAR_FILE) {
+      char file[POCKET_FOLDER_MAX];
+      gridStems = savedStems;
+      gridOverlay = NULL;
+      int gen = boxart_generation();
+      if (browse_path(file, sizeof file, ".png|.jpg|.jpeg", "PICK A PNG OR JPG"))
+        grid_set_art(stem, file);
+      changed = done = boxart_generation() != gen;
     }
     if (done || !running)
       break;
@@ -6724,7 +6777,8 @@ static bool boxart_picker(struct library *l, int g) {
 /* A game's options. Returns the game to play, else -1; *reload when the list changed; *finding when a search started. */
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
   enum { OPT_PLAY, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_SUPPORT };
-  const char *stem = l->stems[g], *label = l->games.labels[g];
+  (void)finding; // CHOOSE BOX ART no longer starts a search of its own
+  const char *label = l->games.labels[g];
   char custom[256];
   bool hasName = game_custom_name(root, label, custom, sizeof custom);
   const char *rows[10];
@@ -6737,7 +6791,7 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     ids[n++] = id;                                                                                                     \
   } while (0)
   OPT(OPT_PLAY, "PLAY");
-  OPT(OPT_ART, boxart_has_custom(stem) ? "BOX ART\tYOUR PICK" : "BOX ART\tAUTOMATIC");
+  OPT(OPT_ART, "CHOOSE BOX ART");
   OPT(OPT_RENAME, "RENAME");
   if (hasName)
     OPT(OPT_RESET, "USE THE FILE'S NAME");
@@ -6761,8 +6815,7 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     break;
   }
   case OPT_ART:
-    if (boxart_picker(l, g) && !boxart_has_custom(stem))
-      *finding = true; // AUTOMATIC: SYNC's own search, its result told when it ends
+    boxart_picker(l, g);
     break;
   case OPT_RENAME: {
     char name[256];

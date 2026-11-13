@@ -117,7 +117,7 @@ void boxart_libretro_name(const char *stem, char *out, size_t size) {
 }
 
 static bool write_file(const char *path, const void *data, size_t len) {
-  char tmp[1500];
+  char tmp[1600];
   snprintf(tmp, sizeof tmp, "%s.tmp", path);
   FILE *f = fopen(tmp, "wb");
   if (!f)
@@ -135,6 +135,330 @@ static bool is_image(const void *data, size_t len) {
   int w, h, n;
   return len > 0 && len < MAX_IMAGE && stbi_info_from_memory(data, (int)len, &w, &h, &n) && w > 0 && h > 0 &&
          w <= 8192 && h <= 8192;
+}
+
+/* A whole image file (NULL if it isn't a PNG or JPEG or can't be read). */
+static char *read_image(const char *path, size_t *len) {
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return NULL;
+  char *data = malloc(MAX_IMAGE);
+  *len = data ? fread(data, 1, MAX_IMAGE, f) : 0;
+  fclose(f);
+  if (data && !is_image(data, *len)) {
+    free(data);
+    data = NULL;
+  }
+  return data;
+}
+
+/* --- the art folders (BOX ART LOCATION) --------------------------------------------------------------------------- */
+
+static int artWhere = BOXART_BESIDE_GAMES; // under lock
+static char artFolder[1024];
+struct art_game {
+  char stem[256], name[256], dir[1024];
+  int system;
+  bool shared;
+};
+static struct art_game *artGames; // under lock
+static int artCount;
+static const char *const ART_SUBFOLDER[] = {"gba", "gbc", "gb", "nds"};
+static const char *const ART_EXT[] = {".png", ".jpg", ".jpeg"};
+
+static void location_load(void) {
+  char path[1100], line[1024];
+  snprintf(path, sizeof path, "%s/boxart-location.txt", root);
+  artWhere = BOXART_BESIDE_GAMES;
+  artFolder[0] = 0;
+  FILE *f = fopen(path, "r");
+  if (!f)
+    return;
+  if (fgets(line, sizeof line, f) && !strncmp(line, "folder", 6) && fgets(line, sizeof line, f)) {
+    line[strcspn(line, "\r\n")] = 0;
+    if (*line) {
+      artWhere = BOXART_ONE_FOLDER;
+      snprintf(artFolder, sizeof artFolder, "%s", line);
+    }
+  }
+  fclose(f);
+}
+
+void boxart_location(int *where, char *folder, size_t size) {
+  SDL_LockMutex(lock);
+  *where = artWhere;
+  snprintf(folder, size, "%s", artFolder);
+  SDL_UnlockMutex(lock);
+}
+
+bool boxart_location_set(int where, const char *folder) {
+  char text[1200], path[1100];
+  int n = where == BOXART_ONE_FOLDER && folder && *folder ? snprintf(text, sizeof text, "folder\n%s\n", folder)
+                                                         : snprintf(text, sizeof text, "beside\n");
+  if (n < 0 || (size_t)n >= sizeof text)
+    return false;
+  snprintf(path, sizeof path, "%s/boxart-location.txt", root);
+  if (!write_file(path, text, (size_t)n))
+    return false;
+  SDL_LockMutex(lock);
+  location_load();
+  SDL_UnlockMutex(lock);
+  SDL_AtomicAdd(&generation, 1);
+  return true;
+}
+
+/* A name as art files are matched by it: lower case, "é" as "e", what a file name can't hold as "_", no spaces or
+ * dots at its end (Windows drops them). */
+static void art_key(const char *s, char *out, size_t size) {
+  size_t n = 0;
+  for (const unsigned char *p = (const unsigned char *)s; *p && n + 1 < size; p++) {
+    unsigned c = *p;
+    if (c == 0xC3 && (p[1] == 0xA9 || p[1] == 0x89)) {
+      c = 'e';
+      p++;
+    } else if (c < 0x20 || strchr("\\/:*?\"<>|", (int)c))
+      c = '_';
+    else if (c < 0x80)
+      c = (unsigned)tolower((int)c);
+    out[n++] = (char)c;
+  }
+  while (n && (out[n - 1] == ' ' || out[n - 1] == '.'))
+    n--;
+  out[n] = 0;
+}
+
+/* The name a new picture gets: the game's own, with what a file name can't hold as "_". */
+static void art_file_base(const char *s, char *out, size_t size) {
+  size_t n = 0;
+  for (const unsigned char *p = (const unsigned char *)s; *p && n + 1 < size; p++)
+    out[n++] = *p < 0x20 || strchr("\\/:*?\"<>|", (int)*p) ? '_' : (char)*p;
+  while (n && (out[n - 1] == ' ' || out[n - 1] == '.'))
+    n--;
+  out[n] = 0;
+}
+
+bool boxart_art_name_matches(const char *file, const char *name, int *num) {
+  const char *dot = strrchr(file, '.');
+  if (!dot)
+    return false;
+  bool image = false;
+  for (size_t i = 0; i < sizeof ART_EXT / sizeof *ART_EXT; i++)
+    image = image || !strcasecmp(dot, ART_EXT[i]);
+  char base[300], kb[300], kn[300];
+  size_t bl = (size_t)(dot - file);
+  if (!image || bl >= sizeof base)
+    return false;
+  memcpy(base, file, bl);
+  base[bl] = 0;
+  art_key(base, kb, sizeof kb);
+  art_key(name, kn, sizeof kn);
+  size_t ln = strlen(kn);
+  // The tile's own name too: the list name less "Pokemon " (game_grid shows the rest).
+  if (ln && strncmp(kb, kn, ln) && !strncmp(kn, "pokemon ", 8) && kn[8]) {
+    memmove(kn, kn + 8, ln - 7);
+    ln -= 8;
+  }
+  if (!ln || strncmp(kb, kn, ln))
+    return false;
+  if (!kb[ln]) {
+    *num = 0;
+    return true;
+  }
+  const char *d = kb + ln + 1;
+  if (kb[ln] != ' ' || !*d || strlen(d) > 4)
+    return false;
+  for (const char *q = d; *q; q++)
+    if (!isdigit((unsigned char)*q))
+      return false;
+  *num = atoi(d);
+  return *num > 0;
+}
+
+struct art_file {
+  int num;
+  char name[300];
+};
+struct art_list {
+  const char *name;
+  struct art_file *files;
+  int count, max;
+};
+static void art_each(const char *file, void *user) {
+  struct art_list *l = user;
+  int num;
+  if (l->count < l->max && boxart_art_name_matches(file, l->name, &num)) {
+    l->files[l->count].num = num;
+    snprintf(l->files[l->count].name, sizeof l->files[l->count].name, "%s", file);
+    l->count++;
+  }
+}
+/* NAME's pictures in DIR: its box art first, then the alternates by number. */
+static int art_files(const char *dir, const char *name, struct art_file *files, int max) {
+  struct art_list l = {name, files, 0, max};
+  pocket_list_dir(dir, art_each, &l);
+  for (int i = 1; i < l.count; i++)
+    for (int k = i; k > 0 && files[k].num < files[k - 1].num; k--) {
+      struct art_file t = files[k];
+      files[k] = files[k - 1];
+      files[k - 1] = t;
+    }
+  return l.count;
+}
+
+static bool art_game_of(const char *stem, struct art_game *out) {
+  bool found = false;
+  SDL_LockMutex(lock);
+  for (int i = 0; i < artCount && !found; i++)
+    if (!strcmp(artGames[i].stem, stem)) {
+      *out = artGames[i];
+      found = true;
+    }
+  SDL_UnlockMutex(lock);
+  return found;
+}
+
+/* The folder a game's pictures are in. ONE FOLDER: its console's folder, or the folder's top level when its
+ * pictures are there and not in its console's (unless another game on another console has its name). */
+static bool art_home(const struct art_game *g, char *out, size_t size) {
+  int where;
+  char folder[1024];
+  boxart_location(&where, folder, sizeof folder);
+  if (where != BOXART_ONE_FOLDER || !*folder) {
+    if (!*g->dir)
+      return false;
+    snprintf(out, size, "%s/boxart", g->dir);
+    return true;
+  }
+  char sub[1100];
+  snprintf(sub, sizeof sub, "%s/%s", folder, ART_SUBFOLDER[g->system >= 0 && g->system <= BOXART_NDS ? g->system : 0]);
+  struct art_file one[1];
+  if (!g->shared && !art_files(sub, g->name, one, 1) && art_files(folder, g->name, one, 1))
+    snprintf(out, size, "%s", folder);
+  else
+    snprintf(out, size, "%s", sub);
+  return true;
+}
+
+bool boxart_art_folder(const char *stem, char *out, size_t size) {
+  struct art_game g;
+  return art_game_of(stem, &g) && art_home(&g, out, size);
+}
+
+bool boxart_name_shared(const char *stem) {
+  struct art_game g;
+  int where;
+  char folder[1024];
+  boxart_location(&where, folder, sizeof folder);
+  return where == BOXART_ONE_FOLDER && art_game_of(stem, &g) && g.shared;
+}
+
+/* The game's box art in its folder. */
+static bool art_main_path(const char *stem, char *out, size_t size) {
+  struct art_game g;
+  char home[1100];
+  struct art_file f[8];
+  if (!art_game_of(stem, &g) || !art_home(&g, home, sizeof home))
+    return false;
+  int n = art_files(home, g.name, f, 8);
+  if (!n || f[0].num)
+    return false;
+  snprintf(out, size, "%s/%s", home, f[0].name);
+  return true;
+}
+
+static const char *image_ext(const char *data, size_t len) {
+  return len >= 4 && !memcmp(data, "\x89PNG", 4) ? ".png" : ".jpg";
+}
+
+/* The box art in HOME (F: its N pictures) renamed to the next free alternate number. */
+static bool art_shift_main(const char *home, const char *base, struct art_file *f, int n) {
+  char from[1500], to[1500];
+  for (int i = 0; i < n; i++) {
+    if (f[i].num)
+      continue;
+    int next = 1;
+    for (bool used = true; used; next += used) {
+      used = false;
+      for (int k = 0; k < n && !used; k++)
+        used = f[k].num == next;
+    }
+    snprintf(from, sizeof from, "%s/%s", home, f[i].name);
+    snprintf(to, sizeof to, "%s/%s %d%s", home, base, next, strrchr(f[i].name, '.'));
+    if (pocket_exists(to) || !pocket_replace(from, to))
+      return false;
+    f[i].num = next;
+  }
+  return true;
+}
+
+/* A new picture as the game's box art, in its folder (made now if it isn't there yet): the box art it had becomes
+ * the next free alternate first. Nothing there is ever overwritten. */
+static bool art_save_main(const char *stem, const char *data, size_t len) {
+  struct art_game g;
+  char home[1100], base[300];
+  if (!art_game_of(stem, &g) || !art_home(&g, home, sizeof home))
+    return false;
+  art_file_base(g.name, base, sizeof base);
+  if (!*base || (!pocket_is_dir(home) && !pocket_mkdir(home)))
+    return false;
+  struct art_file *f = malloc(256 * sizeof *f);
+  if (!f)
+    return false;
+  int n = art_files(home, g.name, f, 256);
+  bool ok = art_shift_main(home, base, f, n);
+  free(f);
+  char to[1500];
+  if (!ok)
+    return false;
+  snprintf(to, sizeof to, "%s/%s%s", home, base, image_ext(data, len));
+  if (pocket_exists(to) || !write_file(to, data, len))
+    return false;
+  SDL_AtomicAdd(&generation, 1);
+  return true;
+}
+
+bool boxart_art_use(const char *stem, int num) {
+  struct art_game g;
+  char home[1100], base[300];
+  if (num <= 0 || !art_game_of(stem, &g) || !art_home(&g, home, sizeof home))
+    return false;
+  art_file_base(g.name, base, sizeof base);
+  struct art_file f[256];
+  int n = art_files(home, g.name, f, 256), main = -1, alt = -1;
+  for (int i = 0; i < n; i++) {
+    if (!f[i].num && main < 0)
+      main = i;
+    if (f[i].num == num && alt < 0)
+      alt = i;
+  }
+  if (alt < 0 || !*base)
+    return false;
+  const char *altExt = strrchr(f[alt].name, '.');
+  char altPath[1500], tmp[1500], to[1500];
+  snprintf(altPath, sizeof altPath, "%s/%s", home, f[alt].name);
+  snprintf(to, sizeof to, "%s/%s%s", home, base, altExt);
+  if (main < 0) { // no box art: the alternate simply takes its place
+    if (pocket_exists(to) || !pocket_replace(altPath, to))
+      return false;
+  } else {
+    char mainPath[1500], mainTo[1500];
+    snprintf(mainPath, sizeof mainPath, "%s/%s", home, f[main].name);
+    snprintf(mainTo, sizeof mainTo, "%s/%s %d%s", home, base, num, strrchr(f[main].name, '.'));
+    snprintf(tmp, sizeof tmp, "%s/%s swap%s", home, base, altExt);
+    if (pocket_exists(tmp) || !pocket_replace(altPath, tmp))
+      return false;
+    if ((pocket_exists(mainTo) || !pocket_replace(mainPath, mainTo))) {
+      pocket_replace(tmp, altPath); // put it back
+      return false;
+    }
+    if (pocket_exists(to) || !pocket_replace(tmp, to)) {
+      pocket_replace(mainTo, mainPath);
+      pocket_replace(tmp, altPath);
+      return false;
+    }
+  }
+  SDL_AtomicAdd(&generation, 1);
+  return true;
 }
 
 /* Appends code point c to out as UTF-8 (BMP only), if it fits. */
@@ -384,6 +708,15 @@ static bool look(const struct boxart_game *g) {
     }
     return false;
   }
+  char folderArt[1400];
+  if (!base && !art_main_path(g->stem, folderArt, sizeof folderArt) && art_save_main(g->stem, img, len)) {
+    free(img); // in the game's art folder: the marks of the search go
+    path_of(path, sizeof path, g->stem, "none");
+    pocket_remove(path);
+    path_of(path, sizeof path, g->stem, "base");
+    pocket_remove(path);
+    return true;
+  }
   path_of(path, sizeof path, g->stem, "img");
   bool ok = write_file(path, img, len);
   free(img);
@@ -404,6 +737,8 @@ int boxart_generation(void) { return SDL_AtomicGet(&generation); }
 
 bool boxart_is_base(const char *stem) {
   char path[1400];
+  if (art_main_path(stem, path, sizeof path))
+    return false;
   path_of(path, sizeof path, stem, "custom");
   if (pocket_exists(path))
     return false;
@@ -413,6 +748,8 @@ bool boxart_is_base(const char *stem) {
 
 static bool tried(const char *stem) {
   char path[1400];
+  if (art_main_path(stem, path, sizeof path))
+    return true;
   path_of(path, sizeof path, stem, "img");
   if (pocket_exists(path))
     return true;
@@ -534,6 +871,9 @@ void boxart_init(const char *data) {
   pocket_mkdir(dir);
   if (!lock)
     lock = SDL_CreateMutex();
+  SDL_LockMutex(lock);
+  location_load();
+  SDL_UnlockMutex(lock);
   if (!worker && lock) {
     SDL_AtomicSet(&quit, 0);
     worker = SDL_CreateThread(work, "boxart", NULL);
@@ -609,6 +949,55 @@ void boxart_queue(const struct boxart_game *games, int count) {
   SDL_UnlockMutex(lock);
 }
 
+void boxart_games(const struct boxart_game *games, int count) {
+  struct art_game *list = count > 0 ? calloc((size_t)count, sizeof *list) : NULL;
+  if (count > 0 && !list)
+    return;
+  for (int i = 0; i < count; i++) {
+    snprintf(list[i].stem, sizeof list[i].stem, "%s", games[i].stem);
+    snprintf(list[i].name, sizeof list[i].name, "%s", games[i].title);
+    snprintf(list[i].dir, sizeof list[i].dir, "%s", games[i].dir);
+    list[i].system = games[i].system;
+  }
+  // ONE FOLDER's top level: a name two consoles' games share is theirs in their console's folder only.
+  for (int i = 0; i < count; i++) {
+    char a[300], b[300];
+    art_key(list[i].name, a, sizeof a);
+    for (int k = 0; k < count && !list[i].shared; k++) {
+      if (k == i || ART_SUBFOLDER[list[k].system & 3] == ART_SUBFOLDER[list[i].system & 3])
+        continue;
+      art_key(list[k].name, b, sizeof b);
+      list[i].shared = !strcmp(a, b);
+    }
+  }
+  SDL_LockMutex(lock);
+  free(artGames);
+  artGames = list;
+  artCount = list ? count : 0;
+  SDL_UnlockMutex(lock);
+  // 1.18.1 and older kept the art in DATA/boxart (the player's own pick in custom): copied once into the game's
+  // folder as its box art, where it has none. The old files stay.
+  for (int i = 0; i < count; i++) {
+    char mark[1400], src[1400], have[1400];
+    path_of(mark, sizeof mark, games[i].stem, "moved");
+    if (pocket_exists(mark))
+      continue;
+    path_of(src, sizeof src, games[i].stem, "custom");
+    if (!pocket_exists(src)) {
+      path_of(have, sizeof have, games[i].stem, "base");
+      path_of(src, sizeof src, games[i].stem, "img");
+      if (pocket_exists(have) || !pocket_exists(src))
+        continue; // a hack's base-game box isn't its own art
+    }
+    size_t len = 0;
+    char *img = read_image(src, &len);
+    bool moved = img && (art_main_path(games[i].stem, have, sizeof have) || art_save_main(games[i].stem, img, len));
+    free(img);
+    if (moved)
+      write_file(mark, "", 0);
+  }
+}
+
 void boxart_find(const struct boxart_game *game) {
   SDL_LockMutex(lock);
   findGame = *game;
@@ -668,26 +1057,28 @@ bool boxart_set_custom(const char *stem, const char *source, char *err, size_t e
       return false;
     }
   } else {
-    FILE *f = fopen(s, "rb");
-    if (!f) {
+    if (!pocket_exists(s)) {
       snprintf(err, errSize, "Can't open that file");
       return false;
     }
-    data = malloc(MAX_IMAGE);
-    len = data ? fread(data, 1, MAX_IMAGE, f) : 0;
-    fclose(f);
-    if (!data || !is_image(data, len)) {
-      free(data);
+    data = read_image(s, &len);
+    if (!data) {
       snprintf(err, errSize, "That isn't a PNG or JPEG");
       return false;
     }
   }
   char path[1400];
-  path_of(path, sizeof path, stem, "custom");
-  bool ok = write_file(path, data, len);
+  struct art_game g;
+  bool inFolder = art_game_of(stem, &g), ok;
+  if (inFolder) // the game's art folder: the box art it had becomes an alternate
+    ok = art_save_main(stem, data, len);
+  else {
+    path_of(path, sizeof path, stem, "custom");
+    ok = write_file(path, data, len);
+  }
   free(data);
   if (!ok)
-    snprintf(err, errSize, "Couldn't save the box art");
+    snprintf(err, errSize, inFolder ? "Couldn't save the box art in its folder" : "Couldn't save the box art");
   else
     SDL_AtomicAdd(&generation, 1);
   return ok;
@@ -703,6 +1094,8 @@ bool boxart_clear_custom(const char *stem) {
 
 bool boxart_has_custom(const char *stem) {
   char path[1400];
+  if (art_main_path(stem, path, sizeof path))
+    return true;
   path_of(path, sizeof path, stem, "custom");
   return pocket_exists(path);
 }
@@ -714,7 +1107,7 @@ bool boxart_has_custom(const char *stem) {
 
 struct pick_cand {
   char url[512], thumb[512];
-  int source, w, h;
+  int source, w, h, local;
   bool ready, failed;
 };
 static SDL_Thread *pickThread;
@@ -743,6 +1136,7 @@ static void pick_add(int source, const char *url, const char *thumb, int w, int 
   struct pick_cand *c = &pick[pickCount];
   memset(c, 0, sizeof *c);
   c->source = source;
+  c->local = -1;
   c->w = w;
   c->h = h;
   snprintf(c->url, sizeof c->url, "%s", url ? url : "");
@@ -899,7 +1293,27 @@ static int pick_work(void *unused) {
       pickBusy = true;
     SDL_UnlockMutex(lock);
     if (job == JOB_OPEN) {
-      // libretro's own cover and the base game's first, then SteamGridDB's entry of the same name and its grids.
+      // The game's own pictures (its box art, then its alternates) first.
+      struct art_game ag;
+      char home[1100];
+      static struct art_file files[64];
+      int nf = art_game_of(g.stem, &ag) && art_home(&ag, home, sizeof home) ? art_files(home, ag.name, files, 64) : 0;
+      for (int i = 0; i < nf; i++) {
+        char path[1500];
+        size_t flen = 0;
+        snprintf(path, sizeof path, "%s/%s", home, files[i].name);
+        char *data = read_image(path, &flen);
+        SDL_LockMutex(lock);
+        if (data && serial == pickSerial && pickCount < PICK_MAX) {
+          int fw = 0, fh = 0;
+          image_size((unsigned char *)data, flen, &fw, &fh);
+          pick_add(BOXART_PICK_LOCAL, "", "", fw, fh, data, flen);
+          pick[pickCount - 1].local = files[i].num;
+        }
+        SDL_UnlockMutex(lock);
+        free(data);
+      }
+      // libretro's own cover and the base game's, then SteamGridDB's entry of the same name and its grids.
       size_t len = 0;
       char *img = from_libretro(&g, &len);
       int w = 0, h = 0;
@@ -1083,6 +1497,7 @@ bool boxart_pick_item(int i, struct boxart_pick_item *out) {
     out->w = pick[i].w;
     out->h = pick[i].h;
     out->ready = pick[i].ready;
+    out->local = pick[i].local;
     out->failed = pick[i].failed;
   }
   SDL_UnlockMutex(lock);
@@ -1116,29 +1531,42 @@ bool boxart_pick_choose(const char *stem, int i, char *err, size_t errSize) {
     return false;
   }
   char path[1400];
+  if (c.source == BOXART_PICK_LOCAL) {
+    // One of the game's own pictures: an alternate swaps names with its box art.
+    if (c.local == 0) {
+      snprintf(err, errSize, "That's its box art already");
+      return false;
+    }
+    if (!boxart_art_use(stem, c.local)) {
+      snprintf(err, errSize, "Couldn't swap the pictures");
+      return false;
+    }
+    return true;
+  }
+  char *img = NULL;
+  size_t len = 0;
   if (c.source == BOXART_PICK_STEAMGRIDDB) {
     // The full picture, not its thumbnail.
-    size_t len = 0;
-    char *img = fetch_image(c.url, NULL, &len);
+    img = fetch_image(c.url, NULL, &len);
     if (!img) {
       snprintf(err, errSize, "Couldn't download that cover");
       return false;
     }
-    path_of(path, sizeof path, stem, "custom");
-    ok = write_file(path, img, len);
-    free(img);
   } else {
     // libretro's: the picture is the thumbnail already.
     pick_file(i, path, sizeof path);
-    FILE *f = fopen(path, "rb");
-    char *data = f ? malloc(MAX_IMAGE) : NULL;
-    size_t len = data ? fread(data, 1, MAX_IMAGE, f) : 0;
-    if (f)
-      fclose(f);
-    path_of(path, sizeof path, stem, "custom");
-    ok = data && len && write_file(path, data, len);
-    free(data);
+    img = read_image(path, &len);
   }
+  struct art_game g;
+  if (!img)
+    ok = false;
+  else if (art_game_of(stem, &g)) // into the game's art folder: the box art it had becomes an alternate
+    ok = art_save_main(stem, img, len);
+  else {
+    path_of(path, sizeof path, stem, "custom");
+    ok = write_file(path, img, len);
+  }
+  free(img);
   if (!ok)
     snprintf(err, errSize, "Couldn't save the box art");
   else
@@ -1175,9 +1603,11 @@ static uint32_t useTick;
 
 static SDL_Texture *load(SDL_Renderer *r, const char *stem, int *w, int *h) {
   char path[1400];
-  path_of(path, sizeof path, stem, "custom");
-  if (!pocket_exists(path))
-    path_of(path, sizeof path, stem, "img");
+  if (!art_main_path(stem, path, sizeof path)) {
+    path_of(path, sizeof path, stem, "custom");
+    if (!pocket_exists(path))
+      path_of(path, sizeof path, stem, "img");
+  }
   if (!pocket_exists(path))
     return NULL;
   int iw, ih, n;
