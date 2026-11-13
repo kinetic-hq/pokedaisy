@@ -97,6 +97,9 @@ Sped-up game music turns into chipmunk noise. `FF MUSIC` picks what you hear whi
 The recordings take at most 1.5 GB of your device's storage for all your games together, and less when the device is short on space. When they reach that, the songs you haven't heard for the longest time make room. A song that was removed is recorded again the next time the game plays it, so it can be silent once more for a moment.
 
 > [!NOTE]
+> On Windows and Linux, `STEADY` works in GBA games. There, a song is recorded the first time the game plays it, while you play, rather than in one pass ahead of time, so its first stretch of fast-forward can be silent. The recordings are kept in the `ffmusic` folder next to your saves, at most 1.5 GB for all your games. Game Boy and DS games play `SPED-UP` when `STEADY` is picked.
+
+> [!NOTE]
 > If a song sounds wrong or stays silent with `STEADY`, switch to `SPED-UP`, and let us know which game and where.
 
 ## Game volume and mute: SOUND

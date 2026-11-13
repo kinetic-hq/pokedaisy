@@ -126,7 +126,11 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
             group(c, ix, &y, "FAST-FORWARD");
         }
         if (host->hasFfMode) setting(ui, c, ix, &y, iw, SETTING_FF_MODE, "FF MODE", st->ffNormal ? "NORMAL" : "SMART");
-        if (host->hasFfMusic) setting(ui, c, ix, &y, iw, SETTING_FF_MUSIC, "FF MUSIC", st->ffAudio ? "SPED-UP" : "OFF");
+        if (host->hasFfMusic) {
+            ui->steadyOffered = host->hasSteady;
+            setting(ui, c, ix, &y, iw, SETTING_FF_MUSIC, "FF MUSIC",
+                    !st->ffAudio ? "OFF" : st->ffSteady && host->hasSteady ? "STEADY" : "SPED-UP");
+        }
         *yp = y;
         return;
     case PAGE_DISPLAY:
