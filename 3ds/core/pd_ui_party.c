@@ -606,6 +606,7 @@ static void art_slot(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
     struct art_geometry geo = art_geometry(art->style, w, h);
     if (m) ui_add_hit(ui, x, y, w, h, HIT_SLOT + slot);
     art_slot_at(c, g, art, &geo, x, y, m, selected);
+    if (m) ui_grave_mark(ui, c, m, x + w - 17 * geo.scale, y + 8 * geo.scale, geo.scale);
 }
 
 // --- the game's cards in a grid ---
@@ -765,6 +766,7 @@ static void party_slot(struct pd_ui* ui, struct pd_canvas* c, const struct pd_ga
     if(!p || !p->hideBall)char_bitmap(c, BALL, 20, x + geo.fx - 6 * u, y + geo.fy - 4 * u, u, "KRHW", p ? p->ball : PP->ball);
     party_icon(ui, c, g, m, x + geo.fx - 8 * u, y + geo.fy - 4 * u, u, false);
     if (m->heldItem) ui_held_mark(c, x + geo.fx + 13 * u, y + geo.fy + 15 * u);
+    ui_grave_mark(ui, c, m, x + w - 17 * u, y + 8 * u, u);
 
     int textW = geo.fx + geo.fw - 4 * u - geo.textX;
     pd_text_fit(c, x + geo.textX, y + geo.nameMid - 8, textW, mon_display_name(ui, g, m, buf, sizeof(buf)), text,

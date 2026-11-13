@@ -30,6 +30,7 @@
 #include "shader.h"
 #include "hud.h"
 #include "pd_dex.h"
+#include "pd_nuzlocke.h"
 #include "pd_guide.h"
 #include "../app/src/main/cpp/pk_call.h"
 #include "../app/src/main/cpp/pk_host.h"
@@ -2961,6 +2962,49 @@ static bool saver_active(void) {
   }
   return onBattery;
 }
+/* NUZLOCKE: each game's run in DATA/nuzlocke/<crc>.txt, "on" then the app's own text for the run (NuzlockeRun). */
+static struct pd_nuzlocke nuzlocke;
+static void nuz_path(char *out, size_t n, uint32_t crc) { snprintf(out, n, "%s/nuzlocke/%08x.txt", root, (unsigned)crc); }
+static void nuz_load(uint32_t crc) {
+  pd_nuz_init(&nuzlocke);
+  char path[1024];
+  nuz_path(path, sizeof path, crc);
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return;
+  static char text[(PD_NUZ_MAX_ENCOUNTERS + PD_NUZ_MAX_MONS) * 160 + 64];
+  size_t got = fread(text, 1, sizeof text - 1, f);
+  fclose(f);
+  text[got] = 0;
+  nuzlocke.on = !strncmp(text, "on\t1", 4);
+  const char *run = strchr(text, '\n');
+  pd_nuz_decode(&nuzlocke.run, run ? run + 1 : "");
+}
+static void nuz_store(uint32_t crc) {
+  if (!nuzlocke.dirty)
+    return;
+  nuzlocke.dirty = false;
+  char path[1024], tmp[1040];
+  snprintf(path, sizeof path, "%s/nuzlocke", root);
+  pocket_mkdir(path);
+  nuz_path(path, sizeof path, crc);
+  snprintf(tmp, sizeof tmp, "%s.tmp", path);
+  static char text[(PD_NUZ_MAX_ENCOUNTERS + PD_NUZ_MAX_MONS) * 160 + 64];
+  int head = snprintf(text, sizeof text, "on\t%d\n", nuzlocke.on ? 1 : 0);
+  size_t n = (size_t)head + pd_nuz_encode(&nuzlocke.run, text + head, sizeof text - (size_t)head);
+  FILE *f = fopen(tmp, "wb");
+  if (!f)
+    return;
+  bool ok = fwrite(text, 1, n, f) == n;
+  ok = fclose(f) == 0 && ok;
+  if (!ok) {
+    remove(tmp);
+    return;
+  }
+  remove(path);
+  rename(tmp, path);
+}
+
 static void run_game(const char *path, int maxFrames, const char *shot) {
   {
     const char *file = path + strlen(path);
@@ -3181,6 +3225,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   const char *repelNames[REPEL_KINDS];
   struct pd_ui ui;
   pd_ui_init(&ui, &settings);
+  // NUZLOCKE: this game's run, followed sample by sample while it's on (GBA games, not Emerald Rogue).
+  nuz_load(crc);
+  nuzlocke.supported = c->platform(c) == mPLATFORM_GBA && pd_nuz_supports(&game);
+  ui.nuzlocke = &nuzlocke; // N/A where it doesn't work, as on Android
   hotkeys_load();
   rewind_follow(settings.rewind || rewindBound || rewind_hotkey());
   double frameCost = 0;
@@ -3908,7 +3956,16 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     if (!snap.valid || (companion && !companionWas) || (!companion && frames % 30 == 0)) {
       pd_snapshot_read(&snap, &game, read_memory, c);
       panelGen++;
+      if (nuzlocke.on && nuzlocke.supported && snap.valid) {
+        struct pd_nuz_sample sample;
+        pd_nuz_sample_of(&sample, &game, &snap);
+        pd_nuz_feed(&nuzlocke, &sample);
+        for (int i = 0; i < nuzlocke.eventCount; i++)
+          notice(nuzlocke.events[i]);
+      }
     }
+    if (nuzlocke.dirty)
+      nuz_store(crc);
     companionWas = companion;
     rumbleOn = settings.rumble;
     rumble_events(&snap, (fieldFlags & PK_FIELD_BATTLE) != 0);
@@ -4161,6 +4218,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     SDL_ClearQueuedAudio(audio);
 cleanup:
   ffm_clip_free(&ffClip);
+  nuz_store(crc);
   ffm_stop(ffMusic);
   rewind_follow(false);
   rumble(0, 0, 0); // a rumble cart left buzzing stops with the game
