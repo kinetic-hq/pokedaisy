@@ -224,6 +224,10 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
         if (host->shinyOddsFits) setting(ui, c, ix, &y, iw, SETTING_SHINY_ODDS, "SHINY ODDS", PD_SHINY_LABELS[st->shinyOdds]);
         else muted_row(c, ix, &y, iw, "SHINY ODDS", "N/A");
     }
+    if (ui->nuzlocke) {
+        if (ui_nuzlocke_supported(ui)) setting(ui, c, ix, &y, iw, SETTING_NUZLOCKE, "NUZLOCKE", on_off(ui_nuzlocke_on(ui)));
+        else muted_row(c, ix, &y, iw, "NUZLOCKE", "N/A");
+    }
     setting(ui, c, ix, &y, iw, SETTING_LEVEL_CAP, "LEVEL CAP", on_off(st->levelCap));
     if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", on_off(st->cheats));
 
@@ -438,6 +442,10 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         if (host->hasShinyOdds) {
             if (host->shinyOddsFits) setting(ui, c, ix, &y, iw, SETTING_SHINY_ODDS, "SHINY ODDS", PD_SHINY_LABELS[st->shinyOdds]);
             else muted_row(c, ix, &y, iw, "SHINY ODDS", "N/A");
+        }
+        if (ui->nuzlocke) {
+            if (ui_nuzlocke_supported(ui)) setting(ui, c, ix, &y, iw, SETTING_NUZLOCKE, "NUZLOCKE", ui_nuzlocke_on(ui) ? "ON" : "OFF");
+            else muted_row(c, ix, &y, iw, "NUZLOCKE", "N/A");
         }
         setting(ui, c, ix, &y, iw, SETTING_LEVEL_CAP, "LEVEL CAP", st->levelCap ? "ON" : "OFF");
         if (host->hasCheats) setting(ui, c, ix, &y, iw, SETTING_CHEATS, "CHEATS", st->cheats ? "ON" : "OFF");
@@ -681,6 +689,13 @@ static void confirm(struct pd_ui* ui, struct pd_canvas* c, const char* title, co
     ui_button(ui, c, c->w / 2 + 6, y, bw, 24, "CANCEL", HIT_NO);
 }
 
+void ui_pick_list(struct pd_ui* ui, struct pd_canvas* c, const char* title, const char* const* options, int n, int current) {
+    pick_list(ui, c, title, options, n, current < 0 ? 0 : current);
+}
+void ui_confirm(struct pd_ui* ui, struct pd_canvas* c, const char* title, const char* text, const char* yes) {
+    confirm(ui, c, title, text, yes);
+}
+
 void ui_overlay(struct pd_ui* ui, struct pd_canvas* c) {
     if (ui->overlay == PD_OVERLAY_NONE) return;
     pd_dim(c, 0xE6);
@@ -702,6 +717,10 @@ void ui_overlay(struct pd_ui* ui, struct pd_canvas* c) {
         break;
     case PD_OVERLAY_PICK_SPEED:
         pick_list(ui, c, "GAME SPEED", PD_GAME_SPEEDS, PD_GAME_SPEED_COUNT, ui->settings->gameSpeed);
+        break;
+    case PD_OVERLAY_NUZ_PICK:
+    case PD_OVERLAY_NUZ_CONFIRM:
+        ui_nuzlocke_overlay(ui, c);
         break;
     case PD_OVERLAY_PICK_SHINY:
         pick_list(ui, c, "SHINY ODDS", PD_SHINY_LABELS, PD_SHINY_CHOICES, ui->settings->shinyOdds);

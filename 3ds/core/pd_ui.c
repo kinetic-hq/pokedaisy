@@ -52,7 +52,8 @@ bool ui_tab_available(const struct pd_ui* ui, const struct pd_game* g, enum pd_t
     case PD_TAB_CARD: return cfg && cfg->cardStyle;
     case PD_TAB_STATES: return ui->hostHasStates;
     case PD_TAB_BOXES: return ui->boxes != NULL;
-    case PD_TAB_NUZLOCKE: case PD_TAB_ACHIEVEMENTS: return false; // not ported yet
+    case PD_TAB_NUZLOCKE: return ui->nuzlocke != NULL;
+    case PD_TAB_ACHIEVEMENTS: return false; // not ported yet
     default: return true;
     }
 }
@@ -426,6 +427,8 @@ void pd_ui_draw(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g,
         ui_states_tab(ui, c, host);
     } else if (ui->tab == PD_TAB_BOXES) {
         ui_boxes_tab(ui, c, g, s);
+    } else if (ui->tab == PD_TAB_NUZLOCKE) {
+        ui_nuzlocke_tab(ui, c, g, s);
     } else {
         ui_battle_tab(ui, c, g, s);
     }
@@ -452,6 +455,7 @@ static int* scroll_target(struct pd_ui* ui) {
     case PD_TAB_DEX: return ui->dexOpen && ui->dexSection ? &ui->dexPageScroll : &ui->dexScroll;
     case PD_TAB_GUIDE: return &ui->guideScroll;
     case PD_TAB_SETTINGS: return &ui->settingsScroll;
+    case PD_TAB_NUZLOCKE: return &ui->nuzScroll;
     default: return NULL;
     }
 }
@@ -480,7 +484,7 @@ bool ui_summary_learn(struct pd_ui* ui) {
 }
 
 static void act(struct pd_ui* ui, int id) {
-    if (ui_map_act(ui, id) || ui_dex_act(ui, id) || ui_guide_act(ui, id) || ui_battle_act(ui, id) || ui_card_act(ui, id) ||
+    if (ui_nuzlocke_act(ui, id) || ui_map_act(ui, id) || ui_dex_act(ui, id) || ui_guide_act(ui, id) || ui_battle_act(ui, id) || ui_card_act(ui, id) ||
         ui_battle_controls_act(ui, id, ui->drawn) || ui_states_act(ui, id) || ui_boxes_act(ui, id, ui->drawn) ||
         ui_bag_act(ui, id, ui->drawn)) {
         return;
@@ -547,6 +551,8 @@ static void act(struct pd_ui* ui, int id) {
         ui->overlay = PD_OVERLAY_HUD;
     } else if (id == HIT_SETTING + SETTING_FF_TOGGLE) {
         ui->action = PD_ACTION_TOGGLE_FF;
+    } else if (id == HIT_SETTING + SETTING_NUZLOCKE) {
+        ui_nuzlocke_toggle(ui);
     } else if (id == HIT_SETTING + SETTING_SHINY_ODDS) {
         ui->overlay = PD_OVERLAY_PICK_SHINY;
     } else if (id >= HIT_SETTING + SETTING_SCENE && id <= HIT_SETTING + SETTING_SCENE_END) {

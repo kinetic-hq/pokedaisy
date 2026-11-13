@@ -22,6 +22,7 @@
 #include "../core/pd_ui_internal.h"
 #include "../core/pd_layout_pick.h"
 #include "../core/pd_map.h"
+#include "../core/pd_nuzlocke.h"
 #include "pd_png.h"
 
 #define TOP_W 400
@@ -424,6 +425,36 @@ int main(int argc, char** argv) {
         snprintf(path, sizeof(path), "%s/%s-battle-wing.png", out, name);
         if (pd_png_write(path, wingW, wingH, wpx)) printf("%s\n", path);
         draw(&p);
+    }
+
+    // NUZLOCKE: off (TURN ON), then a run made up from the fixture's party: an encounter here, one fallen.
+    {
+        static struct pd_nuzlocke nz;
+        pd_nuz_init(&nz);
+        nz.supported = true;
+        ui.nuzlocke = &nz;
+        ui.tab = PD_TAB_NUZLOCKE;
+        draw(&p);
+        shot(out, name, "nuzlocke-off", px);
+        tap(&p, HIT_NUZ_ON, 0);
+        struct pd_nuz_sample ns;
+        pd_nuz_sample_of(&ns, &game, &snap);
+        ns.inBattle = false;
+        pd_nuz_feed(&nz, &ns);
+        if (snap.partyCount > 0) {
+            struct pd_nuz_encounter* e = &nz.run.encounters[nz.run.encounterCount++];
+            e->area = snap.mapsec;
+            e->species = snap.party[snap.partyCount - 1].species;
+            e->outcome = PD_NUZ_CAUGHT;
+            snprintf(e->areaName, sizeof(e->areaName), "%s", pd_mapsec_name(&game, snap.mapsec));
+            pd_nuz_set_dead(&nz, snap.party[0].personality, true, e->areaName);
+        }
+        draw(&p);
+        shot(out, name, "nuzlocke", px);
+        ui.tab = PD_TAB_PARTY;
+        draw(&p);
+        shot(out, name, "nuzlocke-party", px);
+        ui.nuzlocke = NULL;
     }
 
     // BAG: a tapped item shows its description; a drag scrolls the list; the

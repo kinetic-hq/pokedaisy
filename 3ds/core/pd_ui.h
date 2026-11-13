@@ -18,6 +18,7 @@
 #include "pd_snapshot.h"
 
 struct pd_layout_option; // pd_layout_pick.h
+struct pd_nuzlocke;      // pd_nuzlocke.h
 
 #define PD_UI_WIDTH 320
 #define PD_UI_HEIGHT 240
@@ -344,6 +345,8 @@ enum pd_overlay {
     PD_OVERLAY_LAYOUT,    // COMPANION VIEW's drawn picker (host->layouts)
     PD_OVERLAY_PICK_SCENE, // a SCENE SPEEDS row's pick-list (ui->sceneRow)
     PD_OVERLAY_PICK_SHINY, // SHINY ODDS' pick-list
+    PD_OVERLAY_NUZ_PICK,    // NUZLOCKE: an encounter's CAUGHT / MISSED / NOT USED (ui->nuzKey: its area)
+    PD_OVERLAY_NUZ_CONFIRM, // NUZLOCKE: a Pokemon marked fainted or brought back, or NEW RUN (ui->nuzConfirm)
 };
 
 // Optional presentation data for another emulator; IDs stay native to that backend.
@@ -538,6 +541,9 @@ struct pd_ui {
     bool summaryInfo;  // INFO (EXP, held item, type matchups) replaces them
     // BOXES: what the host read (NULL = the tab isn't here), the box asked for, the picked slot and the box summary.
     const struct pd_boxes* boxes;
+    // NUZLOCKE: the host's tracker for this game (NULL = no tab), its list's scroll and the row being changed.
+    struct pd_nuzlocke* nuzlocke;
+    int nuzScroll, nuzKey, nuzConfirm;
     bool summaryEvolve; // the open summary's Pokémon gets EVOLVE (set from host->evolveTarget)
     bool boxMoves;   // WITHDRAW / DEPOSIT / SWAP work here
     int boxShown, boxSlot, boxSummary, boxPartySlot, boxTarget;

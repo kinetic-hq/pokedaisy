@@ -99,6 +99,9 @@ enum {
     HIT_STATE_LOAD = 3071,
     HIT_STATE_UNDO_SAVE = 3072,
     HIT_STATE_UNDO_LOAD = 3073,
+    HIT_NUZ_ROW = 40000,   // + NUZLOCKE row
+    HIT_NUZ_ON = 41100,    // NUZLOCKE's TURN ON
+    HIT_NUZ_LIST = 41101,  // its list (a drag scrolls it)
     HIT_OPEN_CARD = 3100,
     HIT_CARD = 3101,
 };
@@ -136,6 +139,7 @@ enum setting_row {
     SETTING_HINTS,
     SETTING_ONE_TAP,
     SETTING_FOE_IVS,
+    SETTING_NUZLOCKE,
     SETTING_RESTART,
     SETTING_VIEW,      // hosts with hasCompanionView: opens its pick-list
     SETTING_UPDATES,   // hosts with hasUpdateCheck: flips in place
@@ -254,6 +258,18 @@ int ui_recommended_switch(const struct pd_snapshot* s);
 int ui_out_slots(const struct pd_snapshot* s);
 // The summary's STATS table (stat, IV bar, EV, nature, hidden power) for [m], [w] wide from (x, y); its bottom.
 int ui_mon_stats(struct pd_canvas* c, const struct pd_mon* m, int x, int y, int w);
+// NUZLOCKE (pd_ui_nuzlocke.c): the tab, its two overlays and its taps.
+void ui_nuzlocke_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s);
+void ui_nuzlocke_overlay(struct pd_ui* ui, struct pd_canvas* c);
+bool ui_nuzlocke_act(struct pd_ui* ui, int id);
+bool ui_nuzlocke_supported(const struct pd_ui* ui);
+bool ui_nuzlocke_on(const struct pd_ui* ui);
+void ui_nuzlocke_toggle(struct pd_ui* ui);
+// A party slot's gravestone, at (x, y) 11 x 12 times [scale], when NUZLOCKE has [m] out of the run.
+void ui_grave_mark(const struct pd_ui* ui, struct pd_canvas* c, const struct pd_mon* m, int x, int y, int scale);
+// SETTINGS' pick-list and yes / cancel windows, for other tabs' overlays.
+void ui_pick_list(struct pd_ui* ui, struct pd_canvas* c, const char* title, const char* const* options, int n, int current);
+void ui_confirm(struct pd_ui* ui, struct pd_canvas* c, const char* title, const char* text, const char* yes);
 // PARTY's grid in the canvas; with [out] / [best] its picker: those slots tagged, tapping sends a Pokémon in.
 void ui_party_grid(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, int best, int out);
 // A beveled colour button (PlatinumButton), id < 0 = not tappable.

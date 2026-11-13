@@ -254,6 +254,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   `GAME SPEED` was shown on the desktop but never applied; it now sets the pace in between.
 - **TRADE EVOS on the desktop**: in the English FireRed (rev 1), LeafGreen and Emerald, a party Pokémon that would
   evolve by trading gets `EVOLVE` on its summary, and the game plays its own evolution, as on Android.
+- **NUZLOCKE on the desktop**: the Android app's tracker and its tab (under `MORE`): one encounter per area, fainted
+  Pokémon out for good, fixes by hand, `DUPES CLAUSE`, `WARNINGS` and `NEW RUN`, in the same GBA games. Each game's run
+  is kept in `nuzlocke/` beside the saves, in the app's own format.
 - **FOE IVS on the desktop**: the `COMPANION` setting from the Android app. Battle `INFO` gets `STATS`, your Pokémon and
   the foe side by side with each stat's IV and EV and the nature, in wild and trainer battles.
 - **SHINY ODDS on the desktop**: `GAMEPLAY` gets `SHINY ODDS` (`NORMAL` up to `1 IN 128`) in the same GBA games and

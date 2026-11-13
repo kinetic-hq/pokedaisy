@@ -55,5 +55,7 @@ Anything the tracker got wrong, you can put right:
 >
 > Emerald Rogue shows `N/A` too, on purpose. It's a roguelike: every run takes you through the same areas again, so "one catch per area" can't work there.
 
+On Windows and Linux, `NUZLOCKE` works the same way, in the same games: the tab is under `MORE`, the switch is in the `GAMEPLAY` group of the settings, and the warnings show along the bottom of the game screen. Each game's run is kept in the `nuzlocke` folder beside your saves, in the same form as the Android app's.
+
 > [!TIP]
 > Other common house rules, like giving every catch a nickname or not using items in battle, are up to you. The tracker only follows encounters and faints.

@@ -25,7 +25,7 @@ the fork's README.
 - **Speed**: `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `FF MODE`, and `SCENE SPEEDS`
   in Game Boy and GBA games.
 - **Gameplay**: `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`,
-  `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `CHEATS`.
+  `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `NUZLOCKE` (with its tab), `CHEATS`.
 - **Look**: `THEME` and `DARK MODE`.
 - **Saves**: a backup of your save each time a game starts, `RESUME GAMES`, and
   states that never hold the save.
