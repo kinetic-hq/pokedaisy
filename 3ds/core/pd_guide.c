@@ -338,11 +338,12 @@ int pd_trainer_team(const struct pd_game* g, int trainer, struct pd_team_mon* ou
         return size;
     }
     bool customMoves = flags & 1, heldItem = flags & 2;
-    int stride = customMoves ? 16 : 8;
+    // Vanilla's structs, or behind a header of the game's own with sizes of its own (Monomyth's).
+    int stride = cfg->trainerMonStrides[flags & 3] ? cfg->trainerMonStrides[flags & 3] : customMoves ? 16 : 8;
     const uint8_t* party = pd_rom_at(g, partyPtr, (size_t) (size * stride));
     if (!party) return 0;
     for (int i = 0; i < size; i++) {
-        const uint8_t* m = party + i * stride;
+        const uint8_t* m = party + i * stride + cfg->trainerMonHeader;
         struct pd_team_mon* o = &out[i];
         memset(o, 0, sizeof(*o));
         o->level = m[2];

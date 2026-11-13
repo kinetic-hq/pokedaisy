@@ -3736,8 +3736,8 @@ kotlin = false
 wildHeaders = 0x0874AC1C
 
 # From app/src/main/kotlin/com/pokedaisy/app/companion/data/Pokedex.kt / GuideRom.kt (POKEDEX_MONOMYTH, GUIDE_TABLES_MONOMYTH):
-# what the 3DS / Linux companion reads of Monomyth: its dex flags and pages (the pages' packed egg groups and its own
-# evolution scheme aren't shown there) and its save offsets. Its trainers (TrainerMon strides of its own) aren't read there yet.
+# what the 3DS / Linux companion reads of Monomyth: its dex flags and pages, its evolution table (EVOLVE, its own scheme),
+# its save offsets and its trainers (party structs behind a u32: TrainerMon strides of its own).
 [record.POKEDEX_MONOMYTH_FLAGS]
 schema = 'gen3_dexflags'
 kotlin = false
@@ -3775,6 +3775,9 @@ nationalCount = 362
 regionalCount = 362
 nationalMagicOff = -1
 flags = 'POKEDEX_MONOMYTH_FLAGS'
+# gEvolutionTable: eight 8-byte rows a species (Pokedex.kt's EvoLayout(EvoScheme.MONOMYTH, perMon = 8)); the desktop's
+# EVOLVE section reads it with dexEvoPerMon / dexEvoScheme (3ds.toml).
+evolutions = 0x0850010C
 
 [record.POKEDEX_MONOMYTH_V1_1]
 schema = 'gen3_pokedex'
@@ -3787,6 +3790,7 @@ palettes = 0x0848855C
 speciesInfo = 0x084F7244
 speciesToNational = 0x084F49A8
 levelUpLearnsets = 0x08506AD4
+evolutions = 0x08500594
 
 [record.GUIDE_TABLES_MONOMYTH]
 schema = 'gen3_guide'
@@ -3800,6 +3804,10 @@ sb1FlagsOff = 0x18C4
 sb1VarsOff = 0x19FC
 flagBytes = 0x138
 varCount = 0x110
+probeTrainer = 1
+probeName = 'Tim'
+trainerMonStrides = [12, 20, 12, 24]
+trainerMonHeader = 4
 
 [record.GUIDE_TABLES_MONOMYTH_V1_1]
 schema = 'gen3_guide'

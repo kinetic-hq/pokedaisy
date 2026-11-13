@@ -256,6 +256,8 @@ struct pd_config {
     // The DEX's sections (DexDetails.kt), on vanilla's tables: gEvolutionTable, the TM bitfields, their moves, gMapGroups.
     uint32_t dexEvolutions, dexTmhm, dexTmhmMoves, dexMapGroups;
     int dexSpeciesCount;
+    // gEvolutionTable's rows a species (0 = vanilla's 5) and its methods' numbering (PD_EVO_SCHEME_*).
+    int dexEvoPerMon, dexEvoScheme;
     // The PC (NativeConfig.pcStorage, pokemonStoragePtr): NULL / 0 = not read.
     uint32_t pokemonStoragePtr;
     const struct pd_pc_storage* pcStorage;
@@ -324,6 +326,9 @@ struct pd_config {
     uint32_t flagsOff, varsOff, flagBytes; // in SaveBlock1
     // A hack's own struct TrainerMon (GuideTables.trainerMon), every field at a fixed offset; stride 0 = retail's.
     int trainerMonStride, trainerMonMovesOff, trainerMonSpeciesOff, trainerMonItemOff, trainerMonLevelOff;
+    // Vanilla's party structs behind trainerMonHeader bytes of the game's own, each this size by the party flags (none,
+    // custom moves, held item, both): Monomyth's 12 / 20 / 12 / 24 behind a u32. All 0 = vanilla's.
+    int trainerMonStrides[4], trainerMonHeader;
     // struct Trainer's shape (GuideTables.trainerStride ...): size, where the name / party size byte / party pointer sit.
     // trainerHardPartyOff >= 0: a second party pointer in the record (size in the size byte's high nibble).
     // altTrainers: more tables a trainer id picks with (k + 1) << 16 (0 = none); an empty record falls back to `trainers`.

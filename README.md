@@ -317,6 +317,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   from the game's own species data (Lazarus, which zeroes the species it leaves out, is checked on another one); the game grid's support tag asks the same rule.
 - **Monomyth's DEX** on the desktop host, from its own tables (its pages, smol pictures and region list), and **metric
   units** on the `DEX` page of every GBA game whose cart uses them (Monomyth, the European and Japanese carts), as in the app.
+- **Monomyth's DEX sections and GUIDE** on the desktop host: `EVOLVE` (its own eight-row evolution table and methods),
+  `AREA` and `MOVES`, and the guide's trainer teams and wild tables (its trainer parties sit behind a header of its own).
 - **Amethyst 1.4.3**: its own config (PARTY, BAG, BATTLE with the foe's team, DEX, GUIDE, the PC) instead of 1.4.1's
   guessed one, which read the wrong ability names and foe teams; on the desktop, the 3DS port and Android alike.
 - **Team Rocket Dragonsden 2026 (Spanish)** on the desktop host and the 3DS port: PARTY, BAG, BATTLE, MAP, DEX and GUIDE,

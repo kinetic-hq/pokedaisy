@@ -105,7 +105,7 @@ default = 'none'
 # Null = vanilla's 8 / 16.
 [field.trainerMonStrides]
 kotlin = 'List<Int>?'
-type = 'ref'
+type = 'int_list'
 default = 'none'
 
 [field.trainerMonHeader]
