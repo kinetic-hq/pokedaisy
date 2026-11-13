@@ -836,12 +836,12 @@ parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
 # Let's Go Pikachu / Eevee: FireRed rev 0 edited in place, a grid party menu (runningLetsGo).
 [config.lets_go_pikachu]
 name = 'LETS_GO_PIKACHU'
-parts = ['ram', 'foes', 'icons', 'guide', 'battle', 'engine', 'boxes']
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes', 'dexsec']
 values = { partyMenu = 0x0203B0A0, partyMenuGrid = true }
 
 [config.lets_go_eevee]
 name = 'LETS_GO_EEVEE'
-parts = ['ram', 'foes', 'icons', 'guide', 'battle', 'engine', 'boxes']
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes', 'dexsec']
 values = { partyMenu = 0x0203B0A0, partyMenuGrid = true }
 
 [config.monomyth]
