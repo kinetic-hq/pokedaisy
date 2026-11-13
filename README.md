@@ -131,7 +131,7 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | Petalburg Dynasty | 1.12.2 | GBA | ROM hack | ✅ (not in its table) | ✅ FULL | Run on copy |
 | Dreamstone Mysteries | the one release | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
 | Monomyth | 1.0, 1.1 | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
-| Emerald Rogue | 2.2.1-EX | GBA | ROM hack | ◐ | ◐ PARTLY: no DEX; no GUIDE | Not yet |
+| Emerald Rogue | 2.2.1-EX | GBA | ROM hack | ◐ | ◐ PARTLY: no GUIDE (none on Android either) | Run on copy |
 | SoulGold | 1.1.4, 1.2 (3), 1.2.1 (2) | GBA | ROM hack | ✅ | ✅ FULL | Run on copy (1.2.1) |
 | R.O.W.E. | 2.1.9.1 Experimental | GBA | ROM hack | ◐ | ✅ FULL | Run on copy |
 
