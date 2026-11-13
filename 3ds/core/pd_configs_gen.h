@@ -6142,7 +6142,7 @@ static const struct pd_config PD_CONFIG_RECHARGED_YELLOW_V1_9_7 = {
     .text = &pd_text_recharged_yellow_v1_9_7,
 };
 
-// gamedata/gen3/hacks/seaglass.toml: emerald_seaglass (ram, foes, icons, dex, guide, battle, engine, boxes)
+// gamedata/gen3/hacks/seaglass.toml: emerald_seaglass (ram, foes, icons, dex, guide, battle, engine, boxes, dexsec)
 static const struct pd_config PD_CONFIG_SEAGLASS = {
     .itemDescs = &(const struct pd_item_descs){ .base = 141027196, .stride = 84, .descOff = -8, .idOff = -1 },
     .playerParty = 0x02019C20,
@@ -6290,6 +6290,11 @@ static const struct pd_config PD_CONFIG_SEAGLASS = {
     .extraItemStride = 8,
     .pokemonStoragePtr = 0,
     .pcStorage = &pd_pc_vanilla,
+    .dexEvolutions = 0,
+    .dexTmhm = 0,
+    .dexTmhmMoves = 0,
+    .dexSpeciesCount = 1489,
+    .dexMapGroups = 0x08B45148,
     .text = &pd_text_emerald_seaglass,
 };
 

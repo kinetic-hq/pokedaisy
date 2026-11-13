@@ -352,9 +352,18 @@ static void section_page(struct pd_ui* ui, struct pd_canvas* c, const struct pd_
             snprintf(right, sizeof(right), "LV %d", moves[i].level);
             page_line(c, x, &y, top, bottom, w, pd_move_name(g, moves[i].move, left, sizeof(left)), right, false);
         }
-        int t = pd_dex_tm_moves(g, e->species, tms, PD_TM_MOVES_MAX);
-        if (t) page_line(c, x, &y, top, bottom, w, "TM / HM", NULL, true);
-        for (int i = 0; i < t; i++) page_line(c, x, &y, top, bottom, w, pd_move_name(g, tms[i], left, sizeof(left)), NULL, false);
+        const struct pd_dex_x* ex = g->cfg->expansion;
+        if (ex && ex->teachableOff >= 0) {
+            // an expansion build's teachable list (gSpeciesInfo's own pointer), not vanilla's TM bitfields
+            static struct pd_machine_move taught[400];
+            int t = pd_machine_moves(g, e->species, taught, 400);
+            if (t > 0) page_line(c, x, &y, top, bottom, w, "TEACHABLE MOVES", NULL, true);
+            for (int i = 0; i < t; i++) page_line(c, x, &y, top, bottom, w, pd_move_name(g, taught[i].move, left, sizeof(left)), NULL, false);
+        } else {
+            int t = pd_dex_tm_moves(g, e->species, tms, PD_TM_MOVES_MAX);
+            if (t) page_line(c, x, &y, top, bottom, w, "TM / HM", NULL, true);
+            for (int i = 0; i < t; i++) page_line(c, x, &y, top, bottom, w, pd_move_name(g, tms[i], left, sizeof(left)), NULL, false);
+        }
     }
     pd_unclip(c);
     ui->dexPageMax = y + ui->dexPageScroll - top - h;

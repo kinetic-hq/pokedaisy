@@ -24,19 +24,46 @@ static uint32_t u32le(const uint8_t* p) {
     return (uint32_t) p[0] | (uint32_t) p[1] << 8 | (uint32_t) p[2] << 16 | (uint32_t) p[3] << 24;
 }
 
+// An expansion build's rows: gSpeciesInfo's evolutions pointer, vanilla's 8-byte rows up to a 0xFFFF method. Only with
+// gMapGroups set (the dexsec part), so a build turns its sections on once its rows are checked.
+static bool expansion_evos(const struct pd_config* c) {
+    return c->expansion && c->expansion->evolutionsOff >= 0 && c->dexMapGroups;
+}
+
 bool pd_dex_has_details(const struct pd_game* g) {
     const struct pd_config* c = g->cfg;
-    return c && c->dexEvolutions && g->rom;
+    return c && (c->dexEvolutions || expansion_evos(c)) && g->rom;
 }
+
+#define EXPANSION_EVOS_MAX 16
 
 // gEvolutionTable's rows a species: vanilla's 5, Monomyth's 8.
 static int evos_per_mon(const struct pd_game* g) {
     return g->cfg->dexEvoPerMon ? g->cfg->dexEvoPerMon : EVOS_PER_MON;
 }
 
-static const uint8_t* evos_of(const struct pd_game* g, int species) {
+static int species_count(const struct pd_game* g);
+
+// The species' rows and how many there are (0 when none).
+static const uint8_t* evos_of(const struct pd_game* g, int species, int* count) {
+    const struct pd_config* c = g->cfg;
+    *count = 0;
+    if (!c->dexEvolutions) {
+        const struct pd_dex_x* x = c->expansion;
+        if (species <= 0 || species >= species_count(g) || x->evolutionsOff > x->stride - 4) return NULL;
+        const uint8_t* ptr = pd_rom_at(g, c->speciesInfo + (uint32_t) species * x->stride + x->evolutionsOff, 4);
+        const uint8_t* rows = ptr && u32le(ptr) ? pd_rom_at(g, u32le(ptr), EVO_SIZE) : NULL;
+        if (!rows) return NULL;
+        int n = 0;
+        while (n < EXPANSION_EVOS_MAX && pd_rom_at(g, u32le(ptr) + (uint32_t) n * EVO_SIZE, EVO_SIZE) &&
+               u16le(rows + n * EVO_SIZE) != 0xFFFF) n++;
+        *count = n;
+        return rows;
+    }
     int per = evos_per_mon(g);
-    return pd_rom_at(g, g->cfg->dexEvolutions + (uint32_t) species * (uint32_t) per * EVO_SIZE, (size_t) per * EVO_SIZE);
+    const uint8_t* rows = pd_rom_at(g, c->dexEvolutions + (uint32_t) species * (uint32_t) per * EVO_SIZE, (size_t) per * EVO_SIZE);
+    if (rows) *count = per;
+    return rows;
 }
 
 static int species_count(const struct pd_game* g) {
@@ -50,9 +77,10 @@ static bool evo_row(const struct pd_game* g, int from, const uint8_t* e) {
 }
 
 static int walk(const struct pd_game* g, int species, struct pd_evo* out, int n, int max) {
-    const uint8_t* e = evos_of(g, species);
+    int rows;
+    const uint8_t* e = evos_of(g, species, &rows);
     if (!e) return n;
-    for (int i = 0; i < evos_per_mon(g) && n < max; i++, e += EVO_SIZE) {
+    for (int i = 0; i < rows && n < max; i++, e += EVO_SIZE) {
         int method = u16le(e), param = u16le(e + 2), to = u16le(e + 4);
         if (!evo_row(g, species, e)) continue;
         bool seen = false;
@@ -70,8 +98,9 @@ int pd_dex_family(const struct pd_game* g, int species, struct pd_evo* out, int 
     for (int depth = 0; depth < 3; depth++) {
         int parent = 0;
         for (int s = 1; s < count && !parent; s++) {
-            const uint8_t* e = evos_of(g, s);
-            for (int i = 0; e && i < evos_per_mon(g); i++)
+            int rows;
+            const uint8_t* e = evos_of(g, s, &rows);
+            for (int i = 0; e && i < rows; i++)
                 if (evo_row(g, s, e + i * EVO_SIZE) && u16le(e + i * EVO_SIZE + 4) == first) parent = s;
         }
         if (!parent) break;
@@ -97,11 +126,19 @@ void pd_dex_evo_text(const struct pd_game* g, const struct pd_evo* e, char* out,
     case 14: snprintf(out, len, "LV %d, a spare party slot", p); break;
     case 15: snprintf(out, len, "Level up, BEAUTY %d+", p); break;
     default:
-        if (g->cfg->dexEvoScheme == PD_EVO_SCHEME_MONOMYTH) {  // expansion's numbers for the four it adds
+        if (g->cfg->dexEvoScheme == PD_EVO_SCHEME_MONOMYTH || g->cfg->expansion) {  // expansion's numbers for what it adds
             char name[32];
             switch (e->method) {
+            case 16: snprintf(out, len, "LV %d, female", p); return;
+            case 17: snprintf(out, len, "LV %d, male", p); return;
+            case 18: snprintf(out, len, "LV %d, night", p); return;
+            case 19: snprintf(out, len, "LV %d, day", p); return;
+            case 20: snprintf(out, len, "LV %d, dusk", p); return;
+            case 21: snprintf(out, len, "Level up holding %s, day", pd_item_name(g, p)); return;
+            case 22: snprintf(out, len, "Level up holding %s, night", pd_item_name(g, p)); return;
             case 23: snprintf(out, len, "Level up, knowing %s", pd_move_name(g, p, name, sizeof(name))); return;
             case 25: snprintf(out, len, "Level up at %s", pd_mapsec_name(g, p)); return;
+            case 26: snprintf(out, len, "Use %s, male", pd_item_name(g, p)); return;
             case 27: snprintf(out, len, "Use %s, female", pd_item_name(g, p)); return;
             case 32: snprintf(out, len, "Level up in a special place"); return;
             }
@@ -162,16 +199,20 @@ static int scan(const struct pd_game* g, const uint8_t* info, int species, int s
 int pd_dex_spots(const struct pd_game* g, int species, struct pd_spot* out, int max) {
     const struct pd_config* c = g->cfg;
     if (!pd_dex_has_details(g) || !c->wildHeaders || !c->dexMapGroups) return 0;
+    // vanilla's 20-byte headers, or a build's own (wildLayout: Seaglass's 24, its fishing table fifth)
+    const struct pd_wild_layout* l = c->wildLayout;
+    const int stride = l ? l->stride : WILD_HEADER;
+    const int land = l ? l->land : 0, water = l ? l->water : 1, rock = l ? l->rockSmash : 2, fish = l ? l->fishing : 3;
     int n = 0;
-    for (int h = 0; h < 200; h++) {
-        const uint8_t* hd = pd_rom_at(g, c->wildHeaders + (uint32_t) h * WILD_HEADER, WILD_HEADER);
+    for (int h = 0; h < 400; h++) {
+        const uint8_t* hd = pd_rom_at(g, c->wildHeaders + (uint32_t) h * stride, (size_t) stride);
         if (!hd || hd[0] == 0xFF) break;
         int mapsec = mapsec_of(g, hd[0], hd[1]);
         if (mapsec < 0) continue;
-        n = scan(g, hd + 4, species, 12, LAND_PCT, PD_SPOT_GRASS, mapsec, out, n, max);
-        n = scan(g, hd + 8, species, 5, WATER_PCT, PD_SPOT_SURF, mapsec, out, n, max);
-        n = scan(g, hd + 12, species, 5, WATER_PCT, PD_SPOT_ROCK, mapsec, out, n, max);
-        n = scan(g, hd + 16, species, 10, FISH_PCT, PD_SPOT_FISH, mapsec, out, n, max);
+        n = scan(g, hd + 4 + 4 * land, species, 12, LAND_PCT, PD_SPOT_GRASS, mapsec, out, n, max);
+        n = scan(g, hd + 4 + 4 * water, species, 5, WATER_PCT, PD_SPOT_SURF, mapsec, out, n, max);
+        n = scan(g, hd + 4 + 4 * rock, species, 5, WATER_PCT, PD_SPOT_ROCK, mapsec, out, n, max);
+        n = scan(g, hd + 4 + 4 * fish, species, 10, FISH_PCT, PD_SPOT_FISH, mapsec, out, n, max);
     }
     return n;
 }

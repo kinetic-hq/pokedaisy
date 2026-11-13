@@ -331,7 +331,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   Pokemon's entry under the game's own number (No. 301 there) instead of assuming No. 1.
 - **Modern Emerald's DEX tab** on the desktop host, which the app doesn't have: its 215 Hoenn and 432 National, with SEEN / OWN
   from its own save layout.
-- **Emerald Seaglass's DEX tab** on the desktop host, in the game's own numbering (Hoenn first), read from its species data.
+- **Emerald Seaglass's DEX tab** on the desktop host, in the game's own numbering (Hoenn first), read from its species data,
+  with `EVOLVE`, `AREA` and `MOVES` on each entry (`MOVES` lists what the Pokemon can be taught instead of TMs and HMs).
 - **HIDDEN ability, GENDER ratio, CATCH RATE and stat TOTAL on the DEX page** on the desktop host for the GBA
   games, on a window big enough for them (the 3DS page keeps its old lines), as the app shows them.
 - **Monomyth's DEX sections and GUIDE** on the desktop host: `EVOLVE` (its own eight-row evolution table and methods),

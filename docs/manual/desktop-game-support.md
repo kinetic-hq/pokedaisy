@@ -104,7 +104,7 @@ By tab:
 | FireRed Rocket Edition | The one release; SHA-1 033d0537 | works | works | partly | works | works | works | None |
 | Ash Gray | 4.5.3 (SHA-1 1ee1557d), Fork Bug Fix 1.0 (92ed8214) | works | works | partly | works | works | works | None |
 | Ghost Grey | 1.0.1, 1.0.2, 1.0.4; SHA-1 20dfaea1, 74337272, 0dafc011 | works | works | partly | works | works | works | None |
-| Let's Go | English, both versions, each with a Translation Only build (4 builds) | works | works | partly | works | works | works | None (its `DEX` was checked on the Pikachu cart; the other builds read the app's own tables for them) |
+| Let's Go | English, both versions, each with a Translation Only build (4 builds) | works | works | partly | works | works | works | None (its `DEX` was checked on one of the two versions; the other builds read the app's own tables for them) |
 | Sword and Shield Ultimate Plus | 1.2.1.2 and its 3 patches (4 builds) | works | works | partly | works | works | works | None |
 | GS Chronicles | 2.7.6; SHA-1 25f8840e | works | works | partly | works | works | works | None |
 | Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | works | works | partly | works | works | works | None |
