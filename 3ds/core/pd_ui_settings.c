@@ -183,6 +183,13 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     pd_fill(c, ix, y + 1, iw, 1, PD_DIVIDER);
     y += 4;
 
+    // MAKEOVER: fresh looks for the game, at the top as in the app; only in a game one of them works in.
+    if (host->hasDayNight) {
+        group(c, ix, &y, "MAKEOVER");
+        if (host->dayNightFits) setting(ui, c, ix, &y, iw, SETTING_DAY_NIGHT, "DAY AND NIGHT", on_off(st->dayNight));
+        else muted_row(c, ix, &y, iw, "DAY AND NIGHT", "N/A");
+    }
+
     group(c, ix, &y, "FF / SPEED");
     setting(ui, c, ix, &y, iw, SETTING_FF_TOGGLE, "FF", on_off(host->ffOn));
     if (st->ffSpeed) snprintf(buf, sizeof(buf), "%dx", st->ffSpeed);
@@ -410,6 +417,11 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
 
     struct pd_settings* st = ui->settings;
     if (full) {
+        if (host->hasDayNight) {
+            group(c, ix, &y, "MAKEOVER");
+            if (host->dayNightFits) setting(ui, c, ix, &y, iw, SETTING_DAY_NIGHT, "DAY AND NIGHT", st->dayNight ? "ON" : "OFF");
+            else muted_row(c, ix, &y, iw, "DAY AND NIGHT", "N/A");
+        }
         group(c, ix, &y, "FF / SPEED");
         setting(ui, c, ix, &y, iw, SETTING_FF_TOGGLE, "FF", host->ffOn ? "ON" : "OFF");
     }

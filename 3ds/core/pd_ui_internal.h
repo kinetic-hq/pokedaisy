@@ -117,6 +117,7 @@ enum setting_row {
     SETTING_ASPECT,    // hosts with hasExpand
     SETTING_AUTO_ZOOM,
     SETTING_LOOK_AROUND,
+    SETTING_DAY_NIGHT,
     SETTING_TAB_BAR,   // opens its page
     SETTING_HUD,       // hosts with hasHud: opens its page
     SETTING_FILTER, // optional host LCD display mask

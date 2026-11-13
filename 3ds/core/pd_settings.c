@@ -212,7 +212,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
             bool* b = !strcmp(key, "ffaudio") ? &s->ffAudio : !strcmp(key, "ffsteady") ? &s->ffSteady : !strcmp(key, "rewind") ? &s->rewind
                     : !strcmp(key, "runindoors") ? &s->runIndoors : !strcmp(key, "nohints") ? &s->hideHints
                     : !strcmp(key, "onetap") ? &s->oneTapMoves : !strcmp(key, "foeivs") ? &s->foeIvs : !strcmp(key, "battleinfo") ? &s->battleInfo
-                    : !strcmp(key, "battleview") ? &s->battleViewInfo : !strcmp(key, "battlefocus") ? &s->battleFocus : !strcmp(key, "lookaround") ? &s->lookAround
+                    : !strcmp(key, "battleview") ? &s->battleViewInfo : !strcmp(key, "battlefocus") ? &s->battleFocus : !strcmp(key, "lookaround") ? &s->lookAround : !strcmp(key, "daynight") ? &s->dayNight
                     : !strcmp(key, "mute") ? &s->gameMuted
                     : !strcmp(key, "aspectpicked") ? &s->aspectPicked : !strcmp(key, "autorun") ? &s->autoRun : !strcmp(key, "updatecheck") ? &s->updateCheck
                     : !strcmp(key, "dim") ? &s->dimCompanion : !strcmp(key, "savesbeside") ? &s->savesBeside
@@ -256,7 +256,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->colors, s->dimCompanion ? 1 : 0, s->savesBeside ? 1 : 0);
     fprintf(f, "aspectpicked=%d\nfoeivs=%d\n", s->aspectPicked ? 1 : 0, s->foeIvs ? 1 : 0);
     fprintf(f, "battleinfo=%d\nbattleview=%d\n", s->battleInfo ? 1 : 0, s->battleViewInfo ? 1 : 0);
-    fprintf(f, "battlefocus=%d\nlookaround=%d\n", s->battleFocus ? 1 : 0, s->lookAround ? 1 : 0);
+    fprintf(f, "battlefocus=%d\nlookaround=%d\ndaynight=%d\n", s->battleFocus ? 1 : 0, s->lookAround ? 1 : 0,
+            s->dayNight ? 1 : 0);
     fprintf(f, "fullscreen=%d\nreducemotion=%d\nboxart=%d\n", s->fullscreen, s->reduceMotion ? 1 : 0,
             s->boxartAuto ? 1 : 0);
     fprintf(f, "buttons=%d\nhotkeys=", s->buttonLayout);

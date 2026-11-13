@@ -25,6 +25,7 @@
 #include "backdrop.h"
 #include "wing_look.h"
 #include "wide_camera.h"
+#include "day_night.h"
 #include "bezel.h"
 #include "wing_toast.h"
 #include "shader.h"
@@ -3317,6 +3318,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     shiny_roller_init(&shinyRoller, &shinyTarget, (uint64_t)SDL_GetPerformanceCounter() ^ (uint64_t)time(NULL) << 32);
   host.hasShinyOdds = c->platform(c) == mPLATFORM_GBA;
   host.shinyOddsFits = shinyOk;
+  // DAY AND NIGHT: any GBA game but those with a day and night of their own (DayNight.OWN_DAY_NIGHT).
+  host.hasDayNight = c->platform(c) == mPLATFORM_GBA;
+  host.dayNightFits = host.hasDayNight && game.guide != PD_GUIDE_UNBOUND && game.guide != PD_GUIDE_HEART_AND_SOUL &&
+                      game.guide != PD_GUIDE_ELITE_REDUX;
+  static struct day_night dayNight;
+  day_night_reset(&dayNight);
+  int dayNightTarget[3] = {256, 256, 256}, dayNightClockTint[3] = {256, 256, 256};
+  uint32_t dayNightClock = 0;
   uint32_t evolvePers[6] = {0}, evolveSign = 0;
   int evolveSlot = -1, evolveTick = 0;
   host.hasResume = true;
@@ -3972,6 +3981,27 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           fprintf(stderr, "shiny odds: foe made shiny (1 in %d)\n", SHINY_ODDS[settings.shinyOdds]);
         if (fieldKnown)
           fieldFlags = pk_field_state(c, settings.runIndoors, wildSwitch && settings.wildOff ? 0 : 100);
+        if (host.dayNightFits) {
+          // The clock's tint outdoors on the field (text boxes keep their own colours); none in a battle or a menu,
+          // eased in and out. The clock is read every ten seconds.
+          int scene = wideSupported ? pk_wide_scene() : PK_WIDE_SCENE_FIELD;
+          bool onField = !snap.inBattle && !(fieldFlags & PK_FIELD_BATTLE) &&
+                         day_night_outdoors(snap.valid ? snap.mapType : -1) &&
+                         (scene == PK_WIDE_SCENE_FIELD || scene == PK_WIDE_SCENE_TEXT ||
+                          scene == PK_WIDE_SCENE_OVERLAY || scene == PK_WIDE_SCENE_FADE);
+          if (dayNightClock == 0 || (uint32_t)frames - dayNightClock >= 600) {
+            time_t now = time(NULL);
+            struct tm lt = *localtime(&now);
+            const char *fakeHour = getenv("POCKET_HOUR"); // headless checks: the hour to draw
+            day_night_at(fakeHour ? (float)atof(fakeHour) : (float)lt.tm_hour + (float)lt.tm_min / 60.0f,
+                         dayNightClockTint);
+            dayNightClock = (uint32_t)frames | 1;
+          }
+          for (int k = 0; k < 3; k++)
+            dayNightTarget[k] = settings.dayNight && onField ? dayNightClockTint[k] : 256;
+          if (day_night_step(&dayNight, dayNightTarget))
+            pk_tint_set(c, dayNight.cur[0], dayNight.cur[1], dayNight.cur[2]);
+        }
         emuMs += ms_since(t);
         t = SDL_GetPerformanceCounter();
         wide_tick(c, i < count - 1, &settings);
@@ -4261,6 +4291,7 @@ cleanup:
   rumble(0, 0, 0); // a rumble cart left buzzing stops with the game
   gameConfig[0] = 0; // the game list writes settings.ini again
   pk_wide_configure(0);
+  pk_wide_extras_reset(); // DAY AND NIGHT's tint goes with the game
   wideSupported = wideReady = false;
   c->unloadROM(c);
   if(saveStatus.failed)appError=1;

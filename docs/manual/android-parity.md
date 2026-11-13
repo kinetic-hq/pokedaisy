@@ -61,7 +61,7 @@ and Berry Pots.
 - RetroAchievements, and the `ACHIEVEMENTS` tab with it.
 - The `NUZLOCKE` tab.
 - `LINK PLAY`, `PATCH A ROM` and `TRADE SAVES`.
-- The `MAKEOVER` group: `PLAYER LOOK`, `TEXT LOOK`, `FOLLOWER`, `DAY AND NIGHT`.
+- The rest of the `MAKEOVER` group: `PLAYER LOOK`, `RIVAL LOOK`, `TEXT LOOK` and `FOLLOWER`. `DAY AND NIGHT` is in.
 - `BATTLE BUTTONS` over the game (the desktop's `BATTLE WINGS` keep the battle
   beside it instead), `OVERLAY` frames and touch control skins.
 - Feature tips and the app's other languages: the desktop version is in English.
