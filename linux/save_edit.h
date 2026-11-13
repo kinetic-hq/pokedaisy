@@ -114,6 +114,8 @@ struct save_edit *se_open_gen4(const uint8_t *save, size_t saveSize, const uint8
                                size_t errSize);
 
 const char *se_nature_name(int nature);
+/* The game's generation: 3 for the GBA games, 4 for the DS ones (PRESETS lists that generation's sets). */
+int se_generation(struct save_edit *e);
 
 /* TRADE SAVES (Gen 3 saves only), PC box to PC box with the games' own rules; nothing is written until se_save_both.
  * se_trade_ready: a save the trade works with. se_trade_slot: 1 a Pokemon, 0 empty, -1 unreadable (a Bad Egg). */
