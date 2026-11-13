@@ -54,3 +54,8 @@ The frontend sets the margins (`wideState`, the same overworld / battle rules as
 and draws `wideView` through `wide_camera.h`, the GBA's camera; `pd_ds_expand` / `pd_ds_auto_zoom` come from the host's
 ASPECT and AUTO ZOOM IN. A crash that only shows outside gdb on Windows is often the NT debug heap hiding it: run gdb with
 `_NO_DEBUG_HEAP=1`.
+
+**Where a click landed.** Read a mouse event's own `x` / `y` through `mouse_event_at()` (it undoes the renderer's
+logical size), never `SDL_GetMouseState()`: that is where the mouse is when the event is read, after any motion queued
+behind the click, and a wing button 22 pixels tall missed it and opened the companion. Per-frame flags that a hit test
+reads (`rightWingMap`) are set every frame the wing is shown, not only when its texture is drawn again.

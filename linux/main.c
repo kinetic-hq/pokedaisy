@@ -621,17 +621,30 @@ static bool window_to_canvas(int mx, int my, int *x, int *y) {
   *y = (int)((py - canvasAt.y) * canvasAtH / canvasAt.h);
   return true;
 }
+/* Where a mouse event happened, in window points. SDL_GetMouseState is where the mouse is when the event is read, after
+ * any motion queued behind it (a click while the mouse moves, a touchpad tap), so a click near a wing button could land
+ * on the wing; the event's own x and y are the renderer's logical size when it has one, turned back here. */
+static void mouse_event_at(int ex, int ey, int *mx, int *my) {
+  int lw = 0, lh = 0;
+  SDL_RenderGetLogicalSize(renderer, &lw, &lh);
+  if (lw <= 0 || lh <= 0) {
+    *mx = ex;
+    *my = ey;
+    return;
+  }
+  SDL_RenderLogicalToWindow(renderer, (float)ex, (float)ey, mx, my);
+}
 static void tap_event(const SDL_Event *e) {
   if ((e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP) && e->button.button == SDL_BUTTON_LEFT &&
       e->button.which != SDL_TOUCH_MOUSEID) {
     int mx, my, ww = 1, wh = 1;
-    SDL_GetMouseState(&mx, &my); // window points (an event's own can be in the renderer's logical size)
+    mouse_event_at(e->button.x, e->button.y, &mx, &my);
     SDL_GetWindowSize(window, &ww, &wh);
     tap_push((float)mx / (ww > 0 ? ww : 1), (float)my / (wh > 0 ? wh : 1), e->type == SDL_MOUSEBUTTONDOWN ? 0 : 2);
   } else if (e->type == SDL_MOUSEMOTION && (e->motion.state & SDL_BUTTON_LMASK) && e->motion.which != SDL_TOUCH_MOUSEID &&
              tapHeld && tapFinger < 0) {
     int mx, my, ww = 1, wh = 1;
-    SDL_GetMouseState(&mx, &my);
+    mouse_event_at(e->motion.x, e->motion.y, &mx, &my);
     SDL_GetWindowSize(window, &ww, &wh);
     tap_push((float)mx / (ww > 0 ? ww : 1), (float)my / (wh > 0 ? wh : 1), 1);
   } else if (e->type == SDL_FINGERDOWN && !tapHeld) {
@@ -760,7 +773,8 @@ static void events(void) {
     if ((e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT && e.button.which != SDL_TOUCH_MOUSEID) ||
         e.type == SDL_FINGERDOWN) {
       int mx = 0, my = 0, ww = 1, wh = 1;
-      SDL_GetMouseState(&mx, &my);
+      if (e.type != SDL_FINGERDOWN)
+        mouse_event_at(e.button.x, e.button.y, &mx, &my);
       SDL_GetWindowSize(window, &ww, &wh);
       float nx = e.type == SDL_FINGERDOWN ? e.tfinger.x : (float)mx / (ww > 0 ? ww : 1);
       float ny = e.type == SDL_FINGERDOWN ? e.tfinger.y : (float)my / (wh > 0 ? wh : 1);
@@ -787,7 +801,7 @@ static void events(void) {
     }
     if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_RIGHT && e.button.which != SDL_TOUCH_MOUSEID) {
       int mx, my;
-      SDL_GetMouseState(&mx, &my);
+      mouse_event_at(e.button.x, e.button.y, &mx, &my);
       rightClicked = window_to_canvas(mx, my, &rightClickX, &rightClickY);
       continue;
     }
@@ -1731,6 +1745,7 @@ static uint32_t panelKey[PANELS], panelGen;
 /* The right wing as last drawn: the map panel (its SAVE STATE / CLOSE GAME buttons live), where its canvas went on the
  * screen and the canvas's size. */
 static bool rightWingMap;
+static bool rightTextureMap; // the right wing's texture is the map's (with SAVE STATE and CLOSE GAME), not a battle's
 static SDL_Rect rightWingAt;
 static int rightWingW, rightWingH;
 static int panelW[PANELS], panelH[PANELS];
@@ -2144,7 +2159,7 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
       pd_ui_map_panel(&pc, g, s, false);
     }
     if (which == PANEL_RIGHT)
-      rightWingMap = !(battle && wingBattleInfo);
+      rightTextureMap = !(battle && wingBattleInfo);
     else if (strip) // the party's wing is its own: a bar's strip never goes over it
       pd_ui_strip(&pc, a, b, c);
     pocket_wing_look_end(&wl);
@@ -2156,6 +2171,10 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     panelW[which] = w;
     panelH[which] = h;
   }
+  // Every time it's shown, not only when it's drawn again: draw_panels turns it off while the companion covers the
+  // wing, and the same wing comes back from its texture as it was.
+  if (which == PANEL_RIGHT && !bezel)
+    rightWingMap = rightTextureMap;
   if (bezel) {
     SDL_Rect bar = {room.x, room.y, room.w, room.h};
     set_color(bezelStyle == BEZEL_STYLE_BLACK ? 0x0B0B0D : 0x000000, 255);
