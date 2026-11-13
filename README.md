@@ -433,6 +433,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
   narrows it), and `ADD ANY ITEM` puts an item in its own pocket, onto the stack you already carry.
 - **EDIT SAVE's Pokemon** on the desktop host also sets a GBA Pokemon's EXP within its level, its friendship and each
   move's PP boosts (the most PP following them), each checked against what the game allows.
+- **EDIT SAVE's MOVE IT** on the desktop host moves a GBA Pokemon (eggs too) to another party or PC box slot by the
+  game's own rules (swap, join the party last with its stats worked out, close the party's gap, keep one that can
+  battle, no mail into the PC), shows each Pokemon's OT and the game it came from, and UNDO ALL drops every change
+  not saved yet, as Android's PC BOXES does.
 - **EDIT SAVE's moves** on the desktop host list what the Pokemon can learn by its level first (level up, TM / HM, the
   tutors, its pre-evolutions), and a retail GBA game refuses a new move it couldn't learn, as the Android editor does.
   Egg moves count too, read from the game's own egg move table.

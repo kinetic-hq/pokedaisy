@@ -306,13 +306,23 @@ doesn't check out, is refused and left alone.
   into the `presets` folder in your data folder (an archive is unpacked there),
   and the same set found in several files is listed once. `SETS` shows how many
   you have, and how many are for this game's generation.
+- `MOVE IT` on a Pokemon (GBA games) moves it: pick `PARTY` or a box, then a
+  slot. A Pokemon already there swaps places with it, and an empty slot takes
+  it. The game's own rules apply: one joining the party goes last with full HP,
+  one leaving it closes the gap, the party always keeps one that can battle, and
+  a Pokemon holding mail stays in the party. Eggs move the same way, from the
+  `EGG` row. Finish or drop a Pokemon's other changes before you move it.
+- A Pokemon's `OT` row shows its original trainer's name and ID, and `FROM`
+  shows the game it came from and the level it was met at (or that it hatched).
 - `HEAL THE PARTY` puts every party Pokemon back to full HP and PP with no
   status.
 - `SAVE CHANGES` writes it all. Before anything is written, the old save is
   copied next to it as `<save>.before-edit-<date>-<time>.sav`, and the new file
   is read back and checked; if that fails, the old save is put back.
 
-Leaving with changes you haven't saved asks you first. Saving also sets aside
+`UNDO ALL` (shown once something changed) drops every change you haven't
+saved and reads the save again. Leaving with changes you haven't saved asks
+you first. Saving also sets aside
 the game's `Continue where you left off?` point from before the edit (it would
 take you back to the old save), so the next start is from the edited save. That
 point isn't deleted: it's kept in `DATA\states` with `.before-edit-` and the date
