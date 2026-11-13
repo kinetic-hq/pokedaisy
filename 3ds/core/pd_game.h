@@ -144,6 +144,10 @@ struct pd_battle_layout {
     int size, species, moves, type1, type2, pp, hp, level, maxHp, status;
     unsigned speciesMask;
     int personality, otId; // u32s for the SHINY marks; 0 = not mapped
+    // BATTLE FOCUS: the ability (a byte, or a u16 with abilityU16), the held item (u16), the five stats (u16s) and
+    // statStages[8]; 0 = retail's place (+0x20, +0x2E, +0x02, +0x18).
+    int ability, item, stats, stages;
+    bool abilityU16;
 };
 extern const struct pd_battle_layout pd_battle_layout_vanilla, pd_battle_layout_expansion, pd_battle_layout_tmt2,
     pd_battle_layout_team_rocket, pd_battle_layout_wishes, pd_battle_layout_petalburg, pd_battle_layout_rowe, pd_battle_layout_soulgold,

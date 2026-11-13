@@ -59,6 +59,10 @@ struct pd_battle_mon {
     int heldItem, stats[5];
     bool shiny; // by its personality and OT ID, where the game's shiny check is known
     bool tera;  // Terastallized: type1 / type2 are its Tera type
+    // BATTLE FOCUS (GBA): the ability's id, and stats[] / heldItem above read from the battler with its stat stages
+    // (Attack, Defense, Speed, Sp. Atk, Sp. Def, accuracy, evasion; 0 = unchanged).
+    bool hasBattleStats;
+    int ability, stages[7];
 };
 
 #define PD_POS_PLAYER_LEFT 0

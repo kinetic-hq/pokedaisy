@@ -259,6 +259,7 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     setting(ui, c, ix, &y, iw, SETTING_BATTLE_VIEW, "BATTLE VIEW", st->battleViewInfo ? "INFO" : "BUTTONS");
     setting(ui, c, ix, &y, iw, SETTING_ONE_TAP, "ONE-TAP MOVES", on_off(st->oneTapMoves));
     setting(ui, c, ix, &y, iw, SETTING_FOE_IVS, "FOE IVS", on_off(st->foeIvs));
+    setting(ui, c, ix, &y, iw, SETTING_BATTLE_FOCUS, "BATTLE FOCUS", on_off(st->battleFocus));
     snprintf(buf, sizeof(buf), "%d TABS", ui_bar_count(ui));
     setting(ui, c, ix, &y, iw, SETTING_TAB_BAR, "TAB BAR", buf);
 
@@ -523,6 +524,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         setting(ui, c, ix, &y, iw, SETTING_BATTLE_VIEW, "BATTLE VIEW", st->battleViewInfo ? "INFO" : "BUTTONS");
         setting(ui, c, ix, &y, iw, SETTING_ONE_TAP, "ONE-TAP MOVES", st->oneTapMoves ? "ON" : "OFF");
         setting(ui, c, ix, &y, iw, SETTING_FOE_IVS, "FOE IVS", st->foeIvs ? "ON" : "OFF");
+        setting(ui, c, ix, &y, iw, SETTING_BATTLE_FOCUS, "BATTLE FOCUS", st->battleFocus ? "ON" : "OFF");
     }
     snprintf(buf, sizeof(buf), "%d TABS", ui_bar_count(ui));
     setting(ui, c, ix, &y, iw, SETTING_TAB_BAR, "TAB BAR", buf);

@@ -118,6 +118,8 @@ Turn on `BATTLE FOCUS` in SETTINGS and `INFO` becomes one page that fits the scr
 
 The button at the bottom right turns the page from the foe to your Pokémon and back. The column down the right of the page follows it: on the foe's side it's the trainer's team (balls until you've seen them), on yours it's your whole team, every one showing. Tap one to look at it; the one you're looking at gets the frame. Back sits under the column, so the page gets the whole height. `SUGGESTIONS` and `STATS` aren't on this page; turn `BATTLE FOCUS` off to get them back.
 
+On Windows and Linux, `BATTLE FOCUS` is in the same `COMPANION` group. The column down the right has `YOU` (or `FOE`) to turn the page, and `<` under it to go back to your battle buttons. Stat stages, the ability and the held item are read in the GBA games; in the other games the page shows `-` where it can't tell.
+
 In a trainer's double battle the page shows one foe at a time, the one on the left to start with. Both foes that are out show their icon in the column, and only the one you're looking at is framed. Tap the other to look at it, just as it is in the battle; a Pokémon that's out is never `UNSEEN`. Your side shows one of yours, the one on the left until you tap another.
 
 On the desktop, a double battle in Black, White, Black 2 or White 2 brings up the `BATTLE` tab too. It shows the foe on the left and your Pokémon on the left, with your moves rated against that foe. A triple battle brings it up the same way, showing the foe on the left and your Pokémon on the left. In a rotation battle it shows the Pokémon in front on each side, and it follows each rotation, so after you or the foe rotate it shows whichever one is in front now.

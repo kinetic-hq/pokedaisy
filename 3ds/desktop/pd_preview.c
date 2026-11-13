@@ -417,6 +417,16 @@ int main(int argc, char** argv) {
     draw(&p);
     shot(out, name, "battle-infooff", px);
     settings.battleInfo = true;
+    // BATTLE FOCUS: one page, the foe's, then turned to yours.
+    settings.battleFocus = true;
+    draw(&p);
+    shot(out, name, "battle-focus", px);
+    if (has_hit(&p, HIT_FOCUS_TURN)) {
+        tap(&p, HIT_FOCUS_TURN, 0);
+        shot(out, name, "battle-focus-yours", px);
+        tap(&p, HIT_FOCUS_TURN, 0);
+    }
+    settings.battleFocus = false;
     // The desktop host's battle wing (pd_ui_battle_panel), at a wing's size: PD_PREVIEW_WING=WxH.
     const char* wing = getenv("PD_PREVIEW_WING");
     int wingW, wingH;

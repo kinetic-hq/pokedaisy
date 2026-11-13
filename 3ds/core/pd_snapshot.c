@@ -375,6 +375,20 @@ static void decode_battle_mon(const uint8_t* raw, const struct pd_battle_layout*
         uint32_t pid = u32(raw + l->personality), ot = u32(raw + l->otId);
         b->shiny = (((ot >> 16) ^ (ot & 0xFFFF) ^ (pid >> 16) ^ (pid & 0xFFFF)) & 0xFFFF) < (unsigned) battleShinyBelow;
     }
+    // BATTLE FOCUS: the ability, item, stats and stages (the app's decodeBattleMon); stages out of 0..12 read nothing.
+    int stats = l->stats ? l->stats : 0x02, stages = l->stages ? l->stages : 0x18;
+    int ability = l->ability ? l->ability : 0x20, item = l->item ? l->item : 0x2E;
+    bool stagesOk = true;
+    for (int i = 0; i < 7; i++) {
+        int v = raw[stages + 1 + i];
+        if (v > 12) stagesOk = false;
+        b->stages[i] = v - 6;
+    }
+    if (!stagesOk) return;
+    for (int i = 0; i < 5; i++) b->stats[i] = u16(raw + stats + i * 2);
+    b->ability = l->abilityU16 ? u16(raw + ability) : raw[ability];
+    b->heldItem = u16(raw + item);
+    b->hasBattleStats = true;
 }
 
 static void read_save_fields(struct pd_snapshot* s, const struct pd_game* g, pd_read_fn read, void* ctx,
