@@ -1,5 +1,6 @@
 #include "pd_tables.h"
 #include "pd_randomized.h"
+#include "pd_modern_emerald.h"
 
 #include "pd_game.h"
 
@@ -76,12 +77,14 @@ const char* pd_type_name(const struct pd_game* g, int type) {
         return type >= 0 && type < t->typeNamesCount && t->typeNames[type] ? t->typeNames[type] : "";
     }
     if (!g && pd_ds_types && pd_ds_types->name9 && type == 9) return pd_ds_types->name9;
+    if (type == PD_MODERN_FAIRY && pd_modern_emerald(g)) return "Fairy";
     if (type >= 0 && type < pd_type_names_count && pd_type_names[type]) return pd_type_names[type];
     return "";
 }
 
 int pd_type_count(const struct pd_game* g) {
     const struct pd_text* t = hack_text(g);
+    if (pd_modern_emerald(g)) return PD_MODERN_FAIRY + 1;
     return t && t->typeNames ? t->typeNamesCount : pd_type_names_count;
 }
 
@@ -182,6 +185,7 @@ int pd_move_kind(const struct pd_game* g, int move) {
 static int single_pct(const struct pd_game* g, int atk, int def) {
     int pct;
     if (pd_randomized_pct(g, atk, def, &pct)) return pct;
+    if (pd_modern_emerald_pct(g, atk, def, &pct)) return pct;
     if (!g && pd_ds_types && pd_ds_types->chart && atk >= 0 && atk < 18 && def >= 0 && def < 18)
         return pd_ds_types->chart[atk * 18 + def] * 25;
     const struct pd_text* t = hack_text(g);
@@ -202,6 +206,7 @@ int pd_type_multiplier_pct(const struct pd_game* g, int atk, int def1, int def2)
 void pd_species_type_pair(const struct pd_game* g, int species, int* t1, int* t2) {
     *t1 = *t2 = PD_TYPE_NONE;
     if (pd_randomized_types(g, species, t1, t2)) return;
+    if (pd_modern_emerald_types(g, species, t1, t2)) return;
     const struct pd_text* t = hack_text(g);
     if (t && t->speciesTypes) {
         if (species > 0 && species < t->speciesTypesCount) {

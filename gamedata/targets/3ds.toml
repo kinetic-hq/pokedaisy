@@ -569,6 +569,10 @@ name = 'ROWE'
 parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
 values = { partyMenu = 0x0203E774, partyMenuGrid = true }
 
+[config.modern_emerald]
+name = 'MODERN_EMERALD'
+parts = ['ram', 'foes', 'icons', 'battle']
+
 [config.team_rocket]
 name = 'TEAM_ROCKET'
 parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
@@ -1077,6 +1081,16 @@ typeChart = 'typeEffectivenessRowe'
 speciesTypes = 'speciesTypeDataRowe'
 genderRatios = 'genderRatiosRowe'
 mapsecs = 'mapSecDataRowe'
+
+# Modern Emerald's defaults (modern types, the Gen VI+ chart); pd_modern_emerald.c follows the save's settings.
+[text.modern_emerald]
+species = 'speciesNamesModernEmerald'
+items = 'itemNamesModernEmerald'
+moves = 'movesModernEmerald'
+typeChart = 'typeChartGen6ModernEmerald'
+speciesTypes = 'speciesTypesModernEmerald'
+genderRatios = 'genderRatiosModernEmerald'
+mapsecs = 'mapSecNamesModernEmerald'
 
 [text.team_rocket]
 species = 'speciesNamesTeamRocket'

@@ -39,20 +39,20 @@ foe team is listed as a gap even then.
 
 Of the 72 rows:
 
-- **61** get the companion at the same level as on Android, every tab
+- **62** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
 - **10** get a companion that falls short of Android's somewhere.
-- **1** gets no companion at all yet.
+- **None** is left with no companion.
 
 By tab:
 
 | Area | works | partly | no |
 | --- | --- | --- | --- |
-| `PARTY` | 71 | 0 | 1 |
-| `BAG` | 71 | 0 | 1 |
-| `BATTLE` | 6 | 65 | 1 |
-| `MAP` | 70 | 1 | 1 |
+| `PARTY` | 72 | 0 | 0 |
+| `BAG` | 72 | 0 | 0 |
+| `BATTLE` | 6 | 66 | 0 |
+| `MAP` | 71 | 1 | 0 |
 | `DEX` | 63 | 1 | 8 |
 | `GUIDE` | 37 | 28 | 7 |
 
@@ -121,7 +121,7 @@ By tab:
 | Moemon Quetzal | Alpha 0.8.4 Hotfix, English and Spanish; SHA-1 f1035f61, ae5d88bb | works | works | partly | works | works | partly | None |
 | Super Mariomon | 1.2.1, 1.2.2, 1.3, 1.5.1, 1.5.2 | works | works | partly | works | works | partly | None |
 | Recharged Emerald | 2.2.5, 2.2.8, Rebalanced 2.2.8 | works | works | partly | works | works | partly | None |
-| Modern Emerald | 3.6 (BPEE, 32 MB, SHA-1 ab3bc012) | no | no | no | no | no | no | No companion: the desktop doesn't know this build |
+| Modern Emerald | 3.6 (BPEE, 32 MB, SHA-1 ab3bc012) | works | works | partly | works | no | no | None (no `DEX` or `GUIDE` on Android either). Its types follow the settings you picked when you started your game |
 | Elite Redux | 2.65.3b (SHA-1 5b38a681), 2.65.4.1b (2f3e17e5) | works | works | partly | works | works | partly | None |
 | Team Rocket Dragonsden | 1.5; SHA-1 40780347 | works | works | partly | partly | no | partly | None (no `DEX` on Android either) |
 | Team Rocket Dragonsden | 2026 3.0.9 Spanish (BPEE, 32 MB, SHA-1 0d8bdaee) | works | works | partly | works | works | partly | None (read from the app's own data for this build; not yet run on a PC) |
@@ -154,7 +154,6 @@ By tab:
   but not the rest of the foe's team.
 - **No guide for the Japanese carts** of FireRed, LeafGreen, Ruby, Sapphire and
   Emerald.
-- **A build the desktop doesn't know**: Modern Emerald 3.6.
 
 If a gap here matters to you, ask for it on the fork's issues page and name the
 game and version.
