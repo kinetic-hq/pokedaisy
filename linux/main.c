@@ -6440,6 +6440,44 @@ static int editor_search(struct save_edit *e, const char *title, const char *(*n
   return pick >= 0 ? ids[pick] : -1;
 }
 
+/* A move for M: the ones it can learn first, by name; a search for any other (refused on apply where the game is retail
+ * and it can't learn it). */
+static int editor_pick_move(struct save_edit *e, const struct se_mon *m, bool none) {
+  const char *title = "WHICH MOVE?";
+  enum { CAP = 512 };
+  static uint16_t moves[CAP];
+  static const char *rows[CAP + 2];
+  static int ids[CAP + 2];
+  static char names[CAP][24]; /* copied: a name can come back in one shared buffer */
+  bool complete = false;
+  int count = e->ops->learnable ? e->ops->learnable(e, m->species, m->level, moves, CAP, &complete) : -1;
+  if (count <= 0)
+    return editor_search(e, title, e->ops->move_name, e->ops->move_max(e), none);
+  int n = 0, fixed;
+  rows[n] = "SEARCH ALL MOVES", ids[n++] = -1;
+  if (none)
+    rows[n] = "(NONE)", ids[n++] = 0;
+  fixed = n;
+  for (int i = 0; i < count; i++) {
+    const char *got = e->ops->move_name(e, moves[i]);
+    if (!got)
+      continue;
+    snprintf(names[i], sizeof names[i], "%s", got);
+    const char *s = names[i];
+    int at = n++;
+    while (at > fixed && strcmp(rows[at - 1], s) > 0)
+      rows[at] = rows[at - 1], ids[at] = ids[at - 1], at--;
+    rows[at] = s, ids[at] = moves[i];
+  }
+  int pick = menu_pick_hint(title,
+                            complete ? "The moves it can learn by now. One it knows from an egg stays."
+                                     : "From the game's own lists; it may learn others too.",
+                            rows, n, fixed < n ? fixed : 0);
+  if (pick < 0)
+    return -1;
+  return ids[pick] >= 0 ? ids[pick] : editor_search(e, title, e->ops->move_name, e->ops->move_max(e), none);
+}
+
 static void editor_mon(struct save_edit *e, int box, int slot) {
   struct se_mon m;
   if (!e->ops->mon(e, box, slot, &m))
@@ -6588,7 +6626,7 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     }
     default:
       if (pick >= R_MOVE && pick < R_MOVE + 4 &&
-          (id = editor_search(e, "WHICH MOVE?", e->ops->move_name, e->ops->move_max(e), pick != R_MOVE)) >= 0) {
+          (id = editor_pick_move(e, &m, pick != R_MOVE)) >= 0) {
         if (id != m.moves[pick - R_MOVE])
           m.ppUps[pick - R_MOVE] = 0; // a new move starts with none
         m.moves[pick - R_MOVE] = id;

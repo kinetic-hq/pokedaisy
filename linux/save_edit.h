@@ -79,6 +79,10 @@ struct se_ops {
   /* The pocket (0 .. pockets - 1) the item goes in, from the game's own item table; -1 when it isn't known or never
    * goes in the bag. NULL: the game can't tell (the pocket's ADD AN ITEM then searches every item). */
   int (*item_pocket)(struct save_edit *, int id);
+  /* The moves SPECIES may know at LEVEL (by level, TM / HM, the move tutors, and what it evolved from): how many, or -1
+   * when the game's lists aren't known. COMPLETE: the game is retail, so set_mon refuses a new move outside them (egg
+   * moves aren't listed: a Pokemon keeps the ones it knows). NULL = not offered. */
+  int (*learnable)(struct save_edit *, int species, int level, uint16_t *out, int cap, bool *complete);
 };
 
 struct save_edit {

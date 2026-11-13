@@ -16,6 +16,7 @@
 #include "pd_snapshot.h"
 #include "pd_tables.h"
 #include "pocket_os.h"
+#include "save_tables_gen.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -275,6 +276,7 @@ struct g3 {
   char title[96];
   char nameBuf[64];
   char ability[2][24];
+  int tables; /* ST_*: the retail game whose move lists hold (retail_tables), ST_NONE = the ROM's own only */
 };
 
 static uint16_t rd16(const uint8_t *p) { return (uint16_t)(p[0] | p[1] << 8); }
@@ -745,6 +747,99 @@ static bool party_stats(struct g3 *g, int species, int level, int nature, const 
   return true;
 }
 
+/* What a retail Gen 3 Pokemon may learn (save_tables_gen.h, the decomps' tables, as the app's Gen3Legal). */
+enum { ST_NONE, ST_RS, ST_E, ST_FRLG };
+enum { SPECIES_SMEARGLE = 235, MOVE_STRUGGLE = 165, LAST_G3_MOVE = 354 };
+
+static void st_level(int t, const uint16_t **lv, const uint16_t **start) {
+  *lv = t == ST_RS ? ST_LEVEL_RS : t == ST_E ? ST_LEVEL_E : ST_LEVEL_FRLG;
+  *start = t == ST_RS ? ST_LEVEL_START_RS : t == ST_E ? ST_LEVEL_START_E : ST_LEVEL_START_FRLG;
+}
+
+/* The tables stand for this game only when it's retail: no names of its own, not randomized, and (where the config
+ * maps them) every species' level-up moves in the ROM as the tables have them. */
+static int retail_tables(struct g3 *g) {
+  const struct pd_config *c = g->game.cfg;
+  int t = g->f == &G3_RS ? ST_RS : g->f == &G3_E ? ST_E : ST_FRLG;
+  if (!c || c->text || g->game.randomized || (c->speciesCount && c->speciesCount != 412))
+    return ST_NONE;
+  if (!c->learnsets)
+    return t;
+  const uint16_t *lv, *start;
+  st_level(t, &lv, &start);
+  struct pd_level_move m[64];
+  for (int s = 1; s < 412; s++) {
+    int count = pd_level_moves(&g->game, s, m, 64);
+    if (count != start[s + 1] - start[s])
+      return ST_NONE;
+    for (int k = 0; k < count; k++) {
+      unsigned w = lv[start[s] + k];
+      if (m[k].move != (int)(w & 0x1FF) || m[k].level != (int)(w >> 9))
+        return ST_NONE;
+    }
+  }
+  return t;
+}
+
+static int add_move(uint16_t *out, int count, int cap, int move) {
+  if (move <= 0 || count >= cap)
+    return count;
+  for (int i = 0; i < count; i++)
+    if (out[i] == move)
+      return count;
+  out[count] = (uint16_t)move;
+  return count + 1;
+}
+
+static int g3_learnable(struct save_edit *e, int species, int level, uint16_t *out, int cap, bool *complete) {
+  struct g3 *g = G(e);
+  int count = 0;
+  *complete = false;
+  if (g->tables) {
+    *complete = true;
+    if (species == SPECIES_SMEARGLE) { /* Sketch: any move but Struggle */
+      for (int mv = 1; mv <= LAST_G3_MOVE; mv++)
+        if (mv != MOVE_STRUGGLE)
+          count = add_move(out, count, cap, mv);
+      return count;
+    }
+    const uint16_t *lv, *start;
+    st_level(g->tables, &lv, &start);
+    const uint64_t *tm = g->tables == ST_RS ? ST_TMHM_RS : g->tables == ST_E ? ST_TMHM_E : ST_TMHM_FRLG;
+    const uint32_t *tu = g->tables == ST_RS ? ST_TUTOR_RS : g->tables == ST_E ? ST_TUTOR_E : ST_TUTOR_FRLG;
+    const uint16_t *tuMoves = g->tables == ST_RS ? ST_TUTOR_MOVES_RS
+                              : g->tables == ST_E ? ST_TUTOR_MOVES_E
+                                                  : ST_TUTOR_MOVES_FRLG;
+    int tuCount = g->tables == ST_RS ? ST_TUTOR_COUNT_RS : g->tables == ST_E ? ST_TUTOR_COUNT_E : ST_TUTOR_COUNT_FRLG;
+    for (int s = species, guard = 0; s > 0 && s < 412 && guard < 4; s = ST_PRE_EVOLUTION[s], guard++) {
+      for (int k = start[s]; k < start[s + 1]; k++)
+        if ((lv[k] >> 9) <= level)
+          count = add_move(out, count, cap, lv[k] & 0x1FF);
+      for (int b = 0; b < 58; b++)
+        if (tm[s] >> b & 1)
+          count = add_move(out, count, cap, ST_TMHM_MOVES[b]);
+      for (int b = 0; b < tuCount; b++)
+        if (tu[s] >> b & 1)
+          count = add_move(out, count, cap, tuMoves[b]);
+      if (g->tables == ST_FRLG && (s == 3 || s == 6 || s == 9)) /* Cape Brink's tutor, for the three starters */
+        count = add_move(out, count, cap, s == 3 ? 338 : s == 6 ? 307 : 308);
+    }
+    return count;
+  }
+  /* A hack: the ROM's own lists, the species' alone, as a guide (nothing is refused). */
+  struct pd_level_move lm[128];
+  struct pd_machine_move mm[128];
+  int a = pd_dex_level_moves(&g->game, species, lm, 128), b = pd_machine_moves(&g->game, species, mm, 128);
+  if (a <= 0 && b <= 0)
+    return -1;
+  for (int k = 0; k < a; k++)
+    if (lm[k].level <= level)
+      count = add_move(out, count, cap, lm[k].move);
+  for (int k = 0; k < b; k++)
+    count = add_move(out, count, cap, mm[k].move);
+  return count;
+}
+
 static bool g3_set_mon(struct save_edit *e, int box, int slot, const struct se_mon *want, char *err, size_t n) {
   struct g3 *g = G(e);
   uint8_t *r = record(g, box, slot);
@@ -804,6 +899,27 @@ static bool g3_set_mon(struct save_edit *e, int box, int slot, const struct se_m
   if (!moveCount) {
     say(err, n, "A Pokemon needs at least one move");
     return false;
+  }
+  if (g->tables) { /* a new move must be one it could learn; the ones it knows (egg moves too) stay */
+    static uint16_t ok[400];
+    bool complete;
+    int count = g3_learnable(e, want->species, want->level, ok, 400, &complete);
+    for (int i = 0; i < 4; i++) {
+      int mv = want->moves[i];
+      bool fine = !mv;
+      for (int k = 0; k < 4 && !fine; k++)
+        fine = now.moves[k] == mv;
+      for (int k = 0; k < count && !fine; k++)
+        fine = ok[k] == mv;
+      if (!fine) {
+        char who[32]; /* the names share one buffer */
+        const char *s = g3_species_name(e, want->species);
+        snprintf(who, sizeof who, "%s", s ? s : "This Pokemon");
+        const char *what = g3_move_name(e, mv);
+        snprintf(err, n, "%s can't learn %s by level %d in this game", who, what ? what : "that move", want->level);
+        return false;
+      }
+    }
   }
   if (want->held) {
     int pocket = item_pocket(g, want->held);
@@ -1195,7 +1311,7 @@ static const struct se_ops G3_OPS = {
     g3_pockets,      g3_pocket_name,  g3_pocket_slots, g3_pocket_item,  g3_pocket_locked, g3_set_item,
     g3_item_max_count, g3_boxes,      g3_box_slots,   g3_mon,           g3_set_mon,   g3_heal,
     g3_species_name, g3_species_max,  g3_move_name,   g3_move_max,      g3_item_name, g3_item_max,
-    g3_abilities,    g3_build,        g3_verify,      g3_free,      g3_item_pocket,
+    g3_abilities,    g3_build,        g3_verify,      g3_free,      g3_item_pocket, g3_learnable,
 };
 
 struct save_edit *se_open_gen3(const uint8_t *save, size_t saveSize, const uint8_t *rom, size_t romSize, char *err,
@@ -1267,6 +1383,7 @@ struct save_edit *se_open_gen3(const uint8_t *save, size_t saveSize, const uint8
   g->baseStats = find_base_stats(g);
   snprintf(g->title, sizeof g->title, "%s", g->game.title ? g->game.title : g->f->label);
   e->ops = &G3_OPS;
+  g->tables = retail_tables(g);
   return e;
 }
 
