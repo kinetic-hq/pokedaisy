@@ -524,7 +524,7 @@ parts = ['ram', 'foes', 'icons', 'dex', 'card', 'guide', 'battle', 'engine', 'bo
 
 [config.emerald_seaglass]
 name = 'SEAGLASS'
-parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes', 'dexsec']
 values = { partyMenu = 0x02019964 }
 
 [config.lazarus]

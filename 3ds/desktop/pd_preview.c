@@ -573,9 +573,18 @@ dex_only:
     if (game.rom && ui.tab == PD_TAB_DEX && ui.hitCount > 0 && has_hit(&p, HIT_DEX_LIST)) {
         drag(&p, HIT_DEX_LIST, -120);
         shot(out, name, "dex-scrolled", px);
-        ui.dexOpen = 6;
+        // PD_PREVIEW_DEX_ENTRY=<national No.>: that entry instead of No. 6.
+        const char* entry = getenv("PD_PREVIEW_DEX_ENTRY");
+        ui.dexOpen = entry ? atoi(entry) : 6;
         draw(&p);
         shot(out, name, "dex-entry", px);
+        // the entry's sections, where the game has them (EVOLVE, AREA, MOVES)
+        static const char* const SECTION_SHOTS[] = { "dex-evolve", "dex-area", "dex-moves" };
+        for (int i = 1; i < 4 && has_hit(&p, HIT_DEX_SECTION + i); i++) {
+            tap(&p, HIT_DEX_SECTION + i, 0);
+            shot(out, name, SECTION_SHOTS[i - 1], px);
+        }
+        if (has_hit(&p, HIT_DEX_SECTION)) tap(&p, HIT_DEX_SECTION, 0);
     }
     if (game.rom && ui.tab == PD_TAB_DEX && has_hit(&p, HIT_DEX_NEXT)) {
         tap(&p, HIT_DEX_NEXT, 0);
