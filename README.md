@@ -123,7 +123,7 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | Moemon Quetzal | Alpha 0.8.4 Hotfix (EN/ES) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Super Mariomon | 1.2.1-1.3, 1.5.1, 1.5.2 | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Recharged Emerald | 2.2.5, 2.2.8, Rebalanced | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
-| Modern Emerald | 3.6 | GBA | ROM hack | ◐ | ◐ PARTLY: no DEX or GUIDE | Not yet |
+| Modern Emerald | 3.6 | GBA | ROM hack | ◐ | ◐ PARTLY: no GUIDE (none on Android either) | Run on copy |
 | Elite Redux | 2.65.3b, 2.65.4.1b | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Team Rocket Dragonsden | 1.5 | GBA | ROM hack | ◐ | ◐ PARTLY: no DEX | Not yet |
 | Team Rocket Dragonsden | 2026 3.0.9 (Spanish) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
@@ -319,6 +319,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   units** on the `DEX` page of every GBA game whose cart uses them (Monomyth, the European and Japanese carts), as in the app.
 - **EGG GROUP on the DEX page** on the desktop host for the GBA games, read from each game's own base stats (Monomyth's
   packed into one byte), as the app shows them.
+- **Modern Emerald's DEX tab** on the desktop host, which the app doesn't have: its 215 Hoenn and 432 National, with SEEN / OWN
+  from its own save layout.
 - **Emerald Seaglass's DEX tab** on the desktop host, in the game's own numbering (Hoenn first), read from its species data.
 - **HIDDEN ability, GENDER ratio, CATCH RATE and stat TOTAL on the DEX page** on the desktop host for the GBA
   games, on a window big enough for them (the 3DS page keeps its old lines), as the app shows them.

@@ -574,7 +574,9 @@ values = { partyMenu = 0x0203E774, partyMenuGrid = true }
 
 [config.modern_emerald]
 name = 'MODERN_EMERALD'
-parts = ['ram', 'foes', 'icons', 'battle']
+parts = ['ram', 'foes', 'icons', 'dex', 'battle']
+# The app has no DEX for it yet: this target's own (gamedata/gen3/records/modern_emerald.toml).
+set = { pokedex = 'POKEDEX_MODERN_EMERALD' }
 
 [config.team_rocket]
 name = 'TEAM_ROCKET'
