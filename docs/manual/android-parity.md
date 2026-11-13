@@ -22,7 +22,8 @@ the fork's README.
 - **The field**: `ASPECT` `EXPAND` with zoom and `AUTO ZOOM IN`, the `HUD`, and
   the `QUICK MENU` with PC, FLY, the keep-away spray, `BIKE`, `WILD ENCOUNTERS`,
   states, fast forward and the companion.
-- **Speed**: `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `FF MODE`.
+- **Speed**: `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `FF MODE`, and `SCENE SPEEDS`
+  in Game Boy and GBA games.
 - **Gameplay**: `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`,
   `REUSABLE TMS`, `TRADE EVOS`, `CHEATS`.
 - **Look**: `THEME` and `DARK MODE`.

@@ -245,6 +245,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   order, so there's no NEXT BOSS.
 - **Petalburg Dynasty's Tera type**: BATTLE shows a Terastallized Pokémon's Tera type, and the verdicts and weaknesses
   that go with it, on Android, the desktop host and the 3DS port. A Stellar Tera keeps its own types.
+- **SCENE SPEEDS on the desktop, and GAME SPEED that works there**: `SPEED OPTIONS` gets `BATTLE`, `TEXT`, `MENU`,
+  `BIKE` and `SURF SPEED` in Game Boy and GBA games, as on Android (`MENU SPEED` where `EXPAND` reads the screen).
+  `GAME SPEED` was shown on the desktop but never applied; it now sets the pace in between.
 - **TRADE EVOS on the desktop**: in the English FireRed (rev 1), LeafGreen and Emerald, a party Pokémon that would
   evolve by trading gets `EVOLVE` on its summary, and the game plays its own evolution, as on Android.
 - **INSTANT TEXT and REUSABLE TMS on the desktop**: the two `GAMEPLAY` settings from the Android app, found in the

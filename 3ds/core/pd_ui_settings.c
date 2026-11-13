@@ -14,6 +14,8 @@
 static const char* const SCREEN_NAMES[PD_SCREEN_MODES] = { "PIXEL 1x", "SHARP 1.25x", "SHARP 1.5x", "STRETCH" };
 static const char* const ASPECT_NAMES[PD_ASPECTS] = { "ORIGINAL", "EXPAND", "ZOOM OUT" };
 const char* const PD_GAME_SPEEDS[PD_GAME_SPEED_COUNT] = { "1x", "1.5x", "2x", "3x", "4x", "0.5x", "0.25x" };
+const char* const PD_SCENE_SPEEDS[PD_SCENE_SPEED_COUNT] = { "SAME", "1x", "1.5x", "2x", "3x", "4x" };
+static const char* const SCENE_NAMES[PD_SCENE_COUNT] = { "BATTLE SPEED", "TEXT SPEED", "MENU SPEED", "BIKE SPEED", "SURF SPEED" };
 static const char* const VOLUMES[5] = { "20%", "40%", "60%", "80%", "100%" };
 
 const char* pd_aspect_name(int aspect) {
@@ -115,6 +117,14 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     static const char* const ORIENT[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED", "PORTRAIT FLIPPED"};
     switch (ui->settingsPage) {
     case PAGE_SPEED:
+        if (host->hasSceneSpeeds) {
+            group(c, ix, &y, "SCENE SPEEDS");
+            for (int k = 0; k < PD_SCENE_COUNT; k++) {
+                if (host->sceneKnown[k]) setting(ui, c, ix, &y, iw, SETTING_SCENE + k, SCENE_NAMES[k], PD_SCENE_SPEEDS[st->sceneSpeed[k]]);
+                else muted_row(c, ix, &y, iw, SCENE_NAMES[k], "N/A");
+            }
+            group(c, ix, &y, "FAST-FORWARD");
+        }
         if (host->hasFfMode) setting(ui, c, ix, &y, iw, SETTING_FF_MODE, "FF MODE", st->ffNormal ? "NORMAL" : "SMART");
         if (host->hasFfMusic) setting(ui, c, ix, &y, iw, SETTING_FF_MUSIC, "FF MUSIC", st->ffAudio ? "SPED-UP" : "OFF");
         *yp = y;
@@ -175,7 +185,7 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     setting(ui, c, ix, &y, iw, SETTING_FF, "FF SPEED", buf);
     if (host->hasGameSpeed) setting(ui, c, ix, &y, iw, SETTING_GAME_SPEED, "GAME SPEED", PD_GAME_SPEEDS[st->gameSpeed]);
     if (host->hasRewind) setting(ui, c, ix, &y, iw, SETTING_REWIND, "REWIND", on_off(st->rewind));
-    if (host->hasFfMode || host->hasFfMusic) page_row(ui, c, ix, &y, iw, SETTING_PAGE_SPEED, "SPEED OPTIONS");
+    if (host->hasFfMode || host->hasFfMusic || host->hasSceneSpeeds) page_row(ui, c, ix, &y, iw, SETTING_PAGE_SPEED, "SPEED OPTIONS");
 
     if (host->hasSound) {
         group(c, ix, &y, "SOUND");
@@ -677,6 +687,9 @@ void ui_overlay(struct pd_ui* ui, struct pd_canvas* c) {
         break;
     case PD_OVERLAY_PICK_SPEED:
         pick_list(ui, c, "GAME SPEED", PD_GAME_SPEEDS, PD_GAME_SPEED_COUNT, ui->settings->gameSpeed);
+        break;
+    case PD_OVERLAY_PICK_SCENE:
+        pick_list(ui, c, SCENE_NAMES[ui->sceneRow], PD_SCENE_SPEEDS, PD_SCENE_SPEED_COUNT, ui->settings->sceneSpeed[ui->sceneRow]);
         break;
     case PD_OVERLAY_PICK_BOX:
         ui_boxes_overlay(ui, c);

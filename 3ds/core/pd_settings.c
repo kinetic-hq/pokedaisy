@@ -150,6 +150,11 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "companionbtn")) int_in(value, 0, PD_BTN_L2 + 1, &s->companionBtn);
         else if (!strcmp(key, "hudbtn")) int_in(value, 0, PD_BUTTONS - 1, &s->hudBtn);
         else if (!strcmp(key, "speed")) int_in(value, 0, PD_GAME_SPEED_COUNT - 1, &s->gameSpeed);
+        else if (!strcmp(key, "battlespeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_BATTLE]);
+        else if (!strcmp(key, "textspeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_TEXT]);
+        else if (!strcmp(key, "menuspeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_MENU]);
+        else if (!strcmp(key, "bikespeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_BIKE]);
+        else if (!strcmp(key, "surfspeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_SURF]);
         else if (!strcmp(key, "volume")) int_in(value, 20, 100, &s->gameVolume);
         else if (!strcmp(key, "shader")) int_in(value, 0, PD_SHADERS - 1, &s->shader);
         else if (!strcmp(key, "colors")) int_in(value, 0, PD_COLORS - 1, &s->colors);
@@ -226,6 +231,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "view=%d\npanellock=%d\n", s->companionView, s->panelLocked ? 1 : 0);
     fprintf(f, "scaling=%d\nffaudio=%d\nrewind=%d\nrunindoors=%d\n", s->scaling, s->ffAudio ? 1 : 0,
             s->rewind ? 1 : 0, s->runIndoors ? 1 : 0);
+    fprintf(f, "battlespeed=%d\ntextspeed=%d\nmenuspeed=%d\nbikespeed=%d\nsurfspeed=%d\n", s->sceneSpeed[0], s->sceneSpeed[1],
+            s->sceneSpeed[2], s->sceneSpeed[3], s->sceneSpeed[4]);
     fprintf(f, "instanttext=%d\nreusabletms=%d\ntradeevos=%d\n", s->instantText ? 1 : 0, s->reusableTms ? 1 : 0,
             s->tradeEvolutions ? 1 : 0);
     fprintf(f, "quickbtn=%d\ncompanionbtn=%d\nhudbtn=%d\n", s->quickBtn, s->companionBtn, s->hudBtn);

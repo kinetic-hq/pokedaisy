@@ -513,6 +513,7 @@ static void act(struct pd_ui* ui, int id) {
                 ui->settings->aspectPicked = true;
             }
             if (ui->overlay == PD_OVERLAY_PICK_SPEED) ui->settings->gameSpeed = i;
+            if (ui->overlay == PD_OVERLAY_PICK_SCENE && i < PD_SCENE_SPEED_COUNT) ui->settings->sceneSpeed[ui->sceneRow] = i;
             if (ui->overlay == PD_OVERLAY_PICK_VOLUME) ui->settings->gameVolume = (i + 1) * 20;
             if ((ui->overlay == PD_OVERLAY_PICK_VIEW || ui->overlay == PD_OVERLAY_LAYOUT) && i < PD_COMPANION_VIEWS)
                 ui->settings->companionView = i;
@@ -545,6 +546,9 @@ static void act(struct pd_ui* ui, int id) {
         ui->overlay = PD_OVERLAY_HUD;
     } else if (id == HIT_SETTING + SETTING_FF_TOGGLE) {
         ui->action = PD_ACTION_TOGGLE_FF;
+    } else if (id >= HIT_SETTING + SETTING_SCENE && id <= HIT_SETTING + SETTING_SCENE_END) {
+        ui->sceneRow = id - HIT_SETTING - SETTING_SCENE;
+        ui->overlay = PD_OVERLAY_PICK_SCENE;
     } else if (id == HIT_SETTING + SETTING_GAME_SPEED) {
         ui->overlay = PD_OVERLAY_PICK_SPEED;
     } else if (id == HIT_SETTING + SETTING_VOLUME) {

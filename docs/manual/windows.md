@@ -388,7 +388,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 
 | Group | Rows | Added for Windows and Linux |
 | --- | --- | --- |
-| `FF / SPEED` | `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `SPEED OPTIONS` (`FF MODE`, `FF MUSIC`) | |
+| `FF / SPEED` | `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `SPEED OPTIONS` (`SCENE SPEEDS`, `FF MODE`, `FF MUSIC`) | |
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
 | `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`, `REUSABLE TMS`, `TRADE EVOS`, `CHEATS` | `LEVEL CAP` |
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
