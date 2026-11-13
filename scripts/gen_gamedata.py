@@ -854,13 +854,15 @@ def c_value(v, f, names, lists, where, none):
         if expr.startswith("BaseStatsLayout("):  # a hack's gBaseStats shape, spelled out
             kv = dict(re.findall(r"(\w+)\s*=\s*(0x[0-9A-Fa-f]+|\d+|true|false)", expr))
             known = {"stride", "genderOff", "eggGroupsOff", "abilitiesOff", "abilityU16", "statsU16", "typesOff", "catchRateOff",
-                     "eggGroupsPacked"}  # the C shows no egg groups, so a packed byte changes nothing there
+                     "eggGroupsPacked"}
             if not set(kv) <= known or expr.count("=") != len(kv):
                 fail(where, f"{expr} has a part the C can't read")
             kv.setdefault("stride", "28"); kv.setdefault("abilitiesOff", "0x16"); kv.setdefault("typesOff", "6")
             kv.setdefault("abilityU16", "false"); kv.setdefault("statsU16", "false")
+            kv.setdefault("eggGroupsOff", "0x14"); kv.setdefault("eggGroupsPacked", "false")
             return "&(const struct pd_base_stats){ " + ", ".join(
-                f".{k} = {kv[k]}" for k in ("stride", "abilitiesOff", "typesOff", "abilityU16", "statsU16")) + " }"
+                f".{k} = {kv[k]}" for k in ("stride", "abilitiesOff", "typesOff", "abilityU16", "statsU16", "eggGroupsOff",
+                                            "eggGroupsPacked")) + " }"
         n = kotlin_const_expr(v.get("ref") or expr)
         if n is None:
             fail(where, f"{v} is Kotlin; the C needs the value in gamedata/")

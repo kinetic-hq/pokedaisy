@@ -163,6 +163,8 @@ enum { PD_DEX_SB1 = 1, PD_DEX_SB2, PD_DEX_FIXED };
 struct pd_base_stats {
     int stride, abilitiesOff, typesOff;
     bool abilityU16, statsU16; // ability ids are u16; base stats are u16
+    int eggGroupsOff;          // the two egg groups, a byte each (0 = not mapped) ...
+    bool eggGroupsPacked;      // ... or a nibble each of one byte (Monomyth's)
 };
 
 // An expansion game's gSpeciesInfo page (the app's SpeciesInfoDex): the offsets inside one entry; -1 = none.
