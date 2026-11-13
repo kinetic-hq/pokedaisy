@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -300,7 +300,7 @@ SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
 The game list's `SETTINGS` (in the bar at its top, or `Y`) is in the app's groups: `SCREEN`
 (`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
-`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `BOX ART DOWNLOAD`,
+`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `BOX ART DOWNLOAD`,
 `STEAMGRIDDB KEY`), `CONTROLS` (`GAME BUTTONS`,
 `HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `RUN SETUP`, `VERSION`). The companion's
 `SETTINGS` has the same rows (see "Where the settings are" below).

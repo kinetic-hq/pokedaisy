@@ -105,6 +105,8 @@ Your original game is never changed: the patched game is a new file, named after
 
 If you see `BASE ROM NOT FOUND`, none of your games has the checksum the patch wants. The message says which game it is when PokeDaisy knows it (an exact version, such as the first or second release of FireRed). Add that game to your library or a ROMs folder, then try again. Most hacks want a clean, unmodified US FireRed or Emerald: a game that was already patched, or another language or version, has a different checksum.
 
+On Windows and Linux, pick `SETTINGS` > `LIBRARY` > `PATCH A ROM` in the game list and find the `.bps` file, or drop the `.bps` on the game list's window. It looks through your game folders for the game the patch is for, shows you the patch, the game and where the new game goes, and `APPLY PATCH` makes it. The new game is picked in your list when it's done. Every patched game goes in the list, and its tag says how much the companion can do with it.
+
 If the companion doesn't support the patched game, you're told so and it stays out of the library, but the file is still saved. `ASK FOR SUPPORT` asks for the game to be added. If it was saved in PokeDaisy's own games folder, Settings > `HIDDEN GAMES` can still show it in the library.
 
 ### File types

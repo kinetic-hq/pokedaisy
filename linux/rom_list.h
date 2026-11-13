@@ -47,6 +47,8 @@ bool rom_folders_remove(const char *root, int index);
 /* The folder browser's steps. DIR "" is the top: the drives (Windows) or HOME and "/". Fills *OUT with what to show:
  * at the top the roots' full paths, else DIR's folders by name, sorted, hidden ones (a leading dot) left out. */
 int rom_dir_entries(const char *dir, char ***out);
+/* The same, with the files whose names end in EXT (".bps") among the folders. */
+int rom_dir_entries_with(const char *dir, const char *ext, char ***out);
 void rom_dir_entries_free(char **names, int count);
 /* DIR + NAME with one separator between; and DIR one folder up ("" past a drive's root or "/"). */
 void rom_dir_join(char *out, size_t size, const char *dir, const char *name);
