@@ -14,7 +14,7 @@
 #define PD_SPOTS_MAX 40
 
 // pd_config.dexEvoScheme: how the evolution methods past vanilla's 15 are numbered.
-enum { PD_EVO_SCHEME_VANILLA, PD_EVO_SCHEME_MONOMYTH };
+enum { PD_EVO_SCHEME_VANILLA, PD_EVO_SCHEME_MONOMYTH, PD_EVO_SCHEME_MODERN_EMERALD };
 
 struct pd_evo {
     int from, to, method, param;

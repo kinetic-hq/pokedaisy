@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "pd_modern_emerald.h"
 #include "pd_snapshot.h"
 #include "pd_tables.h"
 
@@ -126,6 +127,22 @@ void pd_dex_evo_text(const struct pd_game* g, const struct pd_evo* e, char* out,
     case 14: snprintf(out, len, "LV %d, a spare party slot", p); break;
     case 15: snprintf(out, len, "Level up, BEAUTY %d+", p); break;
     default:
+        if (g->cfg->dexEvoScheme == PD_EVO_SCHEME_MODERN_EMERALD) {  // its own numbers (include/constants/pokemon.h)
+            char name[32];
+            switch (e->method) {
+            case 16: snprintf(out, len, "LV %d, female", p); return;
+            case 17: snprintf(out, len, "LV %d, male", p); return;
+            case 18: snprintf(out, len, "LV %d, night", p); return;
+            case 19: snprintf(out, len, "LV %d, day", p); return;
+            case 20: snprintf(out, len, "Level up holding %s, day", pd_item_name(g, p)); return;
+            case 21: snprintf(out, len, "Level up holding %s, night", pd_item_name(g, p)); return;
+            case 22: snprintf(out, len, "Level up, knowing %s", pd_move_name(g, p, name, sizeof(name))); return;
+            case 23: snprintf(out, len, "Level up, knowing a %s move", pd_type_name(g, p)); return;
+            case 24: snprintf(out, len, "LV %d, female, day", p); return;
+            case 25: snprintf(out, len, "LV %d, male, day", p); return;
+            case 26: snprintf(out, len, "Level up holding %s", pd_item_name(g, p)); return;
+            }
+        }
         if (g->cfg->dexEvoScheme == PD_EVO_SCHEME_MONOMYTH || g->cfg->expansion) {  // expansion's numbers for what it adds
             char name[32];
             switch (e->method) {
@@ -151,7 +168,7 @@ void pd_dex_evo_text(const struct pd_game* g, const struct pd_evo* e, char* out,
 int pd_dex_tm_moves(const struct pd_game* g, int species, uint16_t* out, int max) {
     const struct pd_config* c = g->cfg;
     if (!pd_dex_has_details(g) || !c->dexTmhm || !c->dexTmhmMoves) return 0;
-    const uint8_t* bits = pd_rom_at(g, c->dexTmhm + (uint32_t) species * 8, 8);
+    const uint8_t* bits = pd_rom_at(g, pd_modern_emerald_tmhm(g, c->dexTmhm) + (uint32_t) species * 8, 8);
     const uint8_t* moves = pd_rom_at(g, c->dexTmhmMoves, 58 * 2);
     if (!bits || !moves) return 0;
     int n = 0;

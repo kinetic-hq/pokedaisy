@@ -577,6 +577,9 @@ name = 'MODERN_EMERALD'
 parts = ['ram', 'foes', 'icons', 'dex', 'battle']
 # The app has no DEX for it yet: this target's own (gamedata/gen3/records/modern_emerald.toml).
 set = { pokedex = 'POKEDEX_MODERN_EMERALD' }
+# The DEX's EVOLVE / AREA / MOVES (modern_emerald.toml says where each table is): eight evolution rows a species, the
+# game's own method numbers past 15. With POKeMON MOVEPOOL off (tx_Mode_Modern_Moves 0) pd_modern_emerald.c swaps in the original learnsets and TMs.
+values = { dexEvolutions = 0x088F0100, dexEvoPerMon = 8, dexEvoScheme = 2, dexTmhm = 0x088E2DB4, dexTmhmMoves = 0x088C4784, learnsets = 0x088F7480, wildHeaders = 0x08BDD874, dexMapGroups = 0x08CDEC28, dexSpeciesCount = 462 }
 
 [config.team_rocket]
 name = 'TEAM_ROCKET'

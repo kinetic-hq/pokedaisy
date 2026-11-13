@@ -12,6 +12,11 @@
 #define RANDOM_OFF 0x3D9D
 #define TYPES_OFF 0x3DA5
 #define CHART_OFF 0x3DA7
+#define MOVES_OFF 0x3DA6           // tx_Mode_Modern_Moves bit 1
+// With POKeMON MOVEPOOL off (tx_Mode_Modern_Moves 0) the game reads gLevelUpLearnsets_Original and gTMHMLearnsets_Old (pokemon.c), each right after
+// the modern table the config names (Charmander's original list is two moves shorter; Arbok's TMs differ).
+#define LEARNSETS_ORIGINAL 0x088F7BB8
+#define TMHM_OLD 0x088E3C24
 #define TRAINER_ID_OFF 0x0A        // SaveBlock2's playerTrainerId (little-endian u32)
 #define TYPE_PERMUTATION 0x0201E0F4 // sTypeEffectivenessList: each type's stand-in with random matchups on
 #define TYPE_COUNT 19
@@ -19,7 +24,7 @@
 extern const struct pd_text pd_text_modern_emerald;
 
 static struct {
-    bool modernTypes, fairyTypes, modernChart, randomTypes, randomChart, chaos;
+    bool modernTypes, fairyTypes, modernChart, randomTypes, randomChart, chaos, modernMoves;
     uint32_t trainerId;
     uint8_t perm[TYPE_COUNT];
     bool permOk;
@@ -36,9 +41,9 @@ bool pd_modern_emerald(const struct pd_game* g) {
 void pd_modern_emerald_read(const struct pd_config* cfg, pd_read_fn read, void* ctx, uint32_t sb1, uint32_t sb2) {
     if (!cfg || cfg->text != &pd_text_modern_emerald) return;
     memset(&s, 0, sizeof s);
-    uint8_t random = 0, types = 0, chart = 0, id[4] = { 0 };
+    uint8_t random = 0, types = 0, chart = 0, moves = 0, id[4] = { 0 };
     if (!ram(sb1) || !ram(sb2) || !read(ctx, sb1 + RANDOM_OFF, &random, 1) || !read(ctx, sb1 + TYPES_OFF, &types, 1) ||
-        !read(ctx, sb1 + CHART_OFF, &chart, 1) || !read(ctx, sb2 + TRAINER_ID_OFF, id, 4))
+        !read(ctx, sb1 + CHART_OFF, &chart, 1) || !read(ctx, sb1 + MOVES_OFF, &moves, 1) || !read(ctx, sb2 + TRAINER_ID_OFF, id, 4))
         return;
     s.modernTypes = types & 0x20;
     s.fairyTypes = types & 0x40;
@@ -46,6 +51,7 @@ void pd_modern_emerald_read(const struct pd_config* cfg, pd_read_fn read, void* 
     s.randomTypes = random & 0x20;
     s.randomChart = random & 0x40;
     s.chaos = random & 0x01;
+    s.modernMoves = moves & 0x02;
     s.trainerId = (uint32_t) id[0] | (uint32_t) id[1] << 8 | (uint32_t) id[2] << 16 | (uint32_t) id[3] << 24;
     if (s.randomChart) s.permOk = read(ctx, TYPE_PERMUTATION, s.perm, TYPE_COUNT);
 }
@@ -111,4 +117,12 @@ bool pd_modern_emerald_pct(const struct pd_game* g, int atk, int def, int* pct) 
         }
     }
     return true;
+}
+
+uint32_t pd_modern_emerald_learnsets(const struct pd_game* g, uint32_t def) {
+    return pd_modern_emerald(g) && def && !s.modernMoves ? LEARNSETS_ORIGINAL : def;
+}
+
+uint32_t pd_modern_emerald_tmhm(const struct pd_game* g, uint32_t def) {
+    return pd_modern_emerald(g) && def && !s.modernMoves ? TMHM_OLD : def;
 }
