@@ -24,6 +24,8 @@
 #include "updater.h"
 #include "ra.h"
 #include "screen_filter.h"
+#include "link_play.h"
+#include "../app/src/main/cpp/pk_link.h"
 #include "backdrop.h"
 #include "wing_look.h"
 #include "wide_camera.h"
@@ -5361,6 +5363,7 @@ enum {
   ROW_FOLDERS,
   ROW_PATCH,
   ROW_TRADE,
+  ROW_LINK,
   ROW_BOXART,
   ROW_SGDB,
   ROW_BOXART_WHERE,
@@ -5403,6 +5406,7 @@ enum {
   ROW_LIST_ITEM0 = 200
 };
 static bool text_entry(const char *title, char *buf, size_t size);
+static void link_setup(const char *firstRom, const char *firstName);
 static bool textMask; // text_entry shows a star for each character (a password)
 /* RETROACHIEVEMENTS > ACCOUNT: the name, then the password, then the server's answer (up to 30 s). */
 static void ra_sign_in(void) {
@@ -5477,6 +5481,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_FOLDERS, "GAME FOLDERS" PD_MENU_PAGE);
       ROW(ROW_PATCH, "PATCH A ROM" PD_MENU_PAGE);
       ROW(ROW_TRADE, "TRADE SAVES" PD_MENU_PAGE);
+      ROW(ROW_LINK, "LINK PLAY" PD_MENU_PAGE);
       ROW(ROW_BOXART, "BOX ART DOWNLOAD	%s", st.boxartAuto ? "ON" : "OFF");
       {
         char key[80];
@@ -5685,6 +5690,10 @@ static int settings_page(bool *foldersChanged) {
     }
     case ROW_TRADE:
       trade_saves(NULL, NULL);
+      save = false;
+      break;
+    case ROW_LINK:
+      link_setup(NULL, NULL);
       save = false;
       break;
     case ROW_UPDATES:
@@ -7228,9 +7237,262 @@ static bool boxart_picker(struct library *l, int g) {
   boxart_pick_close();
   return changed;
 }
+/* ---- LINK PLAY (link_play.h, the app's pk_link.c): two to four GBA games joined by mGBA's link cable ---- */
+static struct pocket_save_status linkSaveStatus[LINK_PLAY_MAX];
+static struct VFile *link_open_save(int game, const char *path) {
+  if (game < 0 || game >= LINK_PLAY_MAX)
+    return NULL;
+  return pocket_save_wrap(VFileOpen(path, O_CREAT | O_RDWR), &linkSaveStatus[game]);
+}
+static bool link_same_rom(const char *a, const char *b) { return same_path(a, b); }
+/* The games run in step on this thread: the one with the focus gets the buttons and is heard, the others run dimmed.
+ * L2 / R2, a stick click or X move the focus, a click picks a game, MENU asks to leave. maxFrames / shot: a headless
+ * look (POCKET_LINK). */
+static void link_run(int n, char roms[][1024], int maxFrames, const char *shot) {
+  char saves[LINK_PLAY_MAX][1024];
+  const char *romp[LINK_PLAY_MAX], *savep[LINK_PLAY_MAX];
+  if (n < 2 || n > LINK_PLAY_MAX)
+    return;
+  for (int i = 0; i < n; i++)
+    romp[i] = roms[i];
+  for (int i = 0; i < n; i++) {
+    char own[1024];
+    editor_save_path(roms[i], own, sizeof own);
+    link_copy_save(own, link_copy_index(romp, i, link_same_rom), saves[i], sizeof saves[i]);
+    savep[i] = saves[i];
+    if (!pocket_save_backup(saves[i], time(NULL))) {
+      notice("Save backup failed; the link didn't start");
+      return;
+    }
+  }
+  pk_link_open_save = link_open_save;
+  pk_link_after_reset = pk_heal_rtc;
+  if (!pk_link_open(n, romp, savep, 32768)) {
+    notice("A game or its save didn't open; the link didn't start");
+    return;
+  }
+  for (int i = 0; i < n; i++)
+    fprintf(stderr, "link play: game %d %s, save %s\n", i + 1, roms[i], saves[i]);
+  int gw = (int)pk_link_video_w(0), gh = (int)pk_link_video_h(0);
+  SDL_Texture *tex[LINK_PLAY_MAX] = {0};
+  for (int i = 0; i < n; i++)
+    tex[i] = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_BGR888, SDL_TEXTUREACCESS_STREAMING,
+                               (int)pk_link_video_w(i), (int)pk_link_video_h(i));
+  struct mCore *c0 = pk_link_core(0);
+  double hz = (double)c0->frequency(c0) / c0->frameCycles(c0);
+  uint64_t freq = SDL_GetPerformanceFrequency(), due = SDL_GetPerformanceCounter();
+  int focus = 0, frame = 0;
+  bool ff = false, leave = false, faulted = false;
+  struct link_rect at[LINK_PLAY_MAX];
+  static int16_t sound[4096 * 2];
+  if (audio)
+    SDL_ClearQueuedAudio(audio);
+  held = pressed = 0;
+  while (running && !leave) {
+    events();
+    audio_check();
+    if (host_action(HA_FF)) {
+      ff = !ff;
+      if (audio)
+        SDL_ClearQueuedAudio(audio);
+    }
+    if (down(L2) || down(L3))
+      focus = (focus + n - 1) % n;
+    if (down(R2) || down(R3) || down(X))
+      focus = (focus + 1) % n;
+    if (wingClicked) {
+      int hit = link_hit(at, n, (int)wingClickX, (int)wingClickY);
+      if (hit >= 0)
+        focus = hit;
+    }
+    if (down(MENU) || faulted) {
+      static const char *const rows[] = {"KEEP PLAYING", "LEAVE\tSAVE IN EACH GAME FIRST"};
+      for (int i = 0; i < n; i++)
+        pk_link_set_keys(i, 0);
+      if (faulted) {
+        notice("The link stopped answering, so it closed: start it again");
+        leave = true;
+      } else if (menu_pick("LINK PLAY", rows, 2, 0) == 1)
+        leave = true;
+      held = pressed = 0;
+      due = SDL_GetPerformanceCounter();
+      if (audio)
+        SDL_ClearQueuedAudio(audio);
+      continue;
+    }
+    for (int i = 0; i < n; i++)
+      pk_link_set_keys(i, i == focus ? held & 1023 : 0);
+    // The heard game's sound, its rate nudged so the queue stays near 60 ms (the timer paces the games).
+    if (audio && !ff) {
+      double queued = SDL_GetQueuedAudioSize(audio) / 4.0, target = 32768 * 0.06, d = (target - queued) / target;
+      d = d > 1 ? 1 : d < -1 ? -1 : d;
+      pk_link_set_audio_rate(32768 * (1 + 0.005 * d));
+    }
+    int count = ff ? 4 : 1;
+    for (int k = 0; k < count && !faulted; k++) {
+      if (!pk_link_run_frame()) {
+        char status[512];
+        pk_link_status(status, sizeof status);
+        fprintf(stderr, "link play: lockstep fault: %s\n", status);
+        faulted = true;
+      }
+      frame++;
+      for (int i = 0; i < n; i++) {
+        int got = pk_link_read_audio(i, sound, 4096);
+        if (i == focus && !ff && got > 0 && audio && SDL_GetQueuedAudioSize(audio) < 32768 * 4 / 4)
+          SDL_QueueAudio(audio, sound, (Uint32)got * 4);
+      }
+    }
+    int ow = 1, oh = 1;
+    SDL_RenderSetLogicalSize(renderer, 0, 0);
+    SDL_RenderSetIntegerScale(renderer, SDL_FALSE);
+    SDL_GetRendererOutputSize(renderer, &ow, &oh);
+    link_layout(n, ow, oh, gw, gh, at);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(renderer, 18, 18, 18, 255);
+    SDL_RenderClear(renderer);
+    for (int i = 0; i < n; i++) {
+      SDL_Rect dst = {at[i].x, at[i].y, at[i].w, at[i].h};
+      if (tex[i]) {
+        SDL_UpdateTexture(tex[i], NULL, pk_link_video(i), (int)pk_link_video_w(i) * 4);
+        SDL_RenderCopy(renderer, tex[i], NULL, &dst);
+      }
+      if (i == focus) {
+        // The game with the buttons: an orange frame (the app's).
+        SDL_SetRenderDrawColor(renderer, 255, 140, 26, 255);
+        for (int b = 1; b <= 6; b++) {
+          SDL_Rect r = {dst.x - b, dst.y - b, dst.w + 2 * b, dst.h + 2 * b};
+          SDL_RenderDrawRect(renderer, &r);
+        }
+      } else {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 110);
+        SDL_RenderFillRect(renderer, &dst);
+      }
+    }
+    if (ff) {
+      // FF: four frames a refresh, every game, silent; a bar under the focused game says so.
+      SDL_SetRenderDrawColor(renderer, 255, 140, 26, 255);
+      SDL_Rect bar = {at[focus].x, at[focus].y + at[focus].h + 8, at[focus].w / 6, 4};
+      SDL_RenderFillRect(renderer, &bar);
+    }
+    if (maxFrames && frame >= maxFrames) {
+      if (shot && !capture_frame(shot, NULL))
+        fprintf(stderr, "link play: capture failed\n");
+      running = 0;
+      break;
+    }
+    host_present();
+    if (maxFrames)
+      continue; // headless: as fast as it goes
+    due += (uint64_t)(freq / hz);
+    uint64_t now = SDL_GetPerformanceCounter();
+    if (now < due)
+      SDL_Delay((Uint32)((due - now) * 1000 / freq));
+    else if (now - due > freq / 5)
+      due = now;
+  }
+  // A game in the middle of saving finishes first (up to ten seconds of frames), then each closes and syncs.
+  pk_link_close(600);
+  for (int i = 0; i < n; i++) {
+    if (tex[i])
+      SDL_DestroyTexture(tex[i]);
+    if (linkSaveStatus[i].failed) {
+      char line[100];
+      snprintf(line, sizeof line, "GAME %d's save couldn't be written; its backup is in DATA/backups", i + 1);
+      notice(line);
+      fprintf(stderr, "link play: %s\n", line);
+    }
+  }
+  if (audio)
+    SDL_ClearQueuedAudio(audio);
+  held = pressed = 0;
+}
+/* Any GBA game from the list (the same one again too): its path and name, false for B. */
+static bool link_pick_game(const char *title, char *path, size_t pathSize, char *name, size_t nameSize) {
+  struct rom_list l = {0};
+  rom_list_load(&l, root, false);
+  const char **rows = calloc(l.count ? l.count : 1, sizeof *rows);
+  int *ids = calloc(l.count ? l.count : 1, sizeof *ids), n = 0;
+  for (int i = 0; rows && ids && i < l.count; i++)
+    if (trade_is_gba(l.paths[i]))
+      rows[n] = l.names[i], ids[n++] = i;
+  bool ok = false;
+  if (!n)
+    editor_say(title, "LINK PLAY needs a GBA game in your list.");
+  else {
+    int pick = menu_pick(title, rows, n, 0);
+    if (pick >= 0) {
+      snprintf(path, pathSize, "%s", l.paths[ids[pick]]);
+      snprintf(name, nameSize, "%s", l.names[ids[pick]]);
+      ok = true;
+    }
+  }
+  free(rows);
+  free(ids);
+  rom_list_free(&l);
+  return ok;
+}
+/* LINK PLAY's setup, as the app's: GAME 1 (FIRST, when given), ADD A GAME up to four, a game's row swaps or removes it,
+ * START LINK once there are two. */
+static void link_setup(const char *firstRom, const char *firstName) {
+  static char roms[LINK_PLAY_MAX][1024], names[LINK_PLAY_MAX][256];
+  int n = 0, sel = 0;
+  if (firstRom) {
+    snprintf(roms[0], sizeof roms[0], "%s", firstRom);
+    snprintf(names[0], sizeof names[0], "%s", firstName ? firstName : firstRom);
+    n = 1;
+    sel = 1;
+  }
+  enum { LINK_ADD = 10, LINK_START };
+  while (running) {
+    char text[LINK_PLAY_MAX][300];
+    const char *rows[LINK_PLAY_MAX + 2];
+    int ids[LINK_PLAY_MAX + 2], m = 0;
+    for (int i = 0; i < n; i++) {
+      snprintf(text[i], sizeof text[i], "GAME %d\t%.250s", i + 1, names[i]);
+      rows[m] = text[i];
+      ids[m++] = i;
+    }
+    if (n < LINK_PLAY_MAX)
+      rows[m] = "ADD A GAME", ids[m++] = LINK_ADD;
+    if (n >= 2)
+      rows[m] = "START LINK", ids[m++] = LINK_START;
+    int pick = menu_pick_hint("LINK PLAY", "THE OTHER GAMES WAIT FOR GAME 1", rows, m, sel);
+    if (pick < 0)
+      return;
+    sel = pick;
+    int id = ids[pick];
+    if (id == LINK_ADD) {
+      char title[32];
+      snprintf(title, sizeof title, "GAME %d", n + 1);
+      if (link_pick_game(title, roms[n], sizeof roms[n], names[n], sizeof names[n])) {
+        n++;
+        sel = n >= 2 ? n + (n < LINK_PLAY_MAX) : n; // on START LINK once there is one
+      }
+    } else if (id == LINK_START) {
+      link_run(n, roms, 0, NULL);
+      return;
+    } else {
+      static const char *const what[] = {"SWAP\tPICK ANOTHER GAME", "REMOVE"};
+      int k = menu_pick(rows[pick], what, 2, 0);
+      char path[1024], name[256];
+      if (k == 0 && link_pick_game(rows[pick], path, sizeof path, name, sizeof name)) {
+        snprintf(roms[id], sizeof roms[id], "%s", path);
+        snprintf(names[id], sizeof names[id], "%s", name);
+      } else if (k == 1) {
+        for (int i = id; i < n - 1; i++) {
+          memcpy(roms[i], roms[i + 1], sizeof roms[i]);
+          memcpy(names[i], names[i + 1], sizeof names[i]);
+        }
+        n--;
+        sel = 0;
+      }
+    }
+  }
+}
 /* A game's options. Returns the game to play, else -1; *reload when the list changed; *finding when a search started. */
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
-  enum { OPT_PLAY, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_SUPPORT };
+  enum { OPT_PLAY, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_LINK, OPT_SUPPORT };
   (void)finding; // CHOOSE BOX ART no longer starts a search of its own
   const char *label = l->games.labels[g];
   char custom[256];
@@ -7250,8 +7512,10 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   if (hasName)
     OPT(OPT_RESET, "USE THE FILE'S NAME");
   OPT(OPT_EDIT, "EDIT SAVE");
-  if (trade_is_gba(l->games.paths[g]))
+  if (trade_is_gba(l->games.paths[g])) {
     OPT(OPT_TRADE, "TRADE SAVES");
+    OPT(OPT_LINK, "LINK PLAY");
+  }
   if (game_support_word(support)) { // the companion's support, and what it lacks (A shows it whole)
     snprintf(supportRow, sizeof supportRow, "COMPANION\t%s", game_support_word(support));
     OPT(OPT_SUPPORT, supportRow);
@@ -7293,6 +7557,9 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     break;
   case OPT_TRADE:
     trade_saves(l->games.paths[g], l->games.names[g]);
+    break;
+  case OPT_LINK:
+    link_setup(l->games.paths[g], l->games.names[g]);
     break;
   default:
     break;
@@ -7654,7 +7921,19 @@ int main(int argc, char **argv) {
     if (!frames)
       ra_init(root, POCKET_VERSION, notice);
   }
-  if (rom)
+  if (getenv("POCKET_LINK")) {
+    // POCKET_LINK="romA|romB[|...]": LINK PLAY straight away (a headless look; --frames / --shot as for a game).
+    static char roms[LINK_PLAY_MAX][1024];
+    int n = 0;
+    for (const char *s = getenv("POCKET_LINK"); *s && n < LINK_PLAY_MAX;) {
+      size_t len = strcspn(s, "|");
+      snprintf(roms[n++], sizeof roms[0], "%.*s", (int)len, s);
+      s += len;
+      if (*s)
+        s++;
+    }
+    link_run(n, roms, frames, shot);
+  } else if (rom)
     run_game(rom, frames, shot);
   else {
     // The landing page: the games in DATA/roms and the GAME FOLDERS (rom_list.c) as a grid of box art.

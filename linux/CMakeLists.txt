@@ -35,9 +35,9 @@ list(FILTER RCHEEVOS_SOURCES EXCLUDE REGEX "rc_libretro\\.c$|rc_client_external\
 add_library(pd_rcheevos STATIC ${RCHEEVOS_SOURCES} ../third_party/rcheevos/src/rhash/md5.c)
 target_include_directories(pd_rcheevos PUBLIC ../third_party/rcheevos/include)
 target_compile_options(pd_rcheevos PRIVATE -w)
-add_library(pd_linux_common STATIC bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c ra.c screen_filter.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
+add_library(pd_linux_common STATIC bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c ra.c screen_filter.c link_play.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
   ../app/src/main/cpp/pk_call.c ../app/src/main/cpp/pk_host.c ../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c
-  ../app/src/main/cpp/pk_rewind.c)
+  ../app/src/main/cpp/pk_rewind.c ../app/src/main/cpp/pk_link.c)
 target_include_directories(pd_linux_common PUBLIC ../third_party/xbrz ../3ds/core ../third_party/mgba/include ${CMAKE_CURRENT_BINARY_DIR}/mgba/include ${SDL2_INCLUDE_DIR})
 target_compile_definitions(pd_linux_common PUBLIC _GNU_SOURCE _POSIX_C_SOURCE=200809L)
 if(WIN32)
@@ -116,7 +116,8 @@ if(BUILD_TESTING)
   add_executable(linux-shiny-odds-test test_shiny_odds.c)
   add_executable(linux-nuzlocke-test test_nuzlocke.c)
   add_executable(linux-screen-filter-test test_screen_filter.c)
-  foreach(test linux-io-test linux-runtime-test linux-wild-test linux-view-test linux-updater-test linux-shader-test linux-rom-list-test linux-game-name-test linux-boxart-folder-test linux-backdrop-test linux-wide-camera-test linux-day-night-test linux-bps-test linux-bezel-test linux-moves-test linux-save-edit-test linux-rom-tweaks-test linux-ff-music-test linux-shiny-odds-test linux-nuzlocke-test linux-screen-filter-test)
+  add_executable(linux-link-play-test test_link_play.c)
+  foreach(test linux-io-test linux-runtime-test linux-wild-test linux-view-test linux-updater-test linux-shader-test linux-rom-list-test linux-game-name-test linux-boxart-folder-test linux-backdrop-test linux-wide-camera-test linux-day-night-test linux-bps-test linux-bezel-test linux-moves-test linux-save-edit-test linux-rom-tweaks-test linux-ff-music-test linux-shiny-odds-test linux-nuzlocke-test linux-screen-filter-test linux-link-play-test)
     target_compile_options(${test} PRIVATE -UNDEBUG -Wall -Wextra -Werror)
     target_link_libraries(${test} PRIVATE pd_linux_common)
     if(WIN32)

@@ -40,6 +40,8 @@ What doesn't work:
 
 Link play is only the games: no companion, `EXPAND`, HUD or save states while it runs.
 
+On Windows and Linux, `LINK PLAY` is in a GBA game's options and in `SETTINGS` > `LIBRARY`, and the games share the window. See [Windows](windows.md#link-play) for its keys.
+
 ## Leaving
 
 Save in each game first, then press `BACK` and pick `LEAVE`. A game that's in the middle of saving finishes before it closes. Anything you did since a game's last save is lost, as when you turn a console off.

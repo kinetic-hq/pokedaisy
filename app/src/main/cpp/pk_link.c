@@ -47,6 +47,9 @@ static bool faulted;
 /** Set by the app (pokedaisy_jni.c's RTC fix-up) to run on each game after its reset; NULL headless. */
 void (*pk_link_after_reset)(struct mCore*) = NULL;
 
+/** Set by a host that opens saves its own way (the desktop host's checked save); NULL: opened here. */
+struct VFile* (*pk_link_open_save)(int game, const char* path) = NULL;
+
 static struct PkLinkPlayer* player(int id) {
     // The lockstep renumbers nodes on a detach; ours never detach, but look them up by id as Qt does.
     for (int i = 0; i < count; i++) if (players[i].node.id == id) return &players[i];
@@ -175,10 +178,20 @@ static bool openGame(struct PkLinkPlayer* p, const char* romPath, const char* sa
         closeGame(p);
         return false;
     }
-    // As pkInit: created if missing, read only if it can't be written, behind pk_save_vf (mGBA never checks its map).
-    struct VFile* save = VFileOpen(savePath, O_RDWR | O_CREAT);
-    if (!save) save = VFileOpen(savePath, O_RDONLY);
-    save = pk_save_vf(save);
+    struct VFile* save;
+    if (pk_link_open_save) {
+        // The host's own save (the desktop's checked one): none, and the game isn't opened.
+        save = pk_link_open_save((int) (p - players), savePath);
+        if (!save) {
+            closeGame(p);
+            return false;
+        }
+    } else {
+        // As pkInit: created if missing, read only if it can't be written, behind pk_save_vf (mGBA never checks its map).
+        save = VFileOpen(savePath, O_RDWR | O_CREAT);
+        if (!save) save = VFileOpen(savePath, O_RDONLY);
+        save = pk_save_vf(save);
+    }
     if (save) p->core->loadSave(p->core, save);
     p->awake = 1;
     return true;

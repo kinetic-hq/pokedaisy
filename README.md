@@ -420,6 +420,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **FILTER** on the desktop host has Android's `LCD`, `LCD PAPER`, `SCANLINES` and `CRT` with `GRID`, drawn as a
   mask lined up with the game's pixels; the old window-wide LCD mask is now `SUBPIXEL` (an old setting keeps it).
   `HANDHELD` colours stand in for `GBA COLORS`, and the system's own sound effects for `AUDIO EFFECTS`.
+- **LINK PLAY** on the desktop host: two to four GBA games side by side in one window on the app's own link cable
+  (`pk_link.c`), from a GBA game's options or `SETTINGS` > `LIBRARY`. Saves go through the desktop's checked save
+  with a backup first; a second copy of a game plays `<save> (link 2)`.
 
 </details>
 

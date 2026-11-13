@@ -19,6 +19,12 @@ bool pk_link_open(int n, const char* const* roms, const char* const* saves, int 
 /** Lets every game finish a save it's writing (at most [maxFrames] frames, the link running), then closes them all. */
 void pk_link_close(int maxFrames);
 
+/** A host's hooks, NULL by default: run on each game after its reset; open game [game]'s save its own way (NULL from
+ * it and that game isn't opened). */
+extern void (*pk_link_after_reset)(struct mCore*);
+struct VFile;
+extern struct VFile* (*pk_link_open_save)(int game, const char* path);
+
 int pk_link_count(void);
 
 /** One frame of game 0, the others kept in step with it. False on a lockstep fault (both waiting), reported once. */
