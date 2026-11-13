@@ -277,6 +277,7 @@ struct g3 {
   char nameBuf[64];
   char ability[2][24];
   int tables; /* ST_*: the retail game whose move lists hold (retail_tables), ST_NONE = the ROM's own only */
+  uint32_t eggMoves; /* gEggMoves' offset in the ROM (find_egg_moves), 0 = not found */
 };
 
 static uint16_t rd16(const uint8_t *p) { return (uint16_t)(p[0] | p[1] << 8); }
@@ -781,6 +782,23 @@ static int retail_tables(struct g3 *g) {
   return t;
 }
 
+/* gEggMoves: {20000 + species, its egg moves...} runs ending 0xFFFF, found by its first two (Bulbasaur's, then
+ * Charmander's). 0 when it isn't there. */
+static uint32_t find_egg_moves(struct g3 *g) {
+  const uint8_t *r = g->rom;
+  for (size_t at = 2; at + 64 < g->romSize; at += 2) {
+    if (rd16(r + at) != 20001)
+      continue;
+    size_t p = at + 2;
+    int k = 0;
+    while (p + 2 < g->romSize && k < 12 && rd16(r + p) && rd16(r + p) <= LAST_G3_MOVE)
+      p += 2, k++;
+    if (k >= 2 && rd16(r + p) == 20004)
+      return (uint32_t)at;
+  }
+  return 0;
+}
+
 static int add_move(uint16_t *out, int count, int cap, int move) {
   if (move <= 0 || count >= cap)
     return count;
@@ -811,6 +829,19 @@ static int g3_learnable(struct save_edit *e, int species, int level, uint16_t *o
                               : g->tables == ST_E ? ST_TUTOR_MOVES_E
                                                   : ST_TUTOR_MOVES_FRLG;
     int tuCount = g->tables == ST_RS ? ST_TUTOR_COUNT_RS : g->tables == ST_E ? ST_TUTOR_COUNT_E : ST_TUTOR_COUNT_FRLG;
+    /* Egg moves: what the line's species hatch knowing (the game's own gEggMoves). */
+    for (int s = species, guard = 0; g->eggMoves && s > 0 && s < 412 && guard < 4; s = ST_PRE_EVOLUTION[s], guard++) {
+      int at = -1;
+      for (size_t p = g->eggMoves; p + 2 <= g->romSize && p < g->eggMoves + 16000; p += 2) {
+        unsigned v = rd16(g->rom + p);
+        if (v == 0xFFFF)
+          break;
+        if (v > 20000)
+          at = (int)v - 20000;
+        else if (at == s)
+          count = add_move(out, count, cap, (int)v);
+      }
+    }
     for (int s = species, guard = 0; s > 0 && s < 412 && guard < 4; s = ST_PRE_EVOLUTION[s], guard++) {
       for (int k = start[s]; k < start[s + 1]; k++)
         if ((lv[k] >> 9) <= level)
@@ -1384,6 +1415,7 @@ struct save_edit *se_open_gen3(const uint8_t *save, size_t saveSize, const uint8
   snprintf(g->title, sizeof g->title, "%s", g->game.title ? g->game.title : g->f->label);
   e->ops = &G3_OPS;
   g->tables = retail_tables(g);
+  g->eggMoves = g->tables ? find_egg_moves(g) : 0;
   return e;
 }
 
@@ -1416,6 +1448,7 @@ static const struct {
                   {95, 199, 208}, {117, 201, 230}, {123, 199, 212}, {137, 218, 233}, {373, 192, 374}, {373, 193, 375}};
 
 bool se_trade_ready(struct save_edit *e) { return e && e->ops == &G3_OPS; }
+int se_generation(struct save_edit *e) { return e && e->ops == &G3_OPS ? 3 : 4; }
 
 static bool flag_on(struct g3 *g, int id) { return id >= 0 && (g->sb1[dex_of(g)->flagsOff + id / 8] >> (id % 8) & 1); }
 static int var_of(struct g3 *g, int id) { return rd16(g->sb1 + dex_of(g)->varsOff + (id - 0x4000) * 2); }

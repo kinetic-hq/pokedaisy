@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy, filter, lcd, lcd paper, scanlines, crt, subpixel, grid, gba colors, audio effects, equalizer, link play, link cable, cable club, start link, add a game, add any item, add an item, search by name, bag editor, items, balls, tms, friendship, pp boosts, pp, exp, experience, legal, legality, learnable moves, learnset, search all moves]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy, filter, lcd, lcd paper, scanlines, crt, subpixel, grid, gba colors, audio effects, equalizer, link play, link cable, cable club, start link, add a game, add any item, add an item, search by name, bag editor, items, balls, tms, friendship, pp boosts, pp, exp, experience, legal, legality, learnable moves, learnset, search all moves, egg moves, presets, sets, import sets, paste set, showdown, smogon, competitive, battle ready]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -285,10 +285,23 @@ doesn't check out, is refused and left alone.
   have are taken: a move the game doesn't have, the same move twice, EVs over
   510, a level over 100 or EXP outside the level are refused with the reason.
   Picking a move lists the moves it can learn by its level first: by level
-  up, TM or HM, the move tutors, or as what it evolved from. `SEARCH ALL MOVES`
-  finds any other. In a retail GBA game a new move it couldn't learn there is
-  refused; a move it already knows, such as one from an egg, stays. In a ROM
-  hack the list comes from the hack's own tables and nothing is refused.
+  up, TM or HM, the move tutors, from an egg, or as what it evolved from.
+  `SEARCH ALL MOVES` finds any other. In a retail GBA game a new move it
+  couldn't learn there is refused; a move it already knows stays. In a ROM hack
+  the list comes from the hack's own tables and nothing is refused.
+  `PRESETS` on a Pokemon lists the battle sets you imported for it (see below)
+  from this game's generation, with `OTHER GENERATIONS` for the rest. Picking
+  one fills in its moves, nature, EVs, IVs, held item and ability, and lists
+  what the game can't do: a move it can't learn or that the game doesn't have,
+  an ability it doesn't have, an item the game doesn't have. A move whose type
+  comes from the IVs gets IVs that give the set's type. `PASTE SET` does the
+  same with a set you copied, as Showdown exports it. Nothing is kept until
+  `KEEP THESE CHANGES`.
+- `PRESETS` > `IMPORT SETS` picks a file of battle sets: Showdown's text export,
+  a `.csv` or `.json` list, or a `.zip` or `.rar` holding them. It's copied
+  into the `presets` folder in your data folder (an archive is unpacked there),
+  and the same set found in several files is listed once. `SETS` shows how many
+  you have, and how many are for this game's generation.
 - `HEAL THE PARTY` puts every party Pokemon back to full HP and PP with no
   status.
 - `SAVE CHANGES` writes it all. Before anything is written, the old save is

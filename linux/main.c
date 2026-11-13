@@ -25,6 +25,7 @@
 #include "ra.h"
 #include "screen_filter.h"
 #include "link_play.h"
+#include "presets.h"
 #include "../app/src/main/cpp/pk_link.h"
 #include "backdrop.h"
 #include "wing_look.h"
@@ -6478,6 +6479,112 @@ static int editor_pick_move(struct save_edit *e, const struct se_mon *m, bool no
   return ids[pick] >= 0 ? ids[pick] : editor_search(e, title, e->ops->move_name, e->ops->move_max(e), none);
 }
 
+/* PRESETS: the sets imported into <data>/presets (EDIT SAVE > PRESETS > IMPORT SETS), read once. */
+static struct preset_list presetSets;
+static bool presetsRead;
+static void presets_folder(char *out, size_t n) { snprintf(out, n, "%s/presets", root); }
+static struct preset_list *presets_all(bool reload) {
+  if (!presetsRead || reload) {
+    char dir[1100];
+    presets_folder(dir, sizeof dir);
+    presets_free(&presetSets);
+    presets_load_dir(dir, &presetSets);
+    presetsRead = true;
+  }
+  return &presetSets;
+}
+/* P filled into M as far as the game allows, and a list of what it couldn't. */
+static void editor_fill(struct save_edit *e, const struct preset *p, struct se_mon *m) {
+  struct se_mon next = *m;
+  struct preset_notes notes;
+  int filled = preset_apply(e, p, &next, &notes);
+  if (filled)
+    *m = next;
+  if (!notes.count) {
+    notice("Filled in: KEEP THESE CHANGES keeps it");
+    return;
+  }
+  const char *rows[PRESET_NOTES];
+  for (int i = 0; i < notes.count; i++)
+    rows[i] = notes.line[i];
+  menu_pick_hint(filled ? "WHAT THIS GAME CAN'T DO" : "NOTHING FILLED IN",
+                 filled ? "The rest is filled in. KEEP THESE CHANGES keeps it." : NULL, rows, notes.count, 0);
+}
+/* M's sets for this game's generation (OTHER GENERATIONS for the rest); one picked fills M in. */
+static void editor_presets(struct save_edit *e, struct se_mon *m) {
+  struct preset_list *all = presets_all(false);
+  int gen = se_generation(e);
+  char species[32];
+  const char *s = e->ops->species_name(e, m->species);
+  snprintf(species, sizeof species, "%s", s ? s : "");
+  enum { CAP = 400 };
+  static char text[CAP][112];
+  static const char *rows[CAP + 1];
+  static int ids[CAP + 1];
+  bool others = false;
+  while (running) {
+    int n = 0, here = 0, elsewhere = 0;
+    rows[n] = "", ids[n++] = -1; // the generations row, named below
+    for (int i = 0; i < all->count; i++) {
+      const struct preset *p = &all->v[i];
+      if (!preset_for(p, species))
+        continue;
+      bool same = !p->gen || p->gen == gen;
+      here += same, elsewhere += !same;
+      if (same == others || n > CAP)
+        continue;
+      const char *fmt = p->format;
+      if (!strncasecmp(fmt, "Gen ", 4)) { // "Gen 3 OU" as "OU"
+        fmt += 4;
+        while (isdigit((unsigned char)*fmt))
+          fmt++;
+        while (*fmt == ' ')
+          fmt++;
+      }
+      char head[48] = "";
+      if (others)
+        snprintf(head, sizeof head, "GEN %d ", p->gen);
+      if (snprintf(text[n - 1], sizeof text[0], "%s%s%s%s\t%s", head, fmt, *fmt && p->name[0] ? ": " : "", p->name,
+                   p->item) >= (int)sizeof text[0])
+        text[n - 1][sizeof text[0] - 1] = 0; // cut short
+      rows[n] = text[n - 1], ids[n++] = i;
+    }
+    if (!here && !elsewhere) {
+      editor_say("PRESETS", all->count ? "No sets for this Pokemon yet. EDIT SAVE > PRESETS > IMPORT SETS adds more."
+                                       : "No sets yet. EDIT SAVE > PRESETS > IMPORT SETS adds them.");
+      return;
+    }
+    if (!others && !here) {
+      others = true;
+      continue;
+    }
+    static char toggle[64];
+    if (others)
+      snprintf(toggle, sizeof toggle, here ? "BACK TO GEN %d\t%d SETS" : "NO GEN %d SETS FOR IT", gen, here);
+    else
+      snprintf(toggle, sizeof toggle, "OTHER GENERATIONS\t%d SETS", elsewhere);
+    int first = 0;
+    if (others || elsewhere)
+      rows[0] = toggle;
+    else
+      first = 1;
+    int pick = menu_pick_hint(others ? "PRESETS: OTHER GENERATIONS" : "PRESETS",
+                              others ? "What this game can't do is listed after." : "A fills the set in; nothing is kept "
+                                                                                     "until KEEP THESE CHANGES.",
+                              rows + first, n - first, n - first > 1 ? 1 : 0);
+    if (pick < 0)
+      return;
+    pick += first;
+    if (ids[pick] < 0) {
+      if (others ? here > 0 : true)
+        others = !others;
+      continue;
+    }
+    editor_fill(e, &all->v[ids[pick]], m);
+    return;
+  }
+}
+
 static void editor_mon(struct save_edit *e, int box, int slot) {
   struct se_mon m;
   if (!e->ops->mon(e, box, slot, &m))
@@ -6486,7 +6593,7 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
   int selected = 0;
   while (running) {
     enum { R_SPECIES, R_NICK, R_LEVEL, R_EXP, R_NATURE, R_ABILITY, R_HELD, R_FRIEND, R_MOVE, R_PPUPS = R_MOVE + 4,
-           R_IVS, R_EVS, R_SHINY, R_MAX_IVS, R_APPLY, R_COUNT };
+           R_IVS, R_EVS, R_SHINY, R_MAX_IVS, R_PRESET, R_PASTE, R_APPLY, R_COUNT };
     static char text[R_COUNT][96];
     const char *rows[R_COUNT];
     int ids[R_COUNT], shown = 0;
@@ -6510,6 +6617,8 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     snprintf(text[R_EVS], 96, "EVs: %d/%d/%d/%d/%d/%d", m.evs[0], m.evs[1], m.evs[2], m.evs[3], m.evs[4], m.evs[5]);
     snprintf(text[R_SHINY], 96, "SHINY: %s", m.shiny ? "YES" : "NO");
     snprintf(text[R_MAX_IVS], 96, "ALL IVs TO 31");
+    snprintf(text[R_PRESET], 96, "PRESETS\tFILL IN A SET");
+    snprintf(text[R_PASTE], 96, "PASTE SET\tA COPIED SHOWDOWN SET");
     snprintf(text[R_APPLY], 96, "KEEP THESE CHANGES");
     for (int i = 0; i < R_COUNT; i++)
       if (m.extras || (i != R_EXP && i != R_FRIEND && i != R_PPUPS))
@@ -6615,6 +6724,27 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
       for (int i = 0; i < 6; i++)
         m.ivs[i] = 31;
       break;
+    case R_PRESET:
+      editor_presets(e, &m);
+      break;
+    case R_PASTE: {
+      // POCKET_PASTE stands in for the clipboard in headless looks.
+      const char *fake = getenv("POCKET_PASTE");
+      char *clip = fake ? NULL : SDL_HasClipboardText() ? SDL_GetClipboardText() : NULL;
+      const char *text = fake ? fake : clip;
+      struct preset_list one = {0};
+      if (text && *text)
+        presets_parse("paste.txt", text, strlen(text), se_generation(e), &one);
+      if (clip)
+        SDL_free(clip);
+      if (!one.count)
+        editor_say("PASTE SET", "Copy a set first, as Showdown exports it: the Pokemon, then a line for each move "
+                                "starting with -.");
+      else
+        editor_fill(e, &one.v[0], &m);
+      presets_free(&one);
+      break;
+    }
     case R_APPLY: {
       char err[160] = "";
       if (e->ops->set_mon(e, box, slot, &m, err, sizeof err)) {
@@ -6847,10 +6977,10 @@ static void save_editor(const char *rom, const char *gameName) {
   }
   int selected = 0;
   while (running) {
-    enum { E_MONEY, E_COINS, E_BAG, E_PARTY, E_BOXES, E_HEAL, E_SAVE };
+    enum { E_MONEY, E_COINS, E_BAG, E_PARTY, E_BOXES, E_PRESETS, E_HEAL, E_SAVE };
     char money[48], coins[48];
-    const char *rows[8];
-    int ids[8], n = 0;
+    const char *rows[9];
+    int ids[9], n = 0;
     snprintf(money, sizeof money, "MONEY: %ld", e->ops->money(e));
     rows[n] = money, ids[n++] = E_MONEY;
     if (e->ops->coins(e) >= 0) {
@@ -6860,6 +6990,7 @@ static void save_editor(const char *rom, const char *gameName) {
     rows[n] = "BAG", ids[n++] = E_BAG;
     rows[n] = "PARTY", ids[n++] = E_PARTY;
     rows[n] = "PC BOXES", ids[n++] = E_BOXES;
+    rows[n] = "PRESETS", ids[n++] = E_PRESETS;
     rows[n] = "HEAL THE PARTY", ids[n++] = E_HEAL;
     rows[n] = "SAVE CHANGES", ids[n++] = E_SAVE;
     char title[160];
@@ -6920,6 +7051,32 @@ static void save_editor(const char *rom, const char *gameName) {
       }
       while (running && (b = menu_pick("PC BOXES", boxes, count, b)) >= 0)
         editor_box(e, b, boxes[b]);
+      break;
+    }
+    case E_PRESETS: {
+      int at = 0;
+      while (running) {
+        struct preset_list *all = presets_all(false);
+        int gen = se_generation(e), here = 0;
+        for (int i = 0; i < all->count; i++)
+          here += all->v[i].gen == gen;
+        char info[96];
+        snprintf(info, sizeof info, "SETS\t%d, %d FOR GEN %d", all->count, here, gen);
+        const char *prow[] = {"IMPORT SETS\t.TXT .CSV .JSON .ZIP .RAR", info};
+        at = menu_pick_hint("PRESETS", "A Pokemon's PRESETS row fills a set in; PASTE SET there takes a copied one.", prow,
+                            2, at);
+        if (at < 0)
+          break;
+        if (at != 0)
+          continue;
+        char path[1024], dir[1100], msg[160];
+        if (!browse_path(path, sizeof path, ".txt|.csv|.json|.zip|.rar", "PICK A FILE OF SETS"))
+          continue;
+        presets_folder(dir, sizeof dir);
+        presets_import(path, dir, msg, sizeof msg);
+        presets_all(true);
+        editor_say("IMPORT SETS", msg);
+      }
       break;
     }
     case E_HEAL: {

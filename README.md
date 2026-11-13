@@ -429,6 +429,11 @@ Every change, one line each (a pull request that changes what the fork adds upda
   move's PP boosts (the most PP following them), each checked against what the game allows.
 - **EDIT SAVE's moves** on the desktop host list what the Pokemon can learn by its level first (level up, TM / HM, the
   tutors, its pre-evolutions), and a retail GBA game refuses a new move it couldn't learn, as the Android editor does.
+  Egg moves count too, read from the game's own egg move table.
+- **EDIT SAVE's PRESETS** on the desktop host: `IMPORT SETS` copies battle sets (Showdown text, CSV, JSON, or a .zip /
+  .rar of them) into `<data>/presets`; a Pokemon's `PRESETS` lists its sets for the game's generation and fills in moves,
+  nature, EVs, IVs (Hidden Power's type through them), item and ability, naming what the game can't do. `PASTE SET`
+  takes a set from the clipboard. No sets are bundled.
 
 </details>
 

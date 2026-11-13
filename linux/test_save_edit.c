@@ -114,6 +114,13 @@ static void round_trip(const char *spec, const char *scratch) {
     printf("  %d moves it can learn%s\n", count, complete ? " (retail lists)" : "");
     CHECK(count > 0);
     if (complete) {
+      /* Egg moves count: Bulbasaur (species 1) hatches knowing Light Screen (113) in every Gen 3 game. */
+      static uint16_t egg[512];
+      int eggCount = o->learnable(e, 1, 1, egg, 512, &complete);
+      bool lightScreen = false;
+      for (int k = 0; k < eggCount; k++)
+        lightScreen |= egg[k] == 113;
+      CHECK(lightScreen);
       int no = 0, yes = 0;
       for (int mv = 1; mv <= 354 && (!no || !yes); mv++) {
         bool can = false, knows = false;
