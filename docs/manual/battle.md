@@ -120,7 +120,7 @@ The button at the bottom right turns the page from the foe to your Pokémon and 
 
 In a trainer's double battle the page shows one foe at a time, the one on the left to start with. Both foes that are out show their icon in the column, and only the one you're looking at is framed. Tap the other to look at it, just as it is in the battle; a Pokémon that's out is never `UNSEEN`. Your side shows one of yours, the one on the left until you tap another.
 
-On the desktop, a double battle in Black, White, Black 2 or White 2 brings up the `BATTLE` tab too. It shows the foe on the left and your Pokémon on the left, with your moves rated against that foe. Triple and rotation battles don't get a `BATTLE` tab yet.
+On the desktop, a double battle in Black, White, Black 2 or White 2 brings up the `BATTLE` tab too. It shows the foe on the left and your Pokémon on the left, with your moves rated against that foe. A triple battle brings it up the same way, showing the foe on the left and your Pokémon on the left. In a rotation battle it shows the Pokémon in front on each side, and it follows each rotation, so after you or the foe rotate it shows whichever one is in front now.
 
 ### Foe IVs
 

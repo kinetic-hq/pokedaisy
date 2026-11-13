@@ -254,6 +254,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   ROM's own code the same way, so they fit the same GBA games and show `N/A` elsewhere.
 - **DS double battles on the desktop**: Black, White, Black 2 and White 2 show the BATTLE tab in a double battle too,
   with the foe on the left and your Pokémon on the left, as a GBA double does. Before, the tab didn't appear at all.
+- **DS triple and rotation battles on the desktop**: Black, White, Black 2 and White 2 show the BATTLE tab in these
+  too. A triple shows the left pair as a double does; a rotation shows the Pokémon in front on each side, following
+  every rotation. Before, the tab didn't appear in either.
 - **Petalburg Dynasty's MAP picture** on the desktop host, the 3DS port and Android: the game keeps Emerald's own map,
   stored in the newer smol compression, and now shows it with each of its places where the game puts them. On the desktop
   and the 3DS port, Wishes of Tomorrow's map shows too: its pictures were too large for the smol reader before.
