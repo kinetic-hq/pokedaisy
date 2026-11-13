@@ -201,6 +201,8 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         int flash = egg ? 0 : level_flash(i, m->personality ^ (uint32_t)m->species, m->level);
         if (flash) // a gold rim round the card, fading
             pd_round_rect(c, cx - 2, y - 2, w + 4, cardH + 4, CARD_R + 2, mix(0xF8C830, PD_TITLE_FILL, 255 - flash));
+        else if (i == pd_ui_switch_slot) // the battle wing's SWITCH TO: a green rim
+            pd_round_rect(c, cx - 2, y - 2, w + 4, cardH + 4, CARD_R + 2, 0x48A858);
         ui_card(c, cx, y, w, cardH, PD_LIST_FILL, fainted ? mix(accent, PD_LIST_FILL, 160) : accent);
         int iconX = cx + 8, iconY = y + (cardH - PD_ICON) / 2;
         if (icon ? !icon(c, ctx, i, iconX, iconY, fainted)

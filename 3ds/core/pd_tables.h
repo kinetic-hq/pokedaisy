@@ -54,6 +54,8 @@ extern const struct pd_move_info pd_moves[];
 extern const int pd_moves_count;
 extern const uint8_t pd_move_pp[];   // vanilla gBattleMoves' base PP by move id
 extern const int pd_move_pp_count;
+extern const uint8_t pd_move_acc[];  // ... and accuracy (0 = never misses)
+extern const int pd_move_acc_count;
 extern const char* const pd_type_names[];
 extern const int pd_type_names_count;
 extern const struct pd_type_pair pd_type_chart[];
@@ -106,6 +108,13 @@ int pd_move_power(const struct pd_game* g, int move);
 // The low PP warning: 2 when a move has no PP left, 1 when it is down to a quarter of its base PP (where the base is
 // known: Gen 3 games on vanilla moves) or to 2 (elsewhere), else 0. PP Ups only raise the top, so it never warns early.
 int pd_move_low_pp(const struct pd_game* g, int move, int pp);
+// A move's accuracy in percent, 0 when it never misses, -1 when unknown: the ROM's own move table where it is found
+// (a hack's changed moves too), else vanilla's.
+int pd_move_accuracy(const struct pd_game* g, int move);
+// A move's kind: the game's own split where its move table has one (CFRU hacks), else Gen 3's rule by the type
+// (vanilla type numbering only); a move with no power is STATUS. -1 when unknown.
+enum { PD_MOVE_PHYSICAL, PD_MOVE_SPECIAL, PD_MOVE_STATUS };
+int pd_move_kind(const struct pd_game* g, int move);
 
 // One attacking type against a (possibly dual-typed) defender, in percent
 // (100 = 1x) - the app's typeMultiplierPct().

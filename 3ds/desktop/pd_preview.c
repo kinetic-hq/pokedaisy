@@ -438,6 +438,7 @@ int main(int argc, char** argv) {
         static uint32_t wpx[1024 * 768];
         struct pd_canvas wc;
         pd_canvas_init(&wc, wingW, wingH, wpx);
+        pd_ui_foe_ivs = getenv("PD_PREVIEW_FOE_IVS") != NULL; // FOE IVS on: the wing's FOE IVS section
         pd_ui_battle_panel(&wc, &game, &snap, NULL);
         char path[1024];
         snprintf(path, sizeof(path), "%s/%s-battle-wing.png", out, name);

@@ -39,6 +39,9 @@ enum {
   BEZEL_SPEED,       // the game's speed, only when it isn't 1x
   BEZEL_BOSS,        // the next unbeaten boss
   BEZEL_CAP,         // the level cap
+  BEZEL_FOE,         // a battle's foe and its level
+  BEZEL_MATCHUP,     // what the moves out do to it at best
+  BEZEL_CATCH,       // a wild one: how likely a ball is to work
   BEZEL_ITEMS
 };
 enum { BEZEL_TOP_LEFT, BEZEL_TOP_CENTRE, BEZEL_TOP_RIGHT, BEZEL_BOTTOM_LEFT, BEZEL_BOTTOM_CENTRE, BEZEL_BOTTOM_RIGHT,
@@ -51,16 +54,18 @@ static const char *const BEZEL_ITEM_NAMES[BEZEL_ITEMS] = {
     "NONE", "LOCATION", "CLOCK AND BATTERY", "CLOCK", "BATTERY", "BADGES AND PLAY TIME", "BADGES", "PLAY TIME",
     "BUTTON HINTS", "STATUS CHIPS", "REPEL OR MONEY", "MONEY", "NEXT BOSS AND CAP", "CAUGHT HERE", "LEAD POKEMON",
     "LAST SAVED", "REPEL STEPS", "CAUGHT AND SEEN", "NUZLOCKE DEATHS", "AREA ENCOUNTER", "ZOOM", "GAME SPEED",
-    "NEXT LEADER", "LEVEL CAP"};
+    "NEXT LEADER", "LEVEL CAP", "FOE", "BEST MATCHUP", "CATCH CHANCE"};
 /* LAYOUT's bars: each an ordered list, as many of its items as fit across it shown (one with nothing to say gives its
  * room to the rest). When they don't all fit, the lowest BEZEL_KEEP goes first (later ones before earlier on a tie),
  * the place shrinking (cut with "...") before anything goes. */
 #define BEZEL_LIST_MAX 32
 static const unsigned char BEZEL_KEEP[BEZEL_ITEMS] = {0, 8, 5, 6, 4, 3, 5, 1, 0, 2, 2, 2, 9, 3, 3, 1,
-                                                       4, 5, 6, 6, 3, 4, 9, 9};
+                                                       4, 5, 6, 6, 3, 4, 9, 9, 9, 8, 7};
 static const int BEZEL_DEFAULT_TOP[] = {BEZEL_LOCATION, BEZEL_CLOCK,  BEZEL_BATTERY, BEZEL_BADGES,
                                         BEZEL_PLAY_TIME, BEZEL_MONEY, BEZEL_BOSS,    BEZEL_CAP};
 static const int BEZEL_DEFAULT_BOTTOM[] = {BEZEL_CAUGHT_SEEN, BEZEL_ZOOM, BEZEL_SPEED, BEZEL_REPEL, BEZEL_AREA};
+/* In a battle: the top bar is the walking one's list until you give it its own; the bottom one is the battle's. */
+static const int BEZEL_DEFAULT_BATTLE_BOTTOM[] = {BEZEL_FOE, BEZEL_MATCHUP, BEZEL_CATCH};
 #define BEZEL_ZOOM_MS 3000u // ZOOM's showing after the zoom changes
 static const char *const BEZEL_SLOT_NAMES[BEZEL_SLOTS] = {"TOP LEFT", "TOP CENTRE", "TOP RIGHT",
                                                           "BOTTOM LEFT", "BOTTOM CENTRE", "BOTTOM RIGHT"};
@@ -110,6 +115,9 @@ struct bezel_facts {
   int nuzArea;         // this area's encounter: 0 free, 1 used, -1 = no run on (AREA then says CAUGHT HERE's)
   bool zoomRecent;     // the zoom changed in the last BEZEL_ZOOM_MS
   int pacePct;         // the game's speed off fast-forward, in percent (100 = 1x, 0 = unknown)
+  const char *foe;     // a battle's: "FOE name Lv", the best matchup, a wild one's catch hint (NULL = none)
+  const char *matchup;
+  const char *catchHint;
 };
 
 static inline void bezel_item_text(int item, const struct bezel_facts *f, char *out, size_t n) {
@@ -222,6 +230,18 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
   case BEZEL_CAP:
     if (f->cap > 0)
       snprintf(out, n, "CAP Lv%d", f->cap);
+    break;
+  case BEZEL_FOE:
+    if (f->foe && *f->foe)
+      snprintf(out, n, "%s", f->foe);
+    break;
+  case BEZEL_MATCHUP:
+    if (f->matchup && *f->matchup)
+      snprintf(out, n, "%s", f->matchup);
+    break;
+  case BEZEL_CATCH:
+    if (f->catchHint && *f->catchHint)
+      snprintf(out, n, "%s", f->catchHint);
     break;
   case BEZEL_LAST_SAVED:
     if (f->savedMinutes >= BEZEL_SAVE_LATE_MIN)

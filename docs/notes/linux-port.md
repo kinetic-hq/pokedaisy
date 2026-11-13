@@ -59,3 +59,8 @@ ASPECT and AUTO ZOOM IN. A crash that only shows outside gdb on Windows is often
 logical size), never `SDL_GetMouseState()`: that is where the mouse is when the event is read, after any motion queued
 behind the click, and a wing button 22 pixels tall missed it and opened the companion. Per-frame flags that a hit test
 reads (`rightWingMap`) are set every frame the wing is shown, not only when its texture is drawn again.
+
+**A move's kind and accuracy** (`pd_move_kind` / `pd_move_accuracy`, the battle wing's PHY / SPE / STA and ACC): a
+FireRed or Emerald kind ROM's own 12-byte move table is found by its first three moves, and byte 10 is read as the
+split only when POUND, EMBER, GROWL and SWORDS DANCE read 0, 1, 2, 2 there (CFRU hacks). Otherwise Gen 3's rule by type
+applies, and only when the type numbering is vanilla. DS games show no kind: their move data isn't read yet.
