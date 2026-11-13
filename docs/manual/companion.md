@@ -140,6 +140,8 @@ With `DAY AND NIGHT` on, the map follows your device's clock: a soft pink at daw
 
 It works in every GBA game except those that already change with the time of day themselves (Unbound, Heart and Soul, Elite Redux). It's off to start with. Your game and your save don't change: only the picture does.
 
+On Windows and Linux, `MAKEOVER` has `DAY AND NIGHT` so far, following your computer's clock.
+
 ### TIPS
 
 PokeDaisy does a lot, and some of it is easy to miss. Once you've played for about half an hour, a small card with the PokeDaisy flower now and then shows you a feature you haven't tried yet, like the zoom and look around with `EXPAND`, the `QUICK MENU`, `AUTO-RUN` or the PC from anywhere. With two screens it shows on the companion, so the game stays clear; on one screen it sits at the top of the game.

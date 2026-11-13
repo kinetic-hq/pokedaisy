@@ -234,6 +234,7 @@ static void desktop_settings(struct preview* p, struct pd_host_info* host, struc
     host->hasRewind = host->hasFfMusic = host->hasSceneSpeeds = host->hasSteady = true;
     host->hasShinyOdds = host->shinyOddsFits = true;
     host->expandGame = host->hasLookAround = true; // ASPECT and LOOK AROUND's rows
+    host->hasDayNight = host->dayNightFits = true; // MAKEOVER's DAY AND NIGHT row
     settings->shinyOdds = 3;
     settings->aspect = PD_ASPECT_EXPAND;
     for (int k = 0; k < PD_SCENE_COUNT; k++) host->sceneKnown[k] = k != PD_SCENE_SURF; // one N/A row

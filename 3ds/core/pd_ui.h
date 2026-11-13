@@ -97,6 +97,7 @@ struct pd_settings {
     bool aspectPicked; // ASPECT chosen by the player (pd_settings_expand_default leaves a chosen ORIGINAL alone)
     bool autoZoom;   // AUTO ZOOM IN: ZOOM OUT steps back in off the plain overworld
     bool lookAround; // LOOK AROUND (on): with EXPAND, the right stick moves the view (hasLookAround hosts)
+    bool dayNight;   // DAY AND NIGHT (off): the overworld outdoors follows the clock (hasDayNight hosts)
     bool wildOff;    // WILD ENCOUNTERS off (hosts that can: the Linux host's quick menu)
     int tabBar;      // TAB BAR: a bit per enum pd_tab on the bar (PARTY .. DEX, CARD); the rest open from MORE
     bool showPerf;   // FPS / CPU in the corner of the game (hosts with hasPerf)
@@ -296,6 +297,7 @@ struct pd_host_info {
     bool hasGameSpeed, hasSound, hasAutoRun, hasFfMode, hasRewind, hasFfMusic;
     bool hasSteady; // FF MUSIC offers STEADY
     bool hasShinyOdds, shinyOddsFits; // SHINY ODDS' row, and whether it works in this game (else N/A)
+    bool hasDayNight, dayNightFits;   // MAKEOVER's DAY AND NIGHT row, and whether it fits (no day and night of its own)
     bool wildSupported, fieldSupported; // WILD ENCOUNTERS / the field read works on this game
     // SCENE SPEEDS (androidMenus): the rows shown, and which scenes this game can be read in (else N/A).
     bool hasSceneSpeeds;

@@ -388,6 +388,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 
 | Group | Rows | Added for Windows and Linux |
 | --- | --- | --- |
+| `MAKEOVER` | `DAY AND NIGHT` (GBA games) | |
 | `FF / SPEED` | `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `SPEED OPTIONS` (`SCENE SPEEDS`, `FF MODE`, `FF MUSIC`) | |
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
 | `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`, `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `NUZLOCKE`, `CHEATS` | `LEVEL CAP` |
