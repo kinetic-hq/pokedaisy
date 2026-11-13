@@ -23,6 +23,7 @@
 #include "display_filter.h"
 #include "updater.h"
 #include "ra.h"
+#include "screen_filter.h"
 #include "backdrop.h"
 #include "wing_look.h"
 #include "wide_camera.h"
@@ -1095,6 +1096,37 @@ static void render_lcd(void) {
   SDL_RenderSetLogicalSize(renderer, lw, lh);
   SDL_RenderSetIntegerScale(renderer, integer);
 }
+/* FILTER's LCD, LCD PAPER, SCANLINES and CRT (screen_filter.h): a mask over the game's picture, lined up with its pixels,
+ * made again when the picture's size, the game's or the filter changes. */
+static int gameFilter, gameGrid;
+static SDL_Texture *filterTexture;
+static int filterKey[6];
+static void render_game_filter(const SDL_Rect *at, int sw, int sh) {
+  if (!screen_filter_on_game(gameFilter) || at->w <= 0 || at->h <= 0 || at->w > 8192 || at->h > 8192)
+    return;
+  int key[6] = {gameFilter, gameGrid, at->w, at->h, sw, sh};
+  if (!filterTexture || memcmp(key, filterKey, sizeof key)) {
+    if (filterTexture)
+      SDL_DestroyTexture(filterTexture);
+    filterTexture = NULL;
+    uint32_t *mask = malloc((size_t)at->w * at->h * 4);
+    if (!mask)
+      return;
+    for (int y = 0; y < at->h; y++)
+      for (int x = 0; x < at->w; x++)
+        mask[(size_t)y * at->w + x] = screen_filter_pixel(gameFilter, gameGrid, x, y, at->w, at->h, sw, sh);
+    filterTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, at->w, at->h);
+    if (filterTexture && (SDL_UpdateTexture(filterTexture, NULL, mask, at->w * 4) < 0 ||
+                          SDL_SetTextureBlendMode(filterTexture, SDL_BLENDMODE_MOD) < 0)) {
+      SDL_DestroyTexture(filterTexture);
+      filterTexture = NULL;
+    }
+    free(mask);
+    memcpy(filterKey, key, sizeof key);
+  }
+  if (filterTexture)
+    SDL_RenderCopy(renderer, filterTexture, NULL, at);
+}
 static char shotName[256] = "pokedaisy"; // the game's file name (screenshots are named after it)
 static bool capture_frame(const char *path, unsigned *lit);
 /* SCREENSHOT: DATA/screenshots/<game>-<date>-<time>.png, of the frame about to be shown. */
@@ -1543,6 +1575,7 @@ static bool render_game(unsigned gw, unsigned gh) {
       notice(SDL_GetError());
       return false;
     }
+    render_game_filter(&lastGameRect, (int)gw, (int)gh);
     return true;
   }
   SDL_Rect src = {0, 0, (int)gw, (int)gh};
@@ -1552,6 +1585,7 @@ static bool render_game(unsigned gw, unsigned gh) {
     notice(SDL_GetError());
     return false;
   }
+  render_game_filter(&lastGameRect, (int)gw, (int)gh);
   return true;
 }
 /* WILD's badge: this map's wild species not caught yet (FieldHud's hudWild); -1 = the game has no wild tables. */
@@ -3597,7 +3631,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     }
     lastStart = frameStart;
     rewind_follow(settings.rewind || rewindBound || rewind_hotkey());
-    lcdEnabled = settings.lcdFilter;
+    lcdEnabled = settings.filter == PD_FILTER_SUBPIXEL;
+    gameFilter = settings.filter;
+    gameGrid = settings.grid;
+    pocket_shader_desaturate(settings.filter == PD_FILTER_LCD_PAPER ? 15 : 0);
     saverMode = settings.batterySaver;
     bool saving = saver_active();
     host.saving = saving;
@@ -5359,6 +5396,8 @@ enum {
   ROW_PARTY_TYPES,
   ROW_LIST_RESET,
   ROW_RA,
+  ROW_FILTER,
+  ROW_GRID,
   ROW_BEZEL_SLOT0 = 80,
   ROW_HOTKEY0 = 100,
   ROW_LIST_ITEM0 = 200
@@ -5468,6 +5507,9 @@ static int settings_page(bool *foldersChanged) {
     } else if (page == PAGE_SET_DISPLAY) {
       ROW(ROW_SHADER, "SHADER\t%s", SHADERS[st.shader >= 0 && st.shader < PD_SHADERS ? st.shader : 0]);
       ROW(ROW_COLORS, "COLORS\t%s", COLORS[st.colors >= 0 && st.colors < PD_COLORS ? st.colors : 0]);
+      ROW(ROW_FILTER, "FILTER\t%s", pd_filter_names[st.filter >= 0 && st.filter < PD_FILTERS ? st.filter : 0]);
+      if (st.filter == PD_FILTER_LCD || st.filter == PD_FILTER_LCD_PAPER)
+        ROW(ROW_GRID, "GRID\t%s", pd_grid_names[st.grid >= 0 && st.grid < PD_GRIDS ? st.grid : 1]);
       ROW(ROW_BRIGHTNESS, "BRIGHTNESS\t%d%%", st.brightness);
       ROW(ROW_DIM, "DIM COMPANION\t%s", st.dimCompanion ? "ON" : "OFF");
       ROW(ROW_MOTION, "REDUCE MOTION\t%s", st.reduceMotion ? "ON" : "OFF");
@@ -5748,6 +5790,22 @@ static int settings_page(bool *foldersChanged) {
       break;
     case ROW_COLORS:
       st.colors = (st.colors + 1) % PD_COLORS;
+      break;
+    case ROW_FILTER: {
+      static const char *const FILTER_ROWS[PD_FILTERS] = {
+          "OFF", "LCD\tA GRID BETWEEN THE PIXELS", "LCD PAPER\tA SOFT GRID ON PAPER", "SCANLINES\tDARK LINES BETWEEN ROWS",
+          "CRT\tAN OLD TV'S GLOW", "SUBPIXEL\tA FINE MASK OVER THE WINDOW"};
+      int f = menu_pick("FILTER", FILTER_ROWS, PD_FILTERS, st.filter >= 0 && st.filter < PD_FILTERS ? st.filter : 0);
+      if (f < 0)
+        save = false;
+      else {
+        st.filter = f;
+        st.lcdFilter = f == PD_FILTER_SUBPIXEL;
+      }
+      break;
+    }
+    case ROW_GRID:
+      st.grid = (st.grid + 1) % PD_GRIDS;
       break;
     case ROW_BRIGHTNESS: {
       static char levels[(POCKET_BRIGHTNESS_MAX - POCKET_BRIGHTNESS_MIN) / POCKET_BRIGHTNESS_STEP + 1][24];
@@ -7618,6 +7676,9 @@ int main(int argc, char **argv) {
   SDL_DestroyTexture(wideTexture);
   SDL_DestroyTexture(lcdTexture);
   lcdTexture = NULL;
+  if (filterTexture)
+    SDL_DestroyTexture(filterTexture);
+  filterTexture = NULL;
   if (menuTexture)
     SDL_DestroyTexture(menuTexture);
   menuTexture = NULL;

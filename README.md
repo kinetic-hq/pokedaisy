@@ -417,6 +417,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **RetroAchievements** on the desktop host (GB, GBC and GBA, softcore): sign in from `SETTINGS >
   RETROACHIEVEMENTS` (only the token is kept), unlocks pop up as you play, the game menu lists the set,
   and a save state keeps its achievement progress.
+- **FILTER** on the desktop host has Android's `LCD`, `LCD PAPER`, `SCANLINES` and `CRT` with `GRID`, drawn as a
+  mask lined up with the game's pixels; the old window-wide LCD mask is now `SUBPIXEL` (an old setting keeps it).
+  `HANDHELD` colours stand in for `GBA COLORS`, and the system's own sound effects for `AUDIO EFFECTS`.
 
 </details>
 

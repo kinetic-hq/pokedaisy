@@ -25,6 +25,8 @@ const char *pocket_colors_name(int colors);
 #define POCKET_BRIGHTNESS_MAX 150
 #define POCKET_BRIGHTNESS_STEP 10
 void pocket_shader_brightness(int percent);
+/* FILTER's LCD PAPER: this many percent less saturation (0 = none). */
+void pocket_shader_desaturate(int percent);
 
 /* What to draw with; ds picks nds-color over gba-color for HANDHELD. */
 void pocket_shader_set(int shader, int colors, bool ds);

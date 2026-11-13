@@ -122,7 +122,9 @@ struct pd_settings {
     bool rumble;      // RUMBLE: the controller buzzes as a battle starts, harder for a shiny foe, and for rumble carts
     bool resumeGames; // RESUME GAMES: a state on leaving a game, offered back (CONTINUE) at its next start
     bool levelCap;   // LEVEL CAP: party levels past the next boss's top level show orange (a Nuzlocke's rule)
-    bool lcdFilter;  // optional host LCD display mask
+    bool lcdFilter;  // hosts with hasDisplayFilter: FILTER is SUBPIXEL (kept in step with filter, for older builds)
+    int filter;      // ... FILTER: enum pd_filter (the app's SHADERS > FILTER, and the desktop's SUBPIXEL mask)
+    int grid;        // ... GRID: LCD and LCD PAPER's lines, 0 SOFT / 1 MEDIUM / 2 STRONG
     bool quickGrid;  // hosts with hasQuickMenu: false = RING, true = GRID
     // Hosts with hasButtonRows: the pad buttons for the quick menu, the companion and the HUD cursor (enum pd_button).
     int quickBtn, companionBtn, hudBtn;
@@ -200,6 +202,13 @@ enum pd_button { PD_BTN_X, PD_BTN_Y, PD_BTN_L2, PD_BTN_R2, PD_BTN_NONE, PD_BUTTO
 // SHADER and COLORS' values (the Linux / Windows host's linux/shader.h uses the same numbers).
 #define PD_SHADERS 3
 #define PD_COLORS 3
+// FILTER's values: the app's (OFF, LCD, LCD PAPER, SCANLINES, CRT), then the desktop's own SUBPIXEL (the window-wide
+// mask that was its only LCD before). GRID: SOFT, MEDIUM, STRONG.
+enum pd_filter { PD_FILTER_OFF, PD_FILTER_LCD, PD_FILTER_LCD_PAPER, PD_FILTER_SCANLINES, PD_FILTER_CRT,
+                 PD_FILTER_SUBPIXEL, PD_FILTERS };
+#define PD_GRIDS 3
+extern const char* const pd_filter_names[PD_FILTERS];
+extern const char* const pd_grid_names[PD_GRIDS];
 
 // GAME SPEED's steps, as the app's SPEED_STEPS: the old five, then the slow two.
 #define PD_GAME_SPEED_COUNT 7
@@ -294,7 +303,7 @@ struct pd_host_info {
     bool hasButtonLayout;  // Optional: BUTTON LAYOUT's row (settings.buttonLayout)
     bool hasOrientation;   // Optional: ORIENTATION's row (settings.orientation)
     bool hasGameTouch;     // Optional: GAME TOUCH's row (settings.gameTouch)
-    bool hasDisplayFilter; // host implements OFF / LCD
+    bool hasDisplayFilter; // host implements FILTER (enum pd_filter) and GRID
     bool hasQuickMenu;   // host implements the selectable RING / GRID quick menu
     bool hasButtonRows;  // Optional: QUICK MENU / COMPANION / HUD CURSOR button rows (the host reads settings.*Btn)
     bool hasFfChip;      // Optional: a fast-forward chip on the tab bar (the Linux host's; the 3DS has its own hotkeys)

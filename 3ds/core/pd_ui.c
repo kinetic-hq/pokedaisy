@@ -624,7 +624,11 @@ static void act(struct pd_ui* ui, int id) {
     } else if (id >= HIT_BAG_ROW && id < HIT_BAG_ROW_END) {
         ui->bagSelected = id - HIT_BAG_ROW;
     } else if (id == HIT_SETTING + SETTING_FILTER) {
-        ui->settings->lcdFilter = !ui->settings->lcdFilter;
+        ui->settings->filter = (ui->settings->filter + 1) % PD_FILTERS;
+        ui->settings->lcdFilter = ui->settings->filter == PD_FILTER_SUBPIXEL;
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_GRID) {
+        ui->settings->grid = (ui->settings->grid + 1) % PD_GRIDS;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_QUICK_MENU) {
         ui->settings->quickGrid = !ui->settings->quickGrid;

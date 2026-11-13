@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy, filter, lcd, lcd paper, scanlines, crt, subpixel, grid, gba colors, audio effects, equalizer]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -472,7 +472,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
 | `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`, `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `NUZLOCKE`, `CHEATS` | `LEVEL CAP` |
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `LOOK AROUND`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
-| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `DIM COMPANION`, `BACKGROUND`, `UI SIZE`, `WING ROOM`, `WING LOOK`, `STRETCH`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
+| `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `FILTER`, `GRID`, `DIM COMPANION`, `BACKGROUND`, `UI SIZE`, `WING ROOM`, `WING LOOK`, `STRETCH`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE INFO`, `BATTLE HINTS`, `BATTLE VIEW`, `ONE-TAP MOVES`, `FOE IVS`, `BATTLE FOCUS`, `TAB BAR` | |
 | `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `RUMBLE`; `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
 | `APP` | | `BATTERY SAVER`, `THIS GAME ONLY`, `RESUME GAMES`, `CHECK FOR UPDATES` |
@@ -483,7 +483,7 @@ with B. A DS game's companion keeps its own `SETTINGS` (the gear tab), which has
 
 ## Shaders and colours
 
-Three rows in the companion's `SETTINGS` change how the game looks:
+These rows in the companion's `SETTINGS` change how the game looks:
 
 - **`SHADER`**: `OFF` draws the game's pixels as they are. `SHARP` keeps every
   pixel the same size and its edges crisp when the game doesn't fit the screen
@@ -493,6 +493,19 @@ Three rows in the companion's `SETTINGS` change how the game looks:
   `HANDHELD` gives the softer colours of the handheld's own screen. `OLED` takes
   a little glare off on an OLED screen, and the panels around the game go true
   black, which an OLED doesn't light at all.
+- **`FILTER`**: the same screen effects as on Android, lined up with the game's
+  own pixels. `LCD` draws a grid between them, `LCD PAPER` a softer grid over
+  slightly duller colours on a paper grain, `SCANLINES` dark lines between the
+  rows, and `CRT` an old TV's glowing rows and colour stripes. `SUBPIXEL` is the
+  fine mask over the whole window that was the desktop's only `LCD` before; a
+  setting from then keeps it. `OFF` is the default. The effects need the game
+  drawn at least two or three times its size to show.
+- **`GRID`**: how strong the lines of `LCD` and `LCD PAPER` are: `SOFT`,
+  `MEDIUM` (the default) or `STRONG`. It only shows under those two.
+- **Sound effects**: the game plays through your computer's normal sound output,
+  so any equalizer or effects you have set up there (Windows' sound
+  enhancements, Equalizer APO, EasyEffects on Linux) already apply. That's why
+  there's no `AUDIO EFFECTS` switch here.
 - **`BRIGHTNESS`**: lifts the game's darker colours, 80% to 150%. `110%` is the
   default; `100%` is the game's own picture.
 - **`UI SIZE`**: how large the menus, the HUD, the panels beside the game and
