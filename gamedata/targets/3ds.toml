@@ -9,7 +9,7 @@ prefix = 'PD_CONFIG_'
 
 # Kotlin names a value may hold (refs, list items) -> the C the port uses for them.
 [names]
-VANILLA_BASE_STATS = '&(const struct pd_base_stats){ .stride = 28, .abilitiesOff = 0x16, .typesOff = 6, .eggGroupsOff = 0x14 }'
+VANILLA_BASE_STATS = '&(const struct pd_base_stats){ .stride = 28, .abilitiesOff = 0x16, .typesOff = 6, .eggGroupsOff = 0x14, .genderOff = 0x10, .catchRateOff = 8 }'
 POCKET_ITEMS = 'PD_POCKET_ITEMS'
 POCKET_POKE_BALLS = 'PD_POCKET_BALLS'
 POCKET_TM_HM = 'PD_POCKET_TMHM'
@@ -163,6 +163,7 @@ descriptionPage2Off = 'pokedex.descriptionPage2Off'
 abilityNameLength = 'pokedex.abilityNameLength'
 abilityNameStride = 'pokedex.abilityNameStride'
 abilityNamePtr = 'pokedex.abilityNamePtr'
+hiddenAbilityOff = 'pokedex.hiddenAbilityOff'
 baseStats = 'pokedex.baseStats'
 expansion = 'pokedex.expansion'
 probeCategory = 'pokedex.probeCategory'

@@ -319,6 +319,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   units** on the `DEX` page of every GBA game whose cart uses them (Monomyth, the European and Japanese carts), as in the app.
 - **EGG GROUP on the DEX page** on the desktop host for the GBA games, read from each game's own base stats (Monomyth's
   packed into one byte), as the app shows them.
+- **HIDDEN ability, GENDER ratio, CATCH RATE and stat TOTAL on the DEX page** on the desktop host for the GBA
+  games, on a window big enough for them (the 3DS page keeps its old lines), as the app shows them.
 - **Monomyth's DEX sections and GUIDE** on the desktop host: `EVOLVE` (its own eight-row evolution table and methods),
   `AREA` and `MOVES`, and the guide's trainer teams and wild tables (its trainer parties sit behind a header of its own).
 - **Amethyst 1.4.3**: its own config (PARTY, BAG, BATTLE with the foe's team, DEX, GUIDE, the PC) instead of 1.4.1's

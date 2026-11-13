@@ -860,9 +860,10 @@ def c_value(v, f, names, lists, where, none):
             kv.setdefault("stride", "28"); kv.setdefault("abilitiesOff", "0x16"); kv.setdefault("typesOff", "6")
             kv.setdefault("abilityU16", "false"); kv.setdefault("statsU16", "false")
             kv.setdefault("eggGroupsOff", "0x14"); kv.setdefault("eggGroupsPacked", "false")
+            kv.setdefault("genderOff", "0x10"); kv.setdefault("catchRateOff", "8")
             return "&(const struct pd_base_stats){ " + ", ".join(
                 f".{k} = {kv[k]}" for k in ("stride", "abilitiesOff", "typesOff", "abilityU16", "statsU16", "eggGroupsOff",
-                                            "eggGroupsPacked")) + " }"
+                                            "eggGroupsPacked", "genderOff", "catchRateOff")) + " }"
         n = kotlin_const_expr(v.get("ref") or expr)
         if n is None:
             fail(where, f"{v} is Kotlin; the C needs the value in gamedata/")

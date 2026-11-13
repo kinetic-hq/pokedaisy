@@ -19,8 +19,9 @@ the fork's README.
 - **The companion's tabs**: `PARTY`, `BAG`, `MAP`, `GUIDE`, the Pokedex,
   `BATTLE` (with `INFO`, `SUGGESTIONS`, `ONE-TAP MOVES`, `FOE IVS`' `STATS`, `BATTLE INFO`, `BATTLE VIEW` and `BATTLE FOCUS`), the `TRAINER CARD`,
   `BOXES`, `STATES` and `SETTINGS`, with `TAB BAR` and `MORE`. A GBA game's
-  Pokedex page shows each Pokemon's `EGG GROUP` beside its `ABILITY`, as on
-  Android.
+  Pokedex page shows each Pokemon's `EGG GROUP` beside its `ABILITY`, and on a
+  big enough window its `HIDDEN` ability, `GENDER` ratio, `CATCH RATE` and stat
+  `TOTAL`, as on Android.
 - **The field**: `ASPECT` `EXPAND` with zoom, `AUTO ZOOM IN` and `LOOK AROUND`, the `HUD`, and
   the `QUICK MENU` with PC, FLY, the keep-away spray, `BIKE`, `WILD ENCOUNTERS`,
   states, fast forward and the companion.
