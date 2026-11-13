@@ -71,4 +71,6 @@ That also means what you see depends on the game:
 - **Polished Crystal** shows its 289 in National order, with heights and weights in meters and kilograms. A regional form shows as its species there. The page lists the abilities and the hidden ability (the faithful builds show their own), but no egg groups, and no `EVOLVE`, `AREA` or `MOVES` yet.
 - **Pokémon Prism** shows its own Pokédex: its 253 Pokémon in the game's order, numbered the way the game numbers them, with heights and weights in meters and kilograms as the game shows them by default. Like Crystal, the page has no abilities or egg groups, and no `EVOLVE`, `AREA` or `MOVES` yet.
 
+- **Modern Emerald** has its `DEX` on Windows and Linux only for now: its Hoenn and National lists and each entry's page, but no `EVOLVE`, `AREA` or `MOVES` yet.
+
 If a game has no Pokédex data at all, the `DEX` tab doesn't appear.

@@ -1,0 +1,42 @@
+# Pokémon Modern Emerald v3.6's DEX, for the 3DS / desktop target only (the app has no DEX for it yet).
+#
+# The GF ROM header (0x08000100) names the tables retail Emerald's does: front pics 0x086D8528, palettes 0x086D0204,
+# gSpeciesInfo 0x088E5960 (40-byte entries, vanilla's fields at vanilla's offsets: BULBASAUR's 45/49/49/45/65/65 at
+# +40, OVERGROW at +0x16), ability names 0x086874D8 (13 bytes each), the Pokedex in SaveBlock2 at +0x1C (retail
+# +0x18), the seen copies in SaveBlock1 at +0xA78 / +0x3B28, 432 in the National dex. Found by their bytes:
+# gPokedexEntries 0x088D6C04 (0x20 apart; entry 1 "Seed", 0.7 m / 6.9 kg, entry 2 1.0 m / 13.0 kg),
+# sSpeciesToNationalPokedexNum 0x088E1DD8 (TREECKO 277 -> 252, the last species -> 432) and right after it
+# sHoennToNationalOrder 0x088E2174: 215 Hoenn numbers ending at DEOXYS, then the rest in national order.
+# The flag arrays are 58 bytes (owned +0x2C, seen +0x66): in the `modern_emerald` fixture the owned bits are the six
+# Pokémon its save was given (183, 252, 282, 303, 399, 416), and the battle fixture's seen bits add its foe (263), as
+# the SaveBlock1 copies do.
+[record.MODERN_EMERALD_DEX_FLAGS]
+schema = 'gen3_dexflags'
+kotlin = false
+block = 'DexFlagBlock.SAVE_BLOCK_2'
+seen = 0x66
+caught = 0x2C
+bytes = 58
+seenCopies = [0xA78, 0x3B28]
+
+[record.POKEDEX_MODERN_EMERALD]
+schema = 'gen3_pokedex'
+kotlin = false
+entries = 0x088D6C04
+frontPics = 0x086D8528
+palettes = 0x086D0204
+speciesInfo = 0x088E5960
+speciesToNational = 0x088E1DD8
+abilityNames = 0x086874D8
+footprints = 0
+entryStride = 0x20
+speciesCount = 462
+nationalCount = 432
+regionalCount = 215
+regionName = 'HOENN'
+regionalOrder = 0x088E2174
+baseStats = { kotlin = 'BaseStatsLayout(stride = 40)' }
+flags = 'MODERN_EMERALD_DEX_FLAGS'
+# pd_snapshot reads it at SaveBlock2 + 0x18 + this: the Pokedex's nationalMagic, +2 into it at +0x1C.
+nationalMagicOff = 6
+nationalMagic = 0xDA

@@ -61,7 +61,7 @@ the fork's README.
 `EDIT SAVE`'s `PRESETS` and `PASTE SET` (battle sets filled into a Pokemon),
 ten state slots with pictures, `ORIENTATION` for a screen mounted another way,
 the DS wings (`TOUCH IN WING`, `WINGS`, `TOUCH PIECES`) with the DS time of day
-and Berry Pots.
+and Berry Pots, and the `DEX` tab in Modern Emerald.
 
 ## Not in the desktop version yet
 
