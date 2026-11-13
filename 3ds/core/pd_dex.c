@@ -185,7 +185,10 @@ static void build(const struct pd_game* g) {
         const struct pd_dex_x* x = cfg->expansion;
         const uint8_t* one = pd_rom_at(g, cfg->speciesInfo + (uint32_t) x->stride, (size_t) x->natDexOff + 6);
         if (!one) return;
-        if (u16(one + x->natDexOff) != 1 || u16(one + x->natDexOff + 2) != 7 || u16(one + x->natDexOff + 4) != 69) {
+        // A game with its own numbering (Seaglass: Hoenn first, species 1 is No. 141) keeps species 1's height and
+        // weight, its number anywhere in the dex.
+        int n1 = u16(one + x->natDexOff);
+        if (n1 < 1 || n1 > nationalCount || u16(one + x->natDexOff + 2) != 7 || u16(one + x->natDexOff + 4) != 69) {
             // A game that zeroes the species it leaves out (Lazarus: its dex starts elsewhere) is probed on species 25
             // instead, national 25, 0.4 m, 6.0 kg, its species 1 all zero.
             const uint8_t* p25 = pd_rom_at(g, cfg->speciesInfo + 25u * (uint32_t) x->stride, (size_t) x->natDexOff + 6);

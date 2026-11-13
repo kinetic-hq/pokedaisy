@@ -39,10 +39,10 @@ foe team is listed as a gap even then.
 
 Of the 72 rows:
 
-- **64** get the companion at the same level as on Android, every tab
+- **65** get the companion at the same level as on Android, every tab
   included. (Only 2 of them read `works` in all six columns; the rest have a
   `partly` the Android app has too.)
-- **8** get a companion that falls short of Android's somewhere.
+- **7** get a companion that falls short of Android's somewhere.
 - **None** is left with no companion.
 
 By tab:
@@ -53,7 +53,7 @@ By tab:
 | `BAG` | 72 | 0 | 0 |
 | `BATTLE` | 6 | 66 | 0 |
 | `MAP` | 71 | 1 | 0 |
-| `DEX` | 64 | 1 | 7 |
+| `DEX` | 65 | 1 | 6 |
 | `GUIDE` | 37 | 28 | 7 |
 
 ## Game by game
@@ -110,7 +110,7 @@ By tab:
 | Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | works | works | partly | works | works | works | None |
 | Emerald Legacy | 1.1.4; SHA-1 cbd71af6 | works | works | partly | works | works | works | None |
 | Lazarus | 2.0; SHA-1 7dcdc7e2 | works | works | partly | works | works | partly | None |
-| Emerald Seaglass | 3.0; SHA-1 b9f4d332 | works | works | partly | works | no | partly | No `DEX` tab |
+| Emerald Seaglass | 3.0; SHA-1 b9f4d332 | works | works | partly | works | works | partly | None |
 | Too Many Types 2 | 1.5.2; SHA-1 3fa8e61e | works | works | partly | works | no | partly | No `DEX` tab |
 | Glazed | 9.2.0; SHA-1 e10105d8 | works | works | partly | works | works | partly | None |
 | Emerald Imperium | 1.3.1; SHA-1 1d20091c | works | works | partly | works | no | partly | No `DEX` tab |
@@ -145,7 +145,7 @@ By tab:
   The other languages and the French and Spanish Platinum carts get no
   companion yet.
 - **A missing `DEX` tab.** Heart and Soul, Wishes of Tomorrow, Dreamstone
-  Mysteries, Lazarus, Monomyth, Petalburg Dynasty and Let's Go now have their `DEX` on the desktop, read from
+  Mysteries, Lazarus, Monomyth, Petalburg Dynasty, Let's Go and Emerald Seaglass now have their `DEX` on the desktop, read from
   each game's own data. The other games built the same way get it too once the
   desktop sees that data in the game. Emerald Rogue and SoulGold still
   have no `DEX` tab on the desktop, though the app shows one.
