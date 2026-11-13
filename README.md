@@ -257,6 +257,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **NUZLOCKE on the desktop**: the Android app's tracker and its tab (under `MORE`): one encounter per area, fainted
   Pokémon out for good, fixes by hand, `DUPES CLAUSE`, `WARNINGS` and `NEW RUN`, in the same GBA games. Each game's run
   is kept in `nuzlocke/` beside the saves, in the app's own format.
+- **BATTLE FOCUS on the desktop**: the `COMPANION` setting from the Android app. Battle `INFO` becomes one page about
+  one Pokémon (ability, held item, stats with their stages, moves and matchups), turned between the foe and yours,
+  with the team down the side. The GBA games' battlers now give their ability, item, stats and stat stages.
 - **BATTLE INFO and BATTLE VIEW on the desktop**: the two `COMPANION` settings from the Android app. `BATTLE INFO` off
   leaves the `BATTLE` tab with only the battle buttons (no `INFO`, `SUGGESTIONS` or move ratings), and the battle wing
   keeps its map. `BATTLE VIEW` set to `INFO` opens the tab on `INFO`.

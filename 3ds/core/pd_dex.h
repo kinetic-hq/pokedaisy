@@ -38,6 +38,8 @@ int pd_dex_national(const struct pd_game* g, int species);
 // The national number at regional position i (1-based); 0 = none.
 int pd_dex_regional(const struct pd_game* g, int i);
 bool pd_dex_entry(const struct pd_game* g, int national, struct pd_dex_entry* out);
+// An ability's name by its id (gAbilityNames); empty when the game has none mapped.
+void pd_ability_name(const struct pd_game* g, int id, char* out, size_t outLen);
 // The front sprite, 64x64 0xRRGGBB with PD_MAP_CLEAR-style see-through
 // (0xFF000000); false if it can't be decoded.
 bool pd_dex_sprite(const struct pd_game* g, int species, uint32_t* out);

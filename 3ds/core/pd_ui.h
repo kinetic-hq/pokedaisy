@@ -128,6 +128,7 @@ struct pd_settings {
     bool foeIvs;      // FOE IVS: battle INFO's STATS, the foe's IVs, EVs and nature beside yours
     bool battleInfo;  // BATTLE INFO (on): off, the BATTLE tab is the battle buttons only, with no ratings
     bool battleViewInfo; // BATTLE VIEW: INFO, the BATTLE tab opens on INFO rather than the buttons
+    bool battleFocus;    // BATTLE FOCUS: INFO as one page about one Pokemon, the foe or yours
     int gameSpeed;   // GAME SPEED: an index into PD_GAME_SPEEDS
     int sceneSpeed[PD_SCENE_COUNT]; // SCENE SPEEDS (BATTLE, TEXT, MENU, BIKE, SURF): an index into PD_SCENE_SPEEDS, 0 = SAME
     int gameVolume;  // GAME VOLUME: 20 ... 100
@@ -535,6 +536,9 @@ struct pd_ui {
     bool battleChoosingMove; // FIGHT tapped: our move grid, FIGHT not sent yet
     unsigned foeSeen;
     int foeSelected, foeShown;
+    // BATTLE FOCUS: your side shown (back to the foe when a new one comes in), and which of yours (-1 = the one out).
+    bool focusYours;
+    int focusSlot, focusFoeKey;
     int lastFoeActive, lastFoeNext;
     int summarySlot; // party slot whose summary is open, -1 = none
     bool summaryLearn, summaryCanLearn;

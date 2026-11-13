@@ -84,6 +84,8 @@ enum {
     HIT_BATTLE_SUGGEST = 3000,
     HIT_BATTLE_INFO = 3001,
     HIT_BATTLE_STATS = 3002, // FOE IVS' STATS
+    HIT_FOCUS_TURN = 3003,   // BATTLE FOCUS: the foe's page or yours
+    HIT_FOCUS_OWN = 3040,    // + party slot, BATTLE FOCUS' column on your side
     HIT_FOE_SLOT = 3010,   // + foe party index
     HIT_BAG_ROW = 20000,   // + item index
     HIT_BAG_ROW_END = HIT_BAG_ROW + PD_POCKET_COUNT * PD_POCKET_SLOTS,
@@ -141,6 +143,7 @@ enum setting_row {
     SETTING_FOE_IVS,
     SETTING_BATTLE_INFO,
     SETTING_BATTLE_VIEW,
+    SETTING_BATTLE_FOCUS,
     SETTING_NUZLOCKE,
     SETTING_RESTART,
     SETTING_VIEW,      // hosts with hasCompanionView: opens its pick-list

@@ -186,6 +186,7 @@ void pd_ui_init(struct pd_ui* ui, struct pd_settings* settings) {
     ui->mapDungeon = -1;
     pd_ui_guide_reset(ui);
     ui->foeSelected = ui->foeShown = -1;
+    ui->focusSlot = -1;
     ui->itemMoveSlot = -1;
     ui->lastFoeActive = ui->lastFoeNext = -1;
     ui->settings = settings;
@@ -206,6 +207,9 @@ void pd_ui_update(struct pd_ui* ui, const struct pd_snapshot* s) {
         ui->foeSeen = 0;
         ui->foeSelected = -1;
         ui->lastFoeActive = ui->lastFoeNext = -1;
+        ui->focusYours = false;
+        ui->focusSlot = -1;
+        ui->focusFoeKey = 0;
     } else if (!on && ui->battleWasOn) {
         if (ui->tab == PD_TAB_BATTLE) ui->tab = ui->tabBeforeBattle;
         ui->battleOnBar = false;
@@ -577,7 +581,7 @@ static void act(struct pd_ui* ui, int id) {
                id == HIT_SETTING + SETTING_LEVEL_CAP || id == HIT_SETTING + SETTING_INSTANT_TEXT ||
                id == HIT_SETTING + SETTING_REUSABLE_TMS || id == HIT_SETTING + SETTING_TRADE_EVOS ||
                id == HIT_SETTING + SETTING_FOE_IVS || id == HIT_SETTING + SETTING_BATTLE_INFO ||
-               id == HIT_SETTING + SETTING_BATTLE_VIEW) {
+               id == HIT_SETTING + SETTING_BATTLE_VIEW || id == HIT_SETTING + SETTING_BATTLE_FOCUS) {
         struct pd_settings* st = ui->settings;
         bool* flag = id == HIT_SETTING + SETTING_MUTE ? &st->gameMuted : id == HIT_SETTING + SETTING_WILD ? &st->wildOff
             : id == HIT_SETTING + SETTING_AUTO_RUN ? &st->autoRun : id == HIT_SETTING + SETTING_RUN_INDOORS ? &st->runIndoors
@@ -586,7 +590,8 @@ static void act(struct pd_ui* ui, int id) {
             : id == HIT_SETTING + SETTING_REUSABLE_TMS ? &st->reusableTms
             : id == HIT_SETTING + SETTING_TRADE_EVOS ? &st->tradeEvolutions
             : id == HIT_SETTING + SETTING_FOE_IVS ? &st->foeIvs : id == HIT_SETTING + SETTING_BATTLE_INFO ? &st->battleInfo
-            : id == HIT_SETTING + SETTING_BATTLE_VIEW ? &st->battleViewInfo : &st->oneTapMoves;
+            : id == HIT_SETTING + SETTING_BATTLE_VIEW ? &st->battleViewInfo
+            : id == HIT_SETTING + SETTING_BATTLE_FOCUS ? &st->battleFocus : &st->oneTapMoves;
         *flag = !*flag;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_FF) {

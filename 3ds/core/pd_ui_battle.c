@@ -10,7 +10,9 @@
 // RESERVE / UNSEEN), tapping it again follows the battle.
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+#include "pd_dex.h"
 #include "pd_icon.h"
 #include "pd_tables.h"
 #include "pd_ui_internal.h"
@@ -434,6 +436,303 @@ static void stats_pane(struct pd_ui* ui, struct pd_canvas* c, const struct battl
     c->cx0 = cx0, c->cy0 = cy0, c->cx1 = cx1, c->cy1 = cy1;
 }
 
+// --- BATTLE FOCUS (BattleFocusScreen.kt): INFO as one page about one Pokemon, the foe or yours ---
+
+struct focus_mon {
+    struct mon_view v;
+    const char* pill;
+    int ability;             // the battler's ability id; 0 = not read
+    int item;                // the held item; -1 = not known
+    bool hasStats, hasStages;
+    int stats[5], stages[7]; // Attack, Defense, Speed, Sp. Atk, Sp. Def (stages: then accuracy, evasion)
+};
+
+static void focus_from_battler(struct focus_mon* f, const struct pd_battle_mon* b) {
+    memset(f, 0, sizeof(*f));
+    f->v = from_battler(b);
+    f->item = -1;
+    if (!b->hasBattleStats) return;
+    f->ability = b->ability;
+    f->item = b->heldItem;
+    f->hasStats = f->hasStages = true;
+    memcpy(f->stats, b->stats, sizeof(f->stats));
+    memcpy(f->stages, b->stages, sizeof(f->stages));
+}
+
+static void focus_from_party(struct focus_mon* f, const struct battle_data* d, const struct pd_mon* m) {
+    memset(f, 0, sizeof(*f));
+    f->v = from_party(d, m);
+    f->item = m->hasHeldItem ? m->heldItem : -1;
+    if (m->stats.valid) {
+        f->hasStats = true;
+        for (int i = 0; i < 5; i++) f->stats[i] = m->stats.values[i + 1];
+    }
+}
+
+// The ability: the battler's own, else the species' when it has only the one (the dex page's).
+static void focus_ability(const struct battle_data* d, const struct focus_mon* f, char* out, size_t len) {
+    out[0] = 0;
+    if (!d->source && f->ability) pd_ability_name(d->game, f->ability, out, len);
+    if (!*out && !d->source) {
+        static const struct pd_game* cachedGame;
+        static int cachedSpecies = -1;
+        static char cached[16];
+        if (cachedGame != d->game || cachedSpecies != f->v.species) {
+            static struct pd_dex_entry e;
+            cachedGame = d->game;
+            cachedSpecies = f->v.species;
+            cached[0] = 0;
+            int national = pd_dex_available(d->game) ? pd_dex_national(d->game, f->v.species) : 0;
+            if (national > 0 && pd_dex_entry(d->game, national, &e) && *e.ability1 && !*e.ability2)
+                snprintf(cached, sizeof(cached), "%s", e.ability1);
+        }
+        snprintf(out, len, "%s", cached);
+    }
+    if (!*out) snprintf(out, len, "-");
+}
+
+static int type_badge_w(const struct pd_game* g, int type) {
+    char text[12];
+    const char* name = pd_type_name(g, type);
+    int n = 0;
+    for (; name && name[n] && n < 11; n++) text[n] = name[n] >= 'a' && name[n] <= 'z' ? (char) (name[n] - 32) : name[n];
+    text[n] = 0;
+    return n ? pd_text_width(text) + 6 : 0;
+}
+
+// A stat's name, its value and its stage as a pill (green up, red down).
+static void focus_stat(struct pd_canvas* c, int x, int y, int w, const char* label, int value, bool hasValue, int stage) {
+    pd_text(c, x, y, label, PD_LABEL, PD_LABEL_SHADOW);
+    int right = x + w;
+    if (stage) {
+        char t[8];
+        snprintf(t, sizeof(t), "%+d", stage);
+        int pw = pd_text_width(t) + 6;
+        pill(c, right - pw, y, t, stage > 0 ? OUT_GREEN : 0xD84838);
+        right -= pw + 4;
+    }
+    if (hasValue) {
+        char v[8];
+        snprintf(v, sizeof(v), "%d", value);
+        pd_text_right(c, right, y, v, PD_VALUE, PD_VALUE_SHADOW);
+    }
+}
+
+// Whether type [t] lands in matchup group [kind]: 0 WEAK TO, 1 RESISTS, 2 IMMUNE TO; [pass] 0 the strong ones first.
+static bool in_group(int pct, int kind, int pass) {
+    if (kind == 0) return pass == 0 ? pct >= 400 : pct > 100 && pct < 400;
+    if (kind == 1) return pass == 0 ? pct > 0 && pct <= 25 : pct > 25 && pct < 100;
+    return pass == 0 && pct == 0;
+}
+
+static int group_size(const struct pd_game* g, const struct mon_view* m, int kind, int* list) {
+    int n = 0, count = pd_type_count(g);
+    if (count > 32) count = 32;
+    for (int pass = 0; pass < 2; pass++)
+        for (int t = 0; t < count; t++) {
+            const char* name = pd_type_name(g, t);
+            if (name && *name && in_group(pd_type_multiplier_pct(g, t, m->type1, m->type2), kind, pass)) list[n++] = t;
+        }
+    return n;
+}
+
+// One matchup group: its label, then the types' badges over at most [lines] lines. Returns the height used.
+static int focus_group(struct pd_canvas* c, const struct pd_game* g, int x, int y, int w, const char* label,
+                       const struct mon_view* m, int kind, int lines) {
+    int list[64];
+    int n = group_size(g, m, kind, list);
+    if (!n) return 0;
+    int lx = x + pd_text(c, x, y, label, PD_LABEL, PD_LABEL_SHADOW) + 5;
+    int cx = lx, line = 0, right = x + w;
+    for (int i = 0; i < n; i++) {
+        int bw = type_badge_w(g, list[i]);
+        if (cx + bw > right) {
+            if (line + 1 >= lines) break;
+            line++;
+            cx = lx;
+        }
+        cx += ui_type_badge(c, cx, y + line * (LINE + 2) + 3, list[i]) + 3;
+    }
+    return (line + 1) * (LINE + 2);
+}
+
+static void focus_mon_page(struct pd_canvas* c, const struct battle_data* d, const struct focus_mon* f,
+                           const struct mon_view* other, bool hints, int ix, int iy, int iw, int ih) {
+    char buf[40], ability[32];
+    const struct mon_view* m = &f->v;
+    // The header: icon, name and types; ABILITY and HELD ITEM beside them. No HP or level.
+    icon(c, d, m->species, m->shiny, ix, iy, false);
+    int tx = ix + PD_ICON + 8, right = ix + iw;
+    int split = tx + (right - tx) * 44 / 100;
+    int ty = iy + 1;
+    const char* status = pd_status_label(m->status);
+    int statusW = *status ? pd_text_width(status) + 10 : 0;
+    int nameEnd = tx + pd_text_fit(c, tx, ty, split - 6 - statusW - tx, species_name(d, m->species, buf, sizeof(buf)),
+                                   PD_LABEL, PD_LABEL_SHADOW);
+    if (m->shiny) nameEnd += pd_text(c, nameEnd + 2, ty, "*", SHINY_FRAME, PD_LABEL_SHADOW) + 2;
+    if (*status) ui_status_badge(c, nameEnd + 4, ty + 1, m->status);
+    bool roomy = right - split >= pd_text_width("HELD ITEM") + 60;
+    focus_ability(d, f, ability, sizeof(ability));
+    int vx = split + pd_text(c, split, ty, "ABILITY", PD_MUTED, PD_MUTED_SHADOW) + 5;
+    pd_text_fit(c, vx, ty, right - vx, ability, PD_VALUE, PD_VALUE_SHADOW);
+    ty += LINE + 3;
+    int bx = tx;
+    if (m->type1 != PD_TYPE_NONE) {
+        bx += ui_type_badge(c, bx, ty + 2, m->type1) + 3;
+        if (m->type2 != m->type1 && m->type2 != PD_TYPE_NONE) bx += ui_type_badge(c, bx, ty + 2, m->type2) + 3;
+    }
+    if (f->pill && *f->pill && bx + pd_text_width(f->pill) + 6 <= split - 4) pill(c, bx + 1, ty, f->pill, VERDICT_GREY);
+    const char* item = f->item < 0 || d->source ? "-" : f->item == 0 ? "NONE" : pd_item_name(d->game, f->item);
+    vx = split + pd_text(c, split, ty, roomy ? "HELD ITEM" : "ITEM", PD_MUTED, PD_MUTED_SHADOW) + 5;
+    pd_text_fit(c, vx, ty, right - vx, item && *item ? item : "-", PD_VALUE, PD_VALUE_SHADOW);
+    int y = iy + (PD_ICON + 4 > 2 * LINE + 4 ? PD_ICON + 4 : 2 * LINE + 4);
+    rule(c, ix, y, iw);
+    y += RULE;
+
+    // The stats, two columns of three, with their stage pills.
+    if (f->hasStats || f->hasStages) {
+        static const char* const NAMES[5] = { "ATTACK", "DEFENSE", "SPEED", "SP. ATK", "SP. DEF" };
+        int cw = (iw - 12) / 2;
+        for (int i = 0; i < 5; i++)
+            focus_stat(c, ix + (i / 3) * (cw + 12), y + (i % 3) * LINE, cw, NAMES[i], f->stats[i], f->hasStats,
+                       f->hasStages ? f->stages[i] : 0);
+        // Accuracy and evasion, where a move has changed them.
+        int ax = ix + cw + 12, ay = y + 2 * LINE;
+        if (f->hasStages)
+            for (int i = 5; i < 7; i++) {
+                if (!f->stages[i]) continue;
+                char t[8];
+                snprintf(t, sizeof(t), "%+d", f->stages[i]);
+                ax += pd_text(c, ax, ay, i == 5 ? "ACC" : "EVA", PD_LABEL, PD_LABEL_SHADOW) + 3;
+                ax += pill(c, ax, ay, t, f->stages[i] > 0 ? OUT_GREEN : 0xD84838) + 6;
+            }
+        y += 3 * LINE;
+    } else {
+        pd_text(c, ix, y, "NO STATS FOR THIS ONE", PD_MUTED, PD_MUTED_SHADOW);
+        y += LINE;
+    }
+    rule(c, ix, y, iw);
+    y += RULE;
+
+    // The matchups get what the moves leave them: a line a group, WEAK TO two when there's room.
+    static const char* const GROUPS[3] = { "WEAK TO", "RESISTS", "IMMUNE TO" };
+    int movesMin = 2 * (2 * LINE + 6) + 4;
+    int lines = (iy + ih - y - movesMin - RULE) / (LINE + 2);
+    int nGroups = 0, list[64];
+    if (hints && m->type1 != PD_TYPE_NONE)
+        for (int k = 0; k < 3; k++)
+            if (group_size(d->game, m, k, list)) nGroups++;
+    if (nGroups > lines) nGroups = lines > 0 ? lines : 0;
+    int extra = lines > nGroups ? 1 : 0;
+    int groupH = nGroups ? (nGroups + extra) * (LINE + 2) + RULE : 0;
+    int movesH = iy + ih - y - groupH;
+    if (m->moves[0] || m->moves[1] || m->moves[2] || m->moves[3]) {
+        int gap = 4, bw = (iw - gap) / 2, bh = (movesH - gap) / 2;
+        for (int i = 0; i < PD_NUM_MOVES; i++)
+            move_cell(c, d, ix + (i % 2) * (bw + gap), y + (i / 2) * (bh + gap), bw, bh, m->moves[i], m->pp[i],
+                      hints ? other : NULL);
+    } else {
+        pd_text(c, ix, y, "NO MOVE DATA", PD_MUTED, PD_MUTED_SHADOW);
+    }
+    if (!nGroups) return;
+    y += movesH;
+    rule(c, ix, y - RULE / 2 - 1, iw);
+    y += RULE - 2;
+    int drawn = 0;
+    for (int k = 0; k < 3 && drawn < nGroups; k++) {
+        int used = focus_group(c, d->game, ix, y, iw, GROUPS[k], m, k, 1 + (drawn == 0 ? extra : 0));
+        if (used) drawn++;
+        y += used;
+    }
+}
+
+// The column down the page's right: the team (the trainer's, or yours), then the turn button and the way back.
+static void focus_column(struct pd_ui* ui, struct pd_canvas* c, const struct battle_data* d, const struct pd_snapshot* s,
+                         int x, int y, int w, int h, bool yours, int viewed, bool canTurn, bool controls) {
+    int bottom = y + h;
+    if (controls) {
+        bottom -= BAR_H;
+        nav_button(ui, c, x, bottom, w, BAR_H, "<", 0x4890D8, 0x2860A0, HIT_BATTLE_CONTROLS);
+        bottom -= 4;
+    }
+    if (canTurn) {
+        bottom -= BAR_H;
+        nav_button(ui, c, x, bottom, w, BAR_H, yours ? "FOE" : "YOU", INFO_PURPLE, INFO_PURPLE_DARK, HIT_FOCUS_TURN);
+        bottom -= 4;
+    }
+    int n = yours ? s->partyCount : s->foeCount, gap = 3;
+    if (n < 2) return;
+    int cell = (bottom - y - (n - 1) * gap) / n;
+    if (cell > w) cell = w;
+    if (cell < 12) return;
+    int cx = x + (w - cell) / 2;
+    for (int i = 0; i < n; i++, y += cell + gap) {
+        const struct pd_mon* m = yours ? &s->party[i] : &s->foes[i];
+        bool shown = yours || (ui->foeSeen >> i & 1) || i == ui->foeShown;
+        bool current = yours ? i == viewed : i == ui->foeShown;
+        struct pd_layer layers[2] = { { PD_VALUE, 2 }, { PD_VALUE_SHADOW, 1 } };
+        struct pd_layer plain[2] = { { 0x63737B, 2 }, { 0xCED6D6, 1 } };
+        pd_layered_box(c, cx, y, cell, cell, 3, current ? layers : plain, 2, shown ? PD_TITLE_FILL : PD_LIST_FILL);
+        if (!shown) {
+            ui_ball(c, cx + (cell - 10) / 2, y + (cell - 10) / 2, true);
+        } else if (cell < PD_ICON || !draw_icon(d, c, m->species, m->shiny, cx + (cell - PD_ICON) / 2,
+                                                y + (cell - PD_ICON) / 2, m->hp == 0)) {
+            char lv[8];
+            snprintf(lv, sizeof(lv), "%d", m->level);
+            pd_text(c, cx + (cell - pd_text_width(lv)) / 2, pd_text_y(y, cell), lv, m->hp ? PD_LABEL : PD_MUTED,
+                    PD_NO_SHADOW);
+        }
+        if (yours) ui_add_hit(ui, cx, y, cell, cell, HIT_FOCUS_OWN + i);
+        else if (!d->source || shown) ui_add_hit(ui, cx, y, cell, cell, HIT_FOE_SLOT + i);
+    }
+}
+
+static void focus_page(struct pd_ui* ui, struct pd_canvas* c, const struct battle_data* d, const struct pd_snapshot* s,
+                       bool controls) {
+    const char* foeState;
+    const struct pd_mon* foeParty = shown_foe(ui, s, &foeState);
+    static struct focus_mon foe, you;
+    bool haveFoe = true;
+    if (foeParty) focus_from_party(&foe, d, foeParty);
+    else if (s->battlers[PD_POS_OPPONENT_LEFT].species) focus_from_battler(&foe, &s->battlers[PD_POS_OPPONENT_LEFT]);
+    else haveFoe = false;
+    foe.pill = foeState;
+    // A new foe in: back to its page.
+    int key = haveFoe ? foe.v.species * 128 + foe.v.level + 1 : 0;
+    if (key != ui->focusFoeKey) {
+        ui->focusFoeKey = key;
+        ui->focusYours = false;
+    }
+    // Yours: the one out (the battler, with its stages), or the one tapped in the column.
+    const struct pd_mon* out = stats_you(s);
+    int outSlot = out ? (int) (out - s->party) : -1;
+    int viewed = ui->focusSlot >= 0 && ui->focusSlot < s->partyCount ? ui->focusSlot : outSlot;
+    if (viewed < 0 || viewed == outSlot) {
+        focus_from_battler(&you, &s->battlers[PD_POS_PLAYER_LEFT]);
+        if (out && you.item < 0 && out->hasHeldItem) you.item = out->heldItem;
+        you.pill = "YOU";
+    } else {
+        focus_from_party(&you, d, &s->party[viewed]);
+        you.pill = s->party[viewed].hp == 0 ? "FAINTED" : "RESERVE";
+    }
+    struct mon_view youOut = from_battler(&s->battlers[PD_POS_PLAYER_LEFT]);
+    bool yours = ui->focusYours || !haveFoe;
+    bool hints = !ui->settings || !ui->settings->hideHints;
+
+    int x = MARGIN, w = c->w - 2 * MARGIN, top = CONTENT_Y, h = c->h - MARGIN - CONTENT_Y;
+    int teamN = yours ? s->partyCount : s->foeCount;
+    bool column = teamN > 1 || controls || haveFoe;
+    int colW = BAR_H, pw = column ? w - colW - 6 : w;
+    int f = pd_title_box(c, x, top, pw, h, PD_TITLE_FILL);
+    int ix = x + f + 4, iy = top + f + 2, iw = pw - 2 * (f + 4), ih = h - 2 * (f + 2);
+    int cx0 = c->cx0, cy0 = c->cy0, cx1 = c->cx1, cy1 = c->cy1;
+    pd_clip(c, ix, iy, iw, ih);
+    if (yours) focus_mon_page(c, d, &you, haveFoe ? &foe.v : NULL, hints, ix, iy, iw, ih);
+    else focus_mon_page(c, d, &foe, &youOut, hints, ix, iy, iw, ih);
+    c->cx0 = cx0, c->cy0 = cy0, c->cx1 = cx1, c->cy1 = cy1;
+    if (column) focus_column(ui, c, d, s, x + pw + 6, top, colW, h, yours, viewed, haveFoe, controls);
+}
+
 void ui_battle_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s) {
     const struct battle_data data = {g, ui->battleSource};
     const struct pd_battle_mon* youB = &s->battlers[PD_POS_PLAYER_LEFT];
@@ -452,6 +751,12 @@ void ui_battle_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game* 
     }
     if (controls && !ui->battleInfoOpen && !ui->battlePane) {
         ui_battle_controls(ui, c, g, s);
+        return;
+    }
+    // BATTLE FOCUS: INFO is one page, with no SUGGESTIONS or STATS.
+    if (ui->settings && ui->settings->battleFocus) {
+        ui->battlePane = 0;
+        focus_page(ui, c, &data, s, controls);
         return;
     }
     // The foe: the FOE TEAM's shown one, else the battler out.
@@ -528,6 +833,16 @@ bool ui_battle_act(struct pd_ui* ui, int id) {
     if (id == HIT_BATTLE_SUGGEST || id == HIT_BATTLE_INFO || id == HIT_BATTLE_STATS) {
         ui->battlePane = id == HIT_BATTLE_SUGGEST ? 1 : id == HIT_BATTLE_STATS ? 2 : 0;
         ui->battleInfoOpen = true;
+        return true;
+    }
+    if (id == HIT_FOCUS_TURN) {
+        ui->focusYours = !ui->focusYours;
+        return true;
+    }
+    if (id >= HIT_FOCUS_OWN && id < HIT_FOCUS_OWN + PD_PARTY_SIZE) {
+        // Tapping the one already shown goes back to the one out.
+        int i = id - HIT_FOCUS_OWN;
+        ui->focusSlot = i == ui->focusSlot ? -1 : i;
         return true;
     }
     if (id == HIT_BATTLE_CONTROLS) {

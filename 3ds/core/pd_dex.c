@@ -277,7 +277,7 @@ int pd_dex_regional(const struct pd_game* g, int i) {
 }
 
 // An ability's name by id (gAbilityNames: records of abilityNameStride bytes holding the name or a pointer to it).
-static void ability_name(const struct pd_game* g, int id, char* out, size_t outLen) {
+void pd_ability_name(const struct pd_game* g, int id, char* out, size_t outLen) {
     const struct pd_config* cfg = g->cfg;
     out[0] = 0;
     if (id <= 0 || !cfg->abilityNames) return;
@@ -312,8 +312,8 @@ static bool expansion_entry(const struct pd_game* g, int national, int species, 
     out->type1 = b[6];
     out->type2 = b[7];
     int a1 = u16(b + x->abilitiesOff), a2 = u16(b + x->abilitiesOff + 2);
-    if (a1) ability_name(g, a1, out->ability1, sizeof(out->ability1));
-    if (a2 && a2 != a1) ability_name(g, a2, out->ability2, sizeof(out->ability2));
+    if (a1) pd_ability_name(g, a1, out->ability1, sizeof(out->ability1));
+    if (a2 && a2 != a1) pd_ability_name(g, a2, out->ability2, sizeof(out->ability2));
     return true;
 }
 
@@ -368,8 +368,8 @@ bool pd_dex_entry(const struct pd_game* g, int national, struct pd_dex_entry* ou
             a1 = b[bs->abilitiesOff];
             a2 = b[bs->abilitiesOff + 1];
         }
-        if (a1) ability_name(g, a1, out->ability1, sizeof(out->ability1));
-        if (a2 && a2 != a1) ability_name(g, a2, out->ability2, sizeof(out->ability2));
+        if (a1) pd_ability_name(g, a1, out->ability1, sizeof(out->ability1));
+        if (a2 && a2 != a1) pd_ability_name(g, a2, out->ability2, sizeof(out->ability2));
     }
     return true;
 }
