@@ -918,6 +918,325 @@ static const struct pd_mon* better_switch(const struct battle_data* d, const str
     return picks[0].mon;
 }
 
+int pd_ui_switch_pick(const struct pd_game* g, const struct pd_snapshot* s) {
+    const struct pd_battle_mon* b = &s->battlers[PD_POS_OPPONENT_LEFT];
+    if (!s->inBattle || !b->species) return -1;
+    ui_game = g;
+    const struct battle_data data = {g, NULL};
+    struct mon_view foe = from_battler(b);
+    const struct pd_mon* m = better_switch(&data, s, &foe);
+    return m ? (int) (m - s->party) : -1;
+}
+
+// --- LAYOUT's BATTLE RIGHT WING ---
+
+const char* const pd_battle_section_names[PD_BATTLE_SECTIONS] = {"FOE AND YOU", "MOVES", "SPEED", "FOE IVS",
+                                                                 "SWITCH TO", "FOE TEAM"};
+const int pd_battle_default[] = {PD_BS_CARDS, PD_BS_MOVES, PD_BS_SPEED, PD_BS_FOE_STATS, PD_BS_SWITCH, PD_BS_FOE_TEAM};
+const int pd_battle_default_count = sizeof pd_battle_default / sizeof pd_battle_default[0];
+const int* pd_ui_battle_list;
+int pd_ui_battle_count;
+bool pd_ui_foe_ivs;
+int pd_ui_switch_slot = -1;
+
+#define NARROW_H (PD_ICON + 4 + LINE + 2 + LINE) // narrow_card's height
+#define EXTRA_H (LINE + 2)                       // a line under the foe's card
+#define MOVE_GAP 3
+
+struct wing {
+    const struct battle_data* d;
+    const struct pd_snapshot* s;
+    struct mon_view you, foeView;
+    const struct mon_view* foe;
+    const struct pd_battle_mon *foeB, *youB;
+    struct focus_mon foeF;
+    const struct pd_mon* better;    // SWITCH TO
+    const struct pd_mon* foeStats;  // FOE IVS' Pokemon, NULL = none to show
+    int mark;                       // the foe's dex mark: 1 CAUGHT, 0 NOT CAUGHT, -1 none
+    bool stages;                    // the foe has a stat stage that isn't 0
+    bool detail;                    // the moves' power and accuracy line
+};
+
+static const char* const STAGE_NAMES[7] = {"ATK", "DEF", "SPE", "SPA", "SPD", "ACC", "EVA"};
+
+// The foe's dex mark (Gen 3 carts: the save's caught flags by national number).
+static int dex_mark(const struct battle_data* d, const struct pd_snapshot* s, int species) {
+    if (d->source || !d->game || d->game->kind == PD_GAME_GB || !pd_dex_available(d->game)) return -1;
+    int national = pd_dex_national(d->game, species);
+    if (national <= 0 || (national - 1) / 8 >= PD_DEX_BYTES) return -1;
+    bool any = false;
+    for (int i = 0; i < PD_DEX_BYTES && !any; i++) any = s->dexSeen[i] != 0;
+    if (!any) return -1;
+    return s->dexCaught[(national - 1) / 8] >> ((national - 1) % 8) & 1;
+}
+
+// FOE IVS' Pokemon: the trainer's one out, or the wild one, when FOE IVS is on and its IVs are read.
+static const struct pd_mon* foe_stats_mon(const struct pd_snapshot* s) {
+    if (!pd_ui_foe_ivs) return NULL;
+    const struct pd_mon* m = NULL;
+    if (s->isTrainer) m = s->foeActive >= 0 && s->foeActive < s->foeCount ? &s->foes[s->foeActive] : NULL;
+    else if (s->wildFoeCount > 0) m = &s->wildFoes[0];
+    return m && m->stats.hasIvs ? m : NULL;
+}
+
+// A battler's speed with its stage and paralysis (Gen 3's: a quarter), -1 unknown.
+static int battle_speed(const struct pd_battle_mon* b) {
+    if (!b->species || !b->hasBattleStats || b->stats[2] <= 0) return -1;
+    int st = b->stages[2], v = b->stats[2];
+    v = st >= 0 ? v * (2 + st) / 2 : v * 2 / (2 - st);
+    if (b->status & 0x40) v /= 4;
+    return v;
+}
+
+static int moves_h(bool detail) {
+    return PD_NUM_MOVES * ((detail ? 3 : 2) * LINE + 6) + (PD_NUM_MOVES - 1) * MOVE_GAP;
+}
+// The least the moves take: a line each (the name, then the verdict or the PP).
+#define MOVE_ROW_MIN (LINE + 4)
+static int moves_min_h(void) {
+    return PD_NUM_MOVES * MOVE_ROW_MIN + (PD_NUM_MOVES - 1) * MOVE_GAP;
+}
+
+// A section's height across the wing; 0 = nothing to show.
+static int section_h(const struct wing* w, int sec) {
+    switch (sec) {
+    case PD_BS_CARDS: {
+        int h = 2 * NARROW_H + RULE;
+        if (w->foe) {
+            h += (w->foeF.hasStats ? EXTRA_H : 0) + (w->stages ? EXTRA_H : 0);
+            if (w->foe->type1 != PD_TYPE_NONE) h += LINE + 4;
+        } else {
+            h += 2 * LINE - NARROW_H;
+        }
+        return h;
+    }
+    case PD_BS_MOVES: return moves_h(w->detail);
+    case PD_BS_SPEED: return w->foe && battle_speed(w->youB) >= 0 && battle_speed(w->foeB) >= 0 ? LINE + 2 : 0;
+    case PD_BS_FOE_STATS: return w->foeStats ? LINE + 10 + LINE + 2 + LINE + 2 : 0;
+    case PD_BS_SWITCH: return w->better ? LINE + 2 : 0;
+    case PD_BS_FOE_TEAM: return w->s->isTrainer && w->s->foeCount >= 2 && !w->d->source ? BAR_H - 6 : 0;
+    }
+    return 0;
+}
+
+// The foe's lines under its card: ability and held item, then its stat stages that aren't 0.
+static int foe_extras(struct pd_canvas* c, const struct wing* w, int x, int y, int iw) {
+    int y0 = y;
+    if (w->foeF.hasStats) {
+        char ability[32];
+        focus_ability(w->d, &w->foeF, ability, sizeof(ability));
+        const char* item = w->foeF.item < 0 || w->d->source ? "" : w->foeF.item == 0 ? "NO ITEM"
+                                                                                      : pd_item_name(w->d->game, w->foeF.item);
+        int half = iw / 2;
+        pd_text_fit(c, x, y, half - 4, ability, PD_LABEL, PD_LABEL_SHADOW);
+        if (item && *item) pd_text_fit(c, x + half, y, iw - half, item, PD_MUTED, PD_MUTED_SHADOW);
+        y += EXTRA_H;
+    }
+    if (w->stages) {
+        int cx = x;
+        for (int i = 0; i < 7; i++) {
+            if (!w->foeF.stages[i]) continue;
+            char t[12];
+            snprintf(t, sizeof(t), "%s%+d", STAGE_NAMES[i], w->foeF.stages[i]);
+            if (cx + pd_text_width(t) + 6 > x + iw) break;
+            cx += pill(c, cx, y, t, w->foeF.stages[i] > 0 ? OUT_GREEN : 0xD84838) + 3;
+        }
+        y += EXTRA_H;
+    }
+    return y - y0;
+}
+
+static int draw_cards(struct pd_canvas* c, const struct wing* w, int ix, int y, int iw) {
+    int y0 = y;
+    if (w->foe) {
+        narrow_card(c, w->d, ix, y, iw, w->foe, w->s->isTrainer ? "FOE" : "WILD");
+        // Beside FOE / WILD: a shiny star and whether you have caught one.
+        int mx = ix + PD_ICON + 6 + pd_text_width(w->s->isTrainer ? "FOE" : "WILD") + 5;
+        if (w->foe->shiny) mx += pd_text(c, mx, y + 1, "*", SHINY_FRAME, PD_LABEL_SHADOW) + 4;
+        if (w->mark >= 0 && mx + pd_text_width("NOT CAUGHT") + 6 <= ix + iw)
+            pill(c, mx, y + 1, w->mark ? "CAUGHT" : "NOT CAUGHT", w->mark ? OUT_GREEN : VERDICT_GREY);
+        y += NARROW_H;
+        y += foe_extras(c, w, ix, y, iw);
+        y += weak_row(c, w->d->game, ix, y, iw, w->foe);
+    } else {
+        pd_text_wrap(c, ix, y, iw, LINE, 2, "NO FOE ON THE FIELD", PD_MUTED, PD_MUTED_SHADOW);
+        y += 2 * LINE;
+    }
+    rule(c, ix, y, iw);
+    y += RULE;
+    narrow_card(c, w->d, ix, y, iw, &w->you, "YOU");
+    if (w->you.shiny) pd_text(c, ix + PD_ICON + 6 + pd_text_width("YOU") + 5, y + 1, "*", SHINY_FRAME, PD_LABEL_SHADOW);
+    return y + NARROW_H - y0;
+}
+
+// A move for the wing: name and PP; its kind and verdict; then (detail) its power and accuracy.
+static void wing_move(struct pd_canvas* c, const struct battle_data* d, int x, int y, int w, int h, int move, int pp,
+                      const struct mon_view* foe, bool detail) {
+    char buf[40];
+    pd_round_rect(c, x, y, w, h, 3, PD_LIST_FILL);
+    if (!move) return;
+    int ix = x + 5, iw = w - 10;
+    if (h < 2 * LINE) { // a short wing: one line, the name and what it does to the foe (its PP for a status move)
+        int ty1 = y + (h - LINE) / 2;
+        const char* text = "";
+        uint32_t color = PD_MUTED, shadow = PD_MUTED_SHADOW;
+        char ppText1[12];
+        if (move_power(d, move) && foe) {
+            verdict(pd_type_multiplier_pct(d->game, move_type(d, move), foe->type1, foe->type2), &text, &color, &shadow);
+        } else {
+            snprintf(ppText1, sizeof(ppText1), "PP %d", pp);
+            text = ppText1;
+            color = pd_pp_color(pd_move_low_pp(d->source ? NULL : d->game, move, pp), PD_MUTED);
+        }
+        int rw = pd_text_width(text);
+        pd_text_fit(c, ix, ty1, iw - rw - 6, move_name(d, move, buf, sizeof(buf)), PD_LABEL, PD_LABEL_SHADOW);
+        pd_text_right(c, ix + iw, ty1, text, color, shadow);
+        return;
+    }
+    int lines = detail ? 3 : 2;
+    int ty = y + (h - lines * LINE - (lines - 1)) / 2;
+    char ppText[12];
+    snprintf(ppText, sizeof(ppText), "PP %d", pp);
+    int ppW = pd_text_width(ppText);
+    pd_text_fit(c, ix, ty, iw - ppW - 6, move_name(d, move, buf, sizeof(buf)), PD_LABEL, PD_LABEL_SHADOW);
+    pd_text_right(c, ix + iw, ty, ppText, pd_pp_color(pd_move_low_pp(d->source ? NULL : d->game, move, pp), PD_MUTED),
+                  PD_MUTED_SHADOW);
+    ty += LINE + 1;
+    int vx = ix;
+    int kind = d->source ? -1 : pd_move_kind(d->game, move);
+    static const char* const KINDS[3] = {"PHY", "SPE", "STA"};
+    static const uint32_t KIND_FILL[3] = {0xD86030, 0x4878D0, 0x8C8C94};
+    if (kind >= 0) vx += pill(c, vx, ty, KINDS[kind], KIND_FILL[kind]) + 4;
+    const char* text = "";
+    uint32_t color = PD_LABEL, shadow = PD_LABEL_SHADOW;
+    if (move_power(d, move) == 0) {
+        if (kind < 0) {
+            text = "STATUS";
+            color = PD_MUTED;
+            shadow = PD_MUTED_SHADOW;
+        }
+    } else if (foe) {
+        verdict(pd_type_multiplier_pct(d->game, move_type(d, move), foe->type1, foe->type2), &text, &color, &shadow);
+    }
+    pd_text_fit(c, vx, ty, ix + iw - vx, text, color, shadow);
+    if (!detail) return;
+    ty += LINE + 1;
+    int power = move_power(d, move), acc = d->source ? -1 : pd_move_accuracy(d->game, move);
+    char line[40];
+    char pw[12], ac[12];
+    if (power > 1) snprintf(pw, sizeof(pw), "%d", power);
+    else snprintf(pw, sizeof(pw), "-");
+    if (acc > 0) snprintf(ac, sizeof(ac), "%d%%", acc);
+    else snprintf(ac, sizeof(ac), acc == 0 ? "ALWAYS" : "-");
+    snprintf(line, sizeof(line), "POW %s  ACC %s", pw, ac);
+    pd_text_fit(c, ix, ty, iw, line, PD_MUTED, PD_MUTED_SHADOW);
+}
+
+static int draw_moves(struct pd_canvas* c, const struct wing* w, int ix, int y, int iw, int h) {
+    int cellH = (h - (PD_NUM_MOVES - 1) * MOVE_GAP) / PD_NUM_MOVES;
+    int full = (w->detail ? 3 : 2) * LINE + 6;
+    if (cellH > full) cellH = full;
+    bool detail = w->detail && cellH >= 3 * LINE + 2;
+    if (cellH < 2 * LINE && cellH > MOVE_ROW_MIN) cellH = MOVE_ROW_MIN;
+    for (int i = 0; i < PD_NUM_MOVES && cellH >= MOVE_ROW_MIN; i++)
+        wing_move(c, w->d, ix, y + i * (cellH + MOVE_GAP), iw, cellH, w->you.moves[i], w->you.pp[i], w->foe, detail);
+    return PD_NUM_MOVES * cellH + (PD_NUM_MOVES - 1) * MOVE_GAP;
+}
+
+static void draw_speed(struct pd_canvas* c, const struct wing* w, int ix, int y, int iw) {
+    int a = battle_speed(w->youB), b = battle_speed(w->foeB);
+    const char* text = a > b ? "YOU MOVE FIRST" : a < b ? "FOE MOVES FIRST" : "SPEED TIE";
+    int x = ix + pd_text(c, ix, y, "SPEED", PD_VALUE, PD_VALUE_SHADOW) + 5;
+    char nums[24];
+    snprintf(nums, sizeof(nums), "%d/%d", a, b);
+    int nw = pd_text_width(nums);
+    bool roomy = x + pd_text_width(text) + 6 + nw <= ix + iw;
+    pd_text_fit(c, x, y, ix + iw - x - (roomy ? nw + 6 : 0), text, a > b ? PD_LABEL : PD_MUTED,
+                a > b ? PD_LABEL_SHADOW : PD_MUTED_SHADOW);
+    if (roomy) pd_text_right(c, ix + iw, y, nums, PD_MUTED, PD_MUTED_SHADOW);
+}
+
+// FOE IVS, compact: a bar an IV, the stats' short names under them, then the nature's + and -, hidden power's type
+// and the EV total.
+static void draw_foe_stats(struct pd_canvas* c, const struct wing* w, int ix, int y, int iw) {
+    const struct pd_mon_stats* st = &w->foeStats->stats;
+    static const char* const NAMES[6] = {"HP", "ATK", "DEF", "SPE", "SPA", "SPD"};
+    int lx = ix + pd_text(c, ix, y, "IVS", PD_VALUE, PD_VALUE_SHADOW) + 6;
+    int cell = (ix + iw - lx) / 6;
+    for (int i = 0; i < 6; i++) {
+        int bx = lx + i * cell, bw = cell - 4, iv = st->ivs[i];
+        pd_round_rect(c, bx, y + 4, bw, 8, 2, PD_LIST_FILL);
+        int fw = (bw - 2) * iv / 31;
+        uint32_t fill = iv >= 25 ? OUT_GREEN : iv <= 5 ? 0xD84838 : 0xE8B830;
+        if (fw > 0) pd_round_rect(c, bx + 1, y + 5, fw, 6, 1, fill);
+        char n[8];
+        snprintf(n, sizeof(n), "%d", iv);
+        pd_text(c, bx + (bw - pd_text_width(n)) / 2, y + LINE - 2, n, PD_LABEL, PD_LABEL_SHADOW);
+        pd_text(c, bx + (bw - pd_text_width(NAMES[i])) / 2, y + 2 * LINE - 4, NAMES[i], PD_MUTED, PD_MUTED_SHADOW);
+    }
+    y += LINE + 10 + LINE + 2;
+    int x = ix;
+    if (st->hasNature) {
+        int up = pd_nature_raises(st->nature), down = pd_nature_lowers(st->nature);
+        char t[24];
+        if (up >= 0 && down >= 0 && up < 6 && down < 6) snprintf(t, sizeof(t), "+%s -%s", NAMES[up], NAMES[down]);
+        else snprintf(t, sizeof(t), "NEUTRAL");
+        x += pd_text(c, x, y, t, PD_LABEL, PD_LABEL_SHADOW) + 8;
+    }
+    int hp = st->hasHiddenPower ? st->hiddenPowerType : -1;
+    if (hp >= 0 && x + type_badge_w(w->d->game, hp) + pd_text_width("HP ") <= ix + iw) {
+        x += pd_text(c, x, y, "HP", PD_MUTED, PD_MUTED_SHADOW) + 3;
+        x += ui_type_badge(c, x, y + 3, hp) + 8;
+    }
+    if (st->hasEvs) {
+        int total = 0;
+        for (int i = 0; i < 6; i++) total += st->evs[i];
+        char t[16];
+        snprintf(t, sizeof(t), "EV %d", total);
+        if (x + pd_text_width(t) <= ix + iw) pd_text_right(c, ix + iw, y, t, PD_MUTED, PD_MUTED_SHADOW);
+    }
+}
+
+static void draw_switch(struct pd_canvas* c, const struct wing* w, int ix, int y, int iw) {
+    char buf[40];
+    int nx = ix + pd_text(c, ix, y, "SWITCH TO", PD_VALUE, PD_VALUE_SHADOW) + 5;
+    pd_text_fit(c, nx, y, ix + iw - nx, species_name(w->d, w->better->species, buf, sizeof(buf)), PD_LABEL,
+                PD_LABEL_SHADOW);
+}
+
+// The trainer's team: a cell each, a ball until one has been out, a fainted one faded, the one out framed.
+static void draw_foe_team(struct pd_canvas* c, const struct wing* w, int ix, int y, int iw, int h) {
+    static uint32_t battleKey;
+    static unsigned seen;
+    const struct pd_snapshot* s = w->s;
+    uint32_t key = (uint32_t) s->foeCount;
+    for (int i = 0; i < s->foeCount; i++) key = key * 31u + (uint32_t) s->foes[i].species;
+    if (key != battleKey) {
+        battleKey = key;
+        seen = 0;
+    }
+    for (int i = 0; i < s->foeCount; i++)
+        if (i == s->foeActive || s->foes[i].hp < s->foes[i].maxHp) seen |= 1u << i;
+    int n = s->foeCount, gap = 3, cell = h;
+    if (n * cell + (n - 1) * gap > iw) cell = (iw - (n - 1) * gap) / n;
+    int x = ix;
+    for (int i = 0; i < n; i++, x += cell + gap) {
+        const struct pd_mon* m = &s->foes[i];
+        bool shown = seen >> i & 1, current = i == s->foeActive;
+        struct pd_layer layers[2] = {{PD_VALUE, 2}, {PD_VALUE_SHADOW, 1}};
+        struct pd_layer plain[2] = {{0x63737B, 2}, {0xCED6D6, 1}};
+        pd_layered_box(c, x, y, cell, cell, 3, current ? layers : plain, 2, shown ? PD_TITLE_FILL : PD_LIST_FILL);
+        if (!shown) ui_ball(c, x + (cell - 10) / 2, y + (cell - 10) / 2, true);
+        else if (cell < PD_ICON || !draw_icon(w->d, c, m->species, m->shiny, x + (cell - PD_ICON) / 2,
+                                              y + (cell - PD_ICON) / 2, m->hp == 0)) {
+            char lv[8];
+            snprintf(lv, sizeof(lv), "%d", m->level);
+            pd_text(c, x + (cell - pd_text_width(lv)) / 2, pd_text_y(y, cell), lv, m->hp ? PD_LABEL : PD_MUTED,
+                    PD_NO_SHADOW);
+        }
+    }
+}
+
 void pd_ui_battle_panel(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s,
                         const struct pd_battle_source* source) {
     ui_game = g;
@@ -929,42 +1248,85 @@ void pd_ui_battle_panel(struct pd_canvas* c, const struct pd_game* g, const stru
         pd_text_wrap(c, ix, iy, iw, LINE, 3, "NO BATTLE", PD_MUTED, PD_MUTED_SHADOW);
         return;
     }
-    struct mon_view you = from_battler(youB), foeView;
-    const struct mon_view* foe = NULL;
-    if (s->battlers[PD_POS_OPPONENT_LEFT].species) {
-        foeView = from_battler(&s->battlers[PD_POS_OPPONENT_LEFT]);
-        foe = &foeView;
+    static struct wing w;
+    memset(&w, 0, sizeof(w));
+    w.d = &data;
+    w.s = s;
+    w.youB = youB;
+    w.foeB = &s->battlers[PD_POS_OPPONENT_LEFT];
+    w.you = from_battler(youB);
+    w.mark = -1;
+    if (w.foeB->species) {
+        w.foeView = from_battler(w.foeB);
+        w.foe = &w.foeView;
+        focus_from_battler(&w.foeF, w.foeB);
+        for (int i = 0; i < 7 && w.foeF.hasStages; i++) w.stages = w.stages || w.foeF.stages[i] != 0;
+        w.mark = dex_mark(&data, s, w.foeB->species);
+        w.better = better_switch(&data, s, w.foe);
+    }
+    w.foeStats = source ? NULL : foe_stats_mon(s);
+
+    // The sections in LAYOUT's order, then what goes when they don't all fit.
+    int list[PD_WING_LIST_MAX], n = 0;
+    const int* from = pd_ui_battle_list ? pd_ui_battle_list : pd_battle_default;
+    int count = pd_ui_battle_list ? pd_ui_battle_count : pd_battle_default_count;
+    for (int i = 0; i < count && n < PD_WING_LIST_MAX; i++)
+        if (from[i] >= 0 && from[i] < PD_BATTLE_SECTIONS) list[n++] = from[i];
+    bool on[PD_BATTLE_SECTIONS] = {false};
+    for (int i = 0; i < n; i++) on[list[i]] = true;
+    int room = bottom - iy;
+    w.detail = true;
+    int total = 0;
+    for (int i = 0; i < n; i++) {
+        int h = on[list[i]] ? section_h(&w, list[i]) : 0;
+        if (h) total += h + (total ? RULE : 0);
+    }
+    static const int DROP[] = {-1, PD_BS_SWITCH, PD_BS_FOE_TEAM, PD_BS_SPEED};
+    for (size_t k = 0; k < sizeof DROP / sizeof DROP[0] && total > room; k++) {
+        if (DROP[k] < 0) w.detail = false;
+        else on[DROP[k]] = false;
+        total = 0;
+        for (int i = 0; i < n; i++) {
+            int h = on[list[i]] ? section_h(&w, list[i]) : 0;
+            if (h) total += h + (total ? RULE : 0);
+        }
+    }
+    // Still too much: the moves give what they can (down to a line each), then FOE IVS goes.
+    if (total > room && on[PD_BS_MOVES] && on[PD_BS_FOE_STATS] && section_h(&w, PD_BS_FOE_STATS) &&
+        total - room > moves_h(false) - moves_min_h()) {
+        total -= section_h(&w, PD_BS_FOE_STATS) + RULE;
+        on[PD_BS_FOE_STATS] = false;
     }
     int y = iy;
-    if (foe) {
-        y += narrow_card(c, &data, ix, y, iw, foe, s->isTrainer ? "FOE" : "WILD");
-        y += weak_row(c, g, ix, y, iw, foe);
-    } else {
-        pd_text_wrap(c, ix, y, iw, LINE, 2, "NO FOE ON THE FIELD", PD_MUTED, PD_MUTED_SHADOW);
-        y += 2 * LINE;
+    bool first = true;
+    for (int i = 0; i < n; i++) {
+        int sec = list[i];
+        int h = on[sec] ? section_h(&w, sec) : 0;
+        if (!h) continue;
+        if (!first) {
+            rule(c, ix, y, iw);
+            y += RULE;
+        }
+        first = false;
+        switch (sec) {
+        case PD_BS_CARDS: y += draw_cards(c, &w, ix, y, iw); break;
+        case PD_BS_MOVES: {
+            // The moves take what the others leave them.
+            int others = 0;
+            for (int k = i + 1; k < n; k++) {
+                int hk = on[list[k]] ? section_h(&w, list[k]) : 0;
+                if (hk) others += hk + RULE;
+            }
+            int give = bottom - y - others;
+            if (give > h) give = h;
+            y += draw_moves(c, &w, ix, y, iw, give);
+            break;
+        }
+        case PD_BS_SPEED: draw_speed(c, &w, ix, y + 1, iw); y += h; break;
+        case PD_BS_FOE_STATS: draw_foe_stats(c, &w, ix, y + 1, iw); y += h; break;
+        case PD_BS_SWITCH: draw_switch(c, &w, ix, y + 1, iw); y += h; break;
+        case PD_BS_FOE_TEAM: draw_foe_team(c, &w, ix, y, iw, h); y += h; break;
+        }
+        if (y > bottom) break;
     }
-    rule(c, ix, y, iw);
-    y += RULE;
-    y += narrow_card(c, &data, ix, y, iw, &you, "YOU");
-    rule(c, ix, y, iw);
-    y += RULE;
-    // The one to switch to, at the foot, while it fits with every move above it.
-    int switchH = LINE + RULE + 4;
-    const struct pd_mon* better = foe ? better_switch(&data, s, foe) : NULL;
-    if (better && (bottom - switchH - y - 3 * 3) / PD_NUM_MOVES < 2 * LINE) better = NULL;
-    if (better) {
-        bottom -= switchH;
-        rule(c, ix, bottom + 2, iw);
-        int sy = bottom + 2 + RULE + 1;
-        char buf[40];
-        int nx = ix + pd_text(c, ix, sy, "SWITCH TO", PD_VALUE, PD_VALUE_SHADOW) + 5;
-        pd_text_fit(c, nx, sy, ix + iw - nx, species_name(&data, better->species, buf, sizeof(buf)), PD_LABEL,
-                    PD_LABEL_SHADOW);
-    }
-    // The moves, one under another, each with its verdict on the foe.
-    int gap = 3, cellH = 2 * LINE + 6;
-    int room = (bottom - y - 3 * gap) / PD_NUM_MOVES;
-    if (room < cellH) cellH = room;
-    for (int i = 0; i < PD_NUM_MOVES && cellH >= 2 * LINE; i++)
-        move_cell(c, &data, ix, y + i * (cellH + gap), iw, cellH, you.moves[i], you.pp[i], foe);
 }

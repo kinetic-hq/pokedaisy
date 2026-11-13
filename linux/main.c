@@ -1420,14 +1420,16 @@ static int bezelFf;           // fast-forward's speed while it runs, else 0
 static int bezelPacePct = 100; // the game's speed off fast-forward, in percent
 static uint32_t zoomChangedAt; // when the zoom last changed (ZOOM shows a few seconds after)
 /* LAYOUT: the bars' item lists and the right wing's sections, from the settings (pd_settings' barList / wingList). */
-static int bezelLists[2][BEZEL_LIST_MAX], bezelCount[2] = {-1, -1};
+static int bezelLists[4][BEZEL_LIST_MAX], bezelCount[4] = {-1, -1, -1, -1}; // walking's top / bottom, the battle's
 static int wingSections[PD_WING_LIST_MAX], wingSectionCount = -1;
+static int battleSections[PD_WING_LIST_MAX], battleSectionCount = -1;
 /* Each bar's items this frame: their texts and which item each is (barN 0 and barListMode false: the battle's bar). */
 static char barText[2][BEZEL_LIST_MAX][64];
 static int barItem[2][BEZEL_LIST_MAX], barN[2];
 static bool barListMode[2];
 static bool topDrawn[BEZEL_ITEMS]; // what the top bar drew last: the bottom never says it again
-/* A bar's list from the settings: its own, or the one built from the old three places. */
+/* A bar's list from the settings (B: 0 / 1 walking's top / bottom, 2 / 3 the battle's): its own, else walking's from
+ * the old three places, the battle's top as walking's and its bottom the foe's. */
 static int bar_list_of(const struct pd_settings *st, int b, int *out) {
   if (st->barCount[b] >= 0) {
     int n = 0;
@@ -1436,7 +1438,24 @@ static int bar_list_of(const struct pd_settings *st, int b, int *out) {
         out[n++] = st->barList[b][i];
     return n;
   }
+  if (b == 2)
+    return bar_list_of(st, 0, out);
+  if (b == 3) {
+    memcpy(out, BEZEL_DEFAULT_BATTLE_BOTTOM, sizeof BEZEL_DEFAULT_BATTLE_BOTTOM);
+    return (int)(sizeof BEZEL_DEFAULT_BATTLE_BOTTOM / sizeof *BEZEL_DEFAULT_BATTLE_BOTTOM);
+  }
   return bezel_list_from_slots(&st->bezelSlots[b ? BEZEL_BOTTOM_LEFT : BEZEL_TOP_LEFT], b == 0, out);
+}
+static int battle_list_of(const struct pd_settings *st, int *out) {
+  if (st->battleWingCount < 0) {
+    memcpy(out, pd_battle_default, (size_t)pd_battle_default_count * sizeof *out);
+    return pd_battle_default_count;
+  }
+  int n = 0;
+  for (int i = 0; i < st->battleWingCount && i < PD_WING_LIST_MAX; i++)
+    if (st->battleWingList[i] >= 0 && st->battleWingList[i] < PD_BATTLE_SECTIONS)
+      out[n++] = st->battleWingList[i];
+  return n;
 }
 static int wing_list_of(const struct pd_settings *st, int *out) {
   if (st->wingCount < 0) {
@@ -1757,10 +1776,13 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
                        char *b, char *c, size_t n) {
   a[0] = b[0] = c[0] = 0;
   const struct pd_battle_mon *foe = &s->battlers[PD_POS_OPPONENT_LEFT], *mine = &s->battlers[PD_POS_PLAYER_LEFT];
-  if (which == PANEL_BOTTOM && battle && s->valid && foe->species > 0) {
-    // The battle's bar: the foe, what the moves out do to it, a wild one's catch chance.
+  (void)n; // the bars' items are lists now (a, b, c stay empty)
+  static char foeText[64], matchText[64], catchText[64];
+  foeText[0] = matchText[0] = catchText[0] = 0;
+  if (battle && s->valid && foe->species > 0) {
+    // The battle's items: the foe, what the moves out do to it, a wild one's catch chance.
     char name[40];
-    snprintf(a, n, "FOE %s Lv%d", pd_species_name(g, foe->species, name, sizeof name), foe->level);
+    snprintf(foeText, sizeof foeText, "FOE %s Lv%d", pd_species_name(g, foe->species, name, sizeof name), foe->level);
     int best = -1;
     for (int i = 0; i < PD_NUM_MOVES && mine->species > 0; i++) {
       if (!mine->moves[i])
@@ -1772,15 +1794,12 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
       if (pct > best)
         best = pct;
     }
-    barFacts[1] = 0; // the battle's own bar
-    barListMode[1] = false;
-    snprintf(b, n, "%s", bezel_matchup(best));
+    snprintf(matchText, sizeof matchText, "%s", bezel_matchup(best));
     if (s->foeCount <= 0) {
       const char *st = pd_status_label(foe->status);
       bool deep = !strcmp(st, "SLP") || !strcmp(st, "FRZ");
-      snprintf(c, n, "%s", bezel_catch_hint(foe->hp, foe->maxHp, deep, *st && !deep));
+      snprintf(catchText, sizeof catchText, "%s", bezel_catch_hint(foe->hp, foe->maxHp, deep, *st && !deep));
     }
-    return;
   }
   struct bezel_facts f = {.place = NULL, .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = -1,
                           .leadToNext = -1, .savedMinutes = -1, .dexCaught = -1, .dexSeen = -1, .nuzDeaths = -1,
@@ -1870,12 +1889,15 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
   }
   // LAYOUT's list: every item with something to say, in order (what the top bar drew left out of the bottom's); how
   // many fit is worked out where the bar is drawn (bar_list_draw).
-  int bar = which == PANEL_TOP ? 0 : 1;
+  int bar = which == PANEL_TOP ? 0 : 1, list = bar + (battle ? 2 : 0);
+  f.foe = foeText;
+  f.matchup = matchText;
+  f.catchHint = catchText;
   barListMode[bar] = true;
   bezelRepelNow = f.repel;
-  barN[bar] = bezelCount[bar] > 0 ? bezel_list_texts(bezelLists[bar], bezelCount[bar], bar ? topDrawn : NULL, &f,
-                                                     barText[bar], barItem[bar], BEZEL_LIST_MAX)
-                                  : 0;
+  barN[bar] = bezelCount[list] > 0 ? bezel_list_texts(bezelLists[list], bezelCount[list], bar ? topDrawn : NULL, &f,
+                                                      barText[bar], barItem[bar], BEZEL_LIST_MAX)
+                                   : 0;
 }
 /* A bar's items drawn across it: as many as fit (bezel_fit: the place shrinks, then the least kept go), the first at
  * the left, the last at the right and the rest spread evenly between. CARD: on the theme's window, else off-white text
@@ -2146,10 +2168,15 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     pd_ui_now_ms = SDL_GetTicks();
     pd_ui_reduce_motion = reduceMotion;
     pd_ui_panel_moving = false;
-    if (which == PANEL_LEFT)
+    if (which == PANEL_LEFT) {
+      // In a battle, the card SWITCH TO names gets a green rim.
+      pd_ui_switch_slot = battle && wingBattleInfo ? pd_ui_switch_pick(g, s) : -1;
       pd_ui_party_panel(&pc, g, s);
-    else if (which == PANEL_RIGHT && battle && wingBattleInfo)
+    } else if (which == PANEL_RIGHT && battle && wingBattleInfo) {
+      pd_ui_battle_list = battleSectionCount >= 0 ? battleSections : NULL;
+      pd_ui_battle_count = battleSectionCount;
       pd_ui_battle_panel(&pc, g, s, NULL);
+    }
     else if (which == PANEL_RIGHT) {
       pd_ui_wing_buttons_on = true;
       pd_ui_repel_steps = hudRepelSteps;
@@ -4415,9 +4442,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       }
       bezelStyle = bezel_style_resolve(settings.bezelStyle, pocket_backdrop_for(background).cards);
       memcpy(bezelSlots, settings.bezelSlots, sizeof bezelSlots);
-      for (int b = 0; b < 2; b++)
+      for (int b = 0; b < 4; b++)
         bezelCount[b] = bar_list_of(&settings, b, bezelLists[b]);
       wingSectionCount = wing_list_of(&settings, wingSections);
+      battleSectionCount = battle_list_of(&settings, battleSections);
+      pd_ui_foe_ivs = settings.foeIvs;
       pd_ui_party_types = settings.partyTypes;
       if (game.cfg && c->platform(c) == mPLATFORM_GBA && (frames & 15) == 0) {
         int steps = repel_steps(c, game.cfg);
@@ -5211,24 +5240,36 @@ static bool get_started(void) {
 static void trade_saves(const char *firstRom, const char *firstName);
 enum { PAGE_SET_HOME, PAGE_SET_DISPLAY, PAGE_SET_BUTTONS, PAGE_SET_HOTKEYS, PAGE_SET_BEZEL, PAGE_SET_LIST };
 /* LAYOUT's lists (SETTINGS > SCREEN > LAYOUT): the top bar, the bottom bar and the right wing. */
-enum { LIST_TOP, LIST_BOTTOM, LIST_WING, LISTS };
-static const char *const LIST_TITLES[LISTS] = {"TOP BAR", "BOTTOM BAR", "RIGHT WING"};
+enum { LIST_TOP, LIST_BOTTOM, LIST_WING, LIST_BATTLE_TOP, LIST_BATTLE_BOTTOM, LIST_BATTLE_WING, LISTS };
+static const char *const LIST_TITLES[LISTS] = {"TOP BAR",           "BOTTOM BAR",        "RIGHT WING",
+                                               "BATTLE TOP BAR",    "BATTLE BOTTOM BAR", "BATTLE RIGHT WING"};
+static bool list_is_wing(int list) { return list == LIST_WING || list == LIST_BATTLE_WING; }
+static int list_bar(int list) { return list >= LIST_BATTLE_TOP ? list - LIST_BATTLE_TOP + 2 : list; }
 /* A list's items in their order (the ones on), then how many there are; what's off is every other item. */
 static int layout_list(const struct pd_settings *st, int list, int *out) {
-  return list == LIST_WING ? wing_list_of(st, out) : bar_list_of(st, list, out);
+  return list == LIST_WING          ? wing_list_of(st, out)
+         : list == LIST_BATTLE_WING ? battle_list_of(st, out)
+                                    : bar_list_of(st, list_bar(list), out);
 }
 static void layout_store(struct pd_settings *st, int list, const int *items, int n) {
   if (list == LIST_WING) {
     memcpy(st->wingList, items, (size_t)n * sizeof *items);
     st->wingCount = n;
+  } else if (list == LIST_BATTLE_WING) {
+    memcpy(st->battleWingList, items, (size_t)n * sizeof *items);
+    st->battleWingCount = n;
   } else {
-    memcpy(st->barList[list], items, (size_t)n * sizeof *items);
-    st->barCount[list] = n;
+    memcpy(st->barList[list_bar(list)], items, (size_t)n * sizeof *items);
+    st->barCount[list_bar(list)] = n;
   }
 }
-static int layout_items(int list) { return list == LIST_WING ? PD_WING_SECTIONS : BEZEL_ITEMS; }
+static int layout_items(int list) {
+  return list == LIST_WING ? PD_WING_SECTIONS : list == LIST_BATTLE_WING ? PD_BATTLE_SECTIONS : BEZEL_ITEMS;
+}
 static const char *layout_name(int list, int item) {
-  return list == LIST_WING ? pd_wing_section_names[item] : BEZEL_ITEM_NAMES[item];
+  return list == LIST_WING          ? pd_wing_section_names[item]
+         : list == LIST_BATTLE_WING ? pd_battle_section_names[item]
+                                    : BEZEL_ITEM_NAMES[item];
 }
 /* An item's place in its list, -1 = off. */
 static int layout_at(const int *items, int n, int item) {
@@ -5274,6 +5315,9 @@ enum {
   ROW_LIST_TOP,
   ROW_LIST_BOTTOM,
   ROW_LIST_WING,
+  ROW_LIST_BATTLE_TOP, // ROW_LIST_TOP + LIST_*: in the LIST_ order
+  ROW_LIST_BATTLE_BOTTOM,
+  ROW_LIST_BATTLE_WING,
   ROW_PARTY_TYPES,
   ROW_LIST_RESET,
   ROW_BEZEL_SLOT0 = 80,
@@ -5371,13 +5415,16 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_ORIENT, "ORIENTATION\t%s", ORIENTATIONS[st.orientation]);
       ROW(ROW_TOUCH, "GAME TOUCH\t%s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
     } else if (page == PAGE_SET_BEZEL) {
-      ROW(0, PD_MENU_GROUP "WHAT EACH PART SHOWS");
+      ROW(0, PD_MENU_GROUP "WALKING");
       ROW(ROW_LIST_TOP, "TOP BAR" PD_MENU_PAGE);
       ROW(ROW_LIST_BOTTOM, "BOTTOM BAR" PD_MENU_PAGE);
       ROW(ROW_LIST_WING, "RIGHT WING" PD_MENU_PAGE);
+      ROW(0, PD_MENU_GROUP "IN A BATTLE");
+      ROW(ROW_LIST_BATTLE_TOP, "BATTLE TOP BAR" PD_MENU_PAGE);
+      ROW(ROW_LIST_BATTLE_BOTTOM, "BATTLE BOTTOM BAR" PD_MENU_PAGE);
+      ROW(ROW_LIST_BATTLE_WING, "BATTLE RIGHT WING" PD_MENU_PAGE);
       ROW(0, PD_MENU_GROUP "LEFT WING");
       ROW(ROW_PARTY_TYPES, "PARTY TYPES\t%s", st.partyTypes ? "ON" : "OFF");
-      ROW(0, PD_MENU_MUTED "IN A BATTLE THE BOTTOM BAR SHOWS THE FOE");
     } else if (page == PAGE_SET_LIST) {
       int list[BEZEL_LIST_MAX > PD_WING_LIST_MAX ? BEZEL_LIST_MAX : PD_WING_LIST_MAX];
       int count = layout_list(&st, listOpen, list);
@@ -5391,13 +5438,16 @@ static int settings_page(bool *foldersChanged) {
           ROW(ROW_LIST_ITEM0 + list[i], "%s\t%d", layout_name(listOpen, list[i]), i + 1);
       }
       ROW(0, PD_MENU_GROUP "OFF");
-      for (int it = listOpen == LIST_WING ? 0 : 1; it < layout_items(listOpen); it++)
+      for (int it = list_is_wing(listOpen) ? 0 : 1; it < layout_items(listOpen); it++)
         if (layout_at(list, count, it) < 0)
           ROW(ROW_LIST_ITEM0 + it, "%s\tOFF", layout_name(listOpen, it));
       ROW(0, PD_MENU_GROUP "");
       ROW(ROW_LIST_RESET, "RESET TO DEFAULT");
-      ROW(0, PD_MENU_MUTED "%s", listOpen == LIST_WING ? "WHAT DOESN'T FIT IS DROPPED FROM THE BOTTOM"
-                                                       : "WHAT DOESN'T FIT MAKES ROOM FOR THE REST");
+      if (listOpen == LIST_BATTLE_TOP && st.barCount[2] < 0)
+        ROW(0, PD_MENU_MUTED "THE SAME AS THE TOP BAR UNTIL YOU CHANGE IT");
+      ROW(0, PD_MENU_MUTED "%s", listOpen == LIST_WING          ? "WHAT DOESN'T FIT IS DROPPED FROM THE BOTTOM"
+                                 : listOpen == LIST_BATTLE_WING ? "SHORT OF ROOM: POWER AND ACCURACY, SWITCH TO, FOE TEAM GO FIRST"
+                                                                : "WHAT DOESN'T FIT MAKES ROOM FOR THE REST");
     } else if (page == PAGE_SET_BUTTONS) {
       ROW(ROW_LAYOUT, "BUTTON LAYOUT\t%s", st.buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
     } else {
@@ -5720,6 +5770,9 @@ static int settings_page(bool *foldersChanged) {
     case ROW_LIST_TOP:
     case ROW_LIST_BOTTOM:
     case ROW_LIST_WING:
+    case ROW_LIST_BATTLE_TOP:
+    case ROW_LIST_BATTLE_BOTTOM:
+    case ROW_LIST_BATTLE_WING:
       layoutRow = pick;
       listOpen = id - ROW_LIST_TOP;
       page = PAGE_SET_LIST;
@@ -5732,6 +5785,10 @@ static int settings_page(bool *foldersChanged) {
     case ROW_LIST_RESET:
       if (listOpen == LIST_WING)
         st.wingCount = -1;
+      else if (listOpen == LIST_BATTLE_WING)
+        st.battleWingCount = -1;
+      else if (listOpen == LIST_BATTLE_TOP || listOpen == LIST_BATTLE_BOTTOM)
+        st.barCount[list_bar(listOpen)] = -1;
       else {
         const int *d = listOpen ? BEZEL_DEFAULT_BOTTOM : BEZEL_DEFAULT_TOP;
         int dn = listOpen ? (int)(sizeof BEZEL_DEFAULT_BOTTOM / sizeof *d) : (int)(sizeof BEZEL_DEFAULT_TOP / sizeof *d);
@@ -5750,7 +5807,7 @@ static int settings_page(bool *foldersChanged) {
         static const char *const OFF[] = {"TURN ON"};
         int act = at < 0 ? menu_pick(layout_name(listOpen, item), OFF, 1, 0)
                          : menu_pick(layout_name(listOpen, item), ON, pinned ? 1 : 4, 0);
-        int cap = listOpen == LIST_WING ? PD_WING_LIST_MAX : BEZEL_LIST_MAX;
+        int cap = list_is_wing(listOpen) ? PD_WING_LIST_MAX : BEZEL_LIST_MAX;
         if (act < 0)
           save = false;
         else if (at < 0) {

@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -539,10 +539,24 @@ Three rows in the companion's `SETTINGS` change how the game looks:
     `MONEY` and more. What doesn't fit is dropped from the bottom of the
     list. `MAP` always sits at the top and `STATE BUTTONS` at the foot.
   - `PARTY TYPES` (on) puts each party card's types on it in the left wing.
+  - `IN A BATTLE` has lists of its own: `BATTLE TOP BAR`, `BATTLE BOTTOM BAR`
+    and `BATTLE RIGHT WING`. Until you change it, the battle's top bar is the
+    same as the walking one, and its bottom bar shows `FOE` (its name and
+    level), `BEST MATCHUP` (how your best move does against it) and, for a
+    wild one, `CATCH CHANCE`.
+  - The battle's right wing starts on `FOE AND YOU` (both cards; the foe's has
+    its ability, held item, stat changes, a star if it's shiny and whether you
+    have caught one), `MOVES`, `SPEED` (who moves first), `FOE IVS` (only with
+    `FOE IVS` on), `SWITCH TO` (the party member that does best against the
+    foe, with a green rim round its card in the left wing) and `FOE TEAM` (a
+    trainer's other ones).
+  - Each move shows its PP, whether it's physical, special or status, what it
+    does to the foe, and its power and accuracy. A hack that changed its moves
+    shows its own numbers. When the wing runs short, the power and accuracy
+    line goes first, then `SWITCH TO`, `FOE TEAM`, `SPEED` and `FOE IVS`;
+    the moves shrink to a line each before they go.
 
-  In a battle the bottom bar shows the foe, how your moves do against it, and
-  for a wild one how likely a ball is to work. Anything your game doesn't tell
-  the app is left out.
+  Anything your game doesn't tell the app is left out.
 - **Wings**: the party fills the left wing top to bottom, a card a Pokemon with
   its level, status, HP and a thin blue EXP bar to its next level (an outlined
   card with a ball for each place still free). A long name gets the room the

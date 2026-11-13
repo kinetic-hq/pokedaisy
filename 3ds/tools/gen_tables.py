@@ -118,6 +118,10 @@ def main():
     pps = [int(v) for v in re.findall(r"MoveStats\(\"\w+\", -?\d+, (\d+),", read("move_stats"))]
     out.append(f"const uint8_t pd_move_pp[{len(pps)}] = {{" + ", ".join(str(v) for v in pps) + "};")
     out.append(f"const int pd_move_pp_count = {len(pps)};")
+    # ... and its accuracy (0 = never misses), for the battle wing's moves.
+    accs = [int(v) for v in re.findall(r"MoveStats\(\"\w+\", (-?\d+), \d+,", read("move_stats"))]
+    out.append(f"const uint8_t pd_move_acc[{len(accs)}] = {{" + ", ".join(str(v) for v in accs) + "};")
+    out.append(f"const int pd_move_acc_count = {len(accs)};")
     out.append("")
     out.append(name_array("pd_type_names", types))
     out.append("")

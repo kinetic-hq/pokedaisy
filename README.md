@@ -411,6 +411,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   `pokedaisy.exe` renames itself `PokeDaisy.exe` on its first start.
 - **The right wing's buttons take their own clicks**: `SAVE STATE` and `CLOSE GAME` read where the click or
   tap landed, not where the mouse went after it, so they no longer open the companion instead.
+- **Battle LAYOUT** on the desktop host: `BATTLE TOP BAR`, `BATTLE BOTTOM BAR` and `BATTLE RIGHT WING` lists, and a
+  battle right wing in sections (the foe and you, moves with their kind, power and accuracy, speed, the foe's IVs,
+  a switch pick marked in the party wing, the foe's team) that drops what doesn't fit.
 
 </details>
 

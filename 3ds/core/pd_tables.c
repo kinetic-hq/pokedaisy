@@ -117,6 +117,68 @@ int pd_move_low_pp(const struct pd_game* g, int move, int pp) {
     return pp <= low ? 1 : 0;
 }
 
+// The ROM's gBattleMoves (12 bytes a move: effect, power, type, accuracy, pp, ...), found once a ROM by its first
+// three moves, which every Gen 3 game and hack keeps; byte 10 is the split in CFRU's (padding in vanilla's).
+#define MOVE_STRIDE 12
+static const uint8_t* movesTable;
+static size_t movesCount;
+static bool movesSplit;
+static unsigned movesLoad;
+static const struct pd_game* movesGame;
+static void find_moves(const struct pd_game* g) {
+    if (movesGame == g && movesLoad == g->loadId) return;
+    movesGame = g;
+    movesLoad = g->loadId;
+    movesTable = NULL;
+    movesCount = 0;
+    movesSplit = false;
+    if (!g->rom || (g->kind != PD_GAME_FIRERED && g->kind != PD_GAME_EMERALD) || g->romSize < 64) return;
+    static const uint8_t first[3][4] = { { 40, 0, 100, 35 }, { 50, 1, 100, 25 }, { 15, 0, 85, 10 } };
+    const uint8_t* r = g->rom;
+    for (size_t off = 0; off + 4 * MOVE_STRIDE <= g->romSize; off += 4) {
+        bool ok = true;
+        for (int i = 0; i < 3 && ok; i++) ok = !memcmp(r + off + (size_t) (i + 1) * MOVE_STRIDE + 1, first[i], 4);
+        if (!ok) continue;
+        movesTable = r + off;
+        movesCount = (g->romSize - off) / MOVE_STRIDE;
+        if (movesCount > 2048) movesCount = 2048;
+        // The split: POUND physical, EMBER (52) special, GROWL (45) and SWORDS DANCE (14) status.
+        movesSplit = movesCount > 52 && movesTable[1 * MOVE_STRIDE + 10] == 0 && movesTable[52 * MOVE_STRIDE + 10] == 1 &&
+                     movesTable[45 * MOVE_STRIDE + 10] == 2 && movesTable[14 * MOVE_STRIDE + 10] == 2;
+        return;
+    }
+}
+
+int pd_move_accuracy(const struct pd_game* g, int move) {
+    if (move <= 0) return -1;
+    int type, power;
+    if (g) {
+        find_moves(g);
+        if (movesTable && (size_t) move < movesCount) return movesTable[(size_t) move * MOVE_STRIDE + 3];
+        if (g->kind == PD_GAME_GB || pd_randomized_move(g, move, &type, &power)) return -1;
+    }
+    const struct pd_text* t = hack_text(g);
+    if (t && t->moves) return -1;
+    return move < pd_move_acc_count ? pd_move_acc[move] : -1;
+}
+
+int pd_move_kind(const struct pd_game* g, int move) {
+    if (move <= 0) return -1;
+    if (g) {
+        find_moves(g);
+        if (movesTable && movesSplit && (size_t) move < movesCount) {
+            int k = movesTable[(size_t) move * MOVE_STRIDE + 10];
+            return k <= 2 ? k : -1;
+        }
+    }
+    if (pd_move_power(g, move) <= 0) return PD_MOVE_STATUS;
+    const struct pd_text* t = hack_text(g);
+    if ((g && g->kind == PD_GAME_GB) || (t && t->typeNames)) return -1;
+    int type = pd_move_type(g, move);
+    // Gen 3: NORMAL to STEEL (0-8) hit physically, FIRE to DARK (10-17) specially.
+    return type >= 0 && type <= 8 ? PD_MOVE_PHYSICAL : type >= 10 && type <= 17 ? PD_MOVE_SPECIAL : -1;
+}
+
 static int single_pct(const struct pd_game* g, int atk, int def) {
     int pct;
     if (pd_randomized_pct(g, atk, def, &pct)) return pct;

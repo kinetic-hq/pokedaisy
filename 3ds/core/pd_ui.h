@@ -166,11 +166,13 @@ struct pd_settings {
     int bezelSlots[6]; // ... and what each of their six places shows (BEZEL_* items), the lists' old form
     // ... and LAYOUT: each bar's items in order (the first three its places, the rest stepping in when one has
     // nothing to say; BEZEL_* items), count -1 = not chosen yet (the host builds them from bezelSlots) ...
-    int barList[2][PD_BAR_LIST_MAX];
-    int barCount[2];
+    int barList[4][PD_BAR_LIST_MAX]; // the top and bottom bar walking, then in a battle
+    int barCount[4];
     // ... the right wing's sections in order (enum pd_wing_section), -1 = the default ...
     int wingList[PD_WING_LIST_MAX];
     int wingCount;
+    int battleWingList[PD_WING_LIST_MAX]; // the right wing in a battle (enum pd_battle_section); -1 count = default
+    int battleWingCount;
     bool partyTypes;   // ... and PARTY TYPES: the party wing's type pills under each name
     int wingLook;      // ... and WING LOOK (linux/backdrop.h): 0 COMPACT, 1 COMFY, 2 BIG
     int uiSize;        // ... and UI SIZE: 0 SMALL, 1 MEDIUM, 2 LARGE (the menus, HUD, wings and companion)
@@ -738,6 +740,20 @@ extern int pd_ui_wing_count;
 extern const struct pd_nuzlocke* pd_ui_wing_nuzlocke;
 // PARTY TYPES: the party wing's type pills under each name (on unless the host turns it off).
 extern bool pd_ui_party_types;
+// LAYOUT's BATTLE RIGHT WING: pd_ui_battle_panel's sections, in order (NULL = pd_battle_default). When they don't all
+// fit, the moves lose their power and accuracy line, then SWITCH TO goes, then FOE TEAM, then the rest from the
+// bottom; the cards, the moves and FOE IVS stay.
+enum pd_battle_section { PD_BS_CARDS, PD_BS_MOVES, PD_BS_SPEED, PD_BS_FOE_STATS, PD_BS_SWITCH, PD_BS_FOE_TEAM,
+                         PD_BATTLE_SECTIONS };
+extern const char* const pd_battle_section_names[PD_BATTLE_SECTIONS];
+extern const int pd_battle_default[];
+extern const int pd_battle_default_count;
+extern const int* pd_ui_battle_list;
+extern int pd_ui_battle_count;
+extern bool pd_ui_foe_ivs;     // FOE IVS on: the battle wing may show the foe's
+extern int pd_ui_switch_slot;  // the party card SWITCH TO points at (the left wing marks it), -1 none
+// SWITCH TO's pick in a battle: the party slot, -1 when the best is already out.
+int pd_ui_switch_pick(const struct pd_game* g, const struct pd_snapshot* s);
 struct pd_ui_rect { int x, y, w, h; };
 extern bool pd_ui_wing_buttons_on;
 extern struct pd_ui_rect pd_ui_wing_buttons[PD_WING_BUTTONS];

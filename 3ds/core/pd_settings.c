@@ -85,8 +85,9 @@ void pd_settings_defaults(struct pd_settings* s) {
     // REPEL OR MONEY.
     static const int BEZEL_SLOTS[6] = {1, 2, 12, 6, 7, 10};
     for (int i = 0; i < 6; i++) s->bezelSlots[i] = BEZEL_SLOTS[i];
-    s->barCount[0] = s->barCount[1] = -1;
+    s->barCount[0] = s->barCount[1] = s->barCount[2] = s->barCount[3] = -1;
     s->wingCount = -1;
+    s->battleWingCount = -1;
     s->partyTypes = true;
 }
 
@@ -220,6 +221,10 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "bartop")) s->barCount[0] = int_list(value, s->barList[0], PD_BAR_LIST_MAX, 64);
         else if (!strcmp(key, "barbottom")) s->barCount[1] = int_list(value, s->barList[1], PD_BAR_LIST_MAX, 64);
         else if (!strcmp(key, "wing")) s->wingCount = int_list(value, s->wingList, PD_WING_LIST_MAX, PD_WING_SECTIONS);
+    else if (!strcmp(key, "battlebartop")) s->barCount[2] = int_list(value, s->barList[2], PD_BAR_LIST_MAX, 64);
+    else if (!strcmp(key, "battlebarbottom")) s->barCount[3] = int_list(value, s->barList[3], PD_BAR_LIST_MAX, 64);
+    else if (!strcmp(key, "battlewing"))
+        s->battleWingCount = int_list(value, s->battleWingList, PD_WING_LIST_MAX, PD_BATTLE_SECTIONS);
         else if (!strcmp(key, "partytypes")) {
             int on;
             if (int_in(value, 0, 1, &on)) s->partyTypes = on;
@@ -300,8 +305,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->stretch ? 1 : 0);
     fprintf(f, "bezel=%d\nbezelslots=%d,%d,%d,%d,%d,%d\n", s->bezelStyle, s->bezelSlots[0], s->bezelSlots[1],
             s->bezelSlots[2], s->bezelSlots[3], s->bezelSlots[4], s->bezelSlots[5]);
-    static const char* const LISTS[2] = {"bartop", "barbottom"};
-    for (int b = 0; b < 2; b++) {
+    static const char* const LISTS[4] = {"bartop", "barbottom", "battlebartop", "battlebarbottom"};
+    for (int b = 0; b < 4; b++) {
         if (s->barCount[b] < 0) continue;
         fprintf(f, "%s=", LISTS[b]);
         for (int i = 0; i < s->barCount[b] && i < PD_BAR_LIST_MAX; i++) fprintf(f, i ? ",%d" : "%d", s->barList[b][i]);
@@ -310,6 +315,12 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     if (s->wingCount >= 0) {
         fprintf(f, "wing=");
         for (int i = 0; i < s->wingCount && i < PD_WING_LIST_MAX; i++) fprintf(f, i ? ",%d" : "%d", s->wingList[i]);
+        fprintf(f, "\n");
+    }
+    if (s->battleWingCount >= 0) {
+        fprintf(f, "battlewing=");
+        for (int i = 0; i < s->battleWingCount && i < PD_WING_LIST_MAX; i++)
+            fprintf(f, i ? ",%d" : "%d", s->battleWingList[i]);
         fprintf(f, "\n");
     }
     fprintf(f, "partytypes=%d\n", s->partyTypes ? 1 : 0);
