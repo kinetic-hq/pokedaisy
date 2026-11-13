@@ -1,0 +1,77 @@
+# Pokémon Team Rocket Edition 2026 (Spanish, expansion), ported from Pokedex.kt / GuideRom.kt for the desktop and 3DS
+# cores. The Kotlin vals stay the Android source.
+
+[record.POKEDEX_TEAM_ROCKET_V3_FLAGS]
+schema = 'gen3_dexflags'
+kotlin = false
+block = 'DexFlagBlock.SAVE_BLOCK_1'
+seen = 0x3740
+caught = 0x37C5
+bytes = 133
+
+# gSpeciesInfo 0x08970CE8 (0xA8-byte entries), gAbilitiesInfo 0x08E60C48. One national list of 1062 (the 1025, then its
+# own 37). BULBASAUR reads "Semilla", 0,7 m, 6,9 kg.
+[record.POKEDEX_TEAM_ROCKET_V3]
+schema = 'gen3_pokedex'
+kotlin = false
+entries = 0
+frontPics = 0
+palettes = 0
+speciesInfo = 0x08970CE8
+speciesToNational = 0
+abilityNames = 0x08E60C48
+footprints = 0
+abilityNameLength = 17
+abilityNameStride = 0x1C
+categoryPrefix = 'Pokémon'
+categorySuffix = ''
+metric = true
+probeCategory = 'Semilla'
+speciesCount = 1698
+nationalCount = 1062
+evoLayout = { kotlin = 'EvoLayout(EvoScheme.EXPANSION_PARAMS, record = 12, conditionsEnd = 39)' }
+flags = 'POKEDEX_TEAM_ROCKET_V3_FLAGS'
+nationalMagicOff = -1
+
+[record.POKEDEX_TEAM_ROCKET_V3.expansion]
+stride = 0xA8
+paletteOff = 0x60
+levelUpOff = 0x90
+teachableOff = 0x94
+evolutionsOff = 0x9C
+
+# gTrainers' NORMAL array 0x0850E288 (0x30-byte records; 415 is BROCK), expansion's 0x24-byte TrainerMons, learnsets
+# from gSpeciesInfo's levelUpLearnset pairs, gWildMonHeaders 0x090990D4 (four time-of-day sets). SaveBlock1's flags /
+# vars at +0x1DB0 / +0x217E.
+[record.GUIDE_TABLES_TEAM_ROCKET_V3]
+schema = 'gen3_guide'
+kotlin = false
+trainers = 0x0850E288
+learnsets = 0x08970D78  # gSpeciesInfo[0].levelUpLearnset
+learnsetStride = 0xA8
+learnsetPairs = true
+wildHeaders = 0x090990D4
+sb1FlagsOff = 0x1DB0
+sb1VarsOff = 0x217E
+flagBytes = 0x3CE
+probeTrainer = 415
+probeName = 'BROCK'
+guide = 'GuideId.TEAM_ROCKET'
+trainerStride = 0x30
+trainerNameOff = 0x17
+trainerNameLen = 11
+trainerSizeOff = 0x24
+trainerPartyOff = 8
+trainerMon = 'GUIDE_TABLES_TEAM_ROCKET_V3_TRAINER_MON'
+wildSets = 4
+wildSet = 0
+mapSecWide = true
+
+[record.GUIDE_TABLES_TEAM_ROCKET_V3_TRAINER_MON]
+schema = 'gen3_trainer_mon'
+kotlin = false
+stride = 0x24
+movesOff = 0x0C
+speciesOff = 0x14
+itemOff = 0x16
+levelOff = 0x1A

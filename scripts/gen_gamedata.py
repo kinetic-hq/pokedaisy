@@ -118,7 +118,7 @@ def skip_ws(text, pos):
 
 def read_toml(path):
     """[(table name, {lead, entries: [(key, value, lead, trail, line)], end, line})], checked against tomllib."""
-    rel = os.path.relpath(path, ROOT)
+    rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
     # tomllib is the authority on the syntax; this reader must agree with it (checked at the end).
     try:
         with open(path, "rb") as fh:
@@ -272,7 +272,7 @@ def new_schema(name, kt_file, cls):
     path = os.path.join(SCHEMAS, name + ".toml")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(out) + "\n")
-    print(f"gen_gamedata: wrote {os.path.relpath(path, ROOT)}")
+    print(f"gen_gamedata: wrote {os.path.relpath(path, ROOT).replace(os.sep, chr(47))}")
 
 
 # --- schemas ---
@@ -285,7 +285,7 @@ def load_schema(name):
     if name in _schemas:
         return _schemas[name]
     path = os.path.join(SCHEMAS, name + ".toml")
-    rel = os.path.relpath(path, ROOT)
+    rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
     if not os.path.exists(path):
         raise GameDataError(f"no schema {rel}")
     tables = read_toml(path)
@@ -324,8 +324,8 @@ def load_schema(name):
 # --- configs ---
 
 def file_rank(path):
-    rel = os.path.relpath(path, os.path.join(GAMEDATA, "gen3"))
-    group, name = rel.split(os.sep)[0], os.path.splitext(os.path.basename(rel))[0]
+    rel = os.path.relpath(path, os.path.join(GAMEDATA, "gen3")).replace(os.sep, "/")
+    group, name = rel.split("/")[0], os.path.splitext(os.path.basename(rel))[0]
     g = GROUP_ORDER.index(group) if group in GROUP_ORDER else len(GROUP_ORDER)
     return (g, RETAIL_ORDER.index(name) if group == "retail" and name in RETAIL_ORDER else len(RETAIL_ORDER), rel)
 
@@ -335,7 +335,7 @@ def load_configs(schema):
     paths = [p for p in glob.glob(os.path.join(GAMEDATA, "gen3", "**", "*.toml"), recursive=True)
              if not p.startswith(RECORDS + os.sep)]
     for path in sorted(paths, key=file_rank):
-        rel = os.path.relpath(path, ROOT)
+        rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
         tables = read_toml(path)
         if tables[0]["entries"]:
             fail(f"{rel}:{tables[0]['entries'][0][4]}", "keys before the first [config.*]")
@@ -617,7 +617,7 @@ def load_records():
     another record with `base`) and [list.NAME] (`of` = Int / Long, `items` = numbers or Kotlin names)."""
     records = {}
     for path in sorted(glob.glob(os.path.join(RECORDS, "*.toml"))):
-        rel = os.path.relpath(path, ROOT)
+        rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
         tables = read_toml(path)
         if tables[0]["entries"]:
             fail(f"{rel}:{tables[0]['entries'][0][4]}", "keys before the first [record.*] / [list.*]")
@@ -1194,7 +1194,7 @@ def c_text(texts, rel):
 
 
 def c_target(path, configs, records, schema):
-    rel = os.path.relpath(path, ROOT)
+    rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
     tables = read_toml(path)
     top = {k: v for k, v, *_ in tables[0]["entries"]}
     names, parts, wanted, texts = {}, {}, [], {}
@@ -1385,7 +1385,7 @@ def main():
         sys.exit(f"gen_gamedata: {e}")
     summary = f"{len(configs)} configs, {len(records)} records"
     if "--check" in sys.argv:
-        stale = [os.path.relpath(path, ROOT) for path, text in outputs
+        stale = [os.path.relpath(path, ROOT).replace(os.sep, "/") for path, text in outputs
                  if (open(path, encoding="utf-8").read() if os.path.exists(path) else "") != text]
         if stale:
             sys.exit(f"gen_gamedata: {', '.join(stale)} stale or edited by hand - run `make gamedata` and commit the result")
@@ -1394,7 +1394,7 @@ def main():
     for path, text in outputs:
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(text)
-    print(f"gen_gamedata: {summary} -> {', '.join(os.path.relpath(p, ROOT) for p, _ in outputs)}")
+    print(f"gen_gamedata: {summary} -> {', '.join(os.path.relpath(p, ROOT).replace(os.sep, chr(47)) for p, _ in outputs)}")
 
 
 if __name__ == "__main__":

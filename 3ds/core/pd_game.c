@@ -37,6 +37,12 @@ const struct pd_battle_layout pd_battle_layout_team_rocket = {
     .maxHp = 46, .status = 80, .speciesMask = 0xFFFF, .personality = 0x4C, .otId = 0x58,
     .ability = 0x20, .abilityU16 = true, .item = 0x30,
 };
+// Team Rocket Edition 2026's 0x68-byte struct (TEAM_ROCKET_V3_BATTLE_MON): expansion's, the otId at +0x60.
+const struct pd_battle_layout pd_battle_layout_team_rocket_v3 = {
+    .size = 104, .species = 0, .moves = 12, .type1 = 34, .type2 = 35, .pp = 37, .hp = 42, .level = 44,
+    .maxHp = 46, .status = 80, .speciesMask = 0xFFFF, .personality = 0x4C, .otId = 0x60,
+    .ability = 0x20, .abilityU16 = true, .item = 0x30,
+};
 const struct pd_battle_layout pd_battle_layout_wishes = {
     .size = 136, .species = 0, .moves = 12, .type1 = 34, .type2 = 35, .pp = 37, .hp = 42, .level = 44,
     .maxHp = 46, .status = 80, .speciesMask = 0xFFFF, .personality = 0x4C, .otId = 0x58,
@@ -552,6 +558,8 @@ static const struct known_rom KNOWN_ROMS[] = {
      PD_GUIDE_ROWE},
     {"40780347d0b4df6bf491eaf12603e5422caee677", &PD_CONFIG_TEAM_ROCKET, PD_GAME_EMERALD, "Pokémon Team Rocket Edition",
      PD_GUIDE_TEAM_ROCKET},
+    {"0d8bdaeeca0856175037a75679c1a2b73ad2b68a", &PD_CONFIG_TEAM_ROCKET_V3, PD_GAME_EMERALD,
+     "Pokémon Team Rocket Edition 2026 (ES)", PD_GUIDE_TEAM_ROCKET},
     {"20e91aecb3243eea7cd610659846f37062f5d709", &PD_CONFIG_DREAMSTONE, PD_GAME_EMERALD, "Pokémon Dreamstone Mysteries",
      PD_GUIDE_DREAMSTONE},
     {"ea5d369cc8a31cbf1cfacb7c9470ea670f08957b", &PD_CONFIG_SOULGOLD, PD_GAME_EMERALD, "Pokémon SoulGold",

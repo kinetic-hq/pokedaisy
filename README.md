@@ -126,7 +126,7 @@ Game Boy, Game Boy Color, GBA or DS game still plays, as `PLAY ONLY`.
 | Modern Emerald | 3.6 | GBA | ROM hack | ◐ | ❌ PLAY ONLY | Not yet |
 | Elite Redux | 2.65.3b, 2.65.4.1b | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Team Rocket Dragonsden | 1.5 | GBA | ROM hack | ◐ | ◐ PARTLY: no DEX | Not yet |
-| Team Rocket Dragonsden | 2026 3.0.9 (Spanish) | GBA | ROM hack | ✅ | ❌ PLAY ONLY | Not yet |
+| Team Rocket Dragonsden | 2026 3.0.9 (Spanish) | GBA | ROM hack | ✅ | ✅ FULL | Not yet |
 | Wishes of Tomorrow | 1.2.6 | GBA | ROM hack | ✅ | ✅ FULL | Real save |
 | Petalburg Dynasty | 1.12.2 | GBA | ROM hack | ✅ (not in its table) | ✅ FULL | Run on copy |
 | Dreamstone Mysteries | the one release | GBA | ROM hack | ✅ | ✅ FULL | Run on copy |
@@ -319,6 +319,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   units** on the `DEX` page of every GBA game whose cart uses them (Monomyth, the European and Japanese carts), as in the app.
 - **Amethyst 1.4.3**: its own config (PARTY, BAG, BATTLE with the foe's team, DEX, GUIDE, the PC) instead of 1.4.1's
   guessed one, which read the wrong ability names and foe teams; on the desktop, the 3DS port and Android alike.
+- **Team Rocket Dragonsden 2026 (Spanish)** on the desktop host and the 3DS port: PARTY, BAG, BATTLE, MAP, DEX and GUIDE,
+  from the app's own data for that build (it played with no companion before).
 - **Petalburg Dynasty 1.12.2**: a new supported hack (pokeemerald-expansion 1.16.4, its sha1 only): PARTY, BAG, BATTLE
   with the foe's team and the battle buttons, MAP place names and the GUIDE's wild Pokemon on the desktop, the 3DS port
   and Android, and its DEX on all three.
