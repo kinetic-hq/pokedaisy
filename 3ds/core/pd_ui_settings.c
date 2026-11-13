@@ -140,7 +140,11 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
             setting(ui, c, ix, &y, iw, SETTING_SHADER, "SHADER", SHADERS[st->shader]);
             setting(ui, c, ix, &y, iw, SETTING_COLORS, "COLORS", COLORS[st->colors]);
         }
-        if (host->hasDisplayFilter) setting(ui, c, ix, &y, iw, SETTING_FILTER, "FILTER", st->lcdFilter ? "LCD" : "OFF");
+        if (host->hasDisplayFilter) {
+            setting(ui, c, ix, &y, iw, SETTING_FILTER, "FILTER", pd_filter_names[st->filter]);
+            if (st->filter == PD_FILTER_LCD || st->filter == PD_FILTER_LCD_PAPER)
+                setting(ui, c, ix, &y, iw, SETTING_GRID, "GRID", pd_grid_names[st->grid]);
+        }
         if (host->hasShaders) setting(ui, c, ix, &y, iw, SETTING_DIM, "DIM COMPANION", on_off(st->dimCompanion));
         if (host->hasFullscreen) setting(ui, c, ix, &y, iw, SETTING_FULLSCREEN, "FULLSCREEN", on_off(st->fullscreen == 1));
         if (host->hasOrientation)
@@ -519,7 +523,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
     if (host && host->hasSavesBeside)
         setting(ui, c, ix, &y, iw, SETTING_SAVES_BESIDE, "SAVES BESIDE GAMES", st->savesBeside ? "ON" : "OFF");
     if (host && host->hasDisplayFilter)
-        setting(ui, c, ix, &y, iw, SETTING_FILTER, "FILTER", st->lcdFilter ? "LCD" : "OFF");
+        setting(ui, c, ix, &y, iw, SETTING_FILTER, "FILTER", pd_filter_names[st->filter]);
     if (host && host->hasQuickMenu)
         setting(ui, c, ix, &y, iw, SETTING_QUICK_MENU, "QUICK MENU", st->quickGrid ? "GRID" : "RING");
     if (host && host->hasButtonRows) {

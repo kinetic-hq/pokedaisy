@@ -39,7 +39,9 @@ the fork's README.
 - **Controls**: any controller, several at once, a keyboard and the mouse.
   `BUTTON LAYOUT` and `HOTKEYS` take the place of the touch controls, and the
   back paddles and extra buttons can each get a job.
-- **Shaders**: `SHARP`, `xBRZ`, the `HANDHELD` and `OLED` colours, `BRIGHTNESS`,
+- **Shaders**: `SHARP`, `xBRZ`, the `HANDHELD` colours (Android's `GBA COLORS`)
+  and `OLED`, `FILTER` (`LCD`, `LCD PAPER`, `SCANLINES`, `CRT`, plus the
+  desktop's `SUBPIXEL`) with `GRID`, `BRIGHTNESS`,
   and black backgrounds made for OLED screens.
 - **Fast forward music**: `FF MUSIC`'s `STEADY` works in GBA games. Each song is
   recorded the first time the game plays it, rather than all at once in the

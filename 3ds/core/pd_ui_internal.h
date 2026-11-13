@@ -175,7 +175,9 @@ enum setting_row {
     SETTING_SHINY_ODDS, // hasShinyOdds: opens its pick-list
     SETTING_SCENE,     // hasSceneSpeeds: SETTING_SCENE + PD_SCENE_*, each opens its pick-list
     SETTING_SCENE_END = SETTING_SCENE + PD_SCENE_COUNT - 1,
+    SETTING_GRID, // hasDisplayFilter: GRID, under FILTER's LCD and LCD PAPER
 };
+_Static_assert(SETTING_GRID < 100, "HIT_SETTING + a row stays under HIT_OPTION");
 // SETTINGS' pages (ui->settingsPage): HOME, then one per SETTING_PAGE_* row in their order.
 enum settings_page { PAGE_HOME, PAGE_SPEED, PAGE_DISPLAY, PAGE_BUTTONS, PAGE_HOTKEYS, PAGE_QUICK };
 

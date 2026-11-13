@@ -7,6 +7,8 @@
 #include <windows.h>
 #endif
 
+const char* const pd_filter_names[PD_FILTERS] = {"OFF", "LCD", "LCD PAPER", "SCANLINES", "CRT", "SUBPIXEL"};
+const char* const pd_grid_names[PD_GRIDS] = {"SOFT", "MEDIUM", "STRONG"};
 bool pd_settings_expand_default = false;
 bool pd_settings_dark_default = false;
 
@@ -39,6 +41,8 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->batterySaver = PD_SAVER_AUTO;
     s->quickGrid = false;
     s->lcdFilter = false;
+    s->filter = PD_FILTER_OFF;
+    s->grid = 1;
     s->quickBtn = PD_BTN_Y;
     s->companionBtn = PD_BTN_X;
     s->hudBtn = PD_BTN_NONE;
@@ -127,6 +131,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
     FILE* f = fopen(path, "r");
     if (!f) return false;
     char line[128];
+    bool filterSeen = false;
     while (fgets(line, sizeof(line), f)) {
         char* eq = strchr(line, '=');
         if (!eq) continue;
@@ -165,6 +170,10 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         } else if (!strcmp(key, "lcd")) {
             int on;
             if (int_in(value, 0, 1, &on)) s->lcdFilter = on;
+        } else if (!strcmp(key, "filter")) {
+            filterSeen = int_in(value, 0, PD_FILTERS - 1, &s->filter);
+        } else if (!strcmp(key, "grid")) {
+            int_in(value, 0, PD_GRIDS - 1, &s->grid);
         } else if (!strcmp(key, "quickgrid")) {
             int on;
             if (int_in(value, 0, 1, &on)) s->quickGrid = on;
@@ -259,6 +268,9 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         }
     }
     fclose(f);
+    // FILTER: a settings.ini from before it had kinds keeps its LCD mask as SUBPIXEL.
+    if (!filterSeen && s->lcdFilter) s->filter = PD_FILTER_SUBPIXEL;
+    s->lcdFilter = s->filter == PD_FILTER_SUBPIXEL;
     // An ORIGINAL the player never picked is the old default: the desktop's EXPAND replaces it.
     if (pd_settings_expand_default && !s->aspectPicked && s->aspect == PD_ASPECT_ORIGINAL) s->aspect = PD_ASPECT_EXPAND;
     return true;
@@ -272,7 +284,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     if (!f) return false;
     fprintf(f, "screen=%d\nff=%d\nguide=%d\naspect=%d\nautozoom=%d\nwildoff=%d\ntabs=%d\nhud=%d\nhudhide=%d\nquickgrid=%d\nlcd=%d\n",
             s->screenMode, s->ffSpeed, s->guideNotice, s->aspect, s->autoZoom ? 1 : 0, s->wildOff ? 1 : 0, s->tabBar,
-            s->hud ? 1 : 0, s->hudHidden, s->quickGrid ? 1 : 0, s->lcdFilter ? 1 : 0);
+            s->hud ? 1 : 0, s->hudHidden, s->quickGrid ? 1 : 0, s->filter == PD_FILTER_SUBPIXEL ? 1 : 0);
+    fprintf(f, "filter=%d\ngrid=%d\n", s->filter, s->grid);
     fprintf(f, "hudlayout=%d\nhudlook=%d\nhudsize=%d\n", s->hudLayout, s->hudLook, s->hudSize);
     fprintf(f, "view=%d\npanellock=%d\n", s->companionView, s->panelLocked ? 1 : 0);
     fprintf(f, "shinyodds=%d\n", s->shinyOdds);
