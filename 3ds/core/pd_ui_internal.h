@@ -287,6 +287,10 @@ void ui_fade_rect(struct pd_canvas* c, const uint32_t* before, int x, int y, int
 // A type's colour (AppColors.typeColors), and its badge: returns the width.
 uint32_t ui_type_color(int type);
 int ui_type_badge(struct pd_canvas* c, int x, int y, int type);
+// One or two small type pills (t2 PD_TYPE_NONE or t1's own = one) in at most max_w: full names where they fit, else
+// the first three letters, else only the first type. x is the left edge, or the right one with RIGHT. Returns the
+// width drawn (0: nothing fits or no type known); with c NULL it only measures.
+int ui_type_pills(struct pd_canvas* c, int x, int y, int t1, int t2, int max_w, bool right);
 
 // The lists' caught / seen mark: a Poké Ball, or a grey one.
 void ui_ball(struct pd_canvas* c, int x, int y, bool caught);

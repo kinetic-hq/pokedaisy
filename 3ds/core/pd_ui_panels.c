@@ -18,6 +18,7 @@ uint32_t pd_ui_now_ms;
 bool pd_ui_reduce_motion;
 bool pd_ui_panel_moving;
 uint32_t pd_ui_bar_facts;
+bool pd_ui_party_types = true;
 
 static uint32_t mix(uint32_t a, uint32_t b, int t256) {
     uint32_t r = 0;
@@ -213,7 +214,10 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
             tx = iconX + PD_ICON - 3;
             right = cx + w - 3;
         }
-        int ty = y + (cardH - (tall ? 3 * LINE + 2 : 2 * LINE)) / 2;
+        // PARTY TYPES on a card tall enough for a fourth line: the pills get their own, under the name.
+        bool pillLine = pd_ui_party_types && tall && t1 != PD_TYPE_NONE && m->species != PD_SPECIES_EGG &&
+                        cardH >= 4 * LINE + 6;
+        int ty = y + (cardH - (tall ? 3 * LINE + 2 : 2 * LINE) - (pillLine ? LINE - 2 : 0)) / 2;
         if (m->species == PD_SPECIES_EGG) {
             pd_text_fit(c, tx, y + (cardH - LINE) / 2, right - tx, name, PD_LABEL, PD_LABEL_SHADOW);
             continue;
@@ -228,6 +232,10 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         int nameW = pd_text_fit(c, tx, ty, right - tx - starW - (lvRight ? lvW + 4 : 0), name, PD_LABEL, PD_LABEL_SHADOW);
         if (m->shiny) pd_text(c, tx + nameW + 2, ty, "*", 0xF8C830, PD_LABEL_SHADOW); // shiny: a gold star
         int by = ty + LINE + 1, bx = tx;
+        if (pillLine) {
+            ui_type_pills(c, tx, by + 1, t1, t2, right - tx, false);
+            by += LINE - 2;
+        }
         int lx = lvRight ? right - lvW : tx;
         int ly = lvRight ? ty : by;
         lx += pd_text(c, lx, ly, "Lv", PD_MUTED, PD_MUTED_SHADOW);
@@ -237,6 +245,16 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         if (*status) {
             ui_status_badge(c, bx, by + 1, m->status);
             bx += pd_text_width(status) + 10;
+        }
+        // PARTY TYPES: its types as pills under the name (at the line's end on a tall card; before the HP bar on a
+        // short one, while the bar keeps room to read).
+        if (pd_ui_party_types && t1 != PD_TYPE_NONE && !pillLine) {
+            if (tall) ui_type_pills(c, right, by + 1, t1, t2, right - bx - 4, true);
+            else {
+                int room = right - bx - 18 - 40;
+                int pw = room > 0 ? ui_type_pills(c, bx, by + 1, t1, t2, room, false) : 0;
+                if (pw) bx += pw + 4;
+            }
         }
         if (tall) {
             // The bar its own line, as wide as the text column, the HP numbers under it.

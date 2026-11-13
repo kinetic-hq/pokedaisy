@@ -1401,7 +1401,40 @@ static int hudRepelSteps; // the bottom strip's REPEL
 static uint32_t bezelSavedAt; // the last save (the game's, or a state): the bezel bars' SAVED
 static uint32_t gameSavedAt;  // the game's own last save this run, else when the game started: LAST SAVED
 static bool gameSavedYet;     // the game has saved since it started
+static struct pd_nuzlocke nuzlocke; // NUZLOCKE's run (nuz_load / nuz_store below)
 static int bezelFf;           // fast-forward's speed while it runs, else 0
+static int bezelPacePct = 100; // the game's speed off fast-forward, in percent
+static uint32_t zoomChangedAt; // when the zoom last changed (ZOOM shows a few seconds after)
+/* LAYOUT: the bars' item lists and the right wing's sections, from the settings (pd_settings' barList / wingList). */
+static int bezelLists[2][BEZEL_LIST_MAX], bezelCount[2] = {-1, -1};
+static int wingSections[PD_WING_LIST_MAX], wingSectionCount = -1;
+/* Each bar's items this frame: their texts and which item each is (barN 0 and barListMode false: the battle's bar). */
+static char barText[2][BEZEL_LIST_MAX][64];
+static int barItem[2][BEZEL_LIST_MAX], barN[2];
+static bool barListMode[2];
+static bool topDrawn[BEZEL_ITEMS]; // what the top bar drew last: the bottom never says it again
+/* A bar's list from the settings: its own, or the one built from the old three places. */
+static int bar_list_of(const struct pd_settings *st, int b, int *out) {
+  if (st->barCount[b] >= 0) {
+    int n = 0;
+    for (int i = 0; i < st->barCount[b] && i < PD_BAR_LIST_MAX; i++)
+      if (st->barList[b][i] > BEZEL_NONE && st->barList[b][i] < BEZEL_ITEMS)
+        out[n++] = st->barList[b][i];
+    return n;
+  }
+  return bezel_list_from_slots(&st->bezelSlots[b ? BEZEL_BOTTOM_LEFT : BEZEL_TOP_LEFT], b == 0, out);
+}
+static int wing_list_of(const struct pd_settings *st, int *out) {
+  if (st->wingCount < 0) {
+    memcpy(out, pd_wing_default, (size_t)pd_wing_default_count * sizeof *out);
+    return pd_wing_default_count;
+  }
+  int n = 0;
+  for (int i = 0; i < st->wingCount && i < PD_WING_LIST_MAX; i++)
+    if (st->wingList[i] >= 0 && st->wingList[i] < PD_WING_SECTIONS)
+      out[n++] = st->wingList[i];
+  return n;
+}
 static int bezelStyle = BEZEL_STYLE_THEME, bezelSlots[BEZEL_SLOTS];
 static SDL_Texture *bezelGlow; // GLOW: the game's frame, tiny, stretched back up (a blur for free)
 static SDL_Texture *bezelGlowSource;
@@ -1702,6 +1735,7 @@ static SDL_Rect rightWingAt;
 static int rightWingW, rightWingH;
 static int panelW[PANELS], panelH[PANELS];
 static uint32_t barFacts[2]; // PD_BAR_* the top / bottom bar showed last draw: the right wing leaves them out
+static int bezelRepelNow;    // the repel's steps as the bars last read them
 static struct wing_toasts wingToasts; // the wings' toasts (a level up, a new area, a save, the spray worn off)
 #define BAR_FADE_MS 240u              // a bar's old words fading into its new ones
 static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int which, bool battle, char *a,
@@ -1724,6 +1758,7 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
         best = pct;
     }
     barFacts[1] = 0; // the battle's own bar
+    barListMode[1] = false;
     snprintf(b, n, "%s", bezel_matchup(best));
     if (s->foeCount <= 0) {
       const char *st = pd_status_label(foe->status);
@@ -1733,7 +1768,8 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
     return;
   }
   struct bezel_facts f = {.place = NULL, .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = -1,
-                          .leadToNext = -1, .savedMinutes = -1};
+                          .leadToNext = -1, .savedMinutes = -1, .dexCaught = -1, .dexSeen = -1, .nuzDeaths = -1,
+                          .nuzArea = -1};
   // The guide's facts (the next boss, this area's wild kinds) are worked out a few times a second, not every frame.
   static char bossName[48];
   static int bossCap, caughtHere, kindsHere;
@@ -1779,6 +1815,17 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
     f.playHours = s->playHours;
     f.playMinutes = s->playMinutes;
     f.money = s->money;
+    if (s->dexOk && s->dexCount > 0) {
+      f.dexCaught = f.dexSeen = 0;
+      for (int i = 0; i < s->dexCount && i / 8 < PD_DEX_BYTES; i++) {
+        f.dexSeen += s->dexSeen[i / 8] >> (i % 8) & 1;
+        f.dexCaught += s->dexCaught[i / 8] >> (i % 8) & 1;
+      }
+    }
+    if (nuzlocke.on && nuzlocke.supported) {
+      f.nuzDeaths = pd_nuz_dead(&nuzlocke.run);
+      f.nuzArea = s->posOk ? pd_nuz_encounter_at(&nuzlocke.run, s->mapsec) != NULL : -1;
+    }
   }
   time_t now = time(NULL);
   struct tm *tm = localtime(&now);
@@ -1788,7 +1835,7 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
   }
   int secs, pct = -1;
   SDL_PowerState power = SDL_GetPowerInfo(&secs, &pct);
-  if (power != SDL_POWERSTATE_UNKNOWN && power != SDL_POWERSTATE_NO_BATTERY && pct >= 0) {
+  if (power == SDL_POWERSTATE_ON_BATTERY && pct >= 0) { // plugged in: no battery to watch
     f.battery = pct;
     f.charging = power == SDL_POWERSTATE_CHARGING || power == SDL_POWERSTATE_CHARGED;
   }
@@ -1798,38 +1845,81 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
   f.ff = bezelFf;
   f.zoomPct = wideReady && wideCam.level > 0 ? zoom_percent(wideCam.level) : 0;
   f.saved = bezelSavedAt && t - bezelSavedAt < BEZEL_SAVED_MS;
+  f.zoomRecent = zoomChangedAt && t - zoomChangedAt < BEZEL_ZOOM_MS;
+  f.pacePct = bezelPacePct;
   f.repel = hudRepelSteps;
   if (gameSavedAt) {
     // Never saved this run: only the warning, once it's been a while.
     int mins = (int)((t - gameSavedAt) / 60000u);
     f.savedMinutes = gameSavedYet || mins >= BEZEL_SAVE_LATE_MIN ? mins : -1;
   }
-  int first = which == PANEL_TOP ? BEZEL_TOP_LEFT : BEZEL_BOTTOM_LEFT;
-  char bar[3][64];
-  bool shown[BEZEL_ITEMS] = {false};
-  if (battle) // the battle's bar is its own
-    bezel_bar_text(&bezelSlots[first], NULL, &f, bar, shown);
-  else {
-    // Both bars at once: nothing the top says comes back in the bottom, a filler included.
-    char top[3][64], bottom[3][64];
-    bezel_bars(bezelSlots, &f, top, bottom, which == PANEL_TOP ? shown : NULL, which == PANEL_TOP ? NULL : shown);
-    memcpy(bar, which == PANEL_TOP ? top : bottom, sizeof bar);
+  // LAYOUT's list: every item with something to say, in order (what the top bar drew left out of the bottom's); how
+  // many fit is worked out where the bar is drawn (bar_list_draw).
+  int bar = which == PANEL_TOP ? 0 : 1;
+  barListMode[bar] = true;
+  bezelRepelNow = f.repel;
+  barN[bar] = bezelCount[bar] > 0 ? bezel_list_texts(bezelLists[bar], bezelCount[bar], bar ? topDrawn : NULL, &f,
+                                                     barText[bar], barItem[bar], BEZEL_LIST_MAX)
+                                  : 0;
+}
+/* A bar's items drawn across it: as many as fit (bezel_fit: the place shrinks, then the least kept go), the first at
+ * the left, the last at the right and the rest spread evenly between. CARD: on the theme's window, else off-white text
+ * on BACK. What it drew goes to barFacts (and topDrawn for the top's). */
+static void bar_list_draw(struct pd_canvas *pc, int bar, bool card, uint32_t back) {
+  int x0 = 6, r = pc->w - 6;
+  uint32_t ink = 0xE8E6DE, shadow = 0x000000;
+  if (card) {
+    int fr = pd_title_box(pc, 0, 0, pc->w, pc->h, PD_TITLE_FILL);
+    x0 = fr + 6;
+    r = pc->w - fr - 6;
+    ink = PD_LABEL;
+    shadow = PD_LABEL_SHADOW;
+  } else
+    pd_fill(pc, 0, 0, pc->w, pc->h, back);
+  int y = pd_text_y(0, pc->h), n = barN[bar], wd[BEZEL_LIST_MAX], place = -1;
+  bool keep[BEZEL_LIST_MAX];
+  for (int i = 0; i < n; i++) {
+    wd[i] = pd_text_width(barText[bar][i]);
+    if (barItem[bar][i] == BEZEL_LOCATION)
+      place = i;
   }
+  enum { GAP = 14 };
+  int placeW = bezel_fit(wd, barItem[bar], n, place, pd_text_width("ROUTE 1234"), r - x0, GAP, keep);
+  int total = 0, shown = 0;
+  for (int i = 0; i < n; i++)
+    if (keep[i]) {
+      total += i == place ? placeW : wd[i];
+      shown++;
+    }
+  int step = shown > 1 ? (r - x0 - total) / (shown - 1) : 0;
+  bool drawn[BEZEL_ITEMS] = {false};
+  for (int i = 0, x = x0; i < n; i++) {
+    if (!keep[i])
+      continue;
+    int iw = i == place ? placeW : wd[i];
+    if (i == place)
+      pd_text_fit(pc, x, y, placeW, barText[bar][i], ink, shadow);
+    else
+      pd_text(pc, x, y, barText[bar][i], ink, shadow);
+    drawn[barItem[bar][i]] = true;
+    x += iw + step;
+  }
+  if (bar == 0)
+    memcpy(topDrawn, drawn, sizeof drawn);
   uint32_t facts = 0;
-  if (shown[BEZEL_MONEY] || (shown[BEZEL_REPEL_MONEY] && f.repel <= 0))
+  if (drawn[BEZEL_MONEY] || (drawn[BEZEL_REPEL_MONEY] && bezelRepelNow <= 0))
     facts |= PD_BAR_MONEY;
-  if (shown[BEZEL_BADGES_TIME] || shown[BEZEL_BADGES])
+  if (drawn[BEZEL_BADGES_TIME] || drawn[BEZEL_BADGES])
     facts |= PD_BAR_BADGES;
-  if (shown[BEZEL_BADGES_TIME] || shown[BEZEL_PLAY_TIME])
+  if (drawn[BEZEL_BADGES_TIME] || drawn[BEZEL_PLAY_TIME])
     facts |= PD_BAR_TIME;
-  if (shown[BEZEL_NEXT_BOSS])
+  if (drawn[BEZEL_NEXT_BOSS] || drawn[BEZEL_BOSS])
     facts |= PD_BAR_BOSS;
-  if (shown[BEZEL_CAUGHT_HERE])
+  if (drawn[BEZEL_CAUGHT_HERE] || (drawn[BEZEL_AREA] && !(nuzlocke.on && nuzlocke.supported)))
     facts |= PD_BAR_HERE;
-  barFacts[which == PANEL_TOP ? 0 : 1] = facts;
-  snprintf(a, n, "%s", bar[0]);
-  snprintf(b, n, "%s", bar[1]);
-  snprintf(c, n, "%s", bar[2]);
+  if (drawn[BEZEL_CAUGHT_SEEN])
+    facts |= PD_BAR_DEX;
+  barFacts[bar] = facts;
 }
 /* BLACK / GLOW's bar: off-white text on the bar (near-black, or the game's glow), the left and right ends at the
  * bar's edges, the middle only where it clears both. */
@@ -1935,10 +2025,17 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   bool bezel = strip && bezelStyle != BEZEL_STYLE_THEME;
   if (strip)
     panel_text(g, s, which, battle, a, b, c, sizeof a);
+  int bar = which == PANEL_TOP ? 0 : 1;
+  bool listBar = strip && barListMode[bar];
   uint32_t textKey = 2166136261u;
   for (const char *t[3] = {a, b, c}, **p = t; p < t + 3; p++)
     for (const char *q = *p; *q; q++)
       textKey = (textKey ^ (uint8_t)*q) * 16777619u;
+  for (int i = 0; listBar && i < barN[bar]; i++) {
+    for (const char *q = barText[bar][i]; *q; q++)
+      textKey = (textKey ^ (uint8_t)*q) * 16777619u;
+    textKey = (textKey ^ 0x7Cu) * 16777619u;
+  }
   uint32_t key = panelGen * 2654435761u ^ (uint32_t)(w * 65599 + h) ^ (battle ? 0x80000000u : 0) ^ (uint32_t)scale << 20 ^
                  (uint32_t)background << 28 ^ (uint32_t)bezelStyle << 24 ^
                  (strip ? textKey : pd_ui_bar_facts * 2246822519u);
@@ -1960,7 +2057,12 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     // A step smaller while the three don't fit side by side: all three at a smaller size beat a dropped one.
     int lw = *a ? pd_text_width(a) : 0, rw = *c ? pd_text_width(c) : 0;
     int need = 2 * (lw > rw ? lw : rw) + (*b ? pd_text_width(b) : 0) + 36; // the middle sits in the centre
-    while (scale > 1 && room.w / scale < need)
+    if (listBar) { // a list: one step smaller at most while all of it doesn't fit (then the least kept go)
+      need = 12;
+      for (int i = 0; i < barN[bar]; i++)
+        need += pd_text_width(barText[bar][i]) + 14;
+    }
+    for (int from = scale; scale > 1 && room.w / scale < need && (!listBar || scale > from - 1);)
       scale--;
     r = room;
     w = r.w / scale;
@@ -2007,7 +2109,10 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     const uint32_t clear = 0x00FE01FE; // a colour no text uses: see-through
     struct pd_canvas pc;
     pd_canvas_init(&pc, w, h, panelPixels);
-    bezel_strip(&pc, a, b, c, clear);
+    if (listBar)
+      bar_list_draw(&pc, bar, false, clear);
+    else
+      bezel_strip(&pc, a, b, c, clear);
     for (int i = 0; i < w * h; i++)
       panelPixels[i] = (panelPixels[i] & 0xFFFFFF) == clear ? 0 : 0xFF000000u | panelPixels[i];
     SDL_UpdateTexture(shown, &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
@@ -2033,6 +2138,9 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
     else if (which == PANEL_RIGHT) {
       pd_ui_wing_buttons_on = true;
       pd_ui_repel_steps = hudRepelSteps;
+      pd_ui_wing_list = wingSectionCount >= 0 ? wingSections : NULL;
+      pd_ui_wing_count = wingSectionCount;
+      pd_ui_wing_nuzlocke = &nuzlocke;
       pd_ui_map_panel(&pc, g, s, false);
     }
     if (which == PANEL_RIGHT)
@@ -3041,7 +3149,6 @@ static bool saver_active(void) {
   return onBattery;
 }
 /* NUZLOCKE: each game's run in DATA/nuzlocke/<crc>.txt, "on" then the app's own text for the run (NuzlockeRun). */
-static struct pd_nuzlocke nuzlocke;
 static void nuz_path(char *out, size_t n, uint32_t crc) { snprintf(out, n, "%s/nuzlocke/%08x.txt", root, (unsigned)crc); }
 static void nuz_load(uint32_t crc) {
   pd_nuz_init(&nuzlocke);
@@ -3480,6 +3587,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         to = to < 0 ? 0 : to >= wideLevelCount ? wideLevelCount - 1 : to;
         static char zoomText[32];
         snprintf(zoomText, sizeof zoomText, "Zoom %d%%", zoom_percent(to));
+        if (wideCam.level != to)
+          zoomChangedAt = SDL_GetTicks();
         wideCam.level = to;
         notice(zoomText);
       }
@@ -4266,6 +4375,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         gameSavedYet = true;
       }
       bezelFf = ff ? settings.ffSpeed : 0;
+      bezelPacePct = (int)(scene_pace(&settings, &host, scene_now(fieldFlags, fieldKnown, &snap)) * 100 + 0.5);
       {
         static uint32_t savedSeen;
         struct wing_toast_in in = {.valid = snap.valid && snap.partyCount > 0, .battle = viewBattle,
@@ -4286,6 +4396,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       }
       bezelStyle = bezel_style_resolve(settings.bezelStyle, pocket_backdrop_for(background).cards);
       memcpy(bezelSlots, settings.bezelSlots, sizeof bezelSlots);
+      for (int b = 0; b < 2; b++)
+        bezelCount[b] = bar_list_of(&settings, b, bezelLists[b]);
+      wingSectionCount = wing_list_of(&settings, wingSections);
+      pd_ui_party_types = settings.partyTypes;
       if (game.cfg && c->platform(c) == mPLATFORM_GBA && (frames & 15) == 0) {
         int steps = repel_steps(c, game.cfg);
         hudRepelSteps = steps > 0 ? steps : 0;
@@ -5076,7 +5190,34 @@ static bool get_started(void) {
  * DATA/ds-settings.ini) at once. Returns the rail item to open next (RAIL_GAMES), or -1 when the app closes;
  * *foldersChanged says the game list needs reading again. */
 static void trade_saves(const char *firstRom, const char *firstName);
-enum { PAGE_SET_HOME, PAGE_SET_DISPLAY, PAGE_SET_BUTTONS, PAGE_SET_HOTKEYS, PAGE_SET_BEZEL };
+enum { PAGE_SET_HOME, PAGE_SET_DISPLAY, PAGE_SET_BUTTONS, PAGE_SET_HOTKEYS, PAGE_SET_BEZEL, PAGE_SET_LIST };
+/* LAYOUT's lists (SETTINGS > SCREEN > LAYOUT): the top bar, the bottom bar and the right wing. */
+enum { LIST_TOP, LIST_BOTTOM, LIST_WING, LISTS };
+static const char *const LIST_TITLES[LISTS] = {"TOP BAR", "BOTTOM BAR", "RIGHT WING"};
+/* A list's items in their order (the ones on), then how many there are; what's off is every other item. */
+static int layout_list(const struct pd_settings *st, int list, int *out) {
+  return list == LIST_WING ? wing_list_of(st, out) : bar_list_of(st, list, out);
+}
+static void layout_store(struct pd_settings *st, int list, const int *items, int n) {
+  if (list == LIST_WING) {
+    memcpy(st->wingList, items, (size_t)n * sizeof *items);
+    st->wingCount = n;
+  } else {
+    memcpy(st->barList[list], items, (size_t)n * sizeof *items);
+    st->barCount[list] = n;
+  }
+}
+static int layout_items(int list) { return list == LIST_WING ? PD_WING_SECTIONS : BEZEL_ITEMS; }
+static const char *layout_name(int list, int item) {
+  return list == LIST_WING ? pd_wing_section_names[item] : BEZEL_ITEM_NAMES[item];
+}
+/* An item's place in its list, -1 = off. */
+static int layout_at(const int *items, int n, int item) {
+  for (int i = 0; i < n; i++)
+    if (items[i] == item)
+      return i;
+  return -1;
+}
 enum {
   ROW_VIEW = 1,
   ROW_DS,
@@ -5110,8 +5251,15 @@ enum {
   ROW_BEZEL,
   ROW_RUMBLE,
   ROW_SAVER,
+  ROW_SCREEN_LAYOUT,
+  ROW_LIST_TOP,
+  ROW_LIST_BOTTOM,
+  ROW_LIST_WING,
+  ROW_PARTY_TYPES,
+  ROW_LIST_RESET,
   ROW_BEZEL_SLOT0 = 80,
-  ROW_HOTKEY0 = 100
+  ROW_HOTKEY0 = 100,
+  ROW_LIST_ITEM0 = 200
 };
 static int settings_page(bool *foldersChanged) {
   static const char *const ORIENTATIONS[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED",
@@ -5120,11 +5268,13 @@ static int settings_page(bool *foldersChanged) {
   static const char *const COLORS[PD_COLORS] = {"ORIGINAL", "HANDHELD", "OLED"};
   static const char *const UI_SIZES[3] = {"SMALL", "MEDIUM", "LARGE"};
   static const char *const WING_ROOMS[4] = {"GAME FIRST", "BALANCED", "WINGS FIRST", "AUTO"};
-  static const char *const TITLES[] = {"SETTINGS", "DISPLAY OPTIONS", "GAME BUTTONS", "HOTKEYS", "BEZEL BARS"};
+  static const char *const TITLES[] = {"SETTINGS", "DISPLAY OPTIONS", "GAME BUTTONS", "HOTKEYS", "LAYOUT", "LIST"};
+  static int listOpen = LIST_TOP, layoutRow = -1;
+  int focusId = -1;
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
   int page = PAGE_SET_HOME, homeRow = -1, focus = PD_MENU_FOCUS_LIST;
-  int selectedOn[5] = {-1, -1, -1, -1, -1}, displayRow = -1;
+  int selectedOn[6] = {-1, -1, -1, -1, -1, -1};
   while (running) {
     struct pd_settings st;
     pd_settings_load(&st, path);
@@ -5139,9 +5289,9 @@ static int settings_page(bool *foldersChanged) {
 #else
     (void)dsCount;
 #endif
-    static char rows[PD_HOTKEY_BUTTONS + 16][96];
-    const char *items[PD_HOTKEY_BUTTONS + 16];
-    int ids[PD_HOTKEY_BUTTONS + 16], n = 0;
+    static char rows[PD_HOTKEY_BUTTONS + 48][96];
+    const char *items[PD_HOTKEY_BUTTONS + 48];
+    int ids[PD_HOTKEY_BUTTONS + 48], n = 0;
 #define ROW(id, ...)                                                                                                   \
   do {                                                                                                                 \
     snprintf(rows[n], sizeof rows[n], __VA_ARGS__);                                                                    \
@@ -5155,6 +5305,7 @@ static int settings_page(bool *foldersChanged) {
         ROW(ROW_DS_SIDE, "DS WING SIDE\tTOUCH %s", dsWingLeft ? "LEFT" : "RIGHT");
       }
       ROW(ROW_DISPLAY, "DISPLAY OPTIONS" PD_MENU_PAGE);
+      ROW(ROW_SCREEN_LAYOUT, "LAYOUT" PD_MENU_PAGE);
       ROW(0, PD_MENU_GROUP "LIBRARY");
       ROW(ROW_FOLDERS, "GAME FOLDERS" PD_MENU_PAGE);
       ROW(ROW_PATCH, "PATCH A ROM" PD_MENU_PAGE);
@@ -5197,18 +5348,37 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_BEZEL_STYLE, "BEZEL STYLE\t%s",
           BEZEL_STYLE_NAMES[bezel_style_resolve(st.bezelStyle, pocket_background_resolve(st.background, st.colors ==
                                                                 POCKET_COLORS_OLED, st.darkMode) == POCKET_BACKGROUND_BLACK)]);
-      ROW(ROW_BEZEL, "BEZEL BARS" PD_MENU_PAGE);
       ROW(ROW_FULL, "FULLSCREEN\t%s", fullscreenOn ? "ON" : "OFF");
       ROW(ROW_ORIENT, "ORIENTATION\t%s", ORIENTATIONS[st.orientation]);
       ROW(ROW_TOUCH, "GAME TOUCH\t%s", st.gameTouch == PD_GAME_TOUCH_OFF ? "OFF" : "DS SCREEN ONLY");
     } else if (page == PAGE_SET_BEZEL) {
-      for (int i = 0; i < BEZEL_SLOTS; i++) {
-        if (i == 0 || i == BEZEL_BOTTOM_LEFT)
-          ROW(0, PD_MENU_GROUP "%s", i ? "BOTTOM BAR" : "TOP BAR");
-        int item = st.bezelSlots[i] >= 0 && st.bezelSlots[i] < BEZEL_ITEMS ? st.bezelSlots[i] : 0;
-        ROW(ROW_BEZEL_SLOT0 + i, "%s\t%s", BEZEL_SLOT_NAMES[i] + (i < 3 ? 4 : 7), BEZEL_ITEM_NAMES[item]);
-      }
+      ROW(0, PD_MENU_GROUP "WHAT EACH PART SHOWS");
+      ROW(ROW_LIST_TOP, "TOP BAR" PD_MENU_PAGE);
+      ROW(ROW_LIST_BOTTOM, "BOTTOM BAR" PD_MENU_PAGE);
+      ROW(ROW_LIST_WING, "RIGHT WING" PD_MENU_PAGE);
+      ROW(0, PD_MENU_GROUP "LEFT WING");
+      ROW(ROW_PARTY_TYPES, "PARTY TYPES\t%s", st.partyTypes ? "ON" : "OFF");
       ROW(0, PD_MENU_MUTED "IN A BATTLE THE BOTTOM BAR SHOWS THE FOE");
+    } else if (page == PAGE_SET_LIST) {
+      int list[BEZEL_LIST_MAX > PD_WING_LIST_MAX ? BEZEL_LIST_MAX : PD_WING_LIST_MAX];
+      int count = layout_list(&st, listOpen, list);
+      // What's on in its order (a bar's number is its place), then what's off.
+      ROW(0, PD_MENU_GROUP "SHOWN, IN ORDER");
+      for (int i = 0; i < count; i++) {
+        bool pinned = listOpen == LIST_WING && (list[i] == PD_WS_MAP || list[i] == PD_WS_BUTTONS);
+        if (pinned)
+          ROW(ROW_LIST_ITEM0 + list[i], "%s\t%s", layout_name(listOpen, list[i]), list[i] == PD_WS_MAP ? "TOP" : "FOOT");
+        else
+          ROW(ROW_LIST_ITEM0 + list[i], "%s\t%d", layout_name(listOpen, list[i]), i + 1);
+      }
+      ROW(0, PD_MENU_GROUP "OFF");
+      for (int it = listOpen == LIST_WING ? 0 : 1; it < layout_items(listOpen); it++)
+        if (layout_at(list, count, it) < 0)
+          ROW(ROW_LIST_ITEM0 + it, "%s\tOFF", layout_name(listOpen, it));
+      ROW(0, PD_MENU_GROUP "");
+      ROW(ROW_LIST_RESET, "RESET TO DEFAULT");
+      ROW(0, PD_MENU_MUTED "%s", listOpen == LIST_WING ? "WHAT DOESN'T FIT IS DROPPED FROM THE BOTTOM"
+                                                       : "WHAT DOESN'T FIT MAKES ROOM FOR THE REST");
     } else if (page == PAGE_SET_BUTTONS) {
       ROW(ROW_LAYOUT, "BUTTON LAYOUT\t%s", st.buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
     } else {
@@ -5222,10 +5392,14 @@ static int settings_page(bool *foldersChanged) {
       ROW(0, PD_MENU_MUTED "IN A DS GAME L2 / R2 STAY TOUCH SCREEN / DS LAYOUT");
     }
 #undef ROW
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++) {
       items[i] = rows[i];
+      if (focusId >= 0 && ids[i] == focusId)
+        selectedOn[page] = i;
+    }
+    focusId = -1;
     struct pd_menu m;
-    pd_menu_init(&m, TITLES[page], items, n);
+    pd_menu_init(&m, page == PAGE_SET_LIST ? LIST_TITLES[listOpen] : TITLES[page], items, n);
     rail_setup(&m, RAIL_SETTINGS);
     m.focus = focus;
     if (selectedOn[page] >= 0 && pd_menu_pickable(&m, selectedOn[page]))
@@ -5271,10 +5445,10 @@ static int settings_page(bool *foldersChanged) {
     if (back) {
       if (page == PAGE_SET_HOME)
         return RAIL_GAMES;
-      if (page == PAGE_SET_BEZEL) {
-        page = PAGE_SET_DISPLAY;
-        if (displayRow >= 0)
-          selectedOn[PAGE_SET_DISPLAY] = displayRow;
+      if (page == PAGE_SET_LIST) {
+        page = PAGE_SET_BEZEL;
+        if (layoutRow >= 0)
+          selectedOn[PAGE_SET_BEZEL] = layoutRow;
         continue;
       }
       page = PAGE_SET_HOME;
@@ -5519,19 +5693,66 @@ static int settings_page(bool *foldersChanged) {
         st.bezelStyle = b;
       break;
     }
-    case ROW_BEZEL:
-      displayRow = pick;
+    case ROW_SCREEN_LAYOUT:
+      homeRow = pick;
       page = PAGE_SET_BEZEL;
       save = false;
       break;
+    case ROW_LIST_TOP:
+    case ROW_LIST_BOTTOM:
+    case ROW_LIST_WING:
+      layoutRow = pick;
+      listOpen = id - ROW_LIST_TOP;
+      page = PAGE_SET_LIST;
+      selectedOn[PAGE_SET_LIST] = -1;
+      save = false;
+      break;
+    case ROW_PARTY_TYPES:
+      st.partyTypes = !st.partyTypes;
+      break;
+    case ROW_LIST_RESET:
+      if (listOpen == LIST_WING)
+        st.wingCount = -1;
+      else {
+        const int *d = listOpen ? BEZEL_DEFAULT_BOTTOM : BEZEL_DEFAULT_TOP;
+        int dn = listOpen ? (int)(sizeof BEZEL_DEFAULT_BOTTOM / sizeof *d) : (int)(sizeof BEZEL_DEFAULT_TOP / sizeof *d);
+        layout_store(&st, listOpen, d, dn);
+      }
+      notice("Back to the default");
+      break;
     default:
-      if (id >= ROW_BEZEL_SLOT0 && id < ROW_BEZEL_SLOT0 + BEZEL_SLOTS) {
-        int i = id - ROW_BEZEL_SLOT0;
-        int item = menu_pick(BEZEL_SLOT_NAMES[i], BEZEL_ITEM_NAMES, BEZEL_ITEMS, st.bezelSlots[i]);
-        if (item < 0)
+      if (id >= ROW_LIST_ITEM0 && id < ROW_LIST_ITEM0 + 64) {
+        // An item: on or off, or moved within what's on (the map and the buttons only on or off).
+        int item = id - ROW_LIST_ITEM0;
+        int list[BEZEL_LIST_MAX > PD_WING_LIST_MAX ? BEZEL_LIST_MAX : PD_WING_LIST_MAX];
+        int count = layout_list(&st, listOpen, list), at = layout_at(list, count, item);
+        bool pinned = listOpen == LIST_WING && (item == PD_WS_MAP || item == PD_WS_BUTTONS);
+        static const char *const ON[] = {"TURN OFF", "MOVE UP", "MOVE DOWN", "MOVE TO THE TOP"};
+        static const char *const OFF[] = {"TURN ON"};
+        int act = at < 0 ? menu_pick(layout_name(listOpen, item), OFF, 1, 0)
+                         : menu_pick(layout_name(listOpen, item), ON, pinned ? 1 : 4, 0);
+        int cap = listOpen == LIST_WING ? PD_WING_LIST_MAX : BEZEL_LIST_MAX;
+        if (act < 0)
           save = false;
-        else
-          st.bezelSlots[i] = item;
+        else if (at < 0) {
+          if (count < cap)
+            list[count++] = item;
+        } else if (act == 0) {
+          memmove(&list[at], &list[at + 1], (size_t)(count - at - 1) * sizeof *list);
+          count--;
+        } else {
+          int to = act == 1 ? at - 1 : act == 2 ? at + 1 : 0;
+          if (to < 0 || to >= count)
+            to = at;
+          int t = list[at];
+          memmove(to < at ? &list[to + 1] : &list[at], to < at ? &list[to] : &list[at + 1],
+                  (size_t)(to < at ? at - to : to - at) * sizeof *list);
+          list[to] = t;
+        }
+        if (save) {
+          layout_store(&st, listOpen, list, count);
+          focusId = id; // the cursor stays on the item it moved
+        }
         break;
       }
       if (id >= ROW_HOTKEY0 && id < ROW_HOTKEY0 + PD_HOTKEY_BUTTONS) {

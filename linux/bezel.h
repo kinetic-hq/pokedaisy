@@ -30,6 +30,15 @@ enum {
   BEZEL_CAUGHT_HERE, // how many of this area's wild kinds are caught
   BEZEL_LEAD,        // the lead POKéMON: its HP, and the EXP to its next level where the game's curve is known
   BEZEL_LAST_SAVED,  // how long since the game was last saved
+  // LAYOUT's own (the values are stored: append only)
+  BEZEL_REPEL,       // the repel's steps, only while one works
+  BEZEL_CAUGHT_SEEN, // the POKEDEX's caught and seen
+  BEZEL_DEATHS,      // NUZLOCKE's dead, while a run is on
+  BEZEL_AREA,        // NUZLOCKE: this area's encounter used or free; off: this area's caught kinds
+  BEZEL_ZOOM,        // the zoom, for a few seconds after it changes
+  BEZEL_SPEED,       // the game's speed, only when it isn't 1x
+  BEZEL_BOSS,        // the next unbeaten boss
+  BEZEL_CAP,         // the level cap
   BEZEL_ITEMS
 };
 enum { BEZEL_TOP_LEFT, BEZEL_TOP_CENTRE, BEZEL_TOP_RIGHT, BEZEL_BOTTOM_LEFT, BEZEL_BOTTOM_CENTRE, BEZEL_BOTTOM_RIGHT,
@@ -41,7 +50,18 @@ enum { BEZEL_TOP_LEFT, BEZEL_TOP_CENTRE, BEZEL_TOP_RIGHT, BEZEL_BOTTOM_LEFT, BEZ
 static const char *const BEZEL_ITEM_NAMES[BEZEL_ITEMS] = {
     "NONE", "LOCATION", "CLOCK AND BATTERY", "CLOCK", "BATTERY", "BADGES AND PLAY TIME", "BADGES", "PLAY TIME",
     "BUTTON HINTS", "STATUS CHIPS", "REPEL OR MONEY", "MONEY", "NEXT BOSS AND CAP", "CAUGHT HERE", "LEAD POKEMON",
-    "LAST SAVED"};
+    "LAST SAVED", "REPEL STEPS", "CAUGHT AND SEEN", "NUZLOCKE DEATHS", "AREA ENCOUNTER", "ZOOM", "GAME SPEED",
+    "NEXT LEADER", "LEVEL CAP"};
+/* LAYOUT's bars: each an ordered list, as many of its items as fit across it shown (one with nothing to say gives its
+ * room to the rest). When they don't all fit, the lowest BEZEL_KEEP goes first (later ones before earlier on a tie),
+ * the place shrinking (cut with "...") before anything goes. */
+#define BEZEL_LIST_MAX 32
+static const unsigned char BEZEL_KEEP[BEZEL_ITEMS] = {0, 8, 5, 6, 4, 3, 5, 1, 0, 2, 2, 2, 9, 3, 3, 1,
+                                                       4, 5, 6, 6, 3, 4, 9, 9};
+static const int BEZEL_DEFAULT_TOP[] = {BEZEL_LOCATION, BEZEL_CLOCK,  BEZEL_BATTERY, BEZEL_BADGES,
+                                        BEZEL_PLAY_TIME, BEZEL_MONEY, BEZEL_BOSS,    BEZEL_CAP};
+static const int BEZEL_DEFAULT_BOTTOM[] = {BEZEL_CAUGHT_SEEN, BEZEL_ZOOM, BEZEL_SPEED, BEZEL_REPEL, BEZEL_AREA};
+#define BEZEL_ZOOM_MS 3000u // ZOOM's showing after the zoom changes
 static const char *const BEZEL_SLOT_NAMES[BEZEL_SLOTS] = {"TOP LEFT", "TOP CENTRE", "TOP RIGHT",
                                                           "BOTTOM LEFT", "BOTTOM CENTRE", "BOTTOM RIGHT"};
 static const char *const BEZEL_STYLE_NAMES[BEZEL_STYLES] = {"BLACK", "GLOW", "THEME"};
@@ -85,6 +105,11 @@ struct bezel_facts {
   int leadHp, leadMaxHp;
   long leadToNext;     // EXP to its next level, -1 = unknown (0 at the top level)
   int savedMinutes;    // since the game was last saved this run, -1 = not yet
+  int dexCaught, dexSeen; // the POKEDEX's, -1 = unknown
+  int nuzDeaths;       // NUZLOCKE's dead, -1 = no run on
+  int nuzArea;         // this area's encounter: 0 free, 1 used, -1 = no run on (AREA then says CAUGHT HERE's)
+  bool zoomRecent;     // the zoom changed in the last BEZEL_ZOOM_MS
+  int pacePct;         // the game's speed off fast-forward, in percent (100 = 1x, 0 = unknown)
 };
 
 static inline void bezel_item_text(int item, const struct bezel_facts *f, char *out, size_t n) {
@@ -140,7 +165,7 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
     break;
   case BEZEL_NEXT_BOSS:
     if (f->boss && *f->boss && f->cap > 0)
-      snprintf(out, n, "NEXT %s  CAP Lv%d", f->boss, f->cap);
+      snprintf(out, n, "NEXT %.36s  CAP Lv%d", f->boss, f->cap % 1000);
     break;
   case BEZEL_CAUGHT_HERE:
     if (f->kindsHere > 0)
@@ -153,6 +178,50 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
         snprintf(b, sizeof b, "%ld EXP TO GO", f->leadToNext);
       snprintf(out, n, "%s%s%s", a, *b ? "  " : "", b);
     }
+    break;
+  case BEZEL_REPEL:
+    if (f->repel > 0)
+      snprintf(out, n, "REPEL %d", f->repel);
+    break;
+  case BEZEL_CAUGHT_SEEN:
+    if (f->dexSeen > 0)
+      snprintf(out, n, "CAUGHT %d  SEEN %d", f->dexCaught, f->dexSeen);
+    break;
+  case BEZEL_DEATHS:
+    if (f->nuzDeaths >= 0)
+      snprintf(out, n, "DEATHS %d", f->nuzDeaths);
+    break;
+  case BEZEL_AREA:
+    if (f->nuzArea >= 0)
+      snprintf(out, n, "AREA %s", f->nuzArea ? "USED" : "FREE");
+    else if (f->kindsHere > 0)
+      snprintf(out, n, "HERE %d/%d", f->caughtHere, f->kindsHere);
+    break;
+  case BEZEL_ZOOM:
+    if (f->zoomRecent && f->zoomPct > 0)
+      snprintf(out, n, "ZOOM %d%%", f->zoomPct);
+    break;
+  case BEZEL_SPEED:
+    if (f->ff > 0)
+      snprintf(out, n, "FF x%d", f->ff);
+    else if (f->pacePct > 0 && f->pacePct != 100)
+    {
+      int p = f->pacePct;
+      if (p % 10)
+        snprintf(out, n, "SPEED x%d.%02d", p / 100, p % 100);
+      else if (p % 100)
+        snprintf(out, n, "SPEED x%d.%d", p / 100, p % 100 / 10);
+      else
+        snprintf(out, n, "SPEED x%d", p / 100);
+    }
+    break;
+  case BEZEL_BOSS:
+    if (f->boss && *f->boss)
+      snprintf(out, n, "NEXT %.40s", f->boss);
+    break;
+  case BEZEL_CAP:
+    if (f->cap > 0)
+      snprintf(out, n, "CAP Lv%d", f->cap);
     break;
   case BEZEL_LAST_SAVED:
     if (f->savedMinutes >= BEZEL_SAVE_LATE_MIN)
@@ -227,6 +296,73 @@ static inline void bezel_bars(const int slots[BEZEL_SLOTS], const struct bezel_f
   memcpy(taken, drawn, sizeof drawn);
   bezel_bar_text_taken(items, &slots[BEZEL_TOP_LEFT], taken, f, out, bottomShown);
   memcpy(bottom, out, sizeof out);
+}
+/* LAYOUT's bar from its list: each item's text in order (OUT[i] for the i-th that has something to say; ITEM[i] the
+ * item), skipping what TAKEN (the other bar's, [BEZEL_ITEMS], may be NULL) already says. Returns how many. */
+static inline int bezel_list_texts(const int *list, int count, const bool *taken, const struct bezel_facts *f,
+                                   char out[][64], int *item, int max) {
+  int n = 0;
+  bool used[BEZEL_ITEMS] = {false};
+  for (int i = 0; i < count && n < max; i++) {
+    int it = list[i];
+    if (it <= BEZEL_NONE || it >= BEZEL_ITEMS || used[it] || (taken && taken[it]))
+      continue;
+    used[it] = true;
+    bezel_item_text(it, f, out[n], 64);
+    if (out[n][0])
+      item[n++] = it;
+  }
+  return n;
+}
+/* Which of N texts (widths W, the place's index SHRINK or -1, its least width SHRINK_MIN) fit across WIDTH GAP apart:
+ * KEEP[i] false for the dropped ones, the lowest BEZEL_KEEP first (later first on a tie). Returns the place's width
+ * (its whole width when it needn't shrink). */
+static inline int bezel_fit(const int *w, const int *item, int n, int shrink, int shrinkMin, int width, int gap,
+                            bool *keep) {
+  int placeW = shrink >= 0 ? w[shrink] : 0;
+  for (int i = 0; i < n; i++)
+    keep[i] = true;
+  for (;;) {
+    int total = 0, shown = 0;
+    for (int i = 0; i < n; i++)
+      if (keep[i]) {
+        total += i == shrink ? placeW : w[i];
+        shown++;
+      }
+    total += shown > 1 ? (shown - 1) * gap : 0;
+    if (total <= width || !shown)
+      return placeW;
+    if (shrink >= 0 && keep[shrink] && placeW > shrinkMin) { // the place gives up what it can, down to its least
+      int cut = total - width;
+      placeW = placeW - cut < shrinkMin ? shrinkMin : placeW - cut;
+      if (total - (w[shrink] - placeW) <= width)
+        return placeW;
+    }
+    placeW = shrink >= 0 ? w[shrink] : 0; // not enough: something goes, and the place tries again at full width
+    int drop = -1;
+    for (int i = 0; i < n; i++)
+      if (keep[i] && (drop < 0 || BEZEL_KEEP[item[i]] <= BEZEL_KEEP[item[drop]]))
+        drop = i;
+    if (drop < 0 || shown == 1)
+      return placeW;
+    keep[drop] = false;
+  }
+}
+/* An old bar's three places as a list: those (NONE left out); the old defaults become the new ones. Returns the count. */
+static inline int bezel_list_from_slots(const int *slots, bool top, int *out) {
+  static const int OLD_TOP[3] = {BEZEL_LOCATION, BEZEL_CLOCK_BATTERY, BEZEL_NEXT_BOSS},
+                   OLD_BOTTOM[3] = {BEZEL_BADGES, BEZEL_PLAY_TIME, BEZEL_REPEL_MONEY};
+  if (!memcmp(slots, top ? OLD_TOP : OLD_BOTTOM, sizeof OLD_TOP)) {
+    const int *d = top ? BEZEL_DEFAULT_TOP : BEZEL_DEFAULT_BOTTOM;
+    int n = top ? (int)(sizeof BEZEL_DEFAULT_TOP / sizeof *d) : (int)(sizeof BEZEL_DEFAULT_BOTTOM / sizeof *d);
+    memcpy(out, d, (size_t)n * sizeof *d);
+    return n;
+  }
+  int n = 0;
+  for (int i = 0; i < 3; i++)
+    if (slots[i] > BEZEL_NONE && slots[i] < BEZEL_ITEMS)
+      out[n++] = slots[i];
+  return n;
 }
 /* A wild battle's catch hint from the foe's HP and status (the Gen 3 catch formula's two levers the player has). */
 static inline const char *bezel_catch_hint(int hp, int maxHp, bool sleepOrFrozen, bool otherStatus) {

@@ -34,9 +34,23 @@ int main(void) {
 
   // Unknown: left out, never made up.
   struct bezel_facts u = {.place = NULL, .hour = -1, .battery = -1, .badges = -1, .playHours = -1, .money = -1,
-                          .leadToNext = -1, .savedMinutes = -1};
+                          .leadToNext = -1, .savedMinutes = -1, .dexCaught = -1, .dexSeen = -1, .nuzDeaths = -1,
+                          .nuzArea = -1};
   for (int i = 0; i < BEZEL_ITEMS; i++)
     EXPECT(i, &u, "");
+  // The LAYOUT page's own items.
+  struct bezel_facts n = u;
+  n.nuzDeaths = 2;
+  n.nuzArea = 0;
+  n.dexCaught = 12;
+  n.dexSeen = 30;
+  EXPECT(BEZEL_DEATHS, &n, "DEATHS 2");
+  EXPECT(BEZEL_AREA, &n, "AREA FREE");
+  EXPECT(BEZEL_CAUGHT_SEEN, &n, "CAUGHT 12  SEEN 30");
+  n.nuzArea = -1;
+  n.caughtHere = 1;
+  n.kindsHere = 4;
+  EXPECT(BEZEL_AREA, &n, "HERE 1/4");
   u.hour = 23;
   u.minute = 59;
   EXPECT(BEZEL_CLOCK_BATTERY, &u, "23:59");

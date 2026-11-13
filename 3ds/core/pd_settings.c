@@ -85,6 +85,24 @@ void pd_settings_defaults(struct pd_settings* s) {
     // REPEL OR MONEY.
     static const int BEZEL_SLOTS[6] = {1, 2, 12, 6, 7, 10};
     for (int i = 0; i < 6; i++) s->bezelSlots[i] = BEZEL_SLOTS[i];
+    s->barCount[0] = s->barCount[1] = -1;
+    s->wingCount = -1;
+    s->partyTypes = true;
+}
+
+// "a,b,c" into list (each 0 ... max - 1, the rest skipped); the count, -1 for an unreadable list.
+static int int_list(const char* p, int* list, int cap, int max) {
+    int n = 0;
+    while (*p && n < cap) {
+        if (*p < '0' || *p > '9') return -1;
+        int v = atoi(p);
+        bool dup = false;
+        for (int k = 0; k < n; k++) dup |= list[k] == v;
+        if (v < max && !dup) list[n++] = v;
+        while (*p && *p != ',') p++;
+        if (*p == ',') p++;
+    }
+    return n;
 }
 
 const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};
@@ -199,6 +217,13 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
             static const int OLD[6] = {1, 2, 5, 14, 12, 10}, NEW[6] = {1, 2, 12, 6, 7, 10};
             if (!memcmp(s->bezelSlots, OLD, sizeof(OLD))) memcpy(s->bezelSlots, NEW, sizeof(NEW));
         }
+        else if (!strcmp(key, "bartop")) s->barCount[0] = int_list(value, s->barList[0], PD_BAR_LIST_MAX, 64);
+        else if (!strcmp(key, "barbottom")) s->barCount[1] = int_list(value, s->barList[1], PD_BAR_LIST_MAX, 64);
+        else if (!strcmp(key, "wing")) s->wingCount = int_list(value, s->wingList, PD_WING_LIST_MAX, PD_WING_SECTIONS);
+        else if (!strcmp(key, "partytypes")) {
+            int on;
+            if (int_in(value, 0, 1, &on)) s->partyTypes = on;
+        }
         else if (!strcmp(key, "hotkeys")) {
             // One action a button, comma-separated; an unknown one is the button's usual use.
             const char* p = value;
@@ -275,6 +300,19 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
             s->stretch ? 1 : 0);
     fprintf(f, "bezel=%d\nbezelslots=%d,%d,%d,%d,%d,%d\n", s->bezelStyle, s->bezelSlots[0], s->bezelSlots[1],
             s->bezelSlots[2], s->bezelSlots[3], s->bezelSlots[4], s->bezelSlots[5]);
+    static const char* const LISTS[2] = {"bartop", "barbottom"};
+    for (int b = 0; b < 2; b++) {
+        if (s->barCount[b] < 0) continue;
+        fprintf(f, "%s=", LISTS[b]);
+        for (int i = 0; i < s->barCount[b] && i < PD_BAR_LIST_MAX; i++) fprintf(f, i ? ",%d" : "%d", s->barList[b][i]);
+        fprintf(f, "\n");
+    }
+    if (s->wingCount >= 0) {
+        fprintf(f, "wing=");
+        for (int i = 0; i < s->wingCount && i < PD_WING_LIST_MAX; i++) fprintf(f, i ? ",%d" : "%d", s->wingList[i]);
+        fprintf(f, "\n");
+    }
+    fprintf(f, "partytypes=%d\n", s->partyTypes ? 1 : 0);
     if (fclose(f) != 0) return false;
 #ifdef _WIN32
     // rename() won't replace a file on Windows; MoveFileEx does, in one step (paths are UTF-8: the host's manifest).
