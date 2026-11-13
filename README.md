@@ -439,7 +439,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **EDIT SAVE's PRESETS** on the desktop host: `IMPORT SETS` copies battle sets (Showdown text, CSV, JSON, or a .zip /
   .rar of them) into `<data>/presets`; a Pokemon's `PRESETS` lists its sets for the game's generation and fills in moves,
   nature, EVs, IVs (Hidden Power's type through them), item and ability, naming what the game can't do. `PASTE SET`
-  takes a set from the clipboard. No sets are bundled.
+  takes a set from the clipboard. No sets are bundled: the first `PRESETS` with none downloads Smogon's sets for
+  generations 1 to 9 from the pkmn project's public lists into `<data>/presets/smogon`, and `GET SETS` refreshes them.
 
 </details>
 
