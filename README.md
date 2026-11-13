@@ -414,6 +414,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Battle LAYOUT** on the desktop host: `BATTLE TOP BAR`, `BATTLE BOTTOM BAR` and `BATTLE RIGHT WING` lists, and a
   battle right wing in sections (the foe and you, moves with their kind, power and accuracy, speed, the foe's IVs,
   a switch pick marked in the party wing, the foe's team) that drops what doesn't fit.
+- **RetroAchievements** on the desktop host (GB, GBC and GBA, softcore): sign in from `SETTINGS >
+  RETROACHIEVEMENTS` (only the token is kept), unlocks pop up as you play, the game menu lists the set,
+  and a save state keeps its achievement progress.
 
 </details>
 

@@ -25,7 +25,17 @@ find_path(SDL2_INCLUDE_DIR SDL.h PATH_SUFFIXES SDL2 REQUIRED)
 find_library(SDL2_LIBRARY NAMES SDL2 REQUIRED)
 find_package(Threads REQUIRED)
 file(GLOB PD_CORE CONFIGURE_DEPENDS ../3ds/core/*.c)
-add_library(pd_linux_common STATIC bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
+# RetroAchievements (ra.c): rcheevos as the Android app builds it, without its hashing (ra.c takes the file's MD5).
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/rcheevos/include/rc_client.h")
+  message(FATAL_ERROR "Initialize rcheevos: git submodule update --init third_party/rcheevos")
+endif()
+file(GLOB RCHEEVOS_SOURCES CONFIGURE_DEPENDS ../third_party/rcheevos/src/*.c ../third_party/rcheevos/src/rapi/*.c
+  ../third_party/rcheevos/src/rcheevos/*.c)
+list(FILTER RCHEEVOS_SOURCES EXCLUDE REGEX "rc_libretro\\.c$|rc_client_external\\.c$|rc_client_raintegration\\.c$")
+add_library(pd_rcheevos STATIC ${RCHEEVOS_SOURCES} ../third_party/rcheevos/src/rhash/md5.c)
+target_include_directories(pd_rcheevos PUBLIC ../third_party/rcheevos/include)
+target_compile_options(pd_rcheevos PRIVATE -w)
+add_library(pd_linux_common STATIC bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c ra.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
   ../app/src/main/cpp/pk_call.c ../app/src/main/cpp/pk_host.c ../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c
   ../app/src/main/cpp/pk_rewind.c)
 target_include_directories(pd_linux_common PUBLIC ../third_party/xbrz ../3ds/core ../third_party/mgba/include ${CMAKE_CURRENT_BINARY_DIR}/mgba/include ${SDL2_INCLUDE_DIR})
@@ -44,7 +54,7 @@ target_compile_options(pd_linux_common PRIVATE -Wall -Wextra)
 # xBRZ as it comes (third_party/xbrz).
 set_source_files_properties(../third_party/xbrz/xbrz.cpp PROPERTIES COMPILE_OPTIONS -w)
 set_source_files_properties(../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c PROPERTIES COMPILE_OPTIONS -Wno-unused-parameter)
-target_link_libraries(pd_linux_common PUBLIC mgba ${SDL2_LIBRARY} m Threads::Threads ${CMAKE_DL_LIBS})
+target_link_libraries(pd_linux_common PUBLIC pd_rcheevos mgba ${SDL2_LIBRARY} m Threads::Threads ${CMAKE_DL_LIBS})
 if(WIN32)
   target_link_libraries(pd_linux_common PUBLIC winhttp) # updater.c's release check and download
 endif()

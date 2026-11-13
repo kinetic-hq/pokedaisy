@@ -22,6 +22,7 @@
 #include "fly.h"
 #include "display_filter.h"
 #include "updater.h"
+#include "ra.h"
 #include "backdrop.h"
 #include "wing_look.h"
 #include "wide_camera.h"
@@ -757,7 +758,8 @@ static void key_script(void) {
 static uint32_t wingActivity; // the last input or wing change (draw_panel: the still wings dim)
 static uint32_t lastInputAt;  // the last input (the bezel bars' BUTTON HINTS)
 static void events(void) {
-  pressed = 0;
+   ra_pump(); // RetroAchievements: the server's answers, on the main thread
+ pressed = 0;
   tapCount = 0;
   wingClicked = false;
   tap_script();
@@ -2621,6 +2623,7 @@ static bool state(struct mCore *c, const char *path, bool save) {
   if (ok && save)
     bezelSavedAt = SDL_GetTicks();
   if (ok && !save) {
+    ra_progress_load(path); // RetroAchievements: its progress as it was when the state was made
     pk_heal_rtc(c);
     pk_wide_reset(); // EXPAND's RAM history is from before the jump
     wideReady = false;
@@ -2630,8 +2633,10 @@ static bool state(struct mCore *c, const char *path, bool save) {
       ok = pocket_replace(tmp, path);
     else
       pocket_remove(tmp);
-    if (ok)
+    if (ok) {
       slot_thumb_write(c, path);
+      ra_progress_save(path);
+    }
     slotsStale = true;
   }
   return ok;
@@ -3388,6 +3393,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     blip_set_rates(c->getAudioChannel(c, i), c->frequency(c), 32768);
   c->reset(c);
   pk_heal_rtc(c);
+  ra_load_game(c, romdata, (size_t)len); // RetroAchievements: the file's hash, when you're signed in
   uint32_t crc = 0;
   c->checksum(c, &crc, mCHECKSUM_CRC32);
   wideSupported = pk_wide_configure(crc) != 0;
@@ -3546,15 +3552,21 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                         "Toggle fast-forward",
                         "Toggle fullscreen",
                         "Quit to game list",
+                        "Achievements",
                         "About"};
   const char *confirmOpts[] = {"Cancel", "Confirm"};
   const char *resumeOpts[] = {"Continue", "Start from save"};
-  struct pd_menu gameMenu, confirmMenu, resumeMenu;
+  struct pd_menu gameMenu, confirmMenu, resumeMenu, raMenu;
+  // ACHIEVEMENTS (menuOpen 7): the game's RetroAchievements, made when it opens.
+  static char raRows[400][96], raDesc[400][160];
+  static const char *raItems[400];
+  static char raTitle[64];
   bool wingClose = false; // the CLOSE GAME question came from the right wing's button
-  pd_menu_init(&gameMenu, "GAME", opts, 8);
+  pd_menu_init(&gameMenu, "GAME", opts, 9);
+  pd_menu_init(&raMenu, "ACHIEVEMENTS", raItems, 0);
   pd_menu_init(&confirmMenu, "CONFIRM", confirmOpts, 2);
   pd_menu_init(&resumeMenu, "Continue where you left off?", resumeOpts, 2);
-  int menuOpen = 0; // 1 the game menu, 2 / 3 / 5 its confirms, 4 About, 6 RESUME GAMES' question
+  int menuOpen = 0; // 1 the game menu, 2 / 3 / 5 its confirms, 4 About, 6 RESUME GAMES' question, 7 ACHIEVEMENTS
   bool companion = false, ff = false, leave = false;
   if (resumeOffer) {
     menuOpen = 6;
@@ -3949,7 +3961,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           if (down(B) || down(A))
             menuOpen = 1;
         } else {
-          struct pd_menu *pm = menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : &confirmMenu;
+          struct pd_menu *pm = menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : menuOpen == 7 ? &raMenu : &confirmMenu;
           int tapped = menu_taps(pm);
           if (tapped >= 0 && tapped < pm->count) {
             pm->selected = tapped;
@@ -3959,7 +3971,13 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
             pd_menu_move(pm, -1);
           if (down(DOWN))
             pd_menu_move(pm, 1);
-          if (menuOpen == 6 && (down(A) || down(B))) {
+          if (menuOpen == 7 && (down(A) || down(B))) {
+            // A: the achievement's description; B: back to the GAME menu.
+            if (down(A) && pd_menu_pickable(&raMenu, raMenu.selected) && raDesc[raMenu.selected][0])
+              notice(raDesc[raMenu.selected]);
+            else if (down(B))
+              menuOpen = 1;
+          } else if (menuOpen == 6 && (down(A) || down(B))) {
             // CONTINUE loads the state left last time; B or START FROM SAVE plays on from the save's boot.
             if (down(A) && resumeMenu.selected == 0)
               notice(state(c, resumePath, false) ? "Continued where you left off" : "Couldn't continue; started from the save");
@@ -4005,7 +4023,23 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                 confirmMenu.title = "Quit? Save in-game first.";
                 confirmMenu.selected = 0;
                 break;
-              case 7:
+              case 7: {
+                int rn = ra_rows(raRows, raDesc, 400);
+                if (!rn) {
+                  notice(ra_login_state() != RA_LOGGED_IN ? "Sign in to RetroAchievements in SETTINGS first"
+                                                          : "No achievements for this game");
+                  break;
+                }
+                for (int r = 0; r < rn; r++)
+                  raItems[r] = raRows[r];
+                ra_summary(raTitle, sizeof raTitle);
+                pd_menu_init(&raMenu, raTitle, raItems, rn);
+                raMenu.selected = 0;
+                pd_menu_move(&raMenu, 1); // row 0 is a group title
+                menuOpen = 7;
+                break;
+              }
+              case 8:
                 menuOpen = 4;
                 break;
               }
@@ -4078,6 +4112,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           break;
         case PD_ACTION_RESTART_GAME:
           c->reset(c);
+          ra_reset();
           notice("Game restarted");
           break;
         case PD_ACTION_PER_GAME:
@@ -4184,6 +4219,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         tmsOn = !tmsOn;
         tweak_apply(c, romdata, &tmPatch, tmsOn);
       }
+      ra_set_paused(shinyOk && settings.shinyOdds > 0);
       uint64_t runStart = SDL_GetPerformanceCounter();
       for (int i = 0; i < count; i++) {
         uint64_t t = SDL_GetPerformanceCounter();
@@ -4195,6 +4231,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           pk_rewind_append(&rewindRing, c);
         }
         c->runFrame(c);
+        ra_frame();
         if (gameKeyFrames > 0 && --gameKeyFrames == 0)
           c->setKeys(c, (quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023);
         if (c->platform(c) == mPLATFORM_GBA)
@@ -4380,7 +4417,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                     flyList ? flyT.count : repelKindCount,
                     flyList ? flySel : repelSel, gw, gh);
     } else if (companion && menuOpen && menuOpen != 4) {
-      present_menu(menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : &confirmMenu, gw, gh);
+      present_menu(menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : menuOpen == 7 ? &raMenu : &confirmMenu, gw, gh);
     } else if (companion) {
       {
         struct view_rect cr = view_companion(&viewTo);
@@ -4393,7 +4430,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                          "https://github.com/lidor30/pokedaisy",
                          "GPL-3.0 | mGBA MPL-2.0 | B: Back");
         } else
-          pd_menu_draw(menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : &confirmMenu, &canvas);
+          pd_menu_draw(menuOpen == 1 ? &gameMenu : menuOpen == 6 ? &resumeMenu : menuOpen == 7 ? &raMenu : &confirmMenu, &canvas);
       } else {
         pd_ui_update(&ui, &snap);
         // The companion draws the focused hit as its own cursor where it has one.
@@ -4522,6 +4559,7 @@ cleanup:
   pk_wide_configure(0);
   pk_wide_extras_reset(); // DAY AND NIGHT's tint goes with the game
   wideSupported = wideReady = false;
+  ra_unload_game();
   c->unloadROM(c);
   if(saveStatus.failed)appError=1;
   mCoreConfigDeinit(&c->config);
@@ -5320,10 +5358,37 @@ enum {
   ROW_LIST_BATTLE_WING,
   ROW_PARTY_TYPES,
   ROW_LIST_RESET,
+  ROW_RA,
   ROW_BEZEL_SLOT0 = 80,
   ROW_HOTKEY0 = 100,
   ROW_LIST_ITEM0 = 200
 };
+static bool text_entry(const char *title, char *buf, size_t size);
+static bool textMask; // text_entry shows a star for each character (a password)
+/* RETROACHIEVEMENTS > ACCOUNT: the name, then the password, then the server's answer (up to 30 s). */
+static void ra_sign_in(void) {
+  char user[64] = "", pass[64] = "";
+  if (!text_entry("RETROACHIEVEMENTS USER NAME", user, sizeof user) || !*user)
+    return;
+  textMask = true;
+  bool typed = text_entry("RETROACHIEVEMENTS PASSWORD", pass, sizeof pass) && *pass;
+  textMask = false;
+  if (!typed)
+    return;
+  notice("Signing in to RetroAchievements...");
+  ra_login(user, pass);
+  memset(pass, 0, sizeof pass);
+  Uint32 until = SDL_GetTicks() + 30000;
+  while (running && ra_login_state() == RA_LOGGING_IN && (Sint32)(until - SDL_GetTicks()) > 0) {
+    events();
+    SDL_Delay(16);
+  }
+  if (ra_login_state() != RA_LOGGED_IN) {
+    char line[200];
+    snprintf(line, sizeof line, "Couldn't sign in: %s", *ra_login_error() ? ra_login_error() : "no answer");
+    notice(line);
+  }
+}
 static int settings_page(bool *foldersChanged) {
   static const char *const ORIENTATIONS[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED",
                                                             "PORTRAIT FLIPPED"};
@@ -5396,6 +5461,10 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_UPDATES, "CHECK FOR UPDATES\t%s", st.updateCheck ? "ON" : "OFF");
       ROW(ROW_SETUP, "RUN SETUP" PD_MENU_PAGE);
       ROW(0, "VERSION\t" PD_MENU_MUTED "%s", POCKET_VERSION);
+      ROW(0, PD_MENU_GROUP "RETROACHIEVEMENTS");
+      ROW(ROW_RA, "ACCOUNT\t%s", ra_login_state() == RA_LOGGED_IN    ? ra_user()
+                                 : ra_login_state() == RA_LOGGING_IN ? "SIGNING IN"
+                                                                     : "SIGN IN");
     } else if (page == PAGE_SET_DISPLAY) {
       ROW(ROW_SHADER, "SHADER\t%s", SHADERS[st.shader >= 0 && st.shader < PD_SHADERS ? st.shader : 0]);
       ROW(ROW_COLORS, "COLORS\t%s", COLORS[st.colors >= 0 && st.colors < PD_COLORS ? st.colors : 0]);
@@ -5594,6 +5663,26 @@ static int settings_page(bool *foldersChanged) {
       st.boxartAuto = !st.boxartAuto;
       *foldersChanged = true; // the list looks again (or stops)
       break;
+    case ROW_RA: {
+      if (ra_login_state() == RA_LOGGED_IN) {
+        static const char *const raRowsOut[] = {"SIGN OUT", "CANCEL"};
+        char hint[160];
+        snprintf(hint, sizeof hint, "Signed in as %s. GB and GBA games unlock achievements as you play.",
+                 ra_user());
+        if (menu_pick_hint("RETROACHIEVEMENTS", hint, raRowsOut, 2, 1) == 0) {
+          ra_logout();
+          notice("Signed out of RetroAchievements");
+        }
+      } else if (ra_login_state() == RA_LOGGED_OUT) {
+        static const char *const raRowsIn[] = {"SIGN IN", "CANCEL"};
+        if (menu_pick_hint("RETROACHIEVEMENTS",
+                           "Sign in with your retroachievements.org account. Only its token is kept.",
+                           raRowsIn, 2, 0) == 0)
+          ra_sign_in();
+      }
+      save = false;
+      break;
+    }
     case ROW_SGDB: {
       static const char *const keyRows[] = {"PASTE THE KEY FROM THE CLIPBOARD", "REMOVE THE KEY"};
       int k = menu_pick_hint("STEAMGRIDDB KEY",
@@ -6032,10 +6121,20 @@ static bool text_entry(const char *title, char *buf, size_t size) {
     int fy = 28;
     pd_round_rect(&canvas, 10, fy, canvas.w - 20, 24, 5, edge);
     pd_round_rect(&canvas, 11, fy + 1, canvas.w - 22, 22, 4, keyC);
-    int tw = pd_text_width(buf);
+    char shown[64];
+    const char *field = buf;
+    if (textMask) { // a password: a star for each character
+      size_t m = 0;
+      for (const char *q = buf; *q && m + 1 < sizeof shown; q++)
+        if (((unsigned char)*q & 0xC0) != 0x80)
+          shown[m++] = '*';
+      shown[m] = 0;
+      field = shown;
+    }
+    int tw = pd_text_width(field);
     int tx = 16 + (tw > canvas.w - 40 ? canvas.w - 40 - tw : 0);
     pd_clip(&canvas, 12, fy, canvas.w - 24, 24);
-    pd_text(&canvas, tx, fy + 2, buf, text, PD_NO_SHADOW);
+    pd_text(&canvas, tx, fy + 2, field, text, PD_NO_SHADOW);
     if ((SDL_GetTicks() / 500) % 2)
       pd_fill(&canvas, tx + tw + 1, fy + 5, 1, 14, ring);
     pd_unclip(&canvas);
@@ -7493,6 +7592,9 @@ int main(int argc, char **argv) {
     pd_settings_load(&st, path);
     const char *as = getenv("POCKET_UPDATE_AS");
     updater_start(root, as ? as : POCKET_VERSION, st.updateCheck && (!frames || as) && !getenv("POCKET_NO_UPDATE_CHECK"));
+    // RetroAchievements: a saved sign-in signs in again (never in a headless run).
+    if (!frames)
+      ra_init(root, POCKET_VERSION, notice);
   }
   if (rom)
     run_game(rom, frames, shot);

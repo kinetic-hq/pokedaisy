@@ -64,3 +64,10 @@ reads (`rightWingMap`) are set every frame the wing is shown, not only when its 
 FireRed or Emerald kind ROM's own 12-byte move table is found by its first three moves, and byte 10 is read as the
 split only when POUND, EMBER, GROWL and SWORDS DANCE read 0, 1, 2, 2 there (CFRU hacks). Otherwise Gen 3's rule by type
 applies, and only when the type numbering is vanilla. DS games show no kind: their move data isn't read yet.
+
+## RetroAchievements (linux/ra.c)
+
+- rc_client as on Android (softcore). Its server calls run on SDL threads through `http_post` (WinHTTP, or curl reading the body from a 0600 temp file so a password never shows in `ps`); the answers wait in a queue that `ra_pump` delivers from `events()`, so they always land on the main thread, between frames.
+- The GB / GBA hash is the MD5 of the ROM *file* (`romdata` in run_game), never the core's ROM: mGBA writes the GPIO registers into it.
+- The token lives in DATA/retroachievements.ini; a token the server turns down deletes it. Headless runs (`--frames`) never sign in.
+- Progress is written beside each state as `<state>.ra` inside `state()`. DS games don't load a set yet (the DS loop is dsperate's).

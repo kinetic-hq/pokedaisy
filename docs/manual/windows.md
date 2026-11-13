@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -175,6 +175,30 @@ the update starts; your shortcuts keep working.
 On Linux `UPDATE NOW` reads `OPEN DOWNLOAD PAGE` and opens the release in your
 browser. To stop looking for updates, turn `CHECK FOR UPDATES` off in the
 companion's `SETTINGS`.
+
+## RetroAchievements
+
+Game Boy, Game Boy Color and Game Boy Advance games earn
+[RetroAchievements](achievements.md) on the desktop too, in softcore, as on
+Android.
+
+1. On the game list, open `SETTINGS` and go down to `RETROACHIEVEMENTS`.
+2. Pick `ACCOUNT`, then `SIGN IN`.
+3. Type your user name, then your password, on the keyboard that comes up (a
+   real keyboard types too; press Enter or `DONE`).
+
+The row then shows your name. Your password is sent once and never kept: the
+app keeps only the site's token, in `DATA\retroachievements.ini`, and signs
+you in with it each time it starts. Pick `ACCOUNT` again to `SIGN OUT`.
+
+When a game starts, a line says how many of its achievements you have, or that
+the site has none for that exact ROM. Each one you earn pops up as you play. To
+see the whole set, open the game menu and pick `Achievements`: those still to
+earn show their points, the ones you have show `DONE`, and pressing A on one
+shows what it asks for. A save state keeps the progress your achievements had
+made, and loading it puts that back. Raising `SHINY ODDS` pauses them until you
+set it back to `NORMAL`, as on Android. DS games don't earn achievements on the
+desktop yet.
 
 ## Saves
 

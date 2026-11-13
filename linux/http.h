@@ -11,4 +11,10 @@ bool http_url_ok(const char *url);
 char *http_get(const char *url, const char *header, size_t max, size_t *size);
 /* Percent-encodes s for a URL's path: everything but letters, digits and -._~ . */
 void http_encode(const char *s, char *out, size_t size);
+/* RetroAchievements' calls: url (http_url_ok) with post (NULL: a GET) of content type (NULL: a form), agent as the
+ * User-Agent (printable ASCII; NULL: "PokeDaisy"). Any answer is returned, its status in *status, the body malloc'd
+ * and NUL-ended (*size without the NUL); NULL when nothing came back or it was over max bytes. The post never
+ * appears on a command line (curl reads it from a private temp file). */
+char *http_post(const char *url, const char *post, const char *type, const char *agent, size_t max, size_t *size,
+                int *status);
 #endif
