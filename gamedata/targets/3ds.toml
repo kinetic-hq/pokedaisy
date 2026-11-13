@@ -27,6 +27,7 @@ VANILLA_BATTLE_MON = '&pd_battle_layout_vanilla'
 EXPANSION_BATTLE_MON = '&pd_battle_layout_expansion'
 TMT2_BATTLE_MON = '&pd_battle_layout_tmt2'
 TEAM_ROCKET_BATTLE_MON = '&pd_battle_layout_team_rocket'
+TEAM_ROCKET_V3_BATTLE_MON = '&pd_battle_layout_team_rocket_v3'
 WISHES_BATTLE_MON = '&pd_battle_layout_wishes'
 PETALBURG_BATTLE_MON = '&pd_battle_layout_petalburg'
 ROWE_BATTLE_MON = '&pd_battle_layout_rowe'
@@ -573,6 +574,11 @@ name = 'TEAM_ROCKET'
 parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
 values = { partyMenu = 0x0203DE64 }
 
+# Team Rocket Edition 2026 (Spanish v3.0.9, sha1 0d8bdaee): its own pokeemerald-expansion 1.14.4 config.
+[config.team_rocket_v3]
+name = 'TEAM_ROCKET_V3'
+parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
+
 [config.dreamstone]
 name = 'DREAMSTONE'
 parts = ['ram', 'foes', 'icons', 'dex', 'guide', 'battle', 'engine', 'boxes']
@@ -1081,6 +1087,16 @@ typeChart = 'typeEffectivenessTeamRocket'
 speciesTypes = 'speciesTypeDataTeamRocket'
 genderRatios = 'genderRatiosTeamRocket'
 mapsecs = 'mapSecDataTeamRocket'
+
+[text.team_rocket_v3]
+species = 'speciesNamesTeamRocketV3'
+items = 'itemNamesTeamRocketV3'
+moves = 'moveDataTeamRocketV3'
+typeNames = 'typeNamesTeamRocketV3'
+typeChart = 'typeEffectivenessTeamRocketV3'
+speciesTypes = 'speciesTypeDataTeamRocketV3'
+genderRatios = 'genderRatiosTeamRocketV3'
+mapsecs = 'mapSecDataTeamRocketV3'
 
 [text.dreamstone]
 species = 'speciesNamesDreamstone'
