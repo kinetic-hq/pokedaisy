@@ -578,7 +578,7 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   window too narrow for that gets `TOUCH IN WING`.
 
 The companion's panels in the wings read Platinum (USA), Renegade Platinum,
-HeartGold, SoulSilver, Origin HeartGold, HeartFelt Gold, Black, White, Black 2 and White 2; in other DS games
+HeartGold, SoulSilver, Origin HeartGold, Black, White, Black 2 and White 2; in other DS games
 they say so. While they show, the HUD leaves out its party row.
 
 SELECT and R3 together (Space on a keyboard) swap the two screens: in `ONE SCREEN` you see the
@@ -630,14 +630,8 @@ wild creatures where you stand by time of day, and `NEXT BOSS` shows the next
 gym leader or League member with the hack's own team, the Kanto leaders first
 since the hack sends you there first. `HERE` also lists the items lying or
 hidden where you stand, ticked once you have picked them up.
-HeartFelt Gold gets `PARTY`, `BAG`, `MAP`, `DEX` and `BATTLE`, with its own creatures,
-moves, items, types and icons read from its cart. `DEX` lists the whole
-National Dex in order, with each creature's picture, stats, size, entry text,
-evolutions, level-up moves and the TMs and HMs it fits. Its `GUIDE` has two
-pages, read from its cart: `HERE` lists the wild creatures where you stand by
-time of day, and `NEXT BOSS` shows the next gym leader or League member with
-the hack's own team. `BATTLE` shows your creature and the foe, their moves and types,
-and a trainer's team. EXPAND and auto battles work as in HeartGold.
+HeartFelt Gold plays without the companion for now: the hack is still being
+made, so its support is switched off until it's finished.
 For other DS games you get the game alone, and `SETTINGS` tells you
 which game and revision it found, and which ones the companion reads.
 

@@ -62,6 +62,11 @@ static int ds_support(const char *path, char *detail, size_t size) {
   // HeartFelt Gold (ds_heartfelt_cart): HeartGold's header with its ARM9 grown to 0x111EF8 bytes.
   if (!memcmp(head + 12, "IPKE", 4) && !head[30] &&
       (head[0x2C] | head[0x2D] << 8 | head[0x2E] << 16 | (uint32_t)head[0x2F] << 24) == 0x111EF8u) {
+    const bool heartfeltOn = false; // Off until the hack itself is finished (frontend.cpp's heartfeltOn too).
+    if (!heartfeltOn) {
+      snprintf(detail, size, "No DS companion for this hack yet: the game runs");
+      return GAME_SUPPORT_PLAY;
+    }
     snprintf(detail, size, "Every companion tab; GUIDE has HERE and NEXT BOSS");
     return GAME_SUPPORT_PARTLY;
   }
