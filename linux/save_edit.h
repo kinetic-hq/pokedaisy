@@ -70,6 +70,9 @@ struct se_ops {
   /* The file's bytes read back: the same save as built? */
   bool (*verify)(struct save_edit *, const uint8_t *bytes, size_t size, char *, size_t);
   void (*free)(struct save_edit *);
+  /* The pocket (0 .. pockets - 1) the item goes in, from the game's own item table; -1 when it isn't known or never
+   * goes in the bag. NULL: the game can't tell (the pocket's ADD AN ITEM then searches every item). */
+  int (*item_pocket)(struct save_edit *, int id);
 };
 
 struct save_edit {

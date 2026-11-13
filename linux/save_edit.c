@@ -442,15 +442,49 @@ static int g3_item_max(struct save_edit *e) {
   return (G(e)->game.kind == PD_GAME_EMERALD ? pd_item_names_emerald_count : pd_item_names_firered_count) - 1;
 }
 
-/* struct Item.pocket in the ROM's gItems (44-byte records whose item 1 says 1), -1 when it can't be read. */
+/* struct Item.pocket in the ROM's gItems, -1 when it can't be read. The record is retail's from its itemId on (price,
+ * holdEffect, holdEffectParam, description, importance, registrability, pocket): the pocket 12 bytes after the id,
+ * the description 6 after it (44-byte records with the id at 14, 40-byte ones with it at 10); a record whose id isn't
+ * the item's own isn't trusted. A game numbering its items as retail does and without such a table falls back to
+ * retail's ranges. */
 static int item_pocket(struct g3 *g, int item) {
   const struct pd_item_descs *t = g->game.cfg->itemDescs;
-  if (!t || t->stride != 44 || t->idOff != 14 || item <= 0)
+  if (item <= 0)
     return -1;
-  uint8_t rec[44];
-  if (!rom_at(g, t->base + (uint32_t)t->stride * (uint32_t)item, rec, sizeof rec) || rd16(rec + 14) != item)
+  if (t && !t->first && t->idOff >= 0 && t->descOff == t->idOff + 6 && t->stride >= t->idOff + 13 &&
+      t->stride <= 64 && (!t->count || item < (int)t->count)) {
+    uint8_t rec[64];
+    if (rom_at(g, t->base + (uint32_t)t->stride * (uint32_t)item, rec, (size_t)t->stride) &&
+        rd16(rec + t->idOff) == item) {
+      int p = rec[t->idOff + 12];
+      return p >= 1 && p <= 5 ? p : -1;
+    }
     return -1;
-  return rec[26];
+  }
+  const struct pd_text *names = g->game.cfg->text;
+  if (names && names->items)
+    return -1; /* its own numbering: retail's ranges would be wrong */
+  if (item <= 12)
+    return 2;
+  if (item >= 133 && item <= 175)
+    return 4;
+  if ((item >= 259 && item <= 288) || (item >= 349 && item <= 376))
+    return 5;
+  if (item >= 289 && item <= 346)
+    return 3;
+  if (item < 259)
+    return 1;
+  return -1;
+}
+/* The editor's pocket (P_*) for an item, -1 when it has none. */
+static int g3_item_pocket(struct save_edit *e, int id) {
+  if (!g3_item_name(e, id))
+    return -1;
+  int game = item_pocket(G(e), id);
+  for (int p = 0; p < P_COUNT; p++)
+    if (POCKET_ID[p] == game)
+      return p;
+  return -1;
 }
 
 static bool base_stats(struct g3 *g, int species, uint8_t out[28]) {
@@ -987,7 +1021,7 @@ static bool g3_set_item(struct save_edit *e, int p, int i, int id, int count, ch
     e->dirty = true;
     return true;
   }
-  if (!g3_item_name(e, id) || item_pocket(g, id) != POCKET_ID[p]) {
+  if (g3_item_pocket(e, id) != p) {
     snprintf(err, n, "That item doesn't go in %s", POCKET_NAME[p]);
     return false;
   }
@@ -1121,7 +1155,7 @@ static const struct se_ops G3_OPS = {
     g3_pockets,      g3_pocket_name,  g3_pocket_slots, g3_pocket_item,  g3_pocket_locked, g3_set_item,
     g3_item_max_count, g3_boxes,      g3_box_slots,   g3_mon,           g3_set_mon,   g3_heal,
     g3_species_name, g3_species_max,  g3_move_name,   g3_move_max,      g3_item_name, g3_item_max,
-    g3_abilities,    g3_build,        g3_verify,      g3_free,
+    g3_abilities,    g3_build,        g3_verify,      g3_free,      g3_item_pocket,
 };
 
 struct save_edit *se_open_gen3(const uint8_t *save, size_t saveSize, const uint8_t *rom, size_t romSize, char *err,
