@@ -6617,6 +6617,7 @@ static void editor_presets(struct save_edit *e, struct se_mon *m) {
   }
 }
 
+static bool editor_move(struct save_edit *e, int box, int slot);
 static void editor_mon(struct save_edit *e, int box, int slot) {
   struct se_mon m;
   if (!e->ops->mon(e, box, slot, &m))
@@ -6625,7 +6626,7 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
   int selected = 0;
   while (running) {
     enum { R_SPECIES, R_NICK, R_LEVEL, R_EXP, R_NATURE, R_ABILITY, R_HELD, R_FRIEND, R_MOVE, R_PPUPS = R_MOVE + 4,
-           R_IVS, R_EVS, R_SHINY, R_MAX_IVS, R_PRESET, R_PASTE, R_APPLY, R_COUNT };
+           R_IVS, R_EVS, R_SHINY, R_OT, R_FROM, R_MAX_IVS, R_PRESET, R_PASTE, R_APPLY, R_MOVE_IT, R_COUNT };
     static char text[R_COUNT][96];
     const char *rows[R_COUNT];
     int ids[R_COUNT], shown = 0;
@@ -6648,12 +6649,20 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     snprintf(text[R_IVS], 96, "IVs: %d/%d/%d/%d/%d/%d", m.ivs[0], m.ivs[1], m.ivs[2], m.ivs[3], m.ivs[4], m.ivs[5]);
     snprintf(text[R_EVS], 96, "EVs: %d/%d/%d/%d/%d/%d", m.evs[0], m.evs[1], m.evs[2], m.evs[3], m.evs[4], m.evs[5]);
     snprintf(text[R_SHINY], 96, "SHINY: %s", m.shiny ? "YES" : "NO");
+    snprintf(text[R_OT], 96, "OT: %s  %05ld", m.ot, m.tid);
+    const char *game = se_game_name(m.metGame);
+    if (m.metLevel)
+      snprintf(text[R_FROM], 96, "FROM: %s, MET AT LEVEL %d", game ? game : "ANOTHER GAME", m.metLevel);
+    else
+      snprintf(text[R_FROM], 96, "FROM: %s, HATCHED", game ? game : "ANOTHER GAME");
     snprintf(text[R_MAX_IVS], 96, "ALL IVs TO 31");
     snprintf(text[R_PRESET], 96, "PRESETS\tFILL IN A SET");
     snprintf(text[R_PASTE], 96, "PASTE SET\tA COPIED SHOWDOWN SET");
     snprintf(text[R_APPLY], 96, "KEEP THESE CHANGES");
+    snprintf(text[R_MOVE_IT], 96, "MOVE IT\tTO ANOTHER SLOT OR BOX");
     for (int i = 0; i < R_COUNT; i++)
-      if (m.extras || (i != R_EXP && i != R_FRIEND && i != R_PPUPS))
+      if ((m.extras || (i != R_EXP && i != R_FRIEND && i != R_PPUPS)) && (m.origin || (i != R_OT && i != R_FROM)) &&
+          (i != R_MOVE_IT || se_trade_ready(e)))
         rows[shown] = text[i], ids[shown++] = i;
     int row = menu_pick_hint(m.nick, "B leaves this Pokemon as it was.", rows, shown, selected);
     if (row < 0)
@@ -6786,6 +6795,19 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
       editor_say("CAN'T CHANGE IT", err);
       break;
     }
+    case R_OT:
+    case R_FROM:
+      break; // shown, not changed
+    case R_MOVE_IT: {
+      struct se_mon now;
+      if (e->ops->mon(e, box, slot, &now) && memcmp(&now, &m, sizeof m)) {
+        editor_say("MOVE IT", "KEEP THESE CHANGES first, or press B to leave them, then move it.");
+        break;
+      }
+      if (editor_move(e, box, slot))
+        return;
+      break;
+    }
     default:
       if (pick >= R_MOVE && pick < R_MOVE + 4 &&
           (id = editor_pick_move(e, &m, pick != R_MOVE)) >= 0) {
@@ -6797,6 +6819,74 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     }
   }
 }
+/* A slot's row: "3  NAME  Lv12  SPECIES", "3  EGG", "3  BAD EGG" or "3  (EMPTY)". False for an empty slot. */
+static bool editor_slot_label(struct save_edit *e, int box, int s, char *out, size_t n) {
+  struct se_mon m;
+  if (!e->ops->mon(e, box, s, &m)) {
+    bool bad = se_trade_ready(e) && se_slot(e, box, s) < 0;
+    snprintf(out, n, "%d  %s", s + 1, bad ? "BAD EGG" : "(EMPTY)");
+    return bad;
+  }
+  const char *sp = e->ops->species_name(e, m.species);
+  if (m.egg)
+    snprintf(out, n, "%d  EGG", s + 1);
+  else
+    snprintf(out, n, "%d  %s  Lv%d%s%s", s + 1, m.nick, m.level, sp && strcmp(sp, m.nick) ? "  " : "",
+             sp && strcmp(sp, m.nick) ? sp : "");
+  return true;
+}
+/* MOVE IT: where the Pokemon at BOX / SLOT goes, the party or a box and then a slot there (a Pokemon in it swaps
+ * places, an empty one takes it), the game's PC rules applied (save_edit.h's se_move). True when it moved. */
+static bool editor_move(struct save_edit *e, int box, int slot) {
+  int boxes = e->ops->boxes(e), slots = e->ops->box_slots(e), where = 0;
+  if (boxes > 32)
+    boxes = 32;
+  if (slots > 32)
+    slots = 32;
+  while (running) {
+    static char names[33][32];
+    const char *rows[33];
+    int count = se_party_count(e);
+    snprintf(names[0], sizeof names[0], "PARTY\t%d/6", count);
+    rows[0] = names[0];
+    for (int b = 0; b < boxes; b++) {
+      int used = 0;
+      for (int s = 0; s < slots; s++)
+        used += se_slot(e, b, s) != 0;
+      snprintf(names[b + 1], sizeof names[b + 1], "BOX %d\t%d/%d", b + 1, used, slots);
+      rows[b + 1] = names[b + 1];
+    }
+    where = menu_pick_hint("MOVE IT WHERE?", "A Pokemon in the slot you pick swaps places with it.", rows, boxes + 1,
+                           where);
+    if (where < 0)
+      return false;
+    int to = where ? where - 1 : SE_PARTY, n = to == SE_PARTY ? (count < 6 ? count + 1 : 6) : slots;
+    static char text[32][80];
+    const char *srows[32];
+    for (int s = 0; s < n; s++) {
+      if (to == box && s == slot)
+        snprintf(text[s], sizeof text[s], "%d  (THIS ONE)", s + 1);
+      else
+        editor_slot_label(e, to, s, text[s], sizeof text[s]);
+      srows[s] = text[s];
+    }
+    char title[24];
+    if (to == SE_PARTY)
+      snprintf(title, sizeof title, "PARTY");
+    else
+      snprintf(title, sizeof title, "BOX %d", to + 1);
+    int s = menu_pick(title, srows, n, 0);
+    if (s < 0)
+      continue;
+    char err[160] = "";
+    if (se_move(e, box, slot, to, s, err, sizeof err)) {
+      notice("Moved: SAVE CHANGES writes it");
+      return true;
+    }
+    editor_say("CAN'T MOVE IT", err);
+  }
+  return false;
+}
 /* A box's (or the party's) Pokemon to pick from. */
 static void editor_box(struct save_edit *e, int box, const char *title) {
   int slots = box == SE_PARTY ? 6 : e->ops->box_slots(e), selected = 0;
@@ -6805,15 +6895,8 @@ static void editor_box(struct save_edit *e, int box, const char *title) {
     const char *rows[32];
     int ids[32], n = 0;
     for (int s = 0; s < slots && n < 32; s++) {
-      struct se_mon m;
-      if (!e->ops->mon(e, box, s, &m))
+      if (!editor_slot_label(e, box, s, text[n], sizeof text[n]))
         continue;
-      const char *sp = e->ops->species_name(e, m.species);
-      if (m.egg)
-        snprintf(text[n], 80, "%d  EGG", s + 1);
-      else
-        snprintf(text[n], 80, "%d  %s  Lv%d%s%s", s + 1, m.nick, m.level, sp && strcmp(sp, m.nick) ? "  " : "",
-                 sp && strcmp(sp, m.nick) ? sp : "");
       rows[n] = text[n];
       ids[n++] = s;
     }
@@ -6826,10 +6909,17 @@ static void editor_box(struct save_edit *e, int box, const char *title) {
       return;
     selected = pick;
     struct se_mon m;
-    if (e->ops->mon(e, box, ids[pick], &m) && m.egg)
-      editor_say(title, "Eggs aren't changed: hatch it first.");
-    else
+    if (!e->ops->mon(e, box, ids[pick], &m))
+      editor_say(title, "A Bad Egg can't be changed or moved.");
+    else if (!m.egg)
       editor_mon(e, box, ids[pick]);
+    else if (!se_trade_ready(e))
+      editor_say(title, "Eggs aren't changed: hatch it first.");
+    else {
+      static const char *const egg[] = {"MOVE IT\tTO ANOTHER SLOT OR BOX"};
+      if (menu_pick_hint("EGG", "Eggs aren't changed: hatch it first. You can move it.", egg, 1, 0) == 0)
+        editor_move(e, box, ids[pick]);
+    }
   }
 }
 /* An item for pocket P from the game's own list (P -1: any that goes in a pocket the editor changes): the pocket's
@@ -7009,10 +7099,10 @@ static void save_editor(const char *rom, const char *gameName) {
   }
   int selected = 0;
   while (running) {
-    enum { E_MONEY, E_COINS, E_BAG, E_PARTY, E_BOXES, E_PRESETS, E_HEAL, E_SAVE };
+    enum { E_MONEY, E_COINS, E_BAG, E_PARTY, E_BOXES, E_PRESETS, E_HEAL, E_UNDO, E_SAVE };
     char money[48], coins[48];
-    const char *rows[9];
-    int ids[9], n = 0;
+    const char *rows[10];
+    int ids[10], n = 0;
     snprintf(money, sizeof money, "MONEY: %ld", e->ops->money(e));
     rows[n] = money, ids[n++] = E_MONEY;
     if (e->ops->coins(e) >= 0) {
@@ -7024,6 +7114,8 @@ static void save_editor(const char *rom, const char *gameName) {
     rows[n] = "PC BOXES", ids[n++] = E_BOXES;
     rows[n] = "PRESETS", ids[n++] = E_PRESETS;
     rows[n] = "HEAL THE PARTY", ids[n++] = E_HEAL;
+    if (e->dirty)
+      rows[n] = "UNDO ALL\tDROP THE CHANGES NOT SAVED", ids[n++] = E_UNDO;
     rows[n] = "SAVE CHANGES", ids[n++] = E_SAVE;
     char title[160];
     snprintf(title, sizeof title, "EDIT SAVE: %s", gameName);
@@ -7120,6 +7212,21 @@ static void save_editor(const char *rom, const char *gameName) {
     case E_HEAL: {
       int healed = e->ops->heal(e);
       notice(healed ? "Healed: SAVE CHANGES writes it" : "The party is already healthy");
+      break;
+    }
+    case E_UNDO: { // the save read again, as it is on disk
+      static const char *const undo[] = {"KEEP THEM", "UNDO ALL"};
+      if (menu_pick("DROP EVERY CHANGE NOT SAVED?", undo, 2, 0) != 1)
+        break;
+      struct save_edit *again = se_open(save, rom, err, sizeof err);
+      if (!again) {
+        editor_say("UNDO ALL", err);
+        break;
+      }
+      se_close(e);
+      e = again;
+      selected = 0;
+      notice("Undone: the save is as it was");
       break;
     }
     case E_SAVE: {

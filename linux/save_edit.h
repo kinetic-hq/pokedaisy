@@ -38,6 +38,12 @@ struct se_mon {
   int friendship;
   int ppUps[4];
   long exp;
+  /* Where it came from (Gen 3, ORIGIN set): its original trainer's name and ID, the game it was caught or hatched in
+   * (se_game_name) and its level then (0 = hatched from an egg). */
+  bool origin;
+  char ot[16];
+  long tid;
+  int metGame, metLevel;
 };
 
 struct save_edit;
@@ -131,6 +137,16 @@ int se_trade_evolution(struct save_edit *from, int box, int slot, struct save_ed
  * Refused, with nothing changed, when the games wouldn't. */
 bool se_trade(struct save_edit *a, int boxA, int slotA, struct save_edit *b, int boxB, int slotB, bool evolve,
               char *err, size_t n);
+/* MOVE (Gen 3 saves, as se_trade_ready): what's in a slot, the party's too (SE_PARTY): 1 a Pokemon or an egg, 0 empty,
+ * -1 a Bad Egg or unreadable. */
+int se_slot(struct save_edit *e, int box, int slot);
+int se_party_count(struct save_edit *e);
+/* Moves the Pokemon at FROM to TO the way the game's PC does: two Pokemon swap; one into the party goes last, with its
+ * stats worked out and full HP; one out of the party closes the gap. Refused, with nothing changed, when the party
+ * would have no Pokemon left that can battle, the party is full, it holds mail or a slot holds a Bad Egg. */
+bool se_move(struct save_edit *e, int fromBox, int fromSlot, int toBox, int toSlot, char *err, size_t n);
+/* The game a Pokemon came from (se_mon.metGame): "EMERALD" and so on, NULL when unknown. */
+const char *se_game_name(int game);
 /* Writes both (se_save each, after checking neither file changed since it was read); if the second can't be
  * written, the first is put back from its backup. */
 bool se_save_both(struct save_edit *a, struct save_edit *b, char *err, size_t n);

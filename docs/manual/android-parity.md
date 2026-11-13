@@ -48,7 +48,8 @@ the fork's README.
   background, and Game Boy and DS games play `SPED-UP` instead.
 - **Save editing**: `EDIT SAVE` in a game's options changes money, the bag and
   your Pokemon in the GBA games and English HeartGold, SoulSilver and Platinum, with a
-  backup first. Trading between two saves stays on Android.
+  backup first. Moving Pokemon between the party and the boxes and trading
+  between two saves (TRADE SAVES) work too, in the GBA games.
 - **Updates**: the program updates itself from this version's releases.
 
 ## Only on the desktop

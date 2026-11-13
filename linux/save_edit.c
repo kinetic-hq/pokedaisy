@@ -689,6 +689,12 @@ static bool g3_mon(struct save_edit *e, int box, int slot, struct se_mon *out) {
   out->nature = (int)(pid % 25);
   out->shiny = is_shiny(pid, rd32(m.head + 4));
   pd_gen3_text(m.head + 8, 10, out->nick, sizeof out->nick);
+  out->origin = true;
+  pd_gen3_text(m.head + 0x14, 7, out->ot, sizeof out->ot);
+  out->tid = (long)(rd32(m.head + 4) & 0xFFFF);
+  uint16_t origins = rd16(m.data + 38);
+  out->metLevel = origins & 0x7F;
+  out->metGame = (origins >> 7) & 0xF;
   if (box == SE_PARTY) {
     out->hp = rd16(r + 0x56);
     out->maxHp = rd16(r + 0x58);
@@ -1687,6 +1693,174 @@ bool se_trade(struct save_edit *a, int boxA, int slotA, struct save_edit *b, int
   }
   a->dirty = b->dirty = true;
   return true;
+}
+
+/* -- MOVE: a Pokemon to another slot of the same save, the way the game's PC moves it -- */
+
+static uint32_t party_count(struct g3 *g) {
+  uint32_t c = rd32(g->sb1 + g->f->partyCountOff);
+  return c > 6 ? 6 : c;
+}
+
+int se_party_count(struct save_edit *e) { return se_trade_ready(e) ? (int)party_count(G(e)) : 0; }
+
+int se_slot(struct save_edit *e, int box, int slot) {
+  if (!se_trade_ready(e))
+    return -1;
+  struct g3 *g = G(e);
+  if (box == SE_PARTY && slot >= 0 && slot < 6 && (uint32_t)slot >= party_count(g))
+    return 0;
+  const uint8_t *r = record(g, box, slot);
+  if (!r)
+    return -1;
+  struct box_mon m;
+  decode_box(r, &m);
+  if (!m.ok || (m.head[0x13] & 1))
+    return -1;
+  return rd16(m.data) ? 1 : 0;
+}
+
+/* A box record as the party holds it (pokeemerald BoxMonToMon): the level from its EXP, its stats, full HP, no status
+ * and no mail. */
+static bool to_party(struct g3 *g, const uint8_t *box, uint8_t out[PARTY_MON]) {
+  struct box_mon m;
+  decode_box(box, &m);
+  int species = rd16(m.data), rate = growth_rate(g, species);
+  if (!m.ok || !species || rate < 0)
+    return false;
+  int level = level_for(rate, rd32(m.data + 4)), ivs[6], evs[6], stats[6];
+  uint32_t iv = rd32(m.data + 40);
+  for (int i = 0; i < 6; i++) {
+    ivs[i] = (int)(iv >> (i * 5) & 31);
+    evs[i] = m.data[24 + i];
+  }
+  if (!party_stats(g, species, level, (int)(rd32(m.head) % 25), ivs, evs, stats))
+    return false;
+  memset(out, 0, PARTY_MON);
+  memcpy(out, box, BOX_MON);
+  out[0x54] = (uint8_t)level;
+  out[0x55] = 0xFF;
+  wr16(out + 0x56, (unsigned)stats[0]);
+  for (int s = 0; s < 6; s++)
+    wr16(out + 0x58 + s * 2, (unsigned)stats[s]);
+  return true;
+}
+
+/* The party still has a Pokemon that can battle (not an egg, HP left): the game never lets the last one go. */
+static bool party_can_battle(struct g3 *g) {
+  for (uint32_t i = 0; i < party_count(g); i++) {
+    const uint8_t *r = g->sb1 + g->f->partyOff + i * PARTY_MON;
+    struct box_mon m;
+    decode_box(r, &m);
+    if (m.ok && rd16(m.data) && !((rd32(m.data + 40) >> 30) & 1) && rd16(r + 0x56))
+      return true;
+  }
+  return false;
+}
+
+bool se_move(struct save_edit *e, int fromBox, int fromSlot, int toBox, int toSlot, char *err, size_t n) {
+  if (!se_trade_ready(e)) {
+    say(err, n, "Pokemon move between slots in the GBA games' saves only");
+    return false;
+  }
+  struct g3 *g = G(e);
+  uint32_t count = party_count(g);
+  if (toBox == SE_PARTY && toSlot >= (int)count)
+    toSlot = (int)count; /* an empty party slot: it goes last, as in the game */
+  if (fromBox == toBox && fromSlot == toSlot) {
+    say(err, n, "That's where it is already");
+    return false;
+  }
+  int from = se_slot(e, fromBox, fromSlot);
+  int to = toBox == SE_PARTY && toSlot == (int)count ? 0 : se_slot(e, toBox, toSlot);
+  if (from <= 0 || to < 0) {
+    say(err, n, from == 0 ? "There's no Pokemon there" : "A Bad Egg can't be moved");
+    return false;
+  }
+  if (toBox == SE_PARTY && !to && count >= 6) {
+    say(err, n, "The party is full");
+    return false;
+  }
+  uint8_t *party = g->sb1 + g->f->partyOff;
+  if (fromBox == SE_PARTY && toBox != SE_PARTY && party[fromSlot * PARTY_MON + 0x55] < 6) {
+    say(err, n, "It holds mail: take the mail off in the game first");
+    return false;
+  }
+  /* Changed on copies, kept only if the party can still battle. */
+  uint8_t keepParty[6 * PARTY_MON], keepFrom[BOX_MON], keepTo[BOX_MON];
+  memcpy(keepParty, party, sizeof keepParty);
+  uint8_t *rf = fromBox == SE_PARTY ? NULL : record(g, fromBox, fromSlot);
+  uint8_t *rt = toBox == SE_PARTY ? NULL : record(g, toBox, toSlot);
+  if (rf)
+    memcpy(keepFrom, rf, BOX_MON);
+  if (rt)
+    memcpy(keepTo, rt, BOX_MON);
+  uint8_t tmp[PARTY_MON];
+  bool ok = true;
+  if (fromBox == SE_PARTY && toBox == SE_PARTY) {
+    uint8_t *a = party + fromSlot * PARTY_MON;
+    memcpy(tmp, a, PARTY_MON);
+    if (to) {
+      memcpy(a, party + toSlot * PARTY_MON, PARTY_MON);
+      memcpy(party + toSlot * PARTY_MON, tmp, PARTY_MON);
+    } else { /* to the end */
+      memmove(a, a + PARTY_MON, (count - 1 - (uint32_t)fromSlot) * PARTY_MON);
+      memcpy(party + (count - 1) * PARTY_MON, tmp, PARTY_MON);
+    }
+  } else if (fromBox != SE_PARTY && toBox != SE_PARTY) {
+    memcpy(rf, keepTo, BOX_MON);
+    memcpy(rt, keepFrom, BOX_MON);
+  } else if (fromBox == SE_PARTY) { /* deposit */
+    uint8_t *p = party + fromSlot * PARTY_MON;
+    if (to) {
+      ok = to_party(g, keepTo, tmp);
+      memcpy(rt, p, BOX_MON);
+      if (ok)
+        memcpy(p, tmp, PARTY_MON);
+    } else {
+      memcpy(rt, p, BOX_MON);
+      memmove(p, p + PARTY_MON, (count - 1 - (uint32_t)fromSlot) * PARTY_MON);
+      memset(party + (count - 1) * PARTY_MON, 0, PARTY_MON);
+      wr32(g->sb1 + g->f->partyCountOff, count - 1);
+    }
+  } else { /* withdraw */
+    ok = to_party(g, keepFrom, tmp);
+    if (ok) {
+      uint8_t *p = party + toSlot * PARTY_MON;
+      if (to)
+        memcpy(rf, p, BOX_MON);
+      else {
+        memset(rf, 0, BOX_MON);
+        wr32(g->sb1 + g->f->partyCountOff, count + 1);
+      }
+      memcpy(p, tmp, PARTY_MON);
+    }
+  }
+  if (!ok || !party_can_battle(g)) {
+    memcpy(party, keepParty, sizeof keepParty);
+    wr32(g->sb1 + g->f->partyCountOff, count);
+    if (rf)
+      memcpy(rf, keepFrom, BOX_MON);
+    if (rt)
+      memcpy(rt, keepTo, BOX_MON);
+    say(err, n, !ok ? "This game's stats table isn't known, so a Pokemon can't join the party"
+                    : "That's the last Pokemon that can battle: the party keeps one");
+    return false;
+  }
+  e->dirty = true;
+  return true;
+}
+
+const char *se_game_name(int game) {
+  switch (game) {
+  case 1: return "SAPPHIRE";
+  case 2: return "RUBY";
+  case 3: return "EMERALD";
+  case 4: return "FIRERED";
+  case 5: return "LEAFGREEN";
+  case 15: return "COLOSSEUM / XD";
+  default: return NULL;
+  }
 }
 
 /* The file is still the one the editor read (nothing saved it since). */

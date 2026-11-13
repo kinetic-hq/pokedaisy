@@ -238,6 +238,61 @@ static bool first_slot(struct save_edit *e, int want, int *box, int *slot) {
       }
   return false;
 }
+/* MOVE IT on a copy of a GBA save: a box Pokemon into the party and back, party and box swaps, the last one that can
+ * battle kept, then written and read back. */
+static void move_round(const char *spec, const char *scratch) {
+  char rom[1024], save[1100], err[200] = "";
+  const char *bar = strchr(spec, '|');
+  CHECK(bar);
+  snprintf(rom, sizeof rom, "%.*s", (int)(bar - spec), spec);
+  snprintf(save, sizeof save, "%s/move-test.sav", scratch);
+  copy_file(bar + 1, save);
+  struct save_edit *e = se_open(save, rom, err, sizeof err);
+  CHECK(e && se_trade_ready(e));
+  const struct se_ops *o = e->ops;
+  int count = se_party_count(e), bb, bs, eb, es;
+  CHECK(count >= 1 && se_slot(e, SE_PARTY, count) == 0 && se_slot(e, SE_PARTY, 0) == 1);
+  CHECK(!se_move(e, SE_PARTY, 0, SE_PARTY, 0, err, sizeof err));
+  CHECK(first_slot(e, 0, &eb, &es));
+  struct se_mon lead, m, back;
+  CHECK(o->mon(e, SE_PARTY, 0, &lead));
+  if (count == 1) {
+    CHECK(!se_move(e, SE_PARTY, 0, eb, es, err, sizeof err) && strstr(err, "last"));
+    CHECK(se_party_count(e) == 1 && !e->dirty);
+  }
+  if (count < 6 && first_slot(e, 1, &bb, &bs)) {
+    CHECK(o->mon(e, bb, bs, &m));
+    CHECK(se_move(e, bb, bs, SE_PARTY, 5, err, sizeof err) || (fprintf(stderr, "%s\n", err), 0));
+    CHECK(se_party_count(e) == count + 1 && se_slot(e, bb, bs) == 0);
+    CHECK(o->mon(e, SE_PARTY, count, &back));
+    CHECK(back.species == m.species && back.level == m.level && !strcmp(back.nick, m.nick) &&
+          back.hp == back.maxHp && back.maxHp > 0 && !memcmp(back.ivs, m.ivs, sizeof m.ivs));
+    printf("move: %s Lv%d into the party, %d HP\n", back.nick, back.level, back.maxHp);
+    /* Party order: the new one swaps with the lead. */
+    CHECK(se_move(e, SE_PARTY, count, SE_PARTY, 0, err, sizeof err));
+    CHECK(o->mon(e, SE_PARTY, 0, &back) && back.species == m.species);
+    CHECK(o->mon(e, SE_PARTY, count, &back) && back.species == lead.species && !strcmp(back.nick, lead.nick));
+    /* Back to its box slot, the gap closed. */
+    CHECK(se_move(e, SE_PARTY, 0, bb, bs, err, sizeof err) || (fprintf(stderr, "%s\n", err), 0));
+    CHECK(se_party_count(e) == count && o->mon(e, bb, bs, &back) && back.species == m.species);
+    CHECK(o->mon(e, SE_PARTY, count - 1, &back) && back.species == lead.species);
+    /* Box to box: into the empty slot. */
+    CHECK(se_move(e, bb, bs, eb, es, err, sizeof err));
+    CHECK(se_slot(e, bb, bs) == 0 && o->mon(e, eb, es, &back) && back.species == m.species);
+    char backup[1100];
+    CHECK(se_save(e, backup, sizeof backup, err, sizeof err) || (fprintf(stderr, "%s\n", err), 0));
+    se_close(e);
+    remove(backup);
+    e = se_open(save, rom, err, sizeof err);
+    CHECK(e && se_party_count(e) == count && se_slot(e, bb, bs) == 0);
+    CHECK(e->ops->mon(e, eb, es, &back) && back.species == m.species && !strcmp(back.nick, m.nick));
+    CHECK(back.origin && back.ot[0]);
+    printf("  OT %s %05ld, from %s\n", back.ot, back.tid, se_game_name(back.metGame) ? se_game_name(back.metGame) : "?");
+  }
+  se_close(e);
+  remove(save);
+  puts("PASS move between the party and the boxes");
+}
 static void trade_round(const char *spec, const char *scratch) {
   char part[4][1024];
   const char *p = spec;
@@ -373,8 +428,10 @@ int main(void) {
   CHECK(se_set_resume_aside(states, "My Game.gba", 0) == 0);
   puts("PASS an edit sets the game's resume state aside");
   const char *gba = getenv("POCKET_SAVE_EDIT_GBA"), *nds = getenv("POCKET_SAVE_EDIT_NDS");
-  if (gba && *gba)
+  if (gba && *gba) {
     round_trip(gba, scratch);
+    move_round(gba, scratch);
+  }
   if (nds && *nds)
     round_trip(nds, scratch);
   const char *trade = getenv("POCKET_SAVE_TRADE");
