@@ -98,6 +98,12 @@ static float wideScale = 1;        // screen pixels per game pixel of the window
 static float wideShiftX, wideShiftY; // LOOK AROUND: the window's centre past the view's, game px (under one)
 static float wideLevels[WIDE_CAMERA_LEVELS];
 static int wideLevelCount = 1, wideCamAspect = -1;
+/* A zoom level as a share of the game's picture at the closest (100%): ZOOM 75%, not a step number. */
+static int zoom_percent(int level) {
+  if (level <= 0 || level >= wideLevelCount || wideLevels[0] <= 0)
+    return 100;
+  return (int)(100.0f * wideLevels[level] / wideLevels[0] + 0.5f);
+}
 static SDL_AudioDeviceID audio;
 static volatile sig_atomic_t running = 1;
 static bool muted;
@@ -1689,6 +1695,11 @@ enum { PANEL_LEFT, PANEL_RIGHT, PANEL_TOP, PANEL_BOTTOM, PANELS };
 static uint32_t panelPixels[CANVAS_MAX_W * PANEL_MAX_H];
 static SDL_Texture *panelTexture[PANELS];
 static uint32_t panelKey[PANELS], panelGen;
+/* The right wing as last drawn: the map panel (its SAVE STATE / CLOSE GAME buttons live), where its canvas went on the
+ * screen and the canvas's size. */
+static bool rightWingMap;
+static SDL_Rect rightWingAt;
+static int rightWingW, rightWingH;
 static int panelW[PANELS], panelH[PANELS];
 static uint32_t barFacts[2]; // PD_BAR_* the top / bottom bar showed last draw: the right wing leaves them out
 static struct wing_toasts wingToasts; // the wings' toasts (a level up, a new area, a save, the spray worn off)
@@ -1785,7 +1796,7 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
   f.hints = lastInputAt && t - lastInputAt < BEZEL_HINT_MS;
   f.companion = f.quickMenu = true;
   f.ff = bezelFf;
-  f.zoom = wideReady ? wideCam.level : 0;
+  f.zoomPct = wideReady && wideCam.level > 0 ? zoom_percent(wideCam.level) : 0;
   f.saved = bezelSavedAt && t - bezelSavedAt < BEZEL_SAVED_MS;
   f.repel = hudRepelSteps;
   if (gameSavedAt) {
@@ -1795,10 +1806,15 @@ static void panel_text(const struct pd_game *g, const struct pd_snapshot *s, int
   }
   int first = which == PANEL_TOP ? BEZEL_TOP_LEFT : BEZEL_BOTTOM_LEFT;
   char bar[3][64];
-  // The other bar's own items are its: a filler here never repeats them (the battle's bar has its own).
-  const int *other = which == PANEL_TOP ? &bezelSlots[BEZEL_BOTTOM_LEFT] : &bezelSlots[BEZEL_TOP_LEFT];
   bool shown[BEZEL_ITEMS] = {false};
-  bezel_bar_text(&bezelSlots[first], battle ? NULL : other, &f, bar, shown);
+  if (battle) // the battle's bar is its own
+    bezel_bar_text(&bezelSlots[first], NULL, &f, bar, shown);
+  else {
+    // Both bars at once: nothing the top says comes back in the bottom, a filler included.
+    char top[3][64], bottom[3][64];
+    bezel_bars(bezelSlots, &f, top, bottom, which == PANEL_TOP ? shown : NULL, which == PANEL_TOP ? NULL : shown);
+    memcpy(bar, which == PANEL_TOP ? top : bottom, sizeof bar);
+  }
   uint32_t facts = 0;
   if (shown[BEZEL_MONEY] || (shown[BEZEL_REPEL_MONEY] && f.repel <= 0))
     facts |= PD_BAR_MONEY;
@@ -2014,8 +2030,13 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
       pd_ui_party_panel(&pc, g, s);
     else if (which == PANEL_RIGHT && battle && wingBattleInfo)
       pd_ui_battle_panel(&pc, g, s, NULL);
-    else if (which == PANEL_RIGHT)
+    else if (which == PANEL_RIGHT) {
+      pd_ui_wing_buttons_on = true;
+      pd_ui_repel_steps = hudRepelSteps;
       pd_ui_map_panel(&pc, g, s, false);
+    }
+    if (which == PANEL_RIGHT)
+      rightWingMap = !(battle && wingBattleInfo);
     else
       pd_ui_strip(&pc, a, b, c);
     pocket_wing_look_end(&wl);
@@ -2072,6 +2093,11 @@ static void draw_panel(int which, struct view_rect r, const struct pd_game *g, c
   }
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_Rect to = {r.x + dx + (r.w - w * scale) / 2, r.y + dy + (r.h - h * scale) / 2, w * scale, h * scale};
+  if (which == PANEL_RIGHT) {
+    rightWingAt = to;
+    rightWingW = w;
+    rightWingH = h;
+  }
   if (fading) { // the old bar under, the new one coming in over it
     dim_texture(fading);
     SDL_SetTextureAlphaMod(fading, 255);
@@ -2227,6 +2253,8 @@ static void draw_panels(const struct view_layout *v, const struct pd_game *g, co
   pd_ui_bar_facts = (v->top.w >= 8 && v->top.h >= 8 ? barFacts[0] : 0) |
                     (v->bottom.w >= 8 && v->bottom.h >= 8 ? barFacts[1] : 0);
   draw_panel(PANEL_LEFT, v->left, g, s, battle);
+  if (v->right.w < 8 || companionInRight)
+    rightWingMap = false;
   if (!companionInRight)
     draw_panel(PANEL_RIGHT, v->right, g, s, battle);
   draw_panel(PANEL_TOP, v->top, g, s, battle);
@@ -2239,6 +2267,18 @@ static void draw_panels(const struct view_layout *v, const struct pd_game *g, co
   // The button hints at the bottom of the left wing, where no bar shows them.
   if (!companionInRight && v->left.w >= 60 && !(v->top.h >= 8 || v->bottom.h >= 8))
     draw_hints(v->left);
+}
+/* The right wing's button (PD_WING_*) a click at (x, y) (the renderer's pixels) is on, -1 for none. */
+static int wing_button_at(float x, float y) {
+  if (!rightWingMap || rightWingAt.w <= 0 || rightWingAt.h <= 0 || x < rightWingAt.x || y < rightWingAt.y)
+    return -1;
+  int cx = (int)((x - rightWingAt.x) * rightWingW / rightWingAt.w), cy = (int)((y - rightWingAt.y) * rightWingH / rightWingAt.h);
+  for (int i = 0; i < PD_WING_BUTTONS; i++) {
+    const struct pd_ui_rect *b = &pd_ui_wing_buttons[i];
+    if (b->w > 0 && cx >= b->x && cy >= b->y && cx < b->x + b->w && cy < b->y + b->h)
+      return i;
+  }
+  return -1;
 }
 /* The companion page a click at (x, y) on a wing opens, -1 off the wings. */
 static int wing_tab_at(const struct view_layout *v, float x, float y, bool battle) {
@@ -3357,6 +3397,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   const char *confirmOpts[] = {"Cancel", "Confirm"};
   const char *resumeOpts[] = {"Continue", "Start from save"};
   struct pd_menu gameMenu, confirmMenu, resumeMenu;
+  bool wingClose = false; // the CLOSE GAME question came from the right wing's button
   pd_menu_init(&gameMenu, "GAME", opts, 8);
   pd_menu_init(&confirmMenu, "CONFIRM", confirmOpts, 2);
   pd_menu_init(&resumeMenu, "Continue where you left off?", resumeOpts, 2);
@@ -3438,7 +3479,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         int to = wideCam.level + zoomStep;
         to = to < 0 ? 0 : to >= wideLevelCount ? wideLevelCount - 1 : to;
         static char zoomText[32];
-        snprintf(zoomText, sizeof zoomText, "Zoom %dx", (int)wideLevels[to]);
+        snprintf(zoomText, sizeof zoomText, "Zoom %d%%", zoom_percent(to));
         wideCam.level = to;
         notice(zoomText);
       }
@@ -3503,6 +3544,25 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     if (wingClicked && !companion && !menuOpen && !quickOpen && hudShown) {
       hudTapped = hud_target_at(wingClickX, wingClickY);
       if (hudTapped >= 0)
+        wingClicked = false;
+    }
+    // SAVE STATE and CLOSE GAME under the right wing's map: a state at once, or the CLOSE GAME question (NO picked
+    // first; B, Esc or NO go back to the game).
+    if (wingClicked && !companion && !menuOpen && !quickOpen) {
+      int button = wing_button_at(wingClickX, wingClickY);
+      if (button == PD_WING_SAVE_STATE)
+        notice(state(c, ss, true) ? "State saved" : "State save failed");
+      else if (button == PD_WING_CLOSE_GAME) {
+        companion = true;
+        menuOpen = 3;
+        wingClose = true;
+        confirmMenu.title = "Close game? Unsaved progress since your last save is lost.";
+        confirmMenu.selected = 0;
+        c->setKeys(c, 0);
+        if (audio)
+          SDL_ClearQueuedAudio(audio);
+      }
+      if (button >= 0)
         wingClicked = false;
     }
     if (wingClicked && !companion && !menuOpen && !quickOpen) {
@@ -3751,9 +3811,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
             menuOpen = 0;
             companion = false;
           } else if (down(B)) {
-            if (menuOpen == 1) {
+            if (menuOpen == 1 || wingClose) {
               menuOpen = 0;
               companion = false;
+              wingClose = false;
             } else
               menuOpen = 1;
           } else if (down(A)) {
@@ -3805,6 +3866,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                                              : "State load failed");
               }
               menuOpen = 1;
+              if (wingClose) { // asked from the wing: NO goes back to the game
+                menuOpen = 0;
+                companion = false;
+                wingClose = false;
+              }
             }
           }
         }

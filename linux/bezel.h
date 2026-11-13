@@ -23,7 +23,7 @@ enum {
   BEZEL_BADGES,
   BEZEL_PLAY_TIME,
   BEZEL_HINTS,       // which button does what; fades after BEZEL_HINT_MS without input
-  BEZEL_CHIPS,       // FF, the zoom, SAVED after a save
+  BEZEL_CHIPS,       // FF, the zoom (as a share of the game's picture), SAVED after a save
   BEZEL_REPEL_MONEY, // the repel's steps while one works, else the money
   BEZEL_MONEY,
   BEZEL_NEXT_BOSS,   // the next unbeaten boss and the level cap (its team's top level)
@@ -45,8 +45,10 @@ static const char *const BEZEL_ITEM_NAMES[BEZEL_ITEMS] = {
 static const char *const BEZEL_SLOT_NAMES[BEZEL_SLOTS] = {"TOP LEFT", "TOP CENTRE", "TOP RIGHT",
                                                           "BOTTOM LEFT", "BOTTOM CENTRE", "BOTTOM RIGHT"};
 static const char *const BEZEL_STYLE_NAMES[BEZEL_STYLES] = {"BLACK", "GLOW", "THEME"};
-static const int BEZEL_DEFAULT_SLOTS[BEZEL_SLOTS] = {BEZEL_LOCATION, BEZEL_CLOCK_BATTERY, BEZEL_BADGES_TIME,
-                                                     BEZEL_LEAD,     BEZEL_NEXT_BOSS,     BEZEL_REPEL_MONEY};
+/* The top bar says where you are, the time and what's next (NEXT BOSS AND CAP); the bottom one your progress: the
+ * badges, the play time and the money. */
+static const int BEZEL_DEFAULT_SLOTS[BEZEL_SLOTS] = {BEZEL_LOCATION, BEZEL_CLOCK_BATTERY, BEZEL_NEXT_BOSS,
+                                                     BEZEL_BADGES,   BEZEL_PLAY_TIME,     BEZEL_REPEL_MONEY};
 /* What fills a place whose own item has nothing to say (unknown, or BUTTON HINTS faded), in this order, each at most
  * once a bar and never what the bar already shows: a bar is never half empty while the save has something useful. */
 static const int BEZEL_FILLERS[] = {BEZEL_HINTS,     BEZEL_NEXT_BOSS, BEZEL_CAUGHT_HERE, BEZEL_LEAD,
@@ -72,7 +74,7 @@ struct bezel_facts {
   bool companion;      // a companion to open (X)
   bool quickMenu;      // a quick menu (Y)
   int ff;              // fast-forward's speed, 0 = off
-  int zoom;            // EXPAND's zoom step out, 0 = the closest
+  int zoomPct;         // EXPAND's zoom as a share of the closest (100%), 0 = at the closest
   bool saved;          // a save in the last BEZEL_SAVED_MS
   long money;
   int repel;           // steps left, 0 = none working
@@ -106,7 +108,7 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
   case BEZEL_BADGES:
   case BEZEL_PLAY_TIME:
     if (item != BEZEL_PLAY_TIME && f->badges >= 0)
-      snprintf(a, sizeof a, "BADGES %d", f->badges);
+      snprintf(a, sizeof a, "BADGES %d/8", f->badges);
     if (item != BEZEL_BADGES && f->playHours >= 0 && (f->playHours || f->playMinutes > 0))
       snprintf(b, sizeof b, "%d:%02d", f->playHours, f->playMinutes);
     snprintf(out, n, "%s%s%s", a, *a && *b ? "  " : "", b);
@@ -120,8 +122,8 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
     size_t at = 0;
     if (f->ff > 0)
       at += (size_t)snprintf(out + at, n - at, "FF x%d", f->ff);
-    if (f->zoom > 0 && at < n)
-      at += (size_t)snprintf(out + at, n - at, "%sZOOM -%d", at ? "  " : "", f->zoom);
+    if (f->zoomPct > 0 && at < n)
+      at += (size_t)snprintf(out + at, n - at, "%sZOOM %d%%", at ? "  " : "", f->zoomPct);
     if (f->saved && at < n)
       snprintf(out + at, n - at, "%sSAVED", at ? "  " : "");
     break;
@@ -166,10 +168,14 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
 }
 
 /* A bar's three places: each its own item's text, and an empty one given the first filler with something to say that
- * neither this bar nor the other one (other: its three items, or NULL) shows yet. The battle's bar is its own. */
-static inline void bezel_bar_text(const int items[3], const int *other, const struct bezel_facts *f,
-                                  char out[3][64], bool *shown /* [BEZEL_ITEMS], what was drawn; may be NULL */) {
+ * neither this bar nor the other one (other: its three items, or NULL; taken: what it drew, [BEZEL_ITEMS] or NULL)
+ * shows yet. The battle's bar is its own. */
+static inline void bezel_bar_text_taken(const int items[3], const int *other, const bool *taken,
+                                        const struct bezel_facts *f, char out[3][64],
+                                        bool *shown /* [BEZEL_ITEMS], what was drawn; may be NULL */) {
   bool used[BEZEL_ITEMS] = {false};
+  for (int i = 0; taken && i < BEZEL_ITEMS; i++)
+    used[i] = taken[i];
   for (int i = 0; other && i < 3; i++)
     if (other[i] > BEZEL_NONE && other[i] < BEZEL_ITEMS)
       used[other[i]] = true;
@@ -198,6 +204,30 @@ static inline void bezel_bar_text(const int items[3], const int *other, const st
   }
 }
 
+static inline void bezel_bar_text(const int items[3], const int *other, const struct bezel_facts *f, char out[3][64],
+                                  bool *shown) {
+  bezel_bar_text_taken(items, other, NULL, f, out, shown);
+}
+/* Both bars off the six places: the top first, then the bottom, which never says what the top drew (a filler there
+ * included). TOP_SHOWN / BOTTOM_SHOWN ([BEZEL_ITEMS]) may be NULL. */
+static inline void bezel_bars(const int slots[BEZEL_SLOTS], const struct bezel_facts *f, char top[3][64],
+                              char bottom[3][64], bool *topShown, bool *bottomShown) {
+  bool drawn[BEZEL_ITEMS] = {false};
+  bezel_bar_text_taken(&slots[BEZEL_TOP_LEFT], &slots[BEZEL_BOTTOM_LEFT], NULL, f, top, drawn);
+  if (topShown)
+    memcpy(topShown, drawn, sizeof drawn);
+  // A place of the bottom's own whose item the top already drew says nothing: its filler steps in.
+  int items[3];
+  for (int i = 0; i < 3; i++) {
+    int item = slots[BEZEL_BOTTOM_LEFT + i];
+    items[i] = item > BEZEL_NONE && item < BEZEL_ITEMS && drawn[item] ? BEZEL_ITEMS /* fillable */ : item;
+  }
+  char out[3][64];
+  bool taken[BEZEL_ITEMS];
+  memcpy(taken, drawn, sizeof drawn);
+  bezel_bar_text_taken(items, &slots[BEZEL_TOP_LEFT], taken, f, out, bottomShown);
+  memcpy(bottom, out, sizeof out);
+}
 /* A wild battle's catch hint from the foe's HP and status (the Gen 3 catch formula's two levers the player has). */
 static inline const char *bezel_catch_hint(int hp, int maxHp, bool sleepOrFrozen, bool otherStatus) {
   if (maxHp <= 0)

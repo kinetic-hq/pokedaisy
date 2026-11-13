@@ -488,8 +488,14 @@ struct pd_map_viewport pd_ui_map_view(struct pd_canvas* c, const struct pd_map_s
 struct wing_fact { char label[24], value[48]; int pips; }; // pips >= 0: that many of 8 badges, drawn as dots;
                                                            // WILD_ICONS: the value beside the label, the icons under
 enum { WILD_ICONS = -2, WILD_MAX = 24 };
-static int wildSpecies[WILD_MAX], wildCount;
+static int wildSpecies[WILD_MAX], wildMin[WILD_MAX], wildMax[WILD_MAX], wildCount, wildHere, wildKinds;
 static bool wildCaught[WILD_MAX];
+// The tall wing shows the area's kinds as the HERE list under its facts (not CAUGHT HERE's icon row).
+static bool hereAsList;
+
+bool pd_ui_wing_buttons_on;
+struct pd_ui_rect pd_ui_wing_buttons[PD_WING_BUTTONS];
+int pd_ui_repel_steps = -1;
 
 static int wing_facts(const struct pd_game* g, const struct pd_snapshot* s, struct wing_fact* rows) {
     if (!s->valid) return 0;
@@ -517,14 +523,16 @@ static int wing_facts(const struct pd_game* g, const struct pd_snapshot* s, stru
         atSave = s;
         cap = pd_ui_next_boss(g, s, boss, sizeof(boss));
         if (!pd_ui_caught_here(g, s, &here, &kinds)) kinds = 0;
-        wildCount = kinds > 0 ? pd_ui_wild_here(g, s, wildSpecies, wildCaught, WILD_MAX) : 0;
+        wildCount = kinds > 0 ? pd_ui_wild_levels_here(g, s, wildSpecies, wildCaught, wildMin, wildMax, WILD_MAX) : 0;
+        wildHere = here;
+        wildKinds = kinds;
     }
     if (cap > 0 && boss[0] && !(bars & PD_BAR_BOSS)) {
         snprintf(rows[n].label, sizeof(rows[n].label), "NEXT BOSS");
         snprintf(rows[n].value, sizeof(rows[n].value), "%s Lv%d", boss, cap);
         rows[n++].pips = -1;
     }
-    if (kinds > 0 && !(bars & PD_BAR_HERE)) {
+    if (kinds > 0 && !(bars & PD_BAR_HERE) && !(hereAsList && wildCount > 0)) {
         snprintf(rows[n].label, sizeof(rows[n].label), "CAUGHT HERE");
         snprintf(rows[n].value, sizeof(rows[n].value), "%d / %d", here, kinds);
         // The area's kinds as icons under it, the ones not caught yet faded.
@@ -630,6 +638,139 @@ static void map_facts(struct pd_canvas* c, const struct pd_game* g, const struct
     }
 }
 
+// HERE: this area's wild kinds, a row each: its icon, its levels here and a tick once caught. QUICK BAG: the balls,
+// the healing items and the repellents in the bag, and the steps left while one works. BUTTONS: SAVE STATE and CLOSE
+// GAME (the desktop host's), side by side where they fit, else one over the other.
+#define HERE_ROW 22
+#define BAG_ROW 16
+#define BUTTON_H 22
+
+static bool name_has(const char* name, const char* part) {
+    size_t n = strlen(part);
+    for (; name && *name; name++)
+        if (!strncasecmp(name, part, n)) return true;
+    return false;
+}
+
+// The bag's balls, healing items and repellents, each -1 when the bag isn't read.
+static void quick_bag(const struct pd_game* g, const struct pd_snapshot* s, int* balls, int* heal, int* repel) {
+    *balls = *heal = *repel = -1;
+    if (!s->valid || !s->bagOk) return;
+    *balls = *heal = *repel = 0;
+    static const char* const HEALING[] = {"POTION", "RESTORE", "FRESH WATER", "SODA POP", "LEMONADE", "MOOMOO",
+                                          "BERRY JUICE", "ENERGYPOWDER", "ENERGY POWDER", "ENERGY ROOT"};
+    for (int p = 0; p < PD_POCKET_COUNT; p++) {
+        const struct pd_pocket_items* pk = &s->bag[p];
+        for (int i = 0; i < pk->count && i < PD_POCKET_SLOTS; i++) {
+            int id = pk->items[i].id, q = pk->items[i].quantity;
+            if (!id || !q) continue;
+            if (p == PD_POCKET_BALLS) {
+                *balls += q;
+                continue;
+            }
+            if (p == PD_POCKET_KEY || p == PD_POCKET_TMHM || p == PD_POCKET_BERRIES) continue;
+            const char* name = pd_item_name(g, id);
+            if (!name || !*name) continue;
+            if (name_has(name, "REPEL")) {
+                *repel += q;
+                continue;
+            }
+            bool healing = p == PD_POCKET_MEDICINE && !name_has(name, "ETHER") && !name_has(name, "ELIXIR");
+            for (size_t k = 0; !healing && k < sizeof HEALING / sizeof HEALING[0]; k++) healing = name_has(name, HEALING[k]);
+            if (healing && !name_has(name, "PP ")) *heal += q;
+        }
+    }
+}
+
+static int quick_bag_height(const struct pd_snapshot* s) {
+    if (!s->valid) return 0;
+    if (!s->bagOk) return 2 * BAG_ROW;
+    return 4 * BAG_ROW + (pd_ui_repel_steps > 0 ? BAG_ROW : 0);
+}
+
+static void quick_bag_draw(struct pd_canvas* c, const struct pd_game* g, const struct pd_snapshot* s, int x, int y,
+                           int w) {
+    pd_heading_fit(c, x, y, w, "QUICK BAG", PD_MUTED, PD_MUTED_SHADOW);
+    y += BAG_ROW;
+    if (!s->bagOk) {
+        pd_text_fit(c, x + 4, y, w - 4, "N/A", PD_LABEL, PD_LABEL_SHADOW);
+        return;
+    }
+    int counts[3];
+    quick_bag(g, s, &counts[0], &counts[1], &counts[2]);
+    static const char* const NAMES[3] = {"BALLS", "HEALING", "REPELS"};
+    for (int i = 0; i < 3; i++, y += BAG_ROW) {
+        char v[16];
+        snprintf(v, sizeof(v), "%d", counts[i]);
+        int vw = pd_number_width(v);
+        pd_text_fit(c, x + 4, y, w - vw - 10, NAMES[i], PD_LABEL, PD_LABEL_SHADOW);
+        pd_number_right(c, x + w, y, v, PD_LABEL, PD_LABEL_SHADOW);
+    }
+    if (pd_ui_repel_steps > 0) {
+        char line[40];
+        snprintf(line, sizeof(line), "REPEL: %d STEPS", pd_ui_repel_steps);
+        pd_text_fit(c, x + 4, y, w - 4, line, PD_VALUE, PD_VALUE_SHADOW);
+    }
+}
+
+// A tick: two strokes, 7 x 6.
+static void tick(struct pd_canvas* c, int x, int y, uint32_t ink) {
+    for (int i = 0; i < 3; i++) pd_fill(c, x + i, y + 3 + i, 2, 1, ink);
+    for (int i = 0; i < 5; i++) pd_fill(c, x + 3 + i, y + 4 - i, 2, 1, ink);
+}
+
+// The HERE list from Y down to BOTTOM: as many rows as fit. Returns where it ended.
+static int here_list(struct pd_canvas* c, const struct pd_game* g, int x, int y, int w, int bottom) {
+    if (y + 16 + HERE_ROW > bottom) return y;
+    char count[16];
+    snprintf(count, sizeof(count), "%d/%d", wildHere, wildKinds);
+    int cw = pd_number_width(count);
+    pd_heading_fit(c, x, y, w - cw - 8, "HERE", PD_MUTED, PD_MUTED_SHADOW);
+    pd_number_right(c, x + w, y, count, PD_LABEL, PD_LABEL_SHADOW);
+    y += 16;
+    int fit = (bottom - y) / HERE_ROW;
+    int shown = wildCount < fit ? wildCount : fit;
+    for (int i = 0; i < shown; i++, y += HERE_ROW) {
+        pd_clip(c, x, y, PD_ICON, HERE_ROW);
+        pd_draw_mon_icon(c, g, wildSpecies[i], x, y + HERE_ROW - PD_ICON + 2, !wildCaught[i]);
+        pd_unclip(c);
+        char lv[32];
+        if (wildMin[i] > 0 && wildMax[i] > wildMin[i]) snprintf(lv, sizeof(lv), "Lv%d-%d", wildMin[i] % 1000, wildMax[i] % 1000);
+        else if (wildMin[i] > 0) snprintf(lv, sizeof(lv), "Lv%d", wildMin[i] % 1000);
+        else lv[0] = 0;
+        int ty = pd_text_y(y, HERE_ROW);
+        pd_text_fit(c, x + PD_ICON + 2, ty, w - PD_ICON - 14, lv, wildCaught[i] ? PD_LABEL : PD_MUTED,
+                    wildCaught[i] ? PD_LABEL_SHADOW : PD_MUTED_SHADOW);
+        if (wildCaught[i]) tick(c, x + w - 8, y + HERE_ROW / 2 - 3, 0x30A050);
+    }
+    return y;
+}
+
+// SAVE STATE and CLOSE GAME at the wing's foot, BOTTOM their lowest pixel. Returns their top (BOTTOM: not drawn).
+static int wing_buttons_height(int w) {
+    if (!pd_ui_wing_buttons_on) return 0;
+    bool side = w >= pd_text_width("SAVE STATE") + pd_text_width("CLOSE GAME") + 28;
+    return side ? BUTTON_H : 2 * BUTTON_H + 4;
+}
+
+static void wing_buttons(struct pd_canvas* c, int x, int w, int bottom, int top) {
+    memset(pd_ui_wing_buttons, 0, sizeof(pd_ui_wing_buttons));
+    int h = wing_buttons_height(w);
+    if (!h || bottom - h < top) return;
+    static const char* const LABELS[PD_WING_BUTTONS] = {"SAVE STATE", "CLOSE GAME"};
+    bool side = h == BUTTON_H;
+    for (int i = 0; i < PD_WING_BUTTONS; i++) {
+        struct pd_ui_rect r;
+        if (side) r = (struct pd_ui_rect){x + i * (w + 4) / 2, bottom - BUTTON_H, (w - 4) / 2, BUTTON_H};
+        else r = (struct pd_ui_rect){x, bottom - h + i * (BUTTON_H + 4), w, BUTTON_H};
+        pd_title_box(c, r.x, r.y, r.w, r.h, PD_TITLE_FILL);
+        int tw = pd_text_width(LABELS[i]);
+        if (tw <= r.w - 6) pd_text(c, r.x + (r.w - tw) / 2, pd_text_y(r.y, r.h), LABELS[i], PD_TITLE_TEXT, PD_TITLE_SHADOW);
+        else pd_text_fit(c, r.x + 3, pd_text_y(r.y, r.h), r.w - 6, LABELS[i], PD_TITLE_TEXT, PD_TITLE_SHADOW);
+        pd_ui_wing_buttons[i] = r;
+    }
+}
+
 // How tall map_facts' rows come out.
 static int map_facts_height(const struct pd_game* g, const struct pd_snapshot* s) {
     struct wing_fact rows[WING_FACTS_MAX];
@@ -644,10 +785,15 @@ void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct 
     ui_game = g;
     int f = pd_title_box(c, 0, 0, c->w, c->h, PD_TITLE_FILL);
     int x = f + 4, y = f + 3, w = c->w - 2 * (f + 4);
+    memset(pd_ui_wing_buttons, 0, sizeof(pd_ui_wing_buttons));
+    int foot = c->h - f - 3, buttonsH = wing_buttons_height(w);
+    if (buttonsH && foot - buttonsH - 6 > y + 2 * 16 + 40) foot -= buttonsH + 6;  // the buttons' room
+    else buttonsH = 0;
     const char* here = s->valid && s->posOk ? pd_mapsec_name(g, s->mapsec) : "";
     pd_text_wrap(c, x, y, w, 16, 2, *here ? here : "MAP", PD_LABEL, PD_LABEL_SHADOW);
     y += 2 * 16 + 4;
     const struct pd_map_art* art = pd_map_art(g);
+    if (buttonsH) wing_buttons(c, x, w, c->h - f - 3, y);
     if (!art) {
         pd_text_wrap(c, x, y, w, 16, 2, "NO MAP IN THIS ROM", PD_MUTED, PD_MUTED_SHADOW);
         return;
@@ -666,9 +812,10 @@ void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct 
     // As wide as the panel, its own shape (a short panel: as tall as fits). A tall, narrow wing (beside a game at
     // full height) gets the map at its own size instead, a window round the player, and what the place is under it.
     int mw = crop.r - crop.l, mh = crop.b - crop.t;
-    int vw = w - 2 * FRAME, vh = vw * mh / mw, room = c->h - f - 3 - y - 2 * FRAME;
-    int factsH = 5 * (2 * 16 + 4) + PD_ICON;
+    int vw = w - 2 * FRAME, vh = vw * mh / mw, room = foot - y - 2 * FRAME;
+    int factsH = 3 * (2 * 16 + 4);  // room for a few facts at least: what doesn't fit under the map is left out
     bool window = vw < mw && room - factsH >= vw;
+    hereAsList = window;
     if (window) {
         vh = room - factsH - 2 * FRAME;
         if (vh > mh) vh = mh;
@@ -694,15 +841,18 @@ void pd_ui_map_panel(struct pd_canvas* c, const struct pd_game* g, const struct 
     view.h = vh;
     view.x = (c->w - vw) / 2;
     view.y = y + FRAME;
-    // A map window and its facts sit in the middle of the wing's height: as much room above them as below.
-    if (window) {
-        int used = vh + 2 * FRAME + 6 + map_facts_height(g, s);
-        int spare = c->h - f - 3 - y - used;
-        if (spare > 0) view.y += spare / 2;
-    }
     frame(c, view.x - FRAME, view.y - FRAME, view.w + 2 * FRAME, view.h + 2 * FRAME);
     draw_page(c, art->page[page]);
-    if (window) map_facts(c, g, s, x, view.y + view.h + FRAME + 6, w, c->h - f - 3);
+    if (window) {
+        // Under the map: its facts, then HERE as far as it goes, the QUICK BAG kept at the foot (over the buttons).
+        int top = view.y + view.h + FRAME + 6;
+        map_facts(c, g, s, x, top, w, foot);
+        top += map_facts_height(g, s) + 8;
+        int bagH = quick_bag_height(s), bagY = foot - bagH;
+        if (bagH && bagY < top) bagH = 0;
+        if (wildCount > 0) here_list(c, ui_game, x, top, w, bagH ? bagY - 6 : foot);
+        if (bagH) quick_bag_draw(c, g, s, x, bagY, w);
+    }
     if (!hasPlayer || page != playerPage) return;
     int gender = s->gender == 1 ? 1 : 0;
     pd_clip(c, view.x, view.y, view.w, view.h);

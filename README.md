@@ -257,6 +257,11 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **NUZLOCKE on the desktop**: the Android app's tracker and its tab (under `MORE`): one encounter per area, fainted
   Pokémon out for good, fixes by hand, `DUPES CLAUSE`, `WARNINGS` and `NEW RUN`, in the same GBA games. Each game's run
   is kept in `nuzlocke/` beside the saves, in the app's own format.
+- **The desktop's WINGS polish**: the right wing lists this area's wild kinds (`HERE`: icon, levels, a tick once
+  caught) and a `QUICK BAG` (balls, healing, repellents and the steps left on one), with `SAVE STATE` and
+  `CLOSE GAME` buttons at its foot (the close asks first, `Cancel` picked). The bezel bars never say a thing twice
+  (a filler included): the top one defaults to the place, the clock and the next boss with its cap, the bottom one
+  to `BADGES n/8`, the play time and the money, and the zoom reads as a share of the picture (`ZOOM 75%`).
 - **TRADE SAVES on the desktop**: a GBA game's options (or `SETTINGS` > `LIBRARY` > `TRADE SAVES`) trade or send
   a PC box Pokemon between two games' saves with the games' own rules (the islands link gate, the regional dex,
   trade evolutions), as the Android app does. `SAVE BOTH` backs up and checks both saves, and puts the first back

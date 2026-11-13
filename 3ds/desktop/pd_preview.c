@@ -445,6 +445,22 @@ int main(int argc, char** argv) {
         draw(&p);
     }
 
+    // The desktop host's map wing off a battle (pd_ui_map_panel) with its buttons, at the same size.
+    const char* mapWing = getenv("PD_PREVIEW_WING");
+    int mwW, mwH;
+    if (!snap.inBattle && mapWing && sscanf(mapWing, "%dx%d", &mwW, &mwH) == 2 && mwW >= 80 && mwH >= 80 &&
+        mwW * mwH <= 1024 * 768) {
+        static uint32_t wpx[1024 * 768];
+        struct pd_canvas wc;
+        pd_canvas_init(&wc, mwW, mwH, wpx);
+        pd_ui_wing_buttons_on = true;
+        pd_ui_repel_steps = getenv("PD_PREVIEW_REPEL") ? atoi(getenv("PD_PREVIEW_REPEL")) : -1;
+        pd_ui_map_panel(&wc, &game, &snap, false);
+        pd_ui_wing_buttons_on = false;
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/%s-map-wing.png", out, name);
+        if (pd_png_write(path, mwW, mwH, wpx)) printf("%s\n", path);
+    }
     // NUZLOCKE: off (TURN ON), then a run made up from the fixture's party: an encounter here, one fallen.
     {
         static struct pd_nuzlocke nz;
