@@ -437,17 +437,17 @@ static int team_top(const struct pd_team_mon* team, int n) {
     return top;
 }
 
-int pd_ui_next_boss(const struct pd_game* g, const struct pd_snapshot* s, char* title, size_t len) {
+int pd_ui_next_boss_team(const struct pd_game* g, const struct pd_snapshot* s, char* title, size_t len,
+                         struct pd_team_mon* team) {
     if (title && len) title[0] = 0;
     if (!g || !s) return 0;
-    struct pd_team_mon team[PD_TEAM_MAX];
     if (pd_gbw_boss_count(g)) {
         for (int b = 0; b < pd_gbw_boss_count(g); b++) {
             const struct pd_gbw_boss* boss = pd_gbw_boss_at(g, b);
             if (pd_gbw_boss_done(s, boss)) continue;
-            int top = team_top(team, pd_gbw_boss_team(g, s, boss, 0, team));
-            if (top && title && len) snprintf(title, len, "%s", boss->title);
-            return top;
+            int n = pd_gbw_boss_team(g, s, boss, 0, team);
+            if (team_top(team, n) && title && len) snprintf(title, len, "%s", boss->title);
+            return team_top(team, n) ? n : 0;
         }
         return 0;
     }
@@ -459,13 +459,72 @@ int pd_ui_next_boss(const struct pd_game* g, const struct pd_snapshot* s, char* 
         const struct pd_boss* boss = &gd->bosses[order[oi]];
         if (pd_boss_done(boss, s)) continue;
         const struct pd_variant* var = pd_boss_variants(gd, boss, s);
-        int top = team_top(team, pd_trainer_team(g, var ? (int) var->trainer : pd_boss_trainer(gd, boss, s), team));
-        if (top) {
+        int n = pd_trainer_team(g, var ? (int) var->trainer : pd_boss_trainer(gd, boss, s), team);
+        if (team_top(team, n)) {
             if (title && len) snprintf(title, len, "%s", boss->title);
-            return top;
+            return n;
         }
     }
     return 0;
+}
+
+int pd_ui_next_boss(const struct pd_game* g, const struct pd_snapshot* s, char* title, size_t len) {
+    struct pd_team_mon team[PD_TEAM_MAX];
+    return team_top(team, pd_ui_next_boss_team(g, s, title, len, team));
+}
+
+// "TM24" / "HM03": a machine by its name.
+static bool machine_name(const char* name) {
+    return name && (name[0] == 'T' || name[0] == 'H') && name[1] == 'M' && name[2] >= '0' && name[2] <= '9';
+}
+
+int pd_ui_area_items(const struct pd_game* g, const struct pd_snapshot* s, bool tms, char (*names)[32], int max) {
+    if (!g || !s || !s->valid || !s->posOk) return -1;
+    int n;
+    const struct pd_area_thing* things = pd_areas_for(g, &n);
+    if (!things || n <= 0) return -1;
+    int count = 0;
+    for (int i = 0; i < n; i++) {
+        struct pd_area_thing view;
+        const struct pd_area_thing* t = pd_randomized_area(g, &things[i], &view);
+        if (!t || !pd_area_here(g, s, t) || pd_area_done(g, s, t)) continue;
+        bool item = t->kind == PD_AREA_ITEM || t->kind == PD_AREA_HIDDEN;
+        if (!item && !(tms && t->kind == PD_AREA_GIFT)) continue;
+        const char* name = pd_item_name(g, t->id);
+        if (tms && !machine_name(name)) continue;
+        if (names && count < max) {
+            if (t->kind == PD_AREA_HIDDEN && !tms) snprintf(names[count], 32, "HIDDEN ITEM");
+            else snprintf(names[count], 32, "%s", name ? name : "?");
+        }
+        count++;
+    }
+    return count;
+}
+
+bool pd_ui_area_tip(const struct pd_game* g, const struct pd_snapshot* s, char* out, size_t len) {
+    if (out && len) out[0] = 0;
+    if (!g || !s || !s->valid || !s->posOk) return false;
+    const struct pd_guide* gd = pd_guide_for(g);
+    if (!gd) return false;
+    const char* place = pd_mapsec_name(g, s->mapsec);
+    if (!place || !*place) return false;
+    char key[64];
+    pd_area_key(place, key, sizeof(key));
+    for (int p = 0; p < gd->pageCount; p++) {
+        if (!strcmp(gd->pages[p].title, "TIPS")) continue;
+        for (int i = 0; i < gd->pages[p].count; i++) {
+            const struct pd_guide_section* sec = &gd->pages[p].sections[i];
+            if (!shows(g, sec->randomized)) continue;
+            for (int k = 0; k < sec->count; k++) {
+                const struct pd_guide_entry* e = &sec->entries[k];
+                if (!pd_entry_in_area(e, key) || !shows(g, e->randomized)) continue;
+                if (e->haveKind != PD_HAVE_NONE && pd_guide_has(g, s, e)) continue;
+                snprintf(out, len, "%s", e->hint && *e->hint ? e->hint : e->title);
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s) {

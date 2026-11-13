@@ -89,6 +89,8 @@ enum pd_game_touch { PD_GAME_TOUCH_DS_SCREEN, PD_GAME_TOUCH_OFF, PD_GAME_TOUCHES
 #define PD_HOTKEY_ACTIONS 14
 enum { PD_HOTKEY_L3 = 6, PD_HOTKEY_R3 = 7, PD_HOTKEY_L2 = 8, PD_HOTKEY_R2 = 9 };
 enum { PD_HOTKEY_DO_FF = 3, PD_HOTKEY_DO_ZOOM_IN = 11, PD_HOTKEY_DO_ZOOM_OUT = 12 };
+#define PD_BAR_LIST_MAX 32
+#define PD_WING_LIST_MAX 24
 struct pd_settings {
     int screenMode; // enum pd_screen_mode
     int ffSpeed;    // PD_FF_MIN..PD_FF_MAX
@@ -161,7 +163,15 @@ struct pd_settings {
     int background;    // the desktop host: BACKGROUND, linux/backdrop.h's enum, -1 = by COLORS (OLED = BLACK)
     int brightness;    // ... and BRIGHTNESS, a percent (80 ... 150, linux/shader.h)
     int bezelStyle;    // ... and the bezel bars (linux/bezel.h): BEZEL STYLE, -1 = by BACKGROUND
-    int bezelSlots[6]; // ... and what each of their six places shows (BEZEL_* items)
+    int bezelSlots[6]; // ... and what each of their six places shows (BEZEL_* items), the lists' old form
+    // ... and LAYOUT: each bar's items in order (the first three its places, the rest stepping in when one has
+    // nothing to say; BEZEL_* items), count -1 = not chosen yet (the host builds them from bezelSlots) ...
+    int barList[2][PD_BAR_LIST_MAX];
+    int barCount[2];
+    // ... the right wing's sections in order (enum pd_wing_section), -1 = the default ...
+    int wingList[PD_WING_LIST_MAX];
+    int wingCount;
+    bool partyTypes;   // ... and PARTY TYPES: the party wing's type pills under each name
     int wingLook;      // ... and WING LOOK (linux/backdrop.h): 0 COMPACT, 1 COMFY, 2 BIG
     int uiSize;        // ... and UI SIZE: 0 SMALL, 1 MEDIUM, 2 LARGE (the menus, HUD, wings and companion)
     int wingRoom;      // ... and WING ROOM (linux/view_layout.h): 0 GAME FIRST, 1 BALANCED, 2 WINGS FIRST, 3 AUTO
@@ -648,6 +658,15 @@ void pd_ui_guide_boss_note(char*, size_t, const char* place, int count, int ace,
 int pd_ui_level_cap(const struct pd_game* g, const struct pd_snapshot* s);
 // The next unbeaten boss's name (into title) and its team's top level, 0 when none is known.
 int pd_ui_next_boss(const struct pd_game* g, const struct pd_snapshot* s, char* title, size_t len);
+// The same boss's team (up to PD_TEAM_MAX into team, struct pd_team_mon of pd_guide.h); returns how many, 0 = none.
+struct pd_team_mon;
+int pd_ui_next_boss_team(const struct pd_game* g, const struct pd_snapshot* s, char* title, size_t len,
+                         struct pd_team_mon* team);
+// The items still to pick up in the player's area (TMS: only the TMs and HMs, gifts included): how many, and the
+// first MAX names (a hidden one as HIDDEN ITEM) into names. -1 when the game has no area data.
+int pd_ui_area_items(const struct pd_game* g, const struct pd_snapshot* s, bool tms, char (*names)[32], int max);
+// The GUIDE's first thing still to do in the player's area, its hint if it has one: false when there's none.
+bool pd_ui_area_tip(const struct pd_game* g, const struct pd_snapshot* s, char* out, size_t len);
 // The wild POKéMON of the player's area: how many kinds, and how many of them are caught. False with none known.
 bool pd_ui_caught_here(const struct pd_game* g, const struct pd_snapshot* s, int* caught, int* total);
 // This area's wild kinds (every method, each once, in the guide's order) and whether each is caught; up to max.
@@ -697,11 +716,28 @@ void pd_ui_party_panel(struct pd_canvas*, const struct pd_game*, const struct pd
 extern uint32_t pd_ui_now_ms;
 extern bool pd_ui_reduce_motion;
 // What the host's bezel bars show right now (PD_BAR_*): the right wing leaves those facts out, so nothing is said twice.
-enum { PD_BAR_MONEY = 1, PD_BAR_BADGES = 2, PD_BAR_TIME = 4, PD_BAR_BOSS = 8, PD_BAR_HERE = 16 };
+enum { PD_BAR_MONEY = 1, PD_BAR_BADGES = 2, PD_BAR_TIME = 4, PD_BAR_BOSS = 8, PD_BAR_HERE = 16, PD_BAR_DEX = 32 };
 extern uint32_t pd_ui_bar_facts;
 // The map wing's two buttons (the desktop host's, under the wing's facts): drawn when pd_ui_wing_buttons_on, and where
 // each landed in the wing's canvas after a draw (w 0 = not drawn: no room).
 enum { PD_WING_SAVE_STATE, PD_WING_CLOSE_GAME, PD_WING_BUTTONS };
+// The right wing's sections (LAYOUT > RIGHT WING), in the order they're drawn: the map at the top and the buttons at
+// the foot wherever they sit in the list; what doesn't fit is dropped from the bottom, and what the game doesn't give
+// is left out with its room going to the next. The values are stored: append only.
+enum pd_wing_section {
+    PD_WS_MAP, PD_WS_BADGES, PD_WS_PLAY_TIME, PD_WS_NEXT_BOSS, PD_WS_CAUGHT_HERE, PD_WS_CAUGHT_SEEN, PD_WS_MONEY,
+    PD_WS_HERE, PD_WS_QUICK_BAG, PD_WS_BUTTONS, PD_WS_BOSS_TEAM, PD_WS_ITEMS_HERE, PD_WS_NUZLOCKE, PD_WS_TIP,
+    PD_WS_PARTY_TYPES, PD_WS_EVOLVE, PD_WS_TMS_HERE, PD_WS_TIP_OR_WEAK, PD_WING_SECTIONS
+};
+extern const char* const pd_wing_section_names[PD_WING_SECTIONS];
+extern const int pd_wing_default[];
+extern const int pd_wing_default_count;
+// The sections the right wing draws (NULL = pd_wing_default), and the NUZLOCKE run its section reads (NULL = off).
+extern const int* pd_ui_wing_list;
+extern int pd_ui_wing_count;
+extern const struct pd_nuzlocke* pd_ui_wing_nuzlocke;
+// PARTY TYPES: the party wing's type pills under each name (on unless the host turns it off).
+extern bool pd_ui_party_types;
 struct pd_ui_rect { int x, y, w, h; };
 extern bool pd_ui_wing_buttons_on;
 extern struct pd_ui_rect pd_ui_wing_buttons[PD_WING_BUTTONS];

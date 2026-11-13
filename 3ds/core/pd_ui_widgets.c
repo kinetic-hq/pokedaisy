@@ -70,6 +70,49 @@ int ui_type_badge(struct pd_canvas* c, int x, int y, int type) {
     return w;
 }
 
+// A type's name in capitals, cut to LETTERS (0 = whole).
+static void type_text(int type, int letters, char* out) {
+    const char* name = pd_type_name(ui_game, type);
+    int n = 0;
+    for (; name[n] && n < 11 && (!letters || n < letters); n++)
+        out[n] = name[n] >= 'a' && name[n] <= 'z' ? (char) (name[n] - 32) : name[n];
+    out[n] = 0;
+}
+
+static int pill(struct pd_canvas* c, int x, int y, int type, int letters) {
+    char text[12];
+    type_text(type, letters, text);
+    if (!text[0]) return 0;
+    int w = pd_text_width(text) + 6;
+    if (c) {
+        pd_round_rect(c, x, y, w, 12, 3, ui_type_color(type));
+        pd_text(c, x + 3, y - 2, text, 0xFFFFFF, PD_NO_SHADOW);
+    }
+    return w;
+}
+
+int ui_type_pills(struct pd_canvas* c, int x, int y, int t1, int t2, int max_w, bool right) {
+    if (t1 == PD_TYPE_NONE) t1 = t2, t2 = PD_TYPE_NONE;
+    if (t1 == PD_TYPE_NONE) return 0;
+    bool two = t2 != PD_TYPE_NONE && t2 != t1;
+    static const int CUTS[2] = {0, 3};
+    for (int k = 0; k < 4; k++) {
+        int letters = CUTS[k & 1];
+        bool both = two && k < 2;
+        int w1 = pill(NULL, 0, 0, t1, letters), w2 = both ? pill(NULL, 0, 0, t2, letters) : 0;
+        if (!w1) return 0;
+        int w = w1 + (w2 ? w2 + 2 : 0);
+        if (w > max_w) continue;
+        int at = right ? x - w : x;
+        if (c) {
+            pill(c, at, y, t1, letters);
+            if (w2) pill(c, at + w1 + 2, y, t2, letters);
+        }
+        return w;
+    }
+    return 0;
+}
+
 void ui_button(struct pd_ui* ui, struct pd_canvas* c, int x, int y, int w, int h, const char* label, int id) {
     bool pressed = ui->pressedId == id;
     pd_title_box(c, x, y, w, h, pressed ? PD_LIST_FILL : PD_TITLE_FILL);
