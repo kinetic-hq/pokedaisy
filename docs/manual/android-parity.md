@@ -58,7 +58,9 @@ and Berry Pots.
 
 ## Not in the desktop version yet
 
-- RetroAchievements, and the `ACHIEVEMENTS` tab with it.
+- RetroAchievements in DS games, the `ACHIEVEMENTS` tab and the leaderboards.
+  Game Boy and Game Boy Advance games earn achievements, and the game menu
+  lists them (see [Windows](windows.md#retroachievements)).
 - The `NUZLOCKE` tab.
 - `LINK PLAY`.
 - The rest of the `MAKEOVER` group: `PLAYER LOOK`, `RIVAL LOOK`, `TEXT LOOK` and `FOLLOWER`. `DAY AND NIGHT` is in.

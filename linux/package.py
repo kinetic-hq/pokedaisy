@@ -44,6 +44,7 @@ for path,license_name in [('LICENSE','mGBA-MPL-2.0.txt'),('src/third-party/blip_
     shutil.copy2(repo/'third_party/mgba'/path,licenses/license_name)
 (licenses/'PixelOperator.txt').write_text('Pixel Operator by Jayvee Enaguas. CC0. See NOTICE.\n')
 (licenses/'xBRZ.txt').write_text("xBRZ by Zenju. GNU GPL 3.0 with the author's linking exception: see LICENSE and NOTICE.\n")
+shutil.copy2(repo/'third_party/rcheevos/LICENSE',licenses/'rcheevos-MIT.txt')  # RetroAchievements (ra.c)
 if a.dsperate:
     ds=repo/'third_party/dsperate'
     for source,target in [('LICENSE','DSperate-GPL-3.0.txt'),

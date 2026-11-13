@@ -17,6 +17,7 @@ with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
         assert z.testzip() is None
         names=z.namelist();assert len(names)==13+extra,names
         assert name+'/licenses/xBRZ.txt' in names
+        assert name+'/licenses/rcheevos-MIT.txt' in names
         if '--melonds' in options:
             assert name+'/licenses/melonDS-GPL-3.0.txt' in names
             assert b'melonDS: https://github.com/melonDS-emu/melonDS' in z.read(name+'/SOURCE.txt')
