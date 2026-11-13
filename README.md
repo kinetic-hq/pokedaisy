@@ -21,11 +21,12 @@ screen: your party, bag, map, battle matchups, Pokedex and a spoiler-free guide.
 
 ## Install and update
 
-1. Download `pokedaisy-windows-x86_64.zip` (or `pokedaisy-linux-x86_64.zip`) from the top `desktop-v` release on the
-   [Releases](https://github.com/kinetic-hq/pokedaisy/releases) page. `SHA256SUMS.txt` has the checksums.
-2. Unzip it somewhere you can write to (Documents, not `Program Files`). Keep `pokedaisy.exe` and `SDL2.dll` together.
+1. Download `PokeDaisy-<version>-windows-x86_64.zip` (or `PokeDaisy-<version>-linux-x86_64.zip`) from the top `desktop-v` release on the
+   [Releases](https://github.com/kinetic-hq/pokedaisy/releases) page. `SHA256SUMS.txt` has the checksums. (The
+   release's `pokedaisy-windows-x86_64.zip` is the same zip under the name older versions update from.)
+2. Unzip it somewhere you can write to (Documents, not `Program Files`). Keep `PokeDaisy.exe` and `SDL2.dll` together.
 3. Put your `.gb`, `.gbc`, `.gba` and `.nds` files in `DATA\roms` (or add your own folders with `GAME FOLDERS`) and
-   open `pokedaisy.exe`. The first start walks you through a few choices.
+   open `PokeDaisy.exe`. The first start walks you through a few choices.
 
 Updates come by themselves: each start looks for a newer release and offers `UPDATE NOW`, `LATER` or `SKIP THIS
 VERSION`, and an update only replaces the program, never your `DATA` folder (settings, saves, states). Desktop builds
@@ -390,6 +391,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **HeartFelt Gold switched off** on the desktop host: the hack is still being made, so its companion is
   off for now and the game plays without one, like any game PokeDaisy doesn't read. Its reading code stays, ready
   for when the hack is finished.
+- **PokeDaisy file names** on the desktop host: `PokeDaisy.exe`, `PokeDaisy-<version>-windows-x86_64.zip` and
+  `PokeDaisy-<version>-linux-x86_64.zip` (its program `PokeDaisy`). Each release keeps a
+  `pokedaisy-windows-x86_64.zip` copy so 1.18.1 and older still update themselves, and an updated install's
+  `pokedaisy.exe` renames itself `PokeDaisy.exe` on its first start.
 
 </details>
 

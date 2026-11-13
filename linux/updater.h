@@ -26,6 +26,9 @@ enum updater_state {
  * redirect from the old name ever stops). Both fetches follow redirects. */
 #define UPDATER_API_OLD "https://api.github.com/repos/kinetic-hq/pokedaisy/releases?per_page=50"
 #define UPDATER_TAG_PREFIX "desktop-v"
+/* The Windows zip as it's saved in DATA/update. A release names it PokeDaisy-<version>-windows-x86_64.zip and also
+ * pokedaisy-windows-x86_64.zip (the name 1.18.1 and older look for): any pokedaisy*windows-x86_64.zip is taken,
+ * whatever its case. */
 #define UPDATER_WINDOWS_ZIP "pokedaisy-windows-x86_64.zip"
 #define UPDATER_SUMS "SHA256SUMS.txt"
 
@@ -42,6 +45,9 @@ void updater_later(void);          // asked again on the next launch
 void updater_skip(void);           // never asked about this release again
 /* At exit: starts the helper that installs a READY update once this process is gone. */
 void updater_finish(void);
+/* Windows: an install whose program is still pokedaisy.exe (from before 1.18.2, updated in place) renames it
+ * PokeDaisy.exe. Only a packaged copy (VERSION.txt beside it); shortcuts keep working (Windows ignores case). */
+void updater_own_name(void);
 
 /* For the tests. */
 int updater_compare(const char *a, const char *b); // <0, 0, >0 by semver x.y.z

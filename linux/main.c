@@ -7005,7 +7005,7 @@ int main(int argc, char **argv) {
 #ifdef _WIN32
   // SDL_MAIN_HANDLED: this main is the program's own (no SDL2main).
   SDL_SetMainReady();
-  // The portable zip keeps its data beside the program: DATA next to pokedaisy.exe,
+  // The portable zip keeps its data beside the program: DATA next to PokeDaisy.exe,
   // wherever it was started from (a frontend's working folder is its own).
   static char exeData[1024];
   char *base = SDL_GetBasePath();
@@ -7043,6 +7043,9 @@ int main(int argc, char **argv) {
   }
 #endif
   fprintf(stderr, "PokeDaisy %s\n", POCKET_VERSION);
+#ifndef POCKET_TEST
+  updater_own_name(); // pokedaisy.exe from an older version becomes PokeDaisy.exe
+#endif
   char path[1024];
   static char backups[1024];
   if (saveFile) {

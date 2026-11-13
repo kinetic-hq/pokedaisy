@@ -4,7 +4,7 @@ import subprocess,sys,tempfile,zipfile
 binary=Path(sys.argv[1]).resolve()
 options=sys.argv[2:];extra=6 if '--dsperate' in options else 7 if '--melonds' in options else 0
 arch=int.from_bytes(binary.read_bytes()[18:20],'little')
-name='pokedaisy-linux-'+{62:'x86_64',183:'aarch64'}[arch]
+name='PokeDaisy-linux-'+{62:'x86_64',183:'aarch64'}[arch]
 suffix='-ds-experiment' if '--dsperate' in options else '-ds' if '--melonds' in options else ''
 name+=suffix
 script=Path(__file__).with_name('package.py')
@@ -26,7 +26,8 @@ with tempfile.TemporaryDirectory(prefix='pd-linux-package-') as d:
             assert b'DSperate:' in z.read(name+'/SOURCE.txt')
         assert all(n.startswith(name+'/') for n in names)
         assert b'"label": "PokeDaisy"' in z.read(name+'/config.json') and z.read(name+'/icon.png')[:4]==b'\x89PNG'
-        assert z.read(name+'/pokedaisy-linux')==binary.read_bytes()
+        assert z.read(name+'/PokeDaisy')==binary.read_bytes()
+        assert z.getinfo(name+'/PokeDaisy').external_attr>>16 & 0o111
         assert z.getinfo(name+'/launch.sh').external_attr>>16 & 0o111
         assert z.read(name+'/SOURCE.txt').startswith(b'Source: https://github.com/kinetic-hq/pokedaisy')
         assert not any(n.lower().endswith(('.gb','.gbc','.gba','.sav','.ss','.srm','.bin')) for n in names)

@@ -6,8 +6,8 @@ controls, settings, HUD, quick menu, EXPAND and companion as on Linux.
 
 ## Use the portable zip
 
-Unzip `pokedaisy-windows-x86_64.zip` anywhere you can write to. Keep
-`pokedaisy.exe` beside `SDL2.dll`. Your games go in `DATA\roms`; saves, save
+Unzip `PokeDaisy-<version>-windows-x86_64.zip` anywhere you can write to. Keep
+`PokeDaisy.exe` beside `SDL2.dll`. Your games go in `DATA\roms`; saves, save
 states, `settings.ini` and the log (`pokedaisy.log`, when started without a
 console) are written under `DATA`, beside the program, whatever folder it is
 started from. `--data FOLDER` picks another one.

@@ -15,16 +15,16 @@ shares with the Android app and what it doesn't have yet.
 
 ## Install it
 
-There is no installer. Download `pokedaisy-windows-x86_64.zip` from the
+There is no installer. Download `PokeDaisy-<version>-windows-x86_64.zip` (for example `PokeDaisy-1.18.2-windows-x86_64.zip`) from the
 [Releases page](https://github.com/kinetic-hq/pokedaisy/releases) (the top `desktop-v` one: desktop builds are a beta, marked pre-release), unzip it anywhere you can write to (your Documents folder is
 fine, `Program Files` isn't), and you get:
 
-- `pokedaisy.exe` and `SDL2.dll`, which must stay side by side
+- `PokeDaisy.exe` and `SDL2.dll`, which must stay side by side
 - a `DATA` folder with `roms`, `saves` and `states` in it
 - the licenses and this program's source record
 
 Put your `.gba`, `.gbc`, `.gb` and `.nds` files in `DATA\roms`, then open
-`pokedaisy.exe`. It lists your games; pick one with the D-pad and press A.
+`PokeDaisy.exe`. It lists your games; pick one with the D-pad and press A.
 Everything the program writes stays in that `DATA` folder, so you can move the
 whole folder to another PC or a memory card.
 
@@ -138,6 +138,11 @@ Each time it starts, PokeDaisy looks for a newer release in the background, so
 your game never waits on it and nothing shows when you're offline. When there
 is one, the game list asks what to do (in a game, a line at the top tells you
 first):
+
+The release also carries `pokedaisy-windows-x86_64.zip`: the same zip under the
+name older versions look for when they update themselves. If yours was installed
+before 1.18.2, its `pokedaisy.exe` renames itself `PokeDaisy.exe` the first time
+the update starts; your shortcuts keep working.
 
 - **`UPDATE NOW`** downloads it and checks it is the release's own file. It
   goes in when you close PokeDaisy, and the next start is the new version. Only
@@ -344,7 +349,7 @@ never moves your character; `OFF` leaves the touch screen to the D-pad
 the controller.
 
 To start a game straight away, for a frontend or a shortcut, give its file:
-`pokedaisy.exe "D:\Games\My Game.gba"`. `--data FOLDER` uses another data
+`PokeDaisy.exe "D:\Games\My Game.gba"`. `--data FOLDER` uses another data
 folder than the one beside the program.
 
 ## Companion views
@@ -520,7 +525,7 @@ DS games have the same rows in the companion's `SETTINGS` (the gear tab).
 Nintendo DS games play on melonDS, in the same program and the same list as
 your other games, so everything above still applies. Put your `.nds` files in
 `DATA\roms` with the others, or start one straight away with
-`pokedaisy.exe "D:\Games\My Game.nds"`. No BIOS or firmware files are needed.
+`PokeDaisy.exe "D:\Games\My Game.nds"`. No BIOS or firmware files are needed.
 
 A DS game's save sits beside the game's file, named after it without the
 `.nds` (`My Game.sav`), the way most DS emulators keep it, so a folder you sync

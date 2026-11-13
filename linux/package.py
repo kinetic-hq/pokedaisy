@@ -8,12 +8,14 @@ p.add_argument('binary',type=Path);p.add_argument('output',type=Path)
 p.add_argument('--portmaster',action='store_true',help='a PortMaster port: PokeDaisy.sh + pokedaisy/')
 p.add_argument('--dsperate',action='store_true',help='label the opt-in DS experiment and include its notices')
 p.add_argument('--melonds',action='store_true',help='a POCKET_MELONDS build: DS games on melonDS, with its notices')
+p.add_argument('--version',default='',help="a release's version: the zip is PokeDaisy-<version>-linux-<arch>.zip")
 a=p.parse_args();repo=Path(__file__).resolve().parents[1]
 header=a.binary.read_bytes()[:20]
 if header[:6] != b'\x7fELF\x02\x01':p.error('Expected a 64-bit little-endian Linux ELF')
 arch=int.from_bytes(header[18:20],'little')
 if arch not in (62,183):p.error('Supported package targets: x86_64 or AArch64')
-name=('pokedaisy-portmaster-' if a.portmaster else 'pokedaisy-linux-')+('aarch64' if arch==183 else 'x86_64')
+machine='aarch64' if arch==183 else 'x86_64'
+name=('pokedaisy-portmaster-' if a.portmaster else 'PokeDaisy-linux-')+machine
 if a.dsperate:
     if b'DSperate %s' not in a.binary.read_bytes():p.error('Expected a POCKET_DSPERATE build')
     name+='-ds-experiment'
@@ -26,11 +28,12 @@ top.mkdir() # Refuse to overwrite an earlier package.
 dest=top/'pokedaisy' if a.portmaster else top
 dest.mkdir(exist_ok=True)
 launcher=(repo/'linux/portmaster/PokeDaisy.sh',top/'PokeDaisy.sh') if a.portmaster else (repo/'linux/launch.sh',dest/'launch.sh')
-for source,target in [(a.binary,dest/'pokedaisy-linux'),launcher,
+program='pokedaisy-linux' if a.portmaster else 'PokeDaisy'  # PortMaster's launcher and gptokeyb name the former
+for source,target in [(a.binary,dest/program),launcher,
                       (repo/'linux/README.md',dest/'README.md'),
                       (repo/'LICENSE',dest/'LICENSE'),(repo/'NOTICE',dest/'NOTICE')]:
     shutil.copy2(source,target)
-(dest/'pokedaisy-linux').chmod(0o755);launcher[1].chmod(0o755)
+(dest/program).chmod(0o755);launcher[1].chmod(0o755)
 if not a.portmaster:
     # The TrimUI menu's app entry (Apps/<folder>/config.json): its name and its icon (linux/make_icon.py).
     shutil.copy2(repo/'linux/icon.png',dest/'icon.png')
@@ -70,7 +73,8 @@ if a.melonds:
     melon=subprocess.check_output(['git','rev-parse','HEAD:third_party/melonds'],cwd=repo,text=True).strip()
     with (dest/'SOURCE.txt').open('a') as f:
         f.write(f'melonDS: https://github.com/melonDS-emu/melonDS {melon}\nwith third_party/patches/melonds-pokedaisy.patch at this commit\n')
-archive=a.output/(name+'.zip')
+archive=a.output/(f'PokeDaisy-{a.version}-linux-{machine}'+('-ds-experiment' if a.dsperate else '')+'.zip'
+                    if a.version and not a.portmaster else name+'.zip')
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
     for f in sorted(top.rglob('*')):
         if f.is_file():z.write(f,f.relative_to(a.output))
