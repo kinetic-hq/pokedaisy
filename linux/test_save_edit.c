@@ -82,6 +82,30 @@ static void round_trip(const char *spec, const char *scratch) {
   bad.level = 101;
   CHECK(!o->set_mon(e, SE_PARTY, 0, &bad, err, sizeof err));
 
+  /* Gen 3's extras: friendship, the first move's PP Ups, and EXP one past the level's least; then refusals. */
+  if (again.extras && again.level < 100) {
+    long lo = again.exp;
+    want = again;
+    want.friendship = again.friendship == 200 ? 201 : 200;
+    if (want.moves[0])
+      want.ppUps[0] = 3;
+    want.exp = lo + 1;
+    CHECK(o->set_mon(e, SE_PARTY, 0, &want, err, sizeof err) || (fprintf(stderr, "%s\n", err), 0));
+    CHECK(o->mon(e, SE_PARTY, 0, &again));
+    CHECK(again.friendship == want.friendship && again.ppUps[0] == want.ppUps[0] && again.level == want.level);
+    CHECK(again.exp == lo + 1 || (fprintf(stderr, "exp %ld, wanted %ld\n", again.exp, lo + 1), 0));
+    bad = again;
+    bad.exp = 0;
+    CHECK(!o->set_mon(e, SE_PARTY, 0, &bad, err, sizeof err));
+    printf("  refused: %s\n", err);
+    bad = again;
+    bad.friendship = 256;
+    CHECK(!o->set_mon(e, SE_PARTY, 0, &bad, err, sizeof err));
+    bad = again;
+    bad.ppUps[0] = 4;
+    CHECK(!o->set_mon(e, SE_PARTY, 0, &bad, err, sizeof err));
+  }
+
   /* A stack in the first pocket: one fewer (or one more). */
   struct se_item it;
   int slot = -1;
@@ -150,6 +174,8 @@ static void round_trip(const char *spec, const char *scratch) {
   CHECK(o->mon(e, SE_PARTY, 0, &again));
   CHECK(again.level == want.level && again.nature == want.nature && !strcmp(again.nick, "DAISY"));
   CHECK(again.hp == again.maxHp);
+  if (want.extras && want.level < 100)
+    CHECK(again.friendship == want.friendship && again.ppUps[0] == want.ppUps[0] && again.exp == want.exp);
   if (slot >= 0) {
     CHECK(o->pocket_item(e, 0, slot, &it) && it.count == count);
   }

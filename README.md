@@ -425,6 +425,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   with a backup first; a second copy of a game plays `<save> (link 2)`.
 - **EDIT SAVE's bag** on the desktop host lists each pocket's items from the game's own item table to scroll through (`SEARCH BY NAME`
   narrows it), and `ADD ANY ITEM` puts an item in its own pocket, onto the stack you already carry.
+- **EDIT SAVE's Pokemon** on the desktop host also sets a GBA Pokemon's EXP within its level, its friendship and each
+  move's PP boosts (the most PP following them), each checked against what the game allows.
 
 </details>
 

@@ -6447,16 +6447,20 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
   static const char *const statName[6] = {"HP", "ATTACK", "DEFENSE", "SPEED", "SP. ATK", "SP. DEF"};
   int selected = 0;
   while (running) {
-    enum { R_SPECIES, R_NICK, R_LEVEL, R_NATURE, R_ABILITY, R_HELD, R_MOVE, R_IVS = R_MOVE + 4, R_EVS, R_SHINY,
-           R_MAX_IVS, R_APPLY, R_COUNT };
+    enum { R_SPECIES, R_NICK, R_LEVEL, R_EXP, R_NATURE, R_ABILITY, R_HELD, R_FRIEND, R_MOVE, R_PPUPS = R_MOVE + 4,
+           R_IVS, R_EVS, R_SHINY, R_MAX_IVS, R_APPLY, R_COUNT };
     static char text[R_COUNT][96];
     const char *rows[R_COUNT];
+    int ids[R_COUNT], shown = 0;
     const char *a1 = NULL, *a2 = NULL;
     e->ops->abilities(e, m.species, &a1, &a2);
     const char *species = e->ops->species_name(e, m.species), *held = m.held ? e->ops->item_name(e, m.held) : "NONE";
     snprintf(text[R_SPECIES], 96, "POKEMON: %s", species ? species : "?");
     snprintf(text[R_NICK], 96, "NAME: %s", m.nick);
     snprintf(text[R_LEVEL], 96, "LEVEL: %d", m.level);
+    snprintf(text[R_EXP], 96, "EXP: %ld", m.exp);
+    snprintf(text[R_FRIEND], 96, "FRIENDSHIP: %d", m.friendship);
+    snprintf(text[R_PPUPS], 96, "PP BOOSTS: %d/%d/%d/%d", m.ppUps[0], m.ppUps[1], m.ppUps[2], m.ppUps[3]);
     snprintf(text[R_NATURE], 96, "NATURE: %s", se_nature_name(m.nature));
     snprintf(text[R_ABILITY], 96, "ABILITY: %s", m.ability ? (a2 ? a2 : "?") : (a1 ? a1 : "?"));
     snprintf(text[R_HELD], 96, "HOLDS: %s", held ? held : "?");
@@ -6470,11 +6474,13 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     snprintf(text[R_MAX_IVS], 96, "ALL IVs TO 31");
     snprintf(text[R_APPLY], 96, "KEEP THESE CHANGES");
     for (int i = 0; i < R_COUNT; i++)
-      rows[i] = text[i];
-    int pick = menu_pick_hint(m.nick, "B leaves this Pokemon as it was.", rows, R_COUNT, selected);
-    if (pick < 0)
+      if (m.extras || (i != R_EXP && i != R_FRIEND && i != R_PPUPS))
+        rows[shown] = text[i], ids[shown++] = i;
+    int row = menu_pick_hint(m.nick, "B leaves this Pokemon as it was.", rows, shown, selected);
+    if (row < 0)
       return;
-    selected = pick;
+    selected = row;
+    int pick = ids[row];
     long v;
     int id;
     switch (pick) {
@@ -6493,6 +6499,35 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
       if (editor_number("LEVEL", m.level, 1, 100, &v))
         m.level = (int)v;
       break;
+    case R_EXP: // checked against the level's range when it's kept
+      if (editor_number("EXP", m.exp, 0, 2000000, &v))
+        m.exp = v;
+      break;
+    case R_FRIEND:
+      if (editor_number("FRIENDSHIP", m.friendship, 0, 255, &v))
+        m.friendship = (int)v;
+      break;
+    case R_PPUPS: {
+      int k = 0;
+      while (running) {
+        char lines[4][96];
+        const char *r4[4];
+        int at[4], count = 0;
+        for (int i = 0; i < 4; i++) {
+          if (!m.moves[i])
+            continue;
+          const char *mv = e->ops->move_name(e, m.moves[i]);
+          snprintf(lines[count], sizeof lines[count], "%s\t%d BOOSTS", mv ? mv : "?", m.ppUps[i]);
+          r4[count] = lines[count];
+          at[count++] = i;
+        }
+        k = menu_pick_hint("PP BOOSTS", "A adds one, up to 3, then back to none.", r4, count, k);
+        if (k < 0)
+          break;
+        m.ppUps[at[k]] = (m.ppUps[at[k]] + 1) % 4;
+      }
+      break;
+    }
     case R_NATURE: {
       const char *natures[25];
       for (int i = 0; i < 25; i++)
@@ -6553,8 +6588,11 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     }
     default:
       if (pick >= R_MOVE && pick < R_MOVE + 4 &&
-          (id = editor_search(e, "WHICH MOVE?", e->ops->move_name, e->ops->move_max(e), pick != R_MOVE)) >= 0)
+          (id = editor_search(e, "WHICH MOVE?", e->ops->move_name, e->ops->move_max(e), pick != R_MOVE)) >= 0) {
+        if (id != m.moves[pick - R_MOVE])
+          m.ppUps[pick - R_MOVE] = 0; // a new move starts with none
         m.moves[pick - R_MOVE] = id;
+      }
       break;
     }
   }

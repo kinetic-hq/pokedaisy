@@ -32,6 +32,12 @@ struct se_mon {
   bool shiny, egg;
   char nick[32];      /* UTF-8, as the game prints it */
   int hp, maxHp;      /* the party's (0 in a box) */
+  /* Read and changed where EXTRAS is set (Gen 3): friendship (0 to 255), each move's PP Ups (0 to 3) and the EXP
+   * within the level (a level change starts it at the level's least). */
+  bool extras;
+  int friendship;
+  int ppUps[4];
+  long exp;
 };
 
 struct save_edit;

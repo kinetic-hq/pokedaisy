@@ -677,6 +677,11 @@ static bool g3_mon(struct save_edit *e, int box, int slot, struct se_mon *out) {
   }
   out->egg = (iv >> 30) & 1;
   out->ability = (int)(iv >> 31);
+  out->extras = true;
+  out->friendship = m.data[9];
+  out->exp = (long)exp;
+  for (int i = 0; i < 4; i++)
+    out->ppUps[i] = out->moves[i] ? (m.data[8] >> (i * 2)) & 3 : 0;
   uint32_t pid = rd32(m.head);
   out->nature = (int)(pid % 25);
   out->shiny = is_shiny(pid, rd32(m.head + 4));
@@ -818,6 +823,26 @@ static bool g3_set_mon(struct save_edit *e, int box, int slot, const struct se_m
     say(err, n, "This game's growth tables aren't known, so levels can't be set");
     return false;
   }
+  /* Extras: friendship, PP Ups and the EXP within the level, as the game could have them. */
+  long expLo = pd_exp_at(rate, want->level), expHi = want->level < 100 ? pd_exp_at(rate, want->level + 1) - 1 : expLo;
+  long newExp = -1;
+  if (want->extras) {
+    if (want->friendship < 0 || want->friendship > 255) {
+      say(err, n, "Friendship goes from 0 to 255");
+      return false;
+    }
+    for (int i = 0; i < 4; i++)
+      if (want->ppUps[i] < 0 || want->ppUps[i] > 3 || (want->ppUps[i] && !want->moves[i])) {
+        say(err, n, "A move takes 0 to 3 PP Ups");
+        return false;
+      }
+    if (want->exp >= expLo && want->exp <= expHi)
+      newExp = want->exp;
+    else if (want->level == now.level && want->species == now.species && want->exp != now.exp) {
+      snprintf(err, n, "At level %d, EXP goes from %ld to %ld", want->level, expLo, expHi);
+      return false;
+    }
+  }
   int stats[6] = {0};
   if (box == SE_PARTY && !party_stats(g, want->species, want->level, want->nature, want->ivs, want->evs, stats)) {
     say(err, n, "This game's base stats aren't known, so a party Pokemon can't be changed; try one in a box");
@@ -862,8 +887,12 @@ static bool g3_set_mon(struct save_edit *e, int box, int slot, const struct se_m
   wr16(m.data, (unsigned)want->species);
   wr16(m.data + 2, (unsigned)want->held);
   uint32_t exp = rd32(m.data + 4);
-  if (want->level != now.level || want->species != now.species || level_for(rate, exp) != want->level)
+  if (newExp >= 0)
+    wr32(m.data + 4, (uint32_t)newExp);
+  else if (want->level != now.level || want->species != now.species || level_for(rate, exp) != want->level)
     wr32(m.data + 4, (uint32_t)pd_exp_at(rate, want->level));
+  if (want->extras)
+    m.data[9] = (uint8_t)want->friendship;
   uint8_t ppUps = m.data[8];
   for (int i = 0; i < 4; i++) {
     int mv = want->moves[i];
@@ -873,6 +902,17 @@ static bool g3_set_mon(struct save_edit *e, int box, int slot, const struct se_m
       ppUps = (uint8_t)(ppUps & ~(3 << (i * 2)));
     }
   }
+  if (want->extras)
+    for (int i = 0; i < 4; i++) {
+      int mv = want->moves[i], was = (ppUps >> (i * 2)) & 3, ups = want->ppUps[i];
+      if (!mv || ups == was)
+        continue;
+      /* The most PP grows (or shrinks) by a fifth of the base a PP Up, and what's left with it, as using one does. */
+      int base = pd_move_pp[mv], fullWas = base + base * was / 5, full = base + base * ups / 5;
+      int pp = m.data[20 + i] + full - fullWas;
+      m.data[20 + i] = (uint8_t)(pp < 0 ? 0 : pp > full ? full : pp);
+      ppUps = (uint8_t)((ppUps & ~(3 << (i * 2))) | ups << (i * 2));
+    }
   m.data[8] = ppUps;
   for (int i = 0; i < 6; i++)
     m.data[24 + i] = (uint8_t)want->evs[i];
