@@ -274,6 +274,12 @@ layout, and English HeartGold, SoulSilver and Platinum. Any other game, or a sav
 doesn't check out, is refused and left alone.
 
 - `MONEY` and `COINS`: type a new amount, up to what the game allows.
+- `TRAINER` (GBA games): `PLAY TIME` takes hours and minutes. `BADGES` lists the
+  eight, and A switches one on or off (or pick `ALL EIGHT` or `NONE`).
+  `POKEDEX` shows how many you've seen and caught, and fills the regional
+  Pokedex (or the national one, once the game has it on), marking each entry seen
+  and caught. Badges and the Pokedex are offered for the original games only,
+  since a ROM hack can keep them elsewhere.
 - `BAG`: change how many of an item you have, take one out, or `ADD AN ITEM`
   (GBA games, Platinum, HeartGold and SoulSilver). A pocket's `ADD AN ITEM`
   lists only the items that go in that pocket (balls in the balls pocket, and

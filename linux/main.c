@@ -7817,7 +7817,7 @@ static int editor_set_aside(const char *rom) {
   return se_set_resume_aside(states, file, time(NULL));
 }
 /* CHANGES: what differs from the save on disk (ORIG, opened again), a row each; A on one puts it back as it was. */
-enum { CH_MONEY, CH_COINS, CH_ITEM, CH_MON };
+enum { CH_MONEY, CH_COINS, CH_ITEM, CH_MON, CH_TIME, CH_BADGES, CH_DEX };
 struct editor_change {
   int kind, a, b; // a pocket and slot, or a box and slot
   char text[112];
@@ -7849,6 +7849,20 @@ static int editor_mon_diff(const struct se_mon *x, const struct se_mon *y, char 
 static int editor_diff(struct save_edit *e, struct save_edit *orig, struct editor_change *out, int cap) {
   int n = 0;
   const struct se_ops *o = e->ops;
+  int h1, m1, s1, h2, m2, s2;
+  if (se_play_time(e, &h1, &m1, &s1) && se_play_time(orig, &h2, &m2, &s2) && (h1 != h2 || m1 != m2) && n < cap) {
+    out[n].kind = CH_TIME;
+    snprintf(out[n++].text, sizeof out[0].text, "PLAY TIME\t%d:%02d TO %d:%02d", h2, m2, h1, m1);
+  }
+  if (se_badges(e) != se_badges(orig) && n < cap) {
+    out[n].kind = CH_BADGES;
+    snprintf(out[n++].text, sizeof out[0].text, "BADGES\tCHANGED");
+  }
+  if (se_dex_count(e, true) != se_dex_count(orig, true) && n < cap) {
+    out[n].kind = CH_DEX;
+    snprintf(out[n++].text, sizeof out[0].text, "POKEDEX\t%d TO %d CAUGHT", se_dex_count(orig, true),
+             se_dex_count(e, true));
+  }
   if (o->money(e) != o->money(orig) && n < cap) {
     out[n].kind = CH_MONEY;
     snprintf(out[n++].text, sizeof out[0].text, "MONEY\t%ld TO %ld", o->money(orig), o->money(e));
@@ -7910,6 +7924,15 @@ static bool editor_undo_one(struct save_edit *e, struct save_edit *orig, const s
     return o->set_money(e, o->money(orig), err, n);
   case CH_COINS:
     return o->set_coins(e, o->coins(orig), err, n);
+  case CH_TIME: {
+    int h, m, s;
+    return se_play_time(orig, &h, &m, &s) && se_set_play_time(e, h, m, s);
+  }
+  case CH_BADGES:
+    return se_set_badges(e, se_badges(orig));
+  case CH_DEX:
+    snprintf(err, n, "A filled Pokedex goes back only with UNDO ALL.");
+    return false;
   case CH_ITEM: {
     struct se_item was = {0};
     o->pocket_item(orig, c->a, c->b, &was);
@@ -7970,6 +7993,72 @@ static bool editor_changes(struct save_edit *e, const char *save, const char *ro
   se_close(orig);
   return go;
 }
+/* TRAINER (GBA saves): play time, the badges one by one, and the Pokedex filled in. */
+static void editor_trainer(struct save_edit *e) {
+  int at = 0;
+  while (running) {
+    int h = 0, mi = 0, s = 0, badges = se_badges(e), caught = se_dex_count(e, true), seen = se_dex_count(e, false);
+    se_play_time(e, &h, &mi, &s);
+    static char time_[48], badge[48], dex[64];
+    snprintf(time_, sizeof time_, "PLAY TIME\t%d:%02d", h, mi);
+    int count = 0;
+    for (int i = 0; i < 8; i++)
+      count += badges >= 0 && (badges >> i & 1);
+    snprintf(badge, sizeof badge, "BADGES\t%d OF 8", count);
+    snprintf(dex, sizeof dex, "POKEDEX\t%d SEEN, %d CAUGHT", seen, caught);
+    const char *rows[3];
+    int ids[3], n = 0;
+    rows[n] = time_, ids[n++] = 0;
+    if (badges >= 0)
+      rows[n] = badge, ids[n++] = 1;
+    if (caught >= 0)
+      rows[n] = dex, ids[n++] = 2;
+    at = menu_pick_hint("TRAINER", badges < 0 ? "This game's badges and Pokedex aren't known, so only the play time "
+                                                "changes." : "Nothing is written until SAVE CHANGES.",
+                        rows, n, at);
+    if (at < 0)
+      return;
+    long v;
+    if (ids[at] == 0) {
+      if (editor_number("HOURS", h, 0, 999, &v)) {
+        long m2;
+        if (editor_number("MINUTES", mi, 0, 59, &m2))
+          se_set_play_time(e, (int)v, (int)m2, 0);
+      }
+    } else if (ids[at] == 1) {
+      int sel = 0;
+      while (running) {
+        int now = se_badges(e);
+        static char names[8][32];
+        const char *b8[10];
+        for (int i = 0; i < 8; i++) {
+          snprintf(names[i], sizeof names[i], "BADGE %d\t%s", i + 1, now >> i & 1 ? "GOT IT" : "NOT YET");
+          b8[i] = names[i];
+        }
+        b8[8] = "ALL EIGHT";
+        b8[9] = "NONE";
+        sel = menu_pick_hint("BADGES", "A switches a badge. A badge also lets its field moves work outside battle.",
+                             b8, 10, sel);
+        if (sel < 0)
+          break;
+        se_set_badges(e, sel == 8 ? 0xFF : sel == 9 ? 0 : now ^ (1 << sel));
+      }
+    } else {
+      bool national = se_dex_national(e);
+      const char *fill[2] = {"FILL THE REGIONAL POKEDEX", "FILL THE NATIONAL POKEDEX"};
+      int k = menu_pick_hint("POKEDEX", national ? "Each one is marked seen and caught." :
+                             "The national Pokedex isn't on in this game yet: only the regional one fills.",
+                             fill, national ? 2 : 1, 0);
+      if (k >= 0) {
+        int added = se_dex_fill(e, k == 1);
+        char line[96];
+        snprintf(line, sizeof line, added > 0 ? "%d more caught: SAVE CHANGES writes it" : "That Pokedex is full already",
+                 added);
+        notice(line);
+      }
+    }
+  }
+}
 static void save_editor(const char *rom, const char *gameName) {
   char save[1024], err[200] = "";
   editor_save_path(rom, save, sizeof save);
@@ -7980,16 +8069,19 @@ static void save_editor(const char *rom, const char *gameName) {
   }
   int selected = 0;
   while (running) {
-    enum { E_MONEY, E_COINS, E_BAG, E_PARTY, E_BOXES, E_PRESETS, E_HEAL, E_UNDO, E_SAVE };
+    enum { E_MONEY, E_COINS, E_TRAINER, E_BAG, E_PARTY, E_BOXES, E_PRESETS, E_HEAL, E_UNDO, E_SAVE };
     char money[48], coins[48];
-    const char *rows[10];
-    int ids[10], n = 0;
+    const char *rows[11];
+    int ids[11], n = 0;
     snprintf(money, sizeof money, "MONEY: %ld", e->ops->money(e));
     rows[n] = money, ids[n++] = E_MONEY;
     if (e->ops->coins(e) >= 0) {
       snprintf(coins, sizeof coins, "COINS: %ld", e->ops->coins(e));
       rows[n] = coins, ids[n++] = E_COINS;
     }
+    int hours, minutes, seconds;
+    if (se_play_time(e, &hours, &minutes, &seconds))
+      rows[n] = "TRAINER\tPLAY TIME, BADGES, POKEDEX", ids[n++] = E_TRAINER;
     rows[n] = "BAG", ids[n++] = E_BAG;
     rows[n] = "PARTY", ids[n++] = E_PARTY;
     rows[n] = "PC BOXES", ids[n++] = E_BOXES;
@@ -8022,6 +8114,9 @@ static void save_editor(const char *rom, const char *gameName) {
     case E_COINS:
       if (editor_number("COINS", e->ops->coins(e), 0, 9999, &v) && !e->ops->set_coins(e, v, err, sizeof err))
         editor_say("COINS", err);
+      break;
+    case E_TRAINER:
+      editor_trainer(e);
       break;
     case E_BAG: {
       const char *pockets[SE_POCKETS_MAX + 1];

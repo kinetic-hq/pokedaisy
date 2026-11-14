@@ -148,6 +148,16 @@ int se_party_count(struct save_edit *e);
  * stats worked out and full HP; one out of the party closes the gap. Refused, with nothing changed, when the party
  * would have no Pokemon left that can battle, the party is full, it holds mail or a slot holds a Bad Egg. */
 bool se_move(struct save_edit *e, int fromBox, int fromSlot, int toBox, int toSlot, char *err, size_t n);
+/* TRAINER (Gen 3 saves). Play time (hours up to 999); the eight badges as bits, -1 when not known (a hack); the
+ * Pokedex's caught or seen count (-1 not known), whether the national one is on, and FILL: every regional species (or
+ * all 386 when NATIONAL) seen and caught, returning how many are newly caught. */
+bool se_play_time(struct save_edit *e, int *h, int *m, int *s);
+bool se_set_play_time(struct save_edit *e, int h, int m, int s);
+int se_badges(struct save_edit *e);
+bool se_set_badges(struct save_edit *e, int mask);
+int se_dex_count(struct save_edit *e, bool caught);
+bool se_dex_national(struct save_edit *e);
+int se_dex_fill(struct save_edit *e, bool national);
 /* The game a Pokemon came from (se_mon.metGame): "EMERALD" and so on, NULL when unknown. */
 const char *se_game_name(int game);
 /* Writes both (se_save each, after checking neither file changed since it was read); if the second can't be
