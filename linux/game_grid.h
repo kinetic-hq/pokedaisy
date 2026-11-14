@@ -44,8 +44,9 @@ struct game_grid {
   const char *hint;      // the line along the bottom (NULL: none)
   const char *emptyPath; // where games go, shown while there are none
   bool follow;           // keep the selected tile in view on the next draw
+  int artStyle;          // ART STYLE (boxart.h's BOXART_STYLE_*): the art's shape, TALL 2:3 or BOX square
   // Worked out by game_grid_draw:
-  int columns, tileW, tileH, gap, gridTop, gridBottom, drawnW, drawnH;
+  int columns, tileW, tileH, artH, gap, gridTop, gridBottom, drawnW, drawnH;
   struct game_grid_art art[GAME_GRID_ART_MAX];
   int artCount;
   int barX[8], barW[8], barY, barH;
