@@ -129,8 +129,9 @@ Press `X`, right click or hold a finger on a game for its options:
   Without a SteamGridDB key the grid shows the libretro covers only, and says
   where to add a key.
 - **`RENAME`** gives the game a name of your own, typed on a real keyboard or
-  picked key by key with a controller (`B` deletes, `Y` is a space, `START` is
-  done). `USE THE FILE'S NAME` takes it back. Names are kept in `DATA\names.txt`;
+  picked key by key with a controller (`B` or `X` deletes, `Y` is a space,
+  `START` is done). The same keys work wherever you type, such as a search or a
+  number in `EDIT SAVE`. `USE THE FILE'S NAME` takes it back. Names are kept in `DATA\names.txt`;
   the files themselves are never renamed.
 - **`EDIT SAVE`** changes the game's save file: see "Editing a save" below.
 - **`TRADE SAVES`** (GBA games) moves Pokemon between this game's save and
@@ -283,7 +284,12 @@ doesn't check out, is refused and left alone.
   Key items and HMs stay as they are.
 - `PARTY` and `PC BOXES`: pick a Pokemon to change its species, nickname,
   level, nature, ability, held item, moves, IVs, EVs and whether it's shiny.
-  `ALL IVS TO 31` fills them in one go. In a GBA game you also set its EXP
+  `ALL IVS TO 31` fills them in one go. `IVs` and `EVs` open a slider for each
+  stat: left and right on the stick or D-pad step it by one (hold to keep going),
+  LB and RB (or the triggers) step it by ten, `Y` sets it as high as it can go,
+  `X` sets it to 0 and A lets you type it. The EV page shows the total out of 510
+  and how many are left, and a step up stops at 252 for a stat or when the 510 run
+  out. In a GBA game you also set its EXP
   within the level, its friendship (0 to 255) and each move's PP boosts (`PP BOOSTS`:
   A adds one, up to 3, and the most PP grows with them as in the game). A new
   level starts at that level's least EXP. Only values the game itself could
