@@ -373,6 +373,12 @@ doesn't check out, is refused and left alone.
   copied next to it as `<save>.before-edit-<date>-<time>.sav`, and the new file
   is read back and checked; if that fails, the old save is put back.
 
+`SAVE CHANGES` first lists every change, compared with the save as it is on
+disk: money, coins, each item stack, and each Pokemon with what changed on it
+(nature, EVs, moves and so on). Press A on a change to put just that one back,
+or pick `SAVE THESE CHANGES` to write them. A Pokemon you moved goes back only
+with `UNDO ALL`.
+
 `UNDO ALL` (shown once something changed) drops every change you haven't
 saved and reads the save again. Leaving with changes you haven't saved asks
 you first. Saving also sets aside
