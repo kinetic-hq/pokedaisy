@@ -27,6 +27,7 @@ static uint32_t battle_read32(uint32_t addr){
   if(addr<0x02000000 || addr>0x023ffffc)return 0;
   uint32_t value;std::memcpy(&value,battleRam.data()+addr-0x02000000,4);return value;
 }
+pd_snapshot ds_party_snapshot(const DsCompanion&); // frontend.cpp: the party as the wings' panel reads it
 static std::vector<uint8_t> read_file_bytes(const std::string& path){
   std::ifstream f(path,std::ios::binary);return {std::istreambuf_iterator<char>(f),{}};
 }
@@ -53,6 +54,16 @@ int main(int argc,char** argv){
   assert(!ds_battle_view(1,true,true,false,0).bottom);
   assert(ds_battle_view(1,false,false,true).bottom);
   std::puts("PASS automatic screen transitions and temporary manual override");
+  {
+    // The wings' party panel can't look a DS species up, so the snapshot carries each one's types (they all read
+    // NORMAL before). Fire / Fighting, Electric alone, and an egg with none.
+    DsCompanion s;s.game=DsGame::Platinum;s.valid=true;s.party.resize(3);
+    s.party[0].species=392;s.party[1].species=405;s.party[2].species=1;s.party[2].egg=true;
+    const pd_snapshot h=ds_party_snapshot(s);
+    assert(h.partyCount==3 && h.party[0].hasTypes && h.party[0].type1==10 && h.party[0].type2==1);
+    assert(h.party[1].hasTypes && h.party[1].type1==13 && h.party[1].type2==13 && !h.party[2].hasTypes);
+    std::puts("PASS the wings' party types");
+  }
   assert(argc==3 || argc==4);std::ifstream file(argv[1],std::ios::binary);
   std::vector<uint8_t> ram{std::istreambuf_iterator<char>(file),{}};
   assert(ram.size()==4*1024*1024);

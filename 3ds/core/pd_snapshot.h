@@ -46,6 +46,9 @@ struct pd_mon {
     int friendship;
     struct pd_mon_stats stats; // optional: valid only for verified decoders
     bool egg;         // shown as PD_SPECIES_EGG; the box's isEgg flag
+    // Types read by the caller (the DS companion, whose species aren't the game's): used over the species' own.
+    bool hasTypes;
+    int type1, type2;
 };
 
 struct pd_battle_mon {

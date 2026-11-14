@@ -441,6 +441,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   `PokeDaisy-<version>-linux-x86_64.zip` (its program `PokeDaisy`). Each release keeps a
   `pokedaisy-windows-x86_64.zip` copy so 1.18.1 and older still update themselves, and an updated install's
   `pokedaisy.exe` renames itself `PokeDaisy.exe` on its first start.
+- **DS party types in the wings**: `TOUCH IN WING` and `WINGS` show each DS party member's own types, read from
+  the cart, where every one read `NORMAL` before.
 - **The right wing's buttons take their own clicks**: `SAVE STATE` and `CLOSE GAME` read where the click or
   tap landed, not where the mouse went after it, so they no longer open the companion instead.
   A finger works the same on a touch screen (a OneXPlayer's, say): a tap on either button presses it, wherever the
