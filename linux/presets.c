@@ -987,6 +987,27 @@ static int hp_type(const int *iv) {
   return sum * 15 / 63;
 }
 
+void preset_take(struct se_mon *m, const struct se_mon *next, int parts) {
+  if (parts == PART_ALL) {
+    *m = *next;
+    return;
+  }
+  if (parts & PART_NATURE)
+    m->nature = next->nature;
+  if (parts & PART_IVS)
+    memcpy(m->ivs, next->ivs, sizeof m->ivs);
+  if (parts & PART_EVS)
+    memcpy(m->evs, next->evs, sizeof m->evs);
+  if (parts & PART_MOVES) {
+    memcpy(m->moves, next->moves, sizeof m->moves);
+    memcpy(m->ppUps, next->ppUps, sizeof m->ppUps);
+  }
+  if (parts & PART_ITEM)
+    m->held = next->held;
+  if ((parts & PART_ABILITY) && next->species == m->species)
+    m->ability = next->ability;
+}
+
 int preset_apply(struct save_edit *e, const struct preset *p, struct se_mon *m, struct preset_notes *nt) {
   memset(nt, 0, sizeof *nt);
   int filled = 0;

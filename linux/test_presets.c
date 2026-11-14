@@ -209,6 +209,22 @@ static void fill(const char *spec, const char *scratch) {
 }
 
 int main(void) {
+  {
+    /* COPY WHAT?: STATS ONLY takes the set's nature, IVs and EVs and keeps the Pokemon's own moves and item. */
+    struct se_mon m = {0}, next = {0};
+    m.species = next.species = 25, m.nature = 3, m.held = 7, m.moves[0] = 85, m.ivs[0] = 1, m.evs[3] = 10;
+    next.nature = 10, next.held = 9, next.moves[0] = 57, next.ivs[0] = 31, next.evs[3] = 252, next.ability = 1;
+    struct se_mon a = m;
+    preset_take(&a, &next, PART_STATS);
+    CHECK(a.nature == 10 && a.ivs[0] == 31 && a.evs[3] == 252 && a.held == 7 && a.moves[0] == 85 && a.ability == 0);
+    a = m;
+    preset_take(&a, &next, PART_MOVES | PART_ITEM);
+    CHECK(a.nature == 3 && a.moves[0] == 57 && a.held == 9 && a.ivs[0] == 1);
+    a = m;
+    preset_take(&a, &next, PART_ALL);
+    CHECK(a.nature == 10 && a.moves[0] == 57 && a.ability == 1);
+    puts("PASS COPY WHAT? takes only the parts picked");
+  }
   const char *scratch = getenv("TEMP") ? getenv("TEMP") : "/tmp";
   parsers();
   folder(scratch);

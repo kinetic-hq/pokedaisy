@@ -6704,13 +6704,45 @@ static void presets_get(bool quiet) {
   presets_all(true);
   notice(msg); // a toast: the key that started it would close a message at once
 }
+/* What of a set to copy (PRESETS and PASTE SET): all of it, or some of its parts, so a Pokemon can take a set's
+ * nature, IVs and EVs and keep its own moves. */
+static int editor_parts(void) {
+  static int parts = PART_ALL; // remembered for the next set
+  static const char *const names[] = {"NATURE", "IVS", "EVS", "MOVES", "HELD ITEM", "ABILITY"};
+  int at = 0;
+  while (running) {
+    static char text[6][48];
+    const char *rows[9];
+    rows[0] = "COPY ALL OF IT";
+    rows[1] = "STATS ONLY\tNATURE, IVS, EVS";
+    for (int i = 0; i < 6; i++) {
+      snprintf(text[i], sizeof text[i], "%s\t%s", names[i], parts & (1 << i) ? "COPY" : "KEEP MINE");
+      rows[2 + i] = text[i];
+    }
+    rows[8] = "COPY THESE";
+    at = menu_pick_hint("COPY WHAT?", "A switches a part between COPY and KEEP MINE.", rows, 9, at);
+    if (at < 0)
+      return 0;
+    if (at == 0)
+      return PART_ALL;
+    if (at == 1)
+      return PART_STATS;
+    if (at == 8)
+      return parts;
+    parts ^= 1 << (at - 2);
+  }
+  return 0;
+}
 /* P filled into M as far as the game allows, and a list of what it couldn't. */
 static void editor_fill(struct save_edit *e, const struct preset *p, struct se_mon *m) {
+  int parts = editor_parts();
+  if (!parts)
+    return;
   struct se_mon next = *m;
   struct preset_notes notes;
   int filled = preset_apply(e, p, &next, &notes);
   if (filled)
-    *m = next;
+    preset_take(m, &next, parts);
   if (!notes.count) {
     notice("Filled in: KEEP THESE CHANGES keeps it");
     return;
