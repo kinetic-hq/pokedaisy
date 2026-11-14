@@ -7816,6 +7816,160 @@ static int editor_set_aside(const char *rom) {
   snprintf(states, sizeof states, "%s/states", root);
   return se_set_resume_aside(states, file, time(NULL));
 }
+/* CHANGES: what differs from the save on disk (ORIG, opened again), a row each; A on one puts it back as it was. */
+enum { CH_MONEY, CH_COINS, CH_ITEM, CH_MON };
+struct editor_change {
+  int kind, a, b; // a pocket and slot, or a box and slot
+  char text[112];
+};
+static int editor_mon_diff(const struct se_mon *x, const struct se_mon *y, char *out, size_t n) {
+  out[0] = 0;
+  size_t k = 0;
+#define DIFF(cond, name)                                                                                               \
+  if ((cond) && k < n)                                                                                                 \
+    k += (size_t)snprintf(out + k, n - k, "%s%s", k ? ", " : "", name);
+  DIFF(x->species != y->species, "SPECIES")
+  DIFF(strcmp(x->nick, y->nick), "NAME")
+  DIFF(x->level != y->level || x->exp != y->exp, "LEVEL")
+  DIFF(x->nature != y->nature, "NATURE")
+  DIFF(x->ability != y->ability, "ABILITY")
+  DIFF(x->held != y->held, "ITEM")
+  DIFF(memcmp(x->moves, y->moves, sizeof x->moves) || memcmp(x->ppUps, y->ppUps, sizeof x->ppUps), "MOVES")
+  DIFF(memcmp(x->ivs, y->ivs, sizeof x->ivs), "IVS")
+  DIFF(memcmp(x->evs, y->evs, sizeof x->evs), "EVS")
+  DIFF(x->shiny != y->shiny, "SHINY")
+  DIFF(x->friendship != y->friendship, "FRIENDSHIP")
+  DIFF(x->hp != y->hp || x->maxHp != y->maxHp, "HP")
+  DIFF(x->egg != y->egg || strcmp(x->ot, y->ot) || x->tid != y->tid || x->metGame != y->metGame ||
+           x->metLevel != y->metLevel,
+       "ORIGIN")
+#undef DIFF
+  return (int)k;
+}
+static int editor_diff(struct save_edit *e, struct save_edit *orig, struct editor_change *out, int cap) {
+  int n = 0;
+  const struct se_ops *o = e->ops;
+  if (o->money(e) != o->money(orig) && n < cap) {
+    out[n].kind = CH_MONEY;
+    snprintf(out[n++].text, sizeof out[0].text, "MONEY\t%ld TO %ld", o->money(orig), o->money(e));
+  }
+  if (o->coins(e) != o->coins(orig) && n < cap) {
+    out[n].kind = CH_COINS;
+    snprintf(out[n++].text, sizeof out[0].text, "COINS\t%ld TO %ld", o->coins(orig), o->coins(e));
+  }
+  for (int p = 0; p < o->pockets(e); p++)
+    for (int i = 0; i < o->pocket_slots(e, p) && n < cap; i++) {
+      struct se_item now = {0}, was = {0};
+      o->pocket_item(e, p, i, &now);
+      o->pocket_item(orig, p, i, &was);
+      if (now.id == was.id && now.count == was.count)
+        continue;
+      const char *nn = now.id ? o->item_name(e, now.id) : NULL, *wn = was.id ? o->item_name(e, was.id) : NULL;
+      out[n].kind = CH_ITEM, out[n].a = p, out[n].b = i;
+      if (!was.id)
+        snprintf(out[n].text, sizeof out[0].text, "%s\tADDED x%d", nn ? nn : "?", now.count);
+      else if (!now.id)
+        snprintf(out[n].text, sizeof out[0].text, "%s\tTAKEN OUT", wn ? wn : "?");
+      else if (now.id == was.id)
+        snprintf(out[n].text, sizeof out[0].text, "%s\tx%d TO x%d", nn ? nn : "?", was.count, now.count);
+      else
+        snprintf(out[n].text, sizeof out[0].text, "%s\tNOW %s x%d", wn ? wn : "?", nn ? nn : "?", now.count);
+      n++;
+    }
+  for (int b = SE_PARTY; b < o->boxes(e) && n < cap; b++) {
+    int slots = b == SE_PARTY ? 6 : o->box_slots(e);
+    for (int s = 0; s < slots && n < cap; s++) {
+      struct se_mon x, y;
+      bool hx = o->mon(e, b, s, &x), hy = o->mon(orig, b, s, &y);
+      if (!hx && !hy)
+        continue;
+      char what[80], where[24];
+      // Field by field: two reads of one Pokemon can differ in their padding.
+      if (hx && hy && !editor_mon_diff(&x, &y, what, sizeof what))
+        continue;
+      if (b == SE_PARTY)
+        snprintf(where, sizeof where, "PARTY %d", s + 1);
+      else
+        snprintf(where, sizeof where, "BOX %d, %d", b + 1, s + 1);
+      if (!hx || !hy)
+        snprintf(what, sizeof what, hx ? "MOVED IN" : "MOVED OUT");
+      out[n].kind = CH_MON, out[n].a = b, out[n].b = s;
+      if (snprintf(out[n].text, sizeof out[0].text, "%s %.20s\t%.60s", where, hx ? x.nick : y.nick, what) < 0)
+        out[n].text[0] = 0;
+      n++;
+    }
+  }
+  return n;
+}
+/* The change C put back from ORIG: false (with why) when it can't be on its own. */
+static bool editor_undo_one(struct save_edit *e, struct save_edit *orig, const struct editor_change *c, char *err,
+                            size_t n) {
+  const struct se_ops *o = e->ops;
+  switch (c->kind) {
+  case CH_MONEY:
+    return o->set_money(e, o->money(orig), err, n);
+  case CH_COINS:
+    return o->set_coins(e, o->coins(orig), err, n);
+  case CH_ITEM: {
+    struct se_item was = {0};
+    o->pocket_item(orig, c->a, c->b, &was);
+    return o->set_item(e, c->a, c->b, was.id, was.id ? was.count : 0, err, n);
+  }
+  default: {
+    struct se_mon was;
+    if (!o->mon(orig, c->a, c->b, &was) || !o->mon(e, c->a, c->b, &(struct se_mon){0})) {
+      snprintf(err, n, "A Pokemon moved can only go back with UNDO ALL.");
+      return false;
+    }
+    if (!o->set_mon(e, c->a, c->b, &was, err, n))
+      return false;
+    struct se_mon now;
+    char what[80];
+    if (o->mon(e, c->a, c->b, &now) && editor_mon_diff(&now, &was, what, sizeof what)) {
+      snprintf(err, n, "Part of it (such as healing) only goes back with UNDO ALL.");
+      return false;
+    }
+    return true;
+  }
+  }
+}
+/* Before SAVE: every change listed. True to write them. */
+static bool editor_changes(struct save_edit *e, const char *save, const char *rom) {
+  char err[200] = "";
+  struct save_edit *orig = se_open(save, rom, err, sizeof err);
+  if (!orig)
+    return true; // the save can't be read again to compare: se_save checks it anyway
+  enum { CAP = 120 };
+  static struct editor_change list[CAP];
+  static const char *rows[CAP + 1];
+  int at = 0;
+  bool go = false;
+  while (running) {
+    int n = editor_diff(e, orig, list, CAP);
+    rows[0] = "SAVE THESE CHANGES";
+    for (int i = 0; i < n; i++)
+      rows[i + 1] = list[i].text;
+    char hint[96];
+    if (!n)
+      snprintf(hint, sizeof hint, "Nothing differs from the save now.");
+    else
+      snprintf(hint, sizeof hint, "%d change%s%s. A on one puts it back as it was.", n, n == 1 ? "" : "s",
+               n >= CAP ? " (the first ones)" : "");
+    at = menu_pick_hint("CHANGES", hint, rows, n + 1, at);
+    if (at <= 0) {
+      go = at == 0;
+      break;
+    }
+    if (!editor_undo_one(e, orig, &list[at - 1], err, sizeof err))
+      editor_say("CAN'T PUT IT BACK", err);
+    else
+      notice("Put back as it was");
+    if (at > n - 1)
+      at = n - 1;
+  }
+  se_close(orig);
+  return go;
+}
 static void save_editor(const char *rom, const char *gameName) {
   char save[1024], err[200] = "";
   editor_save_path(rom, save, sizeof save);
@@ -7961,6 +8115,8 @@ static void save_editor(const char *rom, const char *gameName) {
         notice("Nothing to save");
         break;
       }
+      if (!editor_changes(e, save, rom))
+        break;
       char backup[1100];
       if (se_save(e, backup, sizeof backup, err, sizeof err)) {
         int aside = editor_set_aside(rom);
