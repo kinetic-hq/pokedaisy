@@ -13,7 +13,7 @@
 
 static const char* const SCREEN_NAMES[PD_SCREEN_MODES] = { "PIXEL 1x", "SHARP 1.25x", "SHARP 1.5x", "STRETCH" };
 static const char* const ASPECT_NAMES[PD_ASPECTS] = { "ORIGINAL", "EXPAND", "ZOOM OUT" };
-const char* const PD_GAME_SPEEDS[PD_GAME_SPEED_COUNT] = { "1x", "1.5x", "2x", "3x", "4x", "0.5x", "0.25x" };
+const char* const PD_GAME_SPEEDS[PD_GAME_SPEED_COUNT] = { "1x", "1.15x", "1.25x", "1.5x", "1.75x", "2x", "2.5x", "3x", "4x", "0.5x", "0.25x" };
 const char* const PD_SHINY_LABELS[PD_SHINY_CHOICES] = { "NORMAL", "1 IN 4096", "1 IN 1024", "1 IN 512", "1 IN 128" };
 const char* const PD_SCENE_SPEEDS[PD_SCENE_SPEED_COUNT] = { "SAME", "1x", "1.5x", "2x", "3x", "4x" };
 static const char* const SCENE_NAMES[PD_SCENE_COUNT] = { "BATTLE SPEED", "TEXT SPEED", "MENU SPEED", "BIKE SPEED", "SURF SPEED" };
@@ -598,18 +598,21 @@ static void pick_list(struct pd_ui* ui, struct pd_canvas* c, const char* title, 
     int y = CONTENT_Y + 8;
     title_window(c, y, title);
     y += TITLE_H + 4;
-    int lf = pd_list_box(c, x, y, w, n * ROW_H + 2 * 7 + 4);
+    // A long list (GAME SPEED's) closes its rows up to fit the screen.
+    int rh = ROW_H, room = c->h - y - 2 * 7 - 4 - MARGIN;
+    if (n * rh > room) rh = room / n < 14 ? 14 : room / n;
+    int lf = pd_list_box(c, x, y, w, n * rh + 2 * 7 + 4);
     int ix = x + lf + 4, iw = w - 2 * (lf + 4);
     int ry = y + lf + 2;
     ui->startId = HIT_OPTION + current; // the D-pad starts on the current choice
     for (int i = 0; i < n; i++) {
         bool on = i == current || ui->pressedId == HIT_OPTION + i;
-        if (on) pd_fill(c, ix - 4, ry, iw + 8, ROW_H, PD_ROW_SELECTED);
-        pd_text(c, ix + 10, pd_text_y(ry, ROW_H), options[i], on ? PD_VALUE : PD_LABEL,
+        if (on) pd_fill(c, ix - 4, ry, iw + 8, rh, PD_ROW_SELECTED);
+        pd_text(c, ix + 10, pd_text_y(ry, rh), options[i], on ? PD_VALUE : PD_LABEL,
                 on ? PD_VALUE_SHADOW : PD_LABEL_SHADOW);
-        if (i == current) pd_triangle(c, ix, ry + 4, 5, PD_RIGHT, PD_VALUE);
-        ui_add_hit(ui, ix - 4, ry, iw + 8, ROW_H, HIT_OPTION + i);
-        ry += ROW_H;
+        if (i == current) pd_triangle(c, ix, ry + rh / 2 - 5, 5, PD_RIGHT, PD_VALUE);
+        ui_add_hit(ui, ix - 4, ry, iw + 8, rh, HIT_OPTION + i);
+        ry += rh;
     }
 }
 

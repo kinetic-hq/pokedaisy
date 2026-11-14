@@ -247,6 +247,14 @@ static void desktop_settings(struct preview* p, struct pd_host_info* host, struc
     tap(p, HIT_TAB + PD_TAB_PARTY, 0);
     tap(p, HIT_TAB + PD_TAB_SETTINGS, 0);
     shot(p->out, p->name, "desktop-settings", p->c->px);
+    // GAME SPEED's list, 1.15x picked: eleven steps on one screen.
+    settings->gameSpeed = 1;
+    p->ui->overlay = PD_OVERLAY_PICK_SPEED;
+    draw(p);
+    shot(p->out, p->name, "desktop-game-speed-pick", p->c->px);
+    p->ui->overlay = PD_OVERLAY_NONE;
+    settings->gameSpeed = 0;
+    draw(p);
     if (has_hit(p, HIT_SETTING + SETTING_PAGE_SPEED)) {
         settings->sceneSpeed[PD_SCENE_BATTLE] = 3;
         settings->ffAudio = settings->ffSteady = true;
@@ -513,6 +521,11 @@ int main(int argc, char** argv) {
     shot(out, name, "pick-screen", px);
     tap(&p, HIT_OPTION + PD_SCREEN_STRETCH, 0);
     printf("action %d, screen mode %d\n", pd_ui_take_action(&ui), settings.screenMode);
+    ui.overlay = PD_OVERLAY_PICK_SPEED;
+    draw(&p);
+    shot(out, name, "pick-game-speed", px);
+    ui.overlay = PD_OVERLAY_NONE;
+    draw(&p);
     tap(&p, HIT_SETTING + SETTING_SAVE_STATE, 0);
     shot(out, name, "confirm-save", px);
     tap(&p, HIT_YES, 0);

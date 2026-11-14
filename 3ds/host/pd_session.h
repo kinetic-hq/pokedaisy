@@ -88,7 +88,7 @@ struct pd_session {
     bool ffToggled, ff;
     bool leave;
     bool wasBusy;
-    int speedDebt; // quarters of a frame owed at GAME SPEED
+    int speedDebt; // hundredths of a frame owed at GAME SPEED
 
     // The field read (pk_field_state) and EXPAND.
     uint32_t romCrc;
