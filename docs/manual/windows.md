@@ -300,7 +300,11 @@ doesn't check out, is refused and left alone.
   what the game can't do: a move it can't learn or that the game doesn't have,
   an ability it doesn't have, an item the game doesn't have. A move whose type
   comes from the IVs gets IVs that give the set's type. `PASTE SET` does the
-  same with a set you copied, as Showdown exports it. Nothing is kept until
+  same with a set you copied, as Showdown exports it. Before either fills
+  anything in, `COPY WHAT?` asks how much of the set to take: `COPY ALL OF
+  IT`, `STATS ONLY` (its nature, IVs and EVs, so your Pokemon keeps its own
+  moves), or switch `NATURE`, `IVS`, `EVS`, `MOVES`, `HELD ITEM` and `ABILITY`
+  each between `COPY` and `KEEP MINE`, then `COPY THESE`. Nothing is kept until
   `KEEP THESE CHANGES`.
 - The first time you open a Pokemon's `PRESETS` with no sets yet, PokeDaisy
   downloads Smogon's sets for every generation, as the pkmn project publishes

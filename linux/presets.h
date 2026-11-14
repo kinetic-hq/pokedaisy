@@ -53,6 +53,11 @@ struct preset_notes {
  * Power's type through them), held item and ability. NOTES gets a line for each thing left out. Returns how many of
  * those were filled. */
 int preset_apply(struct save_edit *e, const struct preset *p, struct se_mon *m, struct preset_notes *notes);
+/* What of a filled-in set to keep (EDIT SAVE's COPY WHAT?): its parts, ALL being the whole of it (its species too). */
+enum { PART_NATURE = 1, PART_IVS = 2, PART_EVS = 4, PART_MOVES = 8, PART_ITEM = 16, PART_ABILITY = 32,
+       PART_ALL = 63, PART_STATS = PART_NATURE | PART_IVS | PART_EVS };
+/* The parts of NEXT (M with a set filled in by preset_apply) that PARTS names, onto M; the rest of M stays. */
+void preset_take(struct se_mon *m, const struct se_mon *next, int parts);
 
 #ifdef __cplusplus
 }
