@@ -38,6 +38,7 @@ struct pd_menu {
     int actionPicked;
     int pressedNav, pressedAction;
     const char* hint; // a line under the list window (the app's page hints), NULL = none
+    const char* keys; // the controller's help bar along the bottom ("A PICK  B BACK"), NULL = none
     int drawnW, drawnH; // the canvas the menu was last drawn on (for taps)
 };
 

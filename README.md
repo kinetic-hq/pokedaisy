@@ -473,6 +473,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   with a backup first; a second copy of a game plays `<save> (link 2)`.
 - **EDIT SAVE's COPY WHAT?**: `PRESETS` and `PASTE SET` first ask what to take from a set: all of it, `STATS ONLY`
   (nature, IVs, EVs) or any mix of nature, IVs, EVs, moves, held item and ability, so a Pokemon can keep its moves.
+- **EDIT SAVE's controller help**: a bar along the bottom of every editor screen shows what A, B, X, Y and the
+  shoulders do there (LB / RB, or L / R under the NINTENDO button layout), and LB / RB jump by first letter in the
+  species, move and item lists.
 - **EDIT SAVE's IV and EV sliders**: left / right step a stat (held, it repeats), LB / RB by ten, Y to the most, X to 0,
   with the EV total and what's left of 510 shown and kept to; the pad's X is a backspace wherever you type.
 - **EDIT SAVE's LEGALITY**: a LEGAL / CHECK / NOT LEGAL badge on every party and box Pokemon, and a LEGALITY page per

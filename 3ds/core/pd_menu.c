@@ -32,7 +32,9 @@ bool pd_menu_pickable(const struct pd_menu* m, int row) {
 }
 
 static int list_x(const struct pd_menu* m) { return MARGIN + (m->navCount ? RAIL_W + MARGIN : 0); }
-static int list_bottom(const struct pd_menu* m, int h) { return h - MARGIN - (m->hint ? HINT_H : 0); }
+static int list_bottom(const struct pd_menu* m, int h) {
+    return h - MARGIN - (m->hint ? HINT_H : 0) - (m->keys ? HINT_H : 0);
+}
 
 static int rows_for(const struct pd_menu* m, int h) {
     return (list_bottom(m, h) - LIST_Y - 2 * LIST_FRAME - 4) / ROW_H;
@@ -55,6 +57,7 @@ void pd_menu_init(struct pd_menu* m, const char* title, const char* const* items
     m->navPicked = m->actionPicked = -1;
     m->pressedNav = m->pressedAction = -1;
     m->hint = NULL;
+    m->keys = NULL;
     m->overlay = false;
     m->drawnW = m->drawnH = 0;
     // Start on a row that can be picked.
@@ -115,6 +118,10 @@ void pd_menu_draw(struct pd_menu* m, struct pd_canvas* c) {
     int lx = list_x(m), lw = c->w - lx - MARGIN;
     pd_list_box(c, lx, LIST_Y, lw, list_bottom(m, c->h) - LIST_Y);
     if (m->hint) pd_text_fit(c, lx + 4, list_bottom(m, c->h) + 1, lw - 8, m->hint, PD_ON_BACKDROP, PD_ON_BACKDROP_SHADOW);
+    if (m->keys) {
+        int ky = list_bottom(m, c->h) + (m->hint ? HINT_H : 0) + 1;
+        pd_text_fit(c, lx + 4, ky, lw - 8, m->keys, PD_VALUE, PD_VALUE_SHADOW);
+    }
     int rows = rows_for(m, c->h);
     keep_visible(m, rows);
     int x = lx + LIST_FRAME, iw = lw - 2 * LIST_FRAME;

@@ -4818,7 +4818,7 @@ cleanup:
 static int updateSel;
 static bool updateDone; // READY / FAILED read and closed
 /* The game list's own screens (GAME FOLDERS, the folder browser) run their frames here. A headless run (--frames)
- * ends inside them too and takes its shot there; POCKET_MENU_KEYS ("D D A B": A, B, U(p), D(own), L(eft), R(ight), one every 12
+ * ends inside them too and takes its shot there; POCKET_MENU_KEYS ("D D A B": A, B, U(p), D(own), L(eft), R(ight), X, Y, [ and ] the shoulders, one every 12
  * frames, a space skips a turn) presses keys for it, so the screens can be pictured without a person. */
 static int menuFrames, menuTicks;
 static const char *menuShot, *menuKeys;
@@ -4846,7 +4846,7 @@ static void menu_script(void) {
   last = menuTicks;
   char c = *menuKeys++;
   int k = c == 'A' ? A : c == 'B' ? B : c == 'U' ? UP : c == 'D' ? DOWN : c == 'L' ? LEFT : c == 'R' ? RIGHT
-          : c == 'X' ? X : c == 'Y' ? Y : -1;
+          : c == 'X' ? X : c == 'Y' ? Y : c == '[' ? L : c == ']' ? R : -1;
   if (k >= 0)
     pressed |= 1u << k;
 }
@@ -4867,14 +4867,55 @@ static const char *menu_title(const char *title, char *buf, size_t size) {
 #else
 #define ROMS_PATH "DATA/roms/"
 #endif
+/* The save editor's screens show the controller's help bar (editorDepth > 0). The shoulders are named as the BUTTON
+ * LAYOUT names them: LB/RB on an Xbox pad, L/R on a Nintendo one (the face buttons keep their letters either way). */
+static int editorDepth;
+static const char *pickBar;  // the next picker's own help bar (set just before it, used once)
+static bool pickLetters;      // the next picker is a list of names (species, moves, items): LB/RB jump by letter
+static const char *shoulders_name(void) { return buttonLayout == PD_LAYOUT_XBOX ? "LB/RB" : "L/R"; }
+/* A row's first letter, upper case ('#' for a digit), 0 for a group heading or a row with none. */
+static int row_letter(const char *item) {
+  if (!item || item[0] == PD_MENU_GROUP[0])
+    return 0;
+  for (const unsigned char *s = (const unsigned char *)item; *s && *s != '\t'; s++) {
+    if (SDL_isdigit(*s))
+      return '#';
+    if (SDL_isalpha(*s))
+      return SDL_toupper(*s);
+  }
+  return 0;
+}
+/* LB/RB in a long list: the first row of the next (or previous) first letter the list has, wrapping round. Works on a
+ * list in any order: "next" is the alphabet's, and the row is the list's first with that letter. */
+static int letter_jump(const struct pd_menu *m, bool next) {
+  int cur = row_letter(m->items[m->selected]), best = -1, bestL = 0, wrap = -1, wrapL = 0;
+  for (int i = 0; i < m->count; i++) {
+    int l = row_letter(m->items[i]);
+    if (!l || !pd_menu_pickable(m, i))
+      continue;
+    if ((next ? l > cur : l < cur) && (best < 0 || (next ? l < bestL : l > bestL)))
+      best = i, bestL = l;
+    if (wrap < 0 || (next ? l < wrapL : l > wrapL))
+      wrap = i, wrapL = l;
+  }
+  return best >= 0 ? best : wrap >= 0 ? wrap : m->selected;
+}
 /* A pick-list: the chosen row, or -1 for B (or the app closing). HINT, when set, is a line under the list. */
 static int menu_pick_hint(const char *title, const char *hint, const char *const *items, int count, int selected) {
-  char shortTitle[1100];
+  char shortTitle[1100], bar[120];
   struct pd_menu m;
   pd_menu_init(&m, menu_title(title, shortTitle, sizeof shortTitle), items, count);
   m.emptyPath = ROMS_PATH;
   m.hint = hint;
   m.selected = selected >= 0 && selected < count ? selected : 0;
+  bool jump = pickLetters && count > 1;
+  pickLetters = false;
+  if (editorDepth > 0) {
+    snprintf(bar, sizeof bar, "A PICK   B BACK%s%s", jump ? "   " : "", jump ? shoulders_name() : "");
+    if (jump)
+      snprintf(bar + strlen(bar), sizeof bar - strlen(bar), " NEXT LETTER");
+    m.keys = bar;
+  }
   while (running) {
     events();
     repeat_directions();
@@ -4885,6 +4926,8 @@ static int menu_pick_hint(const char *title, const char *hint, const char *const
       pd_menu_move(&m, -1);
     if (down(DOWN))
       pd_menu_move(&m, 1);
+    if (jump && (down(L) || down(R)) && count)
+      m.selected = letter_jump(&m, down(R));
     if (down(A) && count)
       return m.selected;
     int tapped = menu_taps(&m);
@@ -4908,6 +4951,8 @@ static int menu_pick_keys(const char *title, const char *hint, const char *const
   struct pd_menu m;
   pd_menu_init(&m, menu_title(title, shortTitle, sizeof shortTitle), items, count);
   m.hint = hint;
+  m.keys = editorDepth > 0 ? pickBar : NULL;
+  pickBar = NULL;
   m.selected = selected >= 0 && selected < count ? selected : 0;
   *key = A;
   while (running) {
@@ -6699,6 +6744,7 @@ static int editor_search(struct save_edit *e, const char *title, const char *(*n
     editor_say(title, "Nothing this game has goes by that name.");
     return -1;
   }
+  pickLetters = true;
   int pick = menu_pick(title, rows, n, 0);
   return pick >= 0 ? ids[pick] : -1;
 }
@@ -6732,6 +6778,7 @@ static int editor_pick_move(struct save_edit *e, const struct se_mon *m, bool no
       rows[at] = rows[at - 1], ids[at] = ids[at - 1], at--;
     rows[at] = s, ids[at] = moves[i];
   }
+  pickLetters = true;
   int pick = menu_pick_hint(title,
                             complete ? "The moves it can learn by now. One it knows from an egg stays."
                                      : "From the game's own lists; it may learn others too.",
@@ -6936,11 +6983,14 @@ static void editor_ivev(struct se_mon *m, bool ivs) {
       }
       r8[6] = ivs ? "ALL TO 31" : "ALL TO 0";
       r8[7] = "DONE";
+      char bar[120];
       if (ivs)
-        snprintf(hint, sizeof hint, "LEFT/RIGHT 1, LB/RB 10, Y 31, X 0, A types it.");
+        snprintf(hint, sizeof hint, "Each IV runs from 0 to 31.");
       else
-        snprintf(hint, sizeof hint, "TOTAL %d / 510 (%d left). LEFT/RIGHT 1, LB/RB 10, Y most, X 0, A types it.",
-                 total, total < 510 ? 510 - total : 0);
+        snprintf(hint, sizeof hint, "TOTAL %d / 510 (%d left).", total, total < 510 ? 510 - total : 0);
+      snprintf(bar, sizeof bar, "A TYPE   B BACK   LEFT/RIGHT 1   %s 10   Y %s   X 0", shoulders_name(),
+               ivs ? "31" : "MOST");
+      pickBar = bar;
       unsigned keys = 1u << LEFT | 1u << RIGHT | 1u << L | 1u << R | 1u << L2 | 1u << R2 | 1u << X | 1u << Y;
       stat = menu_pick_keys(ivs ? "IVs" : "EVs", hint, r8, 8, stat, keys, &key);
       if (stat < 0 || stat == 7)
@@ -7578,7 +7628,10 @@ static bool editor_count(const char *title, int now, int min, int max, int *out)
     snprintf(most, sizeof most, "MOST\tx%d", max);
     const char *rows[3] = {line, most, "TYPE A NUMBER"};
     unsigned keys = 1u << LEFT | 1u << RIGHT | 1u << L | 1u << R | 1u << L2 | 1u << R2 | 1u << X | 1u << Y;
-    at = menu_pick_keys(title, "LEFT/RIGHT 1, LB/RB 10, Y most, X least, A keeps it.", rows, 3, at, keys, &key);
+    char bar[120];
+    snprintf(bar, sizeof bar, "A KEEP   B BACK   LEFT/RIGHT 1   %s 10   Y MOST   X LEAST", shoulders_name());
+    pickBar = bar;
+    at = menu_pick_keys(title, NULL, rows, 3, at, keys, &key);
     if (at < 0)
       return false;
     if (key == LEFT)
@@ -7647,6 +7700,7 @@ static int editor_pick_item(struct save_edit *e, int p, const char *title) {
       searched = false;
       continue;
     }
+    pickLetters = true;
     int pick = menu_pick(title, rows, n, 0);
     if (pick < 0) {
       if (!searched)
@@ -7778,6 +7832,7 @@ static void editor_pocket(struct save_edit *e, int p) {
     if (!locked)
       snprintf(hint, sizeof hint, used >= slots ? "%d of %d slots used: the pocket is full." : "%d of %d slots used.",
                used, slots);
+    pickLetters = true;
     int pick = menu_pick_hint(title, locked ? locked : hint, rows, n, selected);
     if (pick < 0)
       return;
@@ -8097,6 +8152,7 @@ static void save_editor(const char *rom, const char *gameName) {
     return;
   }
   int selected = 0;
+  editorDepth++;
   while (running) {
     enum { E_MONEY, E_COINS, E_TRAINER, E_BAG, E_PARTY, E_BOXES, E_PRESETS, E_HEAL, E_UNDO, E_SAVE };
     char money[48], coins[48];
@@ -8258,6 +8314,7 @@ static void save_editor(const char *rom, const char *gameName) {
     }
   }
   se_close(e);
+  editorDepth--;
 }
 /* ---- TRADE SAVES (save_edit.h's se_trade): two GBA games' saves, a PC box Pokemon each way, the games' own rules ---- */
 static bool trade_is_gba(const char *path) {
