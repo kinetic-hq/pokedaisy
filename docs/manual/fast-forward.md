@@ -26,6 +26,9 @@ A short message on the game screen tells you what speed you're at whenever it ch
 
 `FF SPEED` sets how fast fast-forward goes: `1.5×`, `2×` (the default), `3×`, `4×`, `5×`, `6×`, `8×` or `10×`. `INFINITE` takes the cap off and runs as fast as your device can manage.
 
+> [!NOTE]
+> On Windows and Linux the list starts lower: `1.5×`, `1.75×`, `2×` (the default), then `3×` up to `10×`, and `MAX` in place of `INFINITE`. The bottom bar shows the speed while fast-forward runs (`FF x1.75`).
+
 ![The FF SPEED pick-list open over the companion's SETTINGS, with speeds from INFINITE to 10×](shots/companion-settings-ffspeed.png "Picking a fast-forward speed")
 
 Higher isn't always better. At 8x or 10x, text flies past before you can read it, and some devices get warm. 2x to 4x is a good everyday range.

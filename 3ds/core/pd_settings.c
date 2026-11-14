@@ -17,7 +17,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     // AND NIGHT off...): a host's settings live on its stack, so nothing may be left as it was.
     memset(s, 0, sizeof(*s));
     s->screenMode = PD_SCREEN_SHARP;
-    s->ffSpeed = PD_FF_MIN;
+    s->ffSpeed = PD_FF_DEFAULT;
     s->guideNotice = 0;
     s->aspect = pd_settings_expand_default ? PD_ASPECT_EXPAND : PD_ASPECT_ORIGINAL;
     s->aspectPicked = false;
@@ -118,7 +118,7 @@ int pd_game_speed_index(int pct) {
     return 0;
 }
 
-const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};
+const int PD_FF_SPEEDS[PD_FF_CHOICES] = {150, 175, 200, 300, 400, 500, 600, 800, 1000, 0};
 
 int pd_ff_index(int speed) {
     for (int i = 0; i < PD_FF_CHOICES; i++)
@@ -148,8 +148,12 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         const char* value = eq + 1;
         if (!strcmp(key, "screen")) int_in(value, 0, PD_SCREEN_MODES - 1, &s->screenMode);
         else if (!strcmp(key, "ff")) {
+            // Before the 1.5x and 1.75x steps: whole times (2 = 2x), 0 MAX.
             int n;
-            if (int_in(value, 0, 10, &n) && PD_FF_SPEEDS[pd_ff_index(n)] == n) s->ffSpeed = n;
+            if (int_in(value, 0, 10, &n) && PD_FF_SPEEDS[pd_ff_index(n * 100)] == n * 100) s->ffSpeed = n * 100;
+        } else if (!strcmp(key, "ffpct")) {
+            int n;
+            if (int_in(value, 0, 1000, &n) && PD_FF_SPEEDS[pd_ff_index(n)] == n) s->ffSpeed = n;
         }
         else if (!strcmp(key, "guide")) int_in(value, 0, 0x7FFFFFFF, &s->guideNotice);
         else if (!strcmp(key, "dark")) s->darkMode = atoi(value) != 0;
@@ -298,7 +302,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     snprintf(tmp, sizeof(tmp), "%s.tmp", path);
     FILE* f = fopen(tmp, "w");
     if (!f) return false;
-    fprintf(f, "screen=%d\nff=%d\nguide=%d\naspect=%d\nautozoom=%d\nwildoff=%d\ntabs=%d\nhud=%d\nhudhide=%d\nquickgrid=%d\nlcd=%d\n",
+    fprintf(f, "screen=%d\nffpct=%d\nguide=%d\naspect=%d\nautozoom=%d\nwildoff=%d\ntabs=%d\nhud=%d\nhudhide=%d\nquickgrid=%d\nlcd=%d\n",
             s->screenMode, s->ffSpeed, s->guideNotice, s->aspect, s->autoZoom ? 1 : 0, s->wildOff ? 1 : 0, s->tabBar,
             s->hud ? 1 : 0, s->hudHidden, s->quickGrid ? 1 : 0, s->filter == PD_FILTER_SUBPIXEL ? 1 : 0);
     fprintf(f, "filter=%d\ngrid=%d\n", s->filter, s->grid);

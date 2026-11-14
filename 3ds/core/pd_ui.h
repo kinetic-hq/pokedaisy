@@ -57,14 +57,14 @@ enum pd_aspect {
     PD_ASPECTS,
 };
 
-#define PD_FF_MIN 2
-#define PD_FF_MAX 4
+#define PD_FF_DEFAULT 200 // fast-forward's speed out of the box, in percent
 // SCENE SPEEDS: SAME (GAME SPEED's) or 1x ... 4x, for each scene in this order.
 enum { PD_SCENE_BATTLE, PD_SCENE_TEXT, PD_SCENE_MENU, PD_SCENE_BIKE, PD_SCENE_SURF, PD_SCENE_COUNT };
 // plorpOS: the fast-forward speeds offered (the app's RATES less 1.5x), 0 = MAX: as many frames as a
 // screen refresh has time for.
-#define PD_FF_CHOICES 8
+#define PD_FF_CHOICES 10
 extern const int PD_FF_SPEEDS[PD_FF_CHOICES];
+void pd_speed_label(char* out, size_t n, int pct);
 int pd_ff_index(int speed);
 
 // plorpOS: how ORIGINAL's picture fills the screen - whole pixels, the largest 3:2, or all of it.
@@ -93,7 +93,7 @@ enum { PD_HOTKEY_DO_FF = 3, PD_HOTKEY_DO_ZOOM_IN = 11, PD_HOTKEY_DO_ZOOM_OUT = 1
 #define PD_WING_LIST_MAX 24
 struct pd_settings {
     int screenMode; // enum pd_screen_mode
-    int ffSpeed;    // PD_FF_MIN..PD_FF_MAX
+    int ffSpeed;    // FF SPEED in percent (a PD_FF_SPEEDS step: 150 = 1.5x), 0 = MAX
     int guideNotice; // a bit per game kind whose GUIDE notice was accepted
     int aspect;      // enum pd_aspect (hosts with hasExpand only)
     bool aspectPicked; // ASPECT chosen by the player (pd_settings_expand_default leaves a chosen ORIGINAL alone)

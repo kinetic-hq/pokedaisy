@@ -364,6 +364,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Finer GAME SPEED steps, sound at its own pitch** on the desktop host: `1.15x`, `1.25x`, `1.75x` and `2.5x` join
   `1x` to `4x` and the slow two, and the game's sound is time stretched to keep its pitch at any `GAME SPEED` or
   `SCENE SPEEDS` pace instead of rising or dropping with it. An older `settings.ini` keeps its pick.
+- **FF SPEED from 1.5x** on the desktop host: `1.5x`, `1.75x`, `2x` (still the default), `3x` up to `10x` and `MAX`,
+  where it used to start at `2x`. The bottom bar writes the speed as `FF x1.75`. An older `settings.ini` keeps its pick.
 - **TRADE EVOS on the desktop**: in the English FireRed (rev 1), LeafGreen and Emerald, a party Pokémon that would
   evolve by trading gets `EVOLVE` on its summary, and the game plays its own evolution, as on Android.
 - **NUZLOCKE on the desktop**: the Android app's tracker and its tab (under `MORE`): one encounter per area, fainted

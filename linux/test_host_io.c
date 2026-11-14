@@ -143,16 +143,16 @@ static void test_replace(void) {
   snprintf(ini, sizeof ini, "%s/settings.ini", dir);
   struct pd_settings set, back;
   pd_settings_defaults(&set);
-  set.ffSpeed = 3;
+  set.ffSpeed = 300;
   assert(pd_settings_save(&set, ini));
-  set.ffSpeed = 4;
+  set.ffSpeed = 400;
   set.levelCap = true;
   set.resumeGames = false;
   set.rumble = true;
   set.batterySaver = PD_SAVER_OFF;
   assert(pd_settings_save(&set, ini));
   pd_settings_defaults(&back);
-  assert(pd_settings_load(&back, ini) && back.ffSpeed == 4 && back.levelCap && !back.resumeGames && back.rumble &&
+  assert(pd_settings_load(&back, ini) && back.ffSpeed == 400 && back.levelCap && !back.resumeGames && back.rumble &&
          back.batterySaver == PD_SAVER_OFF);
   // GAME SPEED is kept in percent; an older file's speed= index (1x, 1.5x, 2x, 3x, 4x, 0.5x, 0.25x) still reads.
   set.gameSpeed = pd_game_speed_index(115);
@@ -167,6 +167,20 @@ static void test_replace(void) {
     pd_settings_defaults(&back);
     assert(pd_settings_load(&back, ini) && PD_GAME_SPEED_PCT[back.gameSpeed] == oldPct[i]);
   }
+  // FF SPEED likewise in percent from 1.5x; an older ff= (whole times, 0 MAX) still reads.
+  set.ffSpeed = 175;
+  assert(pd_settings_save(&set, ini));
+  pd_settings_defaults(&back);
+  assert(pd_settings_load(&back, ini) && back.ffSpeed == 175);
+  static const int oldFf[][2] = {{2, 200}, {3, 300}, {10, 1000}, {0, 0}, {7, PD_FF_DEFAULT}};
+  for (int i = 0; i < 5; i++) {
+    f = fopen(ini, "w");
+    assert(f && fprintf(f, "ff=%d\n", oldFf[i][0]) > 0);
+    fclose(f);
+    pd_settings_defaults(&back);
+    assert(pd_settings_load(&back, ini) && back.ffSpeed == oldFf[i][1]);
+  }
+  assert(PD_FF_SPEEDS[0] == 150 && PD_FF_SPEEDS[1] == 175 && PD_FF_SPEEDS[2] == 200);
   assert(pocket_remove(ini));
   assert(pocket_remove(a) && !pocket_exists(a));
   assert(pocket_mkdir(dir) && pocket_rmdir(dir)); // mkdir of an existing one is fine

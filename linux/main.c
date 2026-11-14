@@ -1523,7 +1523,7 @@ static uint32_t bezelSavedAt; // the last save (the game's, or a state): the bez
 static uint32_t gameSavedAt;  // the game's own last save this run, else when the game started: LAST SAVED
 static bool gameSavedYet;     // the game has saved since it started
 static struct pd_nuzlocke nuzlocke; // NUZLOCKE's run (nuz_load / nuz_store below)
-static int bezelFf;           // fast-forward's speed while it runs, else 0
+static int bezelFf;           // fast-forward's speed while it runs, in percent, else 0
 static int bezelPacePct = 100; // the game's speed off fast-forward, in percent
 static uint32_t zoomChangedAt; // when the zoom last changed (ZOOM shows a few seconds after)
 /* LAYOUT: the bars' item lists and the right wing's sections, from the settings (pd_settings' barList / wingList). */
@@ -3142,8 +3142,13 @@ static double scene_pace(const struct pd_settings *s, const struct pd_host_info 
 /* plorpOS: fast-forward's frames this refresh - its speed, or for MAX as many as ~80% of a frame's time fits
  * (frameMs: what one cost lately). */
 static int ff_frames(const struct pd_settings *s, double hz, double frameMs) {
-  if (s->ffSpeed)
-    return s->ffSpeed;
+  static double owed; // 1.5x: one frame, then two, the fraction carried
+  if (s->ffSpeed) {
+    owed += s->ffSpeed / 100.0;
+    int n = (int)owed;
+    owed -= n;
+    return n;
+  }
   int n = frameMs > 0 ? (int)(800.0 / hz / frameMs) : 2;
   return n < 2 ? 2 : n > 30 ? 30 : n;
 }
@@ -4321,7 +4326,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         count = 3;
       // GAME SPEED's sound is stretched to its pitch; fast-forward's plays sped up, as FF MUSIC says.
       stretchSpeed = fast || rewinding ? 1 : pace;
-      audio_rate(c, hz, fast ? count : stretchSpeed != 1 ? 1 : pace);
+      audio_rate(c, hz, fast ? (settings.ffSpeed ? settings.ffSpeed / 100.0 : count) : stretchSpeed != 1 ? 1 : pace);
       if ((settings.instantText && textPatch.count > 0) != textOn) {
         textOn = !textOn;
         tweak_apply(c, romdata, &textPatch, textOn);

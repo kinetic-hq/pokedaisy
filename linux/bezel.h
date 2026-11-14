@@ -120,6 +120,17 @@ struct bezel_facts {
   const char *catchHint;
 };
 
+/* LABEL and a speed in percent: FF x2, SPEED x1.5, FF x1.75. Returns the length written. */
+static inline size_t bezel_times(char *out, size_t n, const char *label, int pct) {
+  int w;
+  if (pct % 10)
+    w = snprintf(out, n, "%s x%d.%02d", label, pct / 100, pct % 100);
+  else if (pct % 100)
+    w = snprintf(out, n, "%s x%d.%d", label, pct / 100, pct % 100 / 10);
+  else
+    w = snprintf(out, n, "%s x%d", label, pct / 100);
+  return w < 0 ? 0 : (size_t)w;
+}
 static inline void bezel_item_text(int item, const struct bezel_facts *f, char *out, size_t n) {
   out[0] = 0;
   char a[32] = "", b[32] = "";
@@ -154,7 +165,7 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
   case BEZEL_CHIPS: {
     size_t at = 0;
     if (f->ff > 0)
-      at += (size_t)snprintf(out + at, n - at, "FF x%d", f->ff);
+      at += bezel_times(out + at, n - at, "FF", f->ff);
     if (f->zoomPct > 0 && at < n)
       at += (size_t)snprintf(out + at, n - at, "%sZOOM %d%%", at ? "  " : "", f->zoomPct);
     if (f->saved && at < n)
@@ -211,17 +222,9 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
     break;
   case BEZEL_SPEED:
     if (f->ff > 0)
-      snprintf(out, n, "FF x%d", f->ff);
+      bezel_times(out, n, "FF", f->ff);
     else if (f->pacePct > 0 && f->pacePct != 100)
-    {
-      int p = f->pacePct;
-      if (p % 10)
-        snprintf(out, n, "SPEED x%d.%02d", p / 100, p % 100);
-      else if (p % 100)
-        snprintf(out, n, "SPEED x%d.%d", p / 100, p % 100 / 10);
-      else
-        snprintf(out, n, "SPEED x%d", p / 100);
-    }
+      bezel_times(out, n, "SPEED", f->pacePct);
     break;
   case BEZEL_BOSS:
     if (f->boss && *f->boss)

@@ -161,7 +161,7 @@ int main(int argc,char** argv) {
         struct pd_game game;pd_game_detect(&game,header,0x1000000);
         struct pd_snapshot snap;pd_snapshot_read(&snap,&game,read_ram,NULL);
         assert(snap.partyCount>0 && snap.party[0].stats.valid);
-        struct pd_settings settings={.ffSpeed=2};struct pd_ui ui;pd_ui_init(&ui,&settings);
+        struct pd_settings settings={.ffSpeed=200};struct pd_ui ui;pd_ui_init(&ui,&settings);
         struct pd_host_info host={0};struct pd_canvas canvas;
         static uint32_t pixels[1024*768];
         const int sizes[][2]={{480,320},{512,384},{1024,768},{341,256},{320,240}};

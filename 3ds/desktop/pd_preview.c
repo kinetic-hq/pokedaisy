@@ -375,7 +375,7 @@ int main(int argc, char** argv) {
     }
     struct pd_canvas c;
     pd_canvas_init(&c, uiW, uiH, px);
-    struct pd_settings settings = { .screenMode = PD_SCREEN_SHARP, .ffSpeed = 2 };
+    struct pd_settings settings = { .screenMode = PD_SCREEN_SHARP, .ffSpeed = 200 };
     struct pd_ui ui;
     pd_ui_init(&ui, &settings);
     shotUi = &ui;
@@ -521,6 +521,9 @@ int main(int argc, char** argv) {
     shot(out, name, "pick-screen", px);
     tap(&p, HIT_OPTION + PD_SCREEN_STRETCH, 0);
     printf("action %d, screen mode %d\n", pd_ui_take_action(&ui), settings.screenMode);
+    ui.overlay = PD_OVERLAY_PICK_FF;
+    draw(&p);
+    shot(out, name, "pick-ff", px);
     ui.overlay = PD_OVERLAY_PICK_SPEED;
     draw(&p);
     shot(out, name, "pick-game-speed", px);
