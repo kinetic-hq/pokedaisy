@@ -1861,6 +1861,83 @@ bool se_move(struct save_edit *e, int fromBox, int fromSlot, int toBox, int toSl
   return true;
 }
 
+/* ---- TRAINER (Gen 3): play time, badges, the Pokedex ---------------------------------------------------------- */
+#define PLAY_TIME_OFF 0x0E /* SaveBlock2.playTimeHours (u16), then minutes, seconds and frames (a byte each) */
+
+bool se_play_time(struct save_edit *e, int *h, int *m, int *s) {
+  if (!se_trade_ready(e))
+    return false;
+  const uint8_t *p = G(e)->sb2 + PLAY_TIME_OFF;
+  *h = rd16(p), *m = p[2], *s = p[3];
+  return true;
+}
+bool se_set_play_time(struct save_edit *e, int h, int m, int s) {
+  if (!se_trade_ready(e) || h < 0 || h > 999 || m < 0 || m > 59 || s < 0 || s > 59)
+    return false;
+  uint8_t *p = G(e)->sb2 + PLAY_TIME_OFF;
+  wr16(p, (unsigned)h);
+  p[2] = (uint8_t)m, p[3] = (uint8_t)s, p[4] = 0;
+  e->dirty = true;
+  return true;
+}
+/* FLAG_BADGE01_GET: the eight badge flags follow it (pokeruby 0x807, pokeemerald 0x867, pokefirered 0x820). The
+ * retail games only: a hack can move its flags. */
+static int badge_flag(struct save_edit *e) {
+  if (!se_trade_ready(e) || G(e)->tables == ST_NONE)
+    return -1;
+  return G(e)->f == &G3_RS ? 0x807 : G(e)->f == &G3_E ? 0x867 : 0x820;
+}
+int se_badges(struct save_edit *e) {
+  int first = badge_flag(e), mask = 0;
+  if (first < 0)
+    return -1;
+  for (int i = 0; i < 8; i++)
+    mask |= flag_on(G(e), first + i) << i;
+  return mask;
+}
+bool se_set_badges(struct save_edit *e, int mask) {
+  int first = badge_flag(e);
+  if (first < 0)
+    return false;
+  struct g3 *g = G(e);
+  for (int i = 0; i < 8; i++) {
+    int id = first + i;
+    uint8_t *b = g->sb1 + dex_of(g)->flagsOff + id / 8;
+    if (mask >> i & 1)
+      *b |= (uint8_t)(1 << (id % 8));
+    else
+      *b &= (uint8_t)~(1 << (id % 8));
+  }
+  e->dirty = true;
+  return true;
+}
+/* The Pokedex's caught (or seen) count, national numbers 1 to 386; -1 when it isn't known (a hack). */
+int se_dex_count(struct save_edit *e, bool caught) {
+  if (!se_trade_ready(e) || G(e)->tables == ST_NONE)
+    return -1;
+  int n = 0;
+  for (int i = 1; i <= 386; i++)
+    n += dex_bit(G(e)->sb2, DEX_OFF + (caught ? 0x10 : 0x44), i);
+  return n;
+}
+bool se_dex_national(struct save_edit *e) { return se_trade_ready(e) && national_dex(G(e)); }
+/* Every species of the regional dex (or all 386 when NATIONAL) marked seen and caught, the way a catch marks it. How
+ * many weren't caught before, -1 when the game isn't one the editor knows. */
+int se_dex_fill(struct save_edit *e, bool national) {
+  if (!se_trade_ready(e) || G(e)->tables == ST_NONE)
+    return -1;
+  struct g3 *g = G(e);
+  bool kanto = dex_of(g)->kanto;
+  int before = se_dex_count(e, true);
+  for (int species = 1; species < 412; species++)
+    if (national || in_regional(species, kanto))
+      mark_caught(g, species, 0);
+  int added = se_dex_count(e, true) - before;
+  if (added)
+    e->dirty = true;
+  return added;
+}
+
 const char *se_game_name(int game) {
   switch (game) {
   case 1: return "SAPPHIRE";

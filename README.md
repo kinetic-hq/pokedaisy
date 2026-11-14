@@ -485,6 +485,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   ITEM, and each pocket's slots used.
 - **EDIT SAVE's CHANGES**: SAVE CHANGES first lists every change against the save on disk (money, coins, each item
   stack, each Pokemon with what changed), and A on one puts just that one back.
+- **EDIT SAVE's TRAINER** (GBA saves): play time, the eight badges one by one, and filling the regional or national
+  Pokedex (badges and the Pokedex for the retail games only).
 - **EDIT SAVE's DS bag sorts by pocket**: in Platinum, HeartGold and SoulSilver a pocket's `ADD AN ITEM` and its
   search list only that pocket's items, and `ADD ANY ITEM` puts each in its own pocket.
 - **EDIT SAVE's bag** on the desktop host lists each pocket's items from the game's own item table to scroll through (`SEARCH BY NAME`

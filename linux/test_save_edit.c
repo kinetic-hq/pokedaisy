@@ -127,6 +127,24 @@ static void round_trip(const char *spec, const char *scratch) {
     }
     printf("  STATS: %d party HP worked out as the game has them\n", checked);
   }
+  /* TRAINER (Gen 3): play time, badges and the Pokedex read, changed and read back. */
+  if (se_trade_ready(e)) {
+    int h, mi, s;
+    CHECK(se_play_time(e, &h, &mi, &s));
+    int badges = se_badges(e), seen = se_dex_count(e, false), caught = se_dex_count(e, true);
+    printf("  trainer: play time %d:%02d:%02d, badges %02X, dex %d seen / %d caught, national %s\n", h, mi, s, badges,
+           seen, caught, se_dex_national(e) ? "on" : "off");
+    CHECK(se_set_play_time(e, 123, 45, 6) && se_play_time(e, &h, &mi, &s) && h == 123 && mi == 45 && s == 6);
+    CHECK(!se_set_play_time(e, 1, 60, 0));
+    if (badges >= 0) {
+      CHECK(se_set_badges(e, 0x5A) && se_badges(e) == 0x5A);
+      CHECK(se_set_badges(e, badges) && se_badges(e) == badges);
+      CHECK(seen >= caught && caught >= 0);
+      int added = se_dex_fill(e, false);
+      CHECK(added >= 0 && se_dex_count(e, true) == caught + added && se_dex_count(e, true) >= 151);
+      printf("  dex fill: %d newly caught\n", added);
+    }
+  }
   /* COPY AS SHOWDOWN: the lead written as a set and read back by PASTE SET gives the same nature, EVs, IVs and moves. */
   {
     struct se_mon lead, back;
