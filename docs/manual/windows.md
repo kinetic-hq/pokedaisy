@@ -274,8 +274,9 @@ doesn't check out, is refused and left alone.
 
 - `MONEY` and `COINS`: type a new amount, up to what the game allows.
 - `BAG`: change how many of an item you have, take one out, or `ADD AN ITEM`
-  (GBA games). A pocket's `ADD AN ITEM` lists every item the game has for that
-  pocket, from the game's own item list, so you scroll to it; `SEARCH BY NAME`
+  (GBA games, Platinum, HeartGold and SoulSilver). A pocket's `ADD AN ITEM`
+  lists only the items that go in that pocket (balls in the balls pocket, and
+  so on), from the game's own item list, so you scroll to it; `SEARCH BY NAME`
   at the top narrows the list as you type. `ADD ANY ITEM` under the pockets
   lists the items of every pocket at once and puts the one you pick in its own
   pocket. An item you already carry goes onto that stack, up to a full stack.
