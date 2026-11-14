@@ -28,7 +28,8 @@ the fork's README.
 - **Speed**: `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `FF MODE`, and `SCENE SPEEDS`
   in Game Boy and GBA games.
 - **Gameplay**: `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`,
-  `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `NUZLOCKE` (with its tab), `CHEATS`.
+  `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `NUZLOCKE` (with its tab).
+- **Sound**: `GAME VOLUME` and `MUTE GAME`.
 - **Look**: `THEME` and `DARK MODE`.
 - **Saves**: a backup of your save each time a game starts, `RESUME GAMES`, and
   states that never hold the save.
@@ -68,7 +69,7 @@ and Berry Pots, and the `DEX` tab in Modern Emerald.
 - RetroAchievements in DS games, the `ACHIEVEMENTS` tab and the leaderboards.
   Game Boy and Game Boy Advance games earn achievements, and the game menu
   lists them (see [Windows](windows.md#retroachievements)).
-- The `NUZLOCKE` tab.
+- `CHEATS`.
 - The rest of the `MAKEOVER` group: `PLAYER LOOK`, `RIVAL LOOK`, `TEXT LOOK` and `FOLLOWER`. `DAY AND NIGHT` is in.
 - `BATTLE BUTTONS` over the game (the desktop's `BATTLE WINGS` keep the battle
   beside it instead), `OVERLAY` frames and touch control skins.

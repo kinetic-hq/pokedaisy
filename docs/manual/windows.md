@@ -230,6 +230,10 @@ a card, then `SAVE` or `LOAD` under it. The `SAVE STATE` and `LOAD STATE`
 hotkeys use the card you picked last. Slot 0 is the one state file from earlier
 versions, so a state you already had is still there.
 
+Saved over the wrong card? `UNDO SAVE` puts back what that card held. Loaded by
+mistake? `UNDO LOAD` takes you back to where you were just before. Each undoes
+only the last save or load, until you leave the game.
+
 `RESUME GAMES` (in `SETTINGS`, `APP`, on at first) keeps your place when you
 leave a GBA or Game Boy game. The next time you open it you're asked
 `Continue where you left off?`: `Continue` puts you back where you were,
@@ -543,7 +547,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `MAKEOVER` | `DAY AND NIGHT` (GBA games) | |
 | `FF / SPEED` | `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `SPEED OPTIONS` (`SCENE SPEEDS`, `FF MODE`, `FF MUSIC`) | |
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
-| `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`, `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `NUZLOCKE`, `CHEATS` | `LEVEL CAP` |
+| `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`, `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `NUZLOCKE` | `LEVEL CAP` |
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `LOOK AROUND`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
 | `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `FILTER`, `GRID`, `DIM COMPANION`, `BACKGROUND`, `UI SIZE`, `WING ROOM`, `WING LOOK`, `STRETCH`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE INFO`, `BATTLE HINTS`, `BATTLE VIEW`, `ONE-TAP MOVES`, `FOE IVS`, `BATTLE FOCUS`, `TAB BAR` | |
