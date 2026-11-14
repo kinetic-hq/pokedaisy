@@ -425,8 +425,15 @@ static void test_frame(struct mCore* c,bool companion,int frame,struct pd_ui* ui
   } else if(frame==4) {
     assert(!companion);
     assert(keyboard(SDLK_z)==A && joy(0)==B && joy(1)==A);
+    // A first start (a fresh DATA folder) is XBOX: the bottom button is A. NINTENDO swaps them.
+    if(!live){
+      assert(buttonLayout==PD_LAYOUT_XBOX);
+      assert(controller_button(SDL_CONTROLLER_BUTTON_A)==A && controller_button(SDL_CONTROLLER_BUTTON_B)==B);
+    }
+    int had=buttonLayout;buttonLayout=PD_LAYOUT_NINTENDO;
     assert(controller_button(SDL_CONTROLLER_BUTTON_B)==A);
     assert(controller_button(SDL_CONTROLLER_BUTTON_A)==B);
+    buttonLayout=had;
     // Unknown raw devices must not inherit the TrimUI button indices.
     controller=NULL;rawTrimui=false;held=pressed=0;
     SDL_Event e;SDL_zero(e);e.type=SDL_JOYBUTTONDOWN;e.jbutton.button=1;
