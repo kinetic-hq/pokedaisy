@@ -659,7 +659,9 @@ These rows in the companion's `SETTINGS` change how the game looks:
   panels more room for a slightly smaller game. The game always keeps its shape.
   The DS layouts with panels beside the top screen (`WINGS`, `TOUCH IN WING`,
   `TOUCH PIECES`) follow it as well: `GAME FIRST` fills the height and
-  `WINGS FIRST` takes a size off the top screen for wider panels.
+  `WINGS FIRST` takes a size off the top screen for wider panels. On a large
+  screen such as 2560 x 1600, `AUTO` keeps the DS panels as roomy as on a
+  1920 x 1200 one, so your party's names fit.
 - **`STRETCH`**: off by default. On, the game grows a little past its own shape
   (at most 5%) to fill the gaps round it.
 - **`WING LOOK`**: how large the panels beside the game are drawn. `COMPACT`
@@ -848,7 +850,7 @@ and A. Escape pauses the game.
 With `ASPECT` on `EXPAND` (the default here), a DS game with a companion
 (Platinum, HeartGold, SoulSilver, Black, White and their sequels, and the
 games built on them) shows the
-world past the top screen's edges, so the whole window is game. The middle is
+world past the top screen's edges, so the whole window between the wings is game. The middle is
 the game's own picture, untouched; the rest is the game's own 3D drawn again
 around it. A battle's background reaches the edges too. LT and RT zoom out and
 back in on the overworld, the same steps as a Game Boy Advance game, and the

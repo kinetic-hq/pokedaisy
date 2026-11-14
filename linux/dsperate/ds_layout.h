@@ -53,7 +53,14 @@ enum {DS_WING_ROOM_GAME_FIRST,DS_WING_ROOM_BALANCED,DS_WING_ROOM_WINGS_FIRST,DS_
 inline DsBox ds_winged_top(int ow,int oh,int minWing,int room=DS_WING_ROOM_BALANCED){
   if(room==DS_WING_ROOM_AUTO){
     DsBox wide=ds_winged_top(ow,oh,minWing,DS_WING_ROOM_WINGS_FIRST);
-    if(wide.shown() && wide.h*5>=oh*4)return wide;
+    // (WINGS FIRST with no wider wings to give is BALANCED's size: that's no answer here.)
+    if(wide.shown() && wide.h*5>=oh*4 && wide.w!=ds_winged_top(ow,oh,minWing,DS_WING_ROOM_BALANCED).w)return wide;
+    // Else, on a large screen (6x or more), the largest whole scale whose wings are each 3/20 of the width at least:
+    // 2560 x 1600 then gets 7x and wings as roomy as 1920 x 1200's, not 8x and slivers that cut the party's names.
+    for(int s=std::min(ow/256,oh/192);s>=6;s--){
+      const int w=256*s,h=192*s,side=(ow-w)/2;
+      if(side*8>=w*minWing && side*20>=ow*3)return {side,(oh-h)/2,w,h};
+    }
     room=DS_WING_ROOM_BALANCED;
   }
   if(room==DS_WING_ROOM_WINGS_FIRST){

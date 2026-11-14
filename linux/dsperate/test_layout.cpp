@@ -76,6 +76,9 @@ int main(){
   assert(ds_place(DSL_WINGS,1920,1080,false,false,false,DS_WING_ROOM_BALANCED).top.w==1280);   // the old size
   assert(ds_place(DSL_WINGS,1920,1080,false,false,false,DS_WING_ROOM_AUTO).top.w==1280);  // 16:9: WINGS FIRST is 71%
   assert(ds_place(DSL_WINGS,1920,1200,false,false,false,DS_WING_ROOM_AUTO).top.w==1280);  // 16:10: 5x, 80%
+  // A large screen: 7x with wings 3/20 of the width each, not 8x's slivers; the Steam Deck size stays as it was.
+  assert(ds_place(DSL_WINGS,2560,1600,false,false,false,DS_WING_ROOM_AUTO).top.w==1792);
+  assert(ds_place(DSL_WINGS,1280,800,false,false,false,DS_WING_ROOM_AUTO).top.w==ds_place(DSL_WINGS,1280,800,false,false,false,DS_WING_ROOM_BALANCED).top.w);
   // SPLIT TOUCH: the top screen as WINGS places it, a half of the touch screen filling each wing, level with the top
   // screen's bottom, the left half (DS x 0-127) on the left; DS WING SIDE swaps them.
   struct Split{int w,h,top,half,halfH;} splits[]={
