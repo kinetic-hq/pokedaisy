@@ -40,7 +40,7 @@ static bool findWaiting;
 static int findResult = -1;
 
 static const char *const LIBRETRO_SYSTEMS[] = {"Nintendo - Game Boy Advance", "Nintendo - Game Boy Color",
-                                               "Nintendo - Game Boy", "Nintendo - Nintendo DS"};
+                                               "Nintendo - Game Boy", "Nintendo - Nintendo DS", ""};
 
 static int working; // the game being looked for now (1) or none (0), for the progress (under lock)
 static SDL_atomic_t artStyle; // ART STYLE (BOXART_STYLE_*): 0, TALL, until the list says otherwise
@@ -164,7 +164,7 @@ struct art_game {
 };
 static struct art_game *artGames; // under lock
 static int artCount;
-static const char *const ART_SUBFOLDER[] = {"gba", "gbc", "gb", "nds"};
+static const char *const ART_SUBFOLDER[] = {"gba", "gbc", "gb", "nds", "pc"};
 static const char *const ART_EXT[] = {".png", ".jpg", ".jpeg"};
 
 static void location_load(void) {
@@ -331,7 +331,7 @@ static bool art_home(const struct art_game *g, char *out, size_t size) {
     return true;
   }
   char sub[1100];
-  snprintf(sub, sizeof sub, "%s/%s", folder, ART_SUBFOLDER[g->system >= 0 && g->system <= BOXART_NDS ? g->system : 0]);
+  snprintf(sub, sizeof sub, "%s/%s", folder, ART_SUBFOLDER[g->system >= 0 && g->system <= BOXART_PC ? g->system : 0]);
   struct art_file one[1];
   if (!g->shared && !art_files(sub, g->name, one, 1) && art_files(folder, g->name, one, 1))
     snprintf(out, size, "%s", folder);
@@ -597,7 +597,7 @@ static char *fetch_image(const char *url, const char *header, size_t *len) {
 
 static char *libretro_named(const char *name, int system, size_t *len) {
   char sys[128], enc[800], url[1024];
-  http_encode(LIBRETRO_SYSTEMS[system >= 0 && system <= BOXART_NDS ? system : 0], sys, sizeof sys);
+  http_encode(LIBRETRO_SYSTEMS[system >= 0 && system <= BOXART_PC ? system : 0], sys, sizeof sys);
   char safe[256];
   boxart_libretro_name(name, safe, sizeof safe);
   http_encode(safe, enc, sizeof enc);
@@ -623,7 +623,7 @@ static char *from_libretro(const struct boxart_game *g, size_t *len) {
   while (n && names[1][n - 1] == ' ')
     n--;
   names[1][n] = 0;
-  const char *system = LIBRETRO_SYSTEMS[g->system >= 0 && g->system <= BOXART_NDS ? g->system : 0];
+  const char *system = LIBRETRO_SYSTEMS[g->system >= 0 && g->system <= BOXART_PC ? g->system : 0];
   char sys[128];
   http_encode(system, sys, sizeof sys);
   for (int i = 0; i < 2; i++) {
@@ -794,11 +794,26 @@ static bool look(const struct boxart_game *g) {
         return false; // it keeps the box it has
     }
   }
-  char *img = from_libretro(g, &len);
+  char *img = g->system == BOXART_PC ? NULL : from_libretro(g, &len); // libretro has no PC games
   if (!img && !g->hack && g->base[0]) // an original under a name of the player's own
     img = libretro_named(g->base, g->baseSystem, &len);
   if (!img)
     img = from_steamgriddb(g, key, &len, style, false);
+  if (!img && g->pcArt[0]) { // a PC fan game nobody has art for: its own title picture
+    FILE *f = fopen(g->pcArt, "rb");
+    if (f) {
+      fseek(f, 0, SEEK_END);
+      long n = ftell(f);
+      rewind(f);
+      img = n > 0 && n <= (long)MAX_IMAGE ? malloc((size_t)n) : NULL;
+      if (img && fread(img, 1, (size_t)n, f) != (size_t)n) {
+        free(img);
+        img = NULL;
+      }
+      len = img ? (size_t)n : 0;
+      fclose(f);
+    }
+  }
   path_of(had, sizeof had, g->stem, "img");
   path_of(path, sizeof path, g->stem, "base");
   bool ownArt = pocket_exists(had) && !pocket_exists(path); // art of its own from before: never swapped for the base
@@ -1082,7 +1097,7 @@ void boxart_games(const struct boxart_game *games, int count) {
     char a[300], b[300];
     art_key(list[i].name, a, sizeof a);
     for (int k = 0; k < count && !list[i].shared; k++) {
-      if (k == i || ART_SUBFOLDER[list[k].system & 3] == ART_SUBFOLDER[list[i].system & 3])
+      if (k == i || list[k].system == list[i].system)
         continue;
       art_key(list[k].name, b, sizeof b);
       list[i].shared = !strcmp(a, b);

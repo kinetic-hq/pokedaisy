@@ -1,0 +1,154 @@
+/* GPL-3.0, see ../NOTICE. PC FAN GAMES: Pokemon fan games made in RPG Maker XP / VX Ace with Pokemon Essentials,
+ * played from their own folders. A game folder is found in the game folders like a ROM (pc_game_dir), shown in the
+ * grid with a PC tag, and played through its own player:
+ *
+ * - mkxp-z games (most of them): PokeDaisy makes a small folder of its own in DATA/pc/<game> with a copy of the
+ *   game's player and its DLLs and a mkxp.json of its own: the game's own settings, gameFolder pointing at the
+ *   game's folder (so nothing in it changes and its saves stay where they always were) and PokeDaisy's companion
+ *   script (pc_companion.rb) added to its preloadScript. The companion writes the party, the place and the battle
+ *   to DATA/pc/<game>/companion.json, which the wings show.
+ * - games on the original RGSS player (Insurgence, Phoenix Rising): their own player runs as it is, PLAY ONLY.
+ *
+ * Windows only for now (pc_launch and friends do nothing elsewhere). The parsing is plain C, tested by
+ * test_pc_game.c. */
+#ifndef POCKET_PC_GAME_H
+#define POCKET_PC_GAME_H
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+enum pc_player {
+  PC_PLAYER_NONE,  // not a game this can play
+  PC_PLAYER_MKXPZ, // the game ships mkxp-z (a large player exe and a Ruby DLL): wings and all
+  PC_PLAYER_RGSS,  // the original RPG Maker player: play only
+};
+
+struct pc_game_info {
+  char dir[1024];   // the game's folder (the one with Game.ini)
+  char title[128];  // Game.ini's Title, else the folder's name
+  char exe[260];    // the player's file name, in dir
+  char version[48]; // "v19.5.1" where it's known, else ""
+  int player;       // enum pc_player
+  int rgss;         // 1 XP, 3 VX Ace, 0 unknown
+  bool companion;   // the companion can run (mkxp-z): PARTLY, else PLAY ONLY
+  // A game made for the original XP player (Insurgence) runs on the mkxp-z player of another game in the same
+  // folder, one with Ruby 1.8 as the XP player had (Awakening, Bushido, Empire): its folder, else "" (the game's).
+  char playerDir[1024];
+};
+
+/* DIR is an RPG Maker game's folder: Game.ini with its scripts or an archive beside it, or a known player alone. */
+bool pc_game_dir(const char *dir);
+/* What's known about the game in DIR (false: not one). */
+bool pc_game_info(const char *dir, struct pc_game_info *out);
+/* PATH (a game list entry) is a PC game's folder. */
+bool pc_game_path(const char *path);
+
+/* mkxp.json as PokeDaisy writes it: the game's own (TEXT, may be NULL; comments and trailing commas allowed) with
+ * these keys set over it, the companion added to its preloadScript list. Returns the length written, or -1. */
+struct pc_mkxp_overrides {
+  const char *gameFolder;
+  const char *preload;      // the companion script's path
+  const char *extraPreload; // another (POCKET_PC_PRELOAD, for checks), or NULL
+  int windowW, windowH;     // the window's size at start
+  bool smooth;              // sharp bilinear: whole-number scale, then smooth to the window
+  const char *standIns;     // the stand-ins for an XP game's DLLs (pc_rgss_standins.rb), first, or NULL
+  int rgssVersion;          // 1-3 to set it (a borrowed player), 0 to leave the file's
+};
+int pc_mkxp_json(const char *text, const struct pc_mkxp_overrides *o, char *out, size_t size);
+
+/* The companion's JSON (pc_companion.rb's dump), read into what the wings draw. */
+#define PC_PARTY_MAX 6
+#define PC_WILD_MAX 16
+#define PC_FOES_MAX 3
+struct pc_mon {
+  char species[40], name[40], item[40], status[4], icon[200], id[24];
+  char types[2][12];
+  int level, hp, maxHp, form;
+  bool egg, shiny;
+};
+struct pc_wild {
+  char species[40], id[24];
+  char types[2][12];
+  int min, max;
+};
+struct pc_state {
+  bool valid;
+  char player[40], map[64], scene[48];
+  int mapId, badges;
+  long money; // -1 unknown
+  long seconds;
+  int partyCount;
+  struct pc_mon party[PC_PARTY_MAX];
+  int wildCount;
+  struct pc_wild wild[PC_WILD_MAX];
+  bool battle;
+  int foeCount;
+  struct pc_mon foes[PC_FOES_MAX];
+  int foeTeam, foeAlive; // a trainer's party size and those still standing (0 / 0: wild)
+  int screenW, screenH;  // the size the game draws at (0: not known)
+  int seen, caught;      // the dex's counts (-1... 0: not known)
+};
+bool pc_state_parse(const char *json, struct pc_state *out);
+/* A type's id ("FIRE", "Fire") as PokeDaisy's type number: the GBA's order with Fairy as 9 (pd_ds_types); -1 for one
+ * the wings don't know (a fan game's own). */
+int pc_type_index(const char *id);
+/* A status word ("PSN") as the GBA's status bits pd_status_label reads. */
+unsigned pc_status_bits(const char *word);
+
+/* Where the game's picture goes on an OW x OH screen for a game drawing BW x BH (its own size; 512 x 384 for most),
+ * by WING ROOM (view_layout.h's VIEW_WING_ROOM_*: 0 GAME FIRST, 1 BALANCED, 2 WINGS FIRST, 3 AUTO):
+ * - GAME FIRST: the screen's full height, the wings what's left.
+ * - BALANCED and AUTO: the largest size in quarter steps of the game's own that leaves each wing a fifth of the
+ *   screen's height wide and a bar a twentieth of it tall above and below (1920 x 1200: 2.75x, 1408 x 1056;
+ *   1920 x 1080: 2.5x, 1280 x 960).
+ * - WINGS FIRST: the same with wings 27% of the height wide.
+ * The bars are the room above and below the picture (0 for GAME FIRST). */
+struct pc_layout {
+  int x, y, w, h; // the picture
+  int bar;        // the bars' height (above and below)
+  int wing;       // each wing's width
+};
+void pc_layout_for(int ow, int oh, int bw, int bh, int room, struct pc_layout *out);
+
+/* ---- playing (Windows) ---- */
+/* DATA/pc/<stem>: the game's own folder of PokeDaisy's, made or brought up to date for the game in INFO: the
+ * player's copy, its DLLs, mkxp.json and the companion. *dir gets the folder; false (and *err why) when it can't. */
+struct pc_launch_opts {
+  const char *root;        // DATA
+  const char *stem;        // the folder's name in DATA/pc
+  int windowW, windowH;    // the game's picture on screen
+  const char *companionRb; // the companion's source
+  size_t companionLen;
+  const char *standInsRb;  // the XP DLL stand-ins' source (a borrowed player)
+  size_t standInsLen;
+};
+/* A folder's mkxp-z player runs Ruby 1.8 (the XP player's Ruby): the one an XP game can borrow. */
+bool pc_ruby18_player(const char *dir, char *exe, size_t exeSize);
+bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o, char *dir, size_t dirSize,
+                char *err, size_t errSize);
+/* Starts the game (from DIR, made by pc_prepare; RGSS games from their own folder): false when it couldn't. */
+bool pc_start(const struct pc_game_info *info, const char *dir, const char *jsonOut, const char *cmdFile);
+bool pc_running(void);
+/* Its window, once it has one: borderless at (x, y, w, h) in screen pixels, above OWNER (a native window handle) and
+ * given the keyboard. Called again whenever the game moves or resizes it. True once placed. */
+bool pc_place(void *owner, int x, int y, int w, int h, bool focus);
+/* A game that sizes its own window (its own XP / VX Ace player): the window kept as it is but see-through, above
+ * OWNER and given the keyboard, and its picture read each frame for PokeDaisy to draw (SHADER, COLORS, zoom). */
+bool pc_capture_place(void *owner, bool focus);
+/* The game window's picture: XRGB words, w x h, valid until the next call. NULL when there is none. */
+const uint32_t *pc_capture(int *w, int *h);
+void pc_capture_free(void);
+/* The game shows a message box (its player's script error). */
+bool pc_error_box(void);
+/* The game window's drawing area on the screen (for the screen check). */
+bool pc_client_rect(int *x, int *y, int *w, int *h);
+/* PokeDaisy's window (SELF, OW x OH) as it looks with the game's window over it, into OUT (XRGB), whatever else is in
+ * front of them on the desktop (for the screen check). */
+bool pc_compose(void *self, int ow, int oh, uint32_t *out);
+/* Hides the game's window (PokeDaisy's menu is over it) or shows it again. */
+void pc_show(bool shown);
+/* Asks the game to close as its own close button would; force: ends it. */
+void pc_close(bool force);
+/* The game's last exit code (after it ended). */
+int pc_exit_code(void);
+#endif

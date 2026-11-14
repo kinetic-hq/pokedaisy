@@ -1,0 +1,166 @@
+---
+title: PC fan games
+summary: Play PC fan games made with RPG Maker inside PokeDaisy on Windows, full screen, with your party and the battle in the wings.
+section: start
+order: 92
+keywords: [pc, fan game, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, zoom, camera, fast forward, instant text, controller, full screen, pc game, windows]
+---
+
+On Windows, PokeDaisy plays PC fan games made with RPG Maker (most of them are
+built on Pokemon Essentials) as well as cartridge games. The game fills the
+screen at a sharp, even scale, and on most of them the wings beside it show
+your party, where you are and the battle you're in, the way they do for a Game
+Boy Advance game.
+
+You play the game you already have: PokeDaisy doesn't change its folder or
+your saves, and the game saves exactly where it always does.
+
+## Add your games
+
+Pick `GAME FOLDERS` in the bar at the top of the game list, then `ADD A FOLDER`,
+and pick the folder that holds your fan games (each game in a folder of its
+own, the way it unzipped). A folder above it works too: PokeDaisy looks up to
+three folders down for a game. A game's folder is one with a `Game.ini` and the
+game's own program in it.
+
+Each fan game gets a tile with `PC`, `FAN GAME` and a tag:
+
+- `PARTLY`: the game plays with the wings beside it (your party, where you are,
+  the battle). The `BAG`, `DEX` and `GUIDE` tabs aren't there for fan games.
+- `PLAY ONLY`: the game plays full screen through PokeDaisy, with no wings.
+
+When the game's folder or title has a version in it (for example `19.5`), the
+tile shows it. The cover is the game's own title picture until you pick another
+with `SYNC BOX ART` or the game menu.
+
+## How a game starts
+
+PokeDaisy makes a folder for the game in `DATA\pc` and starts the game from
+there with its own player program, the one that came with the game, set up to
+draw at the size PokeDaisy picked and to tell the wings what's happening. The
+game still reads its maps and pictures from its own folder, and saves where it
+always does (its folder, `Saved Games` or `AppData`, whatever the game uses).
+Nothing in the game's folder is written by PokeDaisy.
+
+Press the controller's Guide button (or hold `SELECT` and `START` for a second)
+for the game menu: `BACK TO THE GAME`, `CLOSE GAME`, and on games with wings,
+`FAST FORWARD` and `INSTANT TEXT`. `CLOSE GAME` asks the game to close the way
+its own close button would; if it hasn't closed after a few seconds, you're
+asked whether to wait or end it (unsaved play is lost).
+
+## The screen
+
+The game is drawn in the middle of the screen at a whole or near whole multiple
+of its size, so its pixels stay even, and `WING ROOM` (in `SETTINGS`) decides how
+much room the wings get:
+
+- `AUTO` (the first choice): wings of about 240 to 320 pixels each, and a bar
+  above and below the game. On a 1920 x 1200 screen the game is 1408 x 1056; on a
+  1920 x 1080 screen it's 1280 x 960.
+- `GAME FIRST`: the game as tall as the screen, the wings in what's left.
+- `BALANCED`: the same as `AUTO`.
+- `WINGS FIRST`: a smaller game and wider wings.
+
+The bar above the game shows where you are, the clock and the battery, and your
+badges, play time and money. The bar below shows how many you've seen and
+caught, the zoom and the speed, and what's wild where you're standing.
+
+A `PLAY ONLY` game is as tall as the screen, with nothing beside it.
+
+## The wings
+
+The left wing is your party: each one's name, types, level and HP. The right
+wing shows where you are, a quick look at your badges, money and play time, and
+the types your party is weak to. In a battle the right wing turns into the foe's
+card: its name, level, types and HP, and what it's weak to.
+
+The wings and the bars use the same text size as a Game Boy Advance game's
+wings, and they never cover the game.
+
+## Zoom, fast forward and instant text
+
+On games with wings:
+
+- `LT` shows more of the map around you (the camera zooms out), and `RT` shows
+  less (it zooms in). The zoom changes when you're standing on the map; menus
+  and battles stay at the game's own size, and the map comes back at your zoom
+  after them. The bar below the game shows the zoom.
+- `L3` turns fast forward on and off.
+- `INSTANT TEXT` in the game menu shows each message whole instead of letter by
+  letter.
+
+Your zoom and `INSTANT TEXT` are kept for each game for next time. Fast forward
+starts off. Most fan games have their own running shoes or auto run option in
+their own options menu; use that one.
+
+## Controllers
+
+The controller goes to the game. Some older fan games only read the keyboard;
+PokeDaisy passes your controller's buttons to those as well, so the D-pad, `A`,
+`B` and the rest work in every game with wings. The keyboard works as the game
+sets it up.
+
+## Languages
+
+Some fan games come in more than one language, and a few list another
+language before English, so a first start would pick that one. When a game has
+English text, PokeDaisy starts it in English the first time: its language
+choice, if it asks, starts on `English`, and a new adventure's options start on
+English. You can still pick another language in the game, and your save keeps
+what you picked. The game's files aren't changed.
+
+## Games made for the original RPG Maker XP player
+
+A few older games (Insurgence is one) were made for the original RPG Maker XP
+player and come without the newer player the wings need. When another fan game
+in the same folder has a newer player built for those older games, PokeDaisy
+starts the older game with that player instead, and the older game gets the
+wings too. The game's extras that only the original player can do are left out:
+its special tilted maps are drawn flat, and its own animated picture and
+screenshot extras are off. Its saves are the same files the original player
+writes, so you can go back and forth.
+
+## Games on their own player
+
+A game with its own player (Phoenix Rising is one) plays `PLAY ONLY`. PokeDaisy
+leaves its window the size the game makes it and draws the game's picture full
+screen, whole, through your `SHADER` and `COLORS`. `RT` zooms into the middle of
+the picture and `LT` zooms back out. The game keeps the keyboard and the mouse.
+If the game stops with a script error while it's starting, PokeDaisy starts it
+again for you.
+
+## Tested games
+
+| Game | Tag | Notes |
+| --- | --- | --- |
+| Reborn | `PARTLY` | Party, place, battle with the foe's card |
+| Tectonic | `PARTLY` | Party, place, dex counts |
+| Fire Ash | `PARTLY` | Party, place, battle, zoom |
+| Eon Guardians | `PARTLY` | Party, place, battle |
+| Awakening | `PARTLY` | Party, place; controller works |
+| Bushido | `PARTLY` | Party, place |
+| Desolation | `PARTLY` | Party, place |
+| Empire | `PARTLY` | Party, place |
+| Insurgence | `PARTLY` | Runs on another game's newer player (above); party, place |
+| Indigo | `PARTLY` | Party, place; starts in English |
+| Opalo | `PARTLY` | Party, place; starts in English |
+| Realidea | `PARTLY` | Party, place; starts in English |
+| Africanvs | `PARTLY` | Party, place; starts in English |
+| Reminiscencia | `PARTLY` | Party, place; starts in English |
+| Rejuvenation | `PARTLY` | Party, place |
+| Floral Tempest | `PARTLY` | Party, place |
+| Itinerant | `PARTLY` | Party, place |
+| Phoenix Rising | `PLAY ONLY` | Its own player, drawn whole full screen |
+
+A game in a folder whose name has an accented letter in it plays too: PokeDaisy gives the game a plain path to its folder (a Windows junction
+in `DATA\pc\links`) without moving anything.
+
+## When something goes wrong
+
+- **The game isn't in the list.** Check that its folder has a `Game.ini` and
+  the game's program, and that it's no more than three folders below the folder
+  you added.
+- **The wings are empty.** The game hasn't started your adventure yet; they fill
+  in once you're playing.
+- **The game asks to close and doesn't.** Pick `END IT` when PokeDaisy asks; you
+  lose anything you haven't saved.

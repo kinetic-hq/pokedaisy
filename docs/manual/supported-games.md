@@ -88,6 +88,11 @@ The companion reads their party, bag, map, Pokédex and guide, with pictures, Po
 | Pokémon SoulGold | 1.1.4, three builds of 1.2, and two of 1.2.1 |
 | Pokémon R.O.W.E. | 2.1.9.1 Experimental |
 
+**PC fan games** (Windows only): games made with RPG Maker, such as Reborn,
+Tectonic, Fire Ash and Insurgence, play from their own folders with the wings
+beside them. They aren't ROMs, so none of this page's version checks apply;
+[PC fan games](pc-fan-games.md) lists the ones tested and what each gets.
+
 Not every game gets every tab yet. Some hacks have the guide's live pages only, a few have no guide, and battle panes in many hacks haven't been checked in every kind of battle. The full table, tab by tab, is on the [compatibility page](https://pokedaisy.com/compatibility/) and in the [README](https://github.com/lidor30/pokedaisy#supported-games).
 
 ## Support is for the exact version

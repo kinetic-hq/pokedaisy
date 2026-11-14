@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "game_name.h"
+#include "pc_game.h"
 #include "pocket_os.h"
 
 bool rom_list_playable(const char *name, bool nds) {
@@ -67,7 +68,11 @@ static void add(struct rom_list *l, const char *folder, const char *name) {
   l->paths[l->count] = path;
   l->labels[l->count] = path + strlen(folder) + 1;
   char shown[256];
-  game_display_name(l->labels[l->count], game_header_is_pokemon(path), shown, sizeof shown);
+  struct pc_game_info pc;
+  if (pocket_is_dir(path) && pc_game_info(path, &pc)) // a PC game: the name it gives itself
+    snprintf(shown, sizeof shown, "%s", pc.title);
+  else
+    game_display_name(l->labels[l->count], game_header_is_pokemon(path), shown, sizeof shown);
   size_t len = strlen(shown) + 1;
   l->names[l->count] = malloc(len);
   if (!l->names[l->count]) {
@@ -81,30 +86,41 @@ static void add(struct rom_list *l, const char *folder, const char *name) {
 struct scan {
   struct rom_list *list;
   const char *folder;
-  bool nds, deeper;
+  bool nds, deeper, roms; // roms: ROM files here are listed (the added folder and one level down)
+  int pcDepth; // PC FAN GAMES: how many more folders down a game's folder is looked for
 };
 static void each(const char *name, void *user) {
   struct scan *s = user;
   if (rom_list_playable(name, s->nds)) {
-    add(s->list, s->folder, name);
+    if (s->roms)
+      add(s->list, s->folder, name);
     return;
   }
   // Not a game: a folder one level down, or nothing (a file can't be listed). Hidden ones (.stfolder, .stversions:
   // a synced folder's) are skipped.
-  if (!s->deeper || name[0] == '.')
+  if ((!s->deeper && s->pcDepth <= 0) || name[0] == '.')
     return;
   size_t n = strlen(s->folder) + strlen(name) + 2;
   char *sub = malloc(n);
   if (!sub)
     return;
   snprintf(sub, n, "%s/%s", s->folder, name);
-  struct scan inner = {s->list, sub, s->nds, false};
-  pocket_list_dir(sub, each, &inner);
+  if (pocket_is_dir(sub)) {
+    // PC FAN GAMES: a game's folder (Game.ini and its scripts) is a game in the list, looked for up to three folders
+    // down (roms/rpg/<game>, or a game in a folder of its own inside its download's).
+    if (s->pcDepth > 0 && pc_game_dir(sub))
+      add(s->list, s->folder, name);
+    else {
+      struct scan inner = {s->list, sub, s->nds, false, s->deeper, s->pcDepth - 1};
+      if (s->deeper || inner.pcDepth > 0)
+        pocket_list_dir(sub, each, &inner);
+    }
+  }
   free(sub);
 }
 
 void rom_list_scan(struct rom_list *l, const char *folder, bool nds) {
-  struct scan s = {l, folder, nds, true};
+  struct scan s = {l, folder, nds, true, true, 3};
   pocket_list_dir(folder, each, &s);
 }
 

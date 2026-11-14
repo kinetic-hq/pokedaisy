@@ -133,6 +133,21 @@ By tab:
 | SoulGold | 1.1.4, 1.2 (3 builds), 1.2.1 (2 builds) | works | works | partly | works | works | partly | None (its `DEX` was checked on a 1.2.1 cart; the other builds read the app's own tables for them) |
 | R.O.W.E. | 2.1.9.1 Experimental; SHA-1 81bd0f4b | works | works | partly | works | partly | partly | GUIDE has HERE but no NEXT BOSS (its gyms come in any order), as on Android |
 
+## PC fan games
+
+PC fan games made with RPG Maker play on Windows only, from their own folders
+([PC fan games](pc-fan-games.md)). They aren't on the site's games table and
+aren't counted above. Their tags:
+
+| Game | Tag | Wings |
+| --- | --- | --- |
+| Reborn, Tectonic, Fire Ash, Eon Guardians | `PARTLY` | Party, place, battle |
+| Awakening, Bushido, Desolation, Empire | `PARTLY` | Party, place |
+| Insurgence | `PARTLY` | Party, place (on another game's newer player) |
+| Indigo, Opalo, Realidea, Africanvs, Reminiscencia | `PARTLY` | Party, place; start in English |
+| Rejuvenation, Floral Tempest, Itinerant | `PARTLY` | Party, place |
+| Phoenix Rising | `PLAY ONLY` | None |
+
 ## What the gaps come from
 
 - **The DS games.** Platinum (USA) has the whole companion, `BATTLE` and

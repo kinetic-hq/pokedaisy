@@ -33,7 +33,8 @@ The same build on two handhelds: a OneXPlayer 3 (left, 1920 x 1200, 16:10) and a
    [Releases](https://github.com/kinetic-hq/pokedaisy/releases) page. `SHA256SUMS.txt` has the checksums. (The
    release's `pokedaisy-windows-x86_64.zip` is the same zip under the name older versions update from.)
 2. Unzip it somewhere you can write to (Documents, not `Program Files`). Keep `PokeDaisy.exe` and `SDL2.dll` together.
-3. Put your `.gb`, `.gbc`, `.gba` and `.nds` files in `DATA\roms` (or add your own folders with `GAME FOLDERS`) and
+3. Put your `.gb`, `.gbc`, `.gba` and `.nds` files in `DATA\roms` (or add your own folders with `GAME FOLDERS`; on
+   Windows, a folder of PC fan games made with RPG Maker works too, see [PC fan games](docs/manual/pc-fan-games.md)) and
    open `PokeDaisy.exe`. The first start walks you through a few choices.
 
 Updates come by themselves: each start looks for a newer release and offers `UPDATE NOW`, `LATER` or `SKIP THIS
@@ -167,6 +168,7 @@ An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everythi
 | Screen | `SHARP` / `xBRZ`, `HANDHELD` / `OLED` colours, `BRIGHTNESS`, black backgrounds and bezel bars, full screen, `ORIENTATION` |
 | Controls | Hot plugged controllers (several at once), `NINTENDO` / `XBOX` layouts, hotkeys for paddles and extra buttons, touch and mouse, rumble |
 | Games and saves | A box art game grid, your own game folders with saves beside the games, ten state slots, resume, per-game settings, `EDIT SAVE` |
+| PC fan games | RPG Maker fan games (Reborn, Tectonic, Fire Ash, Insurgence, ...) played full screen on Windows with the wings beside them, `LT` / `RT` camera zoom, `L3` fast forward and instant text |
 | Play | Level cap, low PP warning, battery saver |
 | Games | A [game compatibility](#game-compatibility) table comparing Android with Windows / Linux |
 
@@ -516,6 +518,16 @@ Every change, one line each (a pull request that changes what the fork adds upda
   nature, EVs, IVs (Hidden Power's type through them), item and ability, naming what the game can't do. `PASTE SET`
   takes a set from the clipboard. No sets are bundled: the first `PRESETS` with none downloads Smogon's sets for
   generations 1 to 9 from the pkmn project's public lists into `<data>/presets/smogon`, and `GET SETS` refreshes them.
+- **PC fan games** on Windows: an RPG Maker game's folder (Reborn, Tectonic, Fire Ash, Insurgence, Phoenix Rising,
+  ...) is a tile in the game list tagged `PC`, `FAN GAME` and `PARTLY` or `PLAY ONLY`. It starts with its own player
+  from a folder in `DATA\pc`, full screen at `WING ROOM`'s size, and saves where it always does. A script the player
+  loads tells the wings about the party, the place and the battle (the foe's card), and the bars above and below the
+  game show the badges, money, play time, dex counts, zoom, speed and what's wild. `LT` / `RT` zoom the game's camera,
+  `L3` fast forwards, `INSTANT TEXT` is in the game menu, and older games that only read the keyboard get the
+  controller too. Games made for the original RPG Maker XP player run on a newer player found beside them, with
+  stand-ins for their helper DLLs; a game on its own player is drawn whole, full screen, through `SHADER` and `COLORS`.
+  A game that lists another language before English starts in English (its language choice and a new
+  adventure's options start there), without changing its files.
 
 </details>
 

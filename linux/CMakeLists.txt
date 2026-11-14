@@ -35,10 +35,21 @@ list(FILTER RCHEEVOS_SOURCES EXCLUDE REGEX "rc_libretro\\.c$|rc_client_external\
 add_library(pd_rcheevos STATIC ${RCHEEVOS_SOURCES} ../third_party/rcheevos/src/rhash/md5.c)
 target_include_directories(pd_rcheevos PUBLIC ../third_party/rcheevos/include)
 target_compile_options(pd_rcheevos PRIVATE -w)
-add_library(pd_linux_common STATIC bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c ra.c screen_filter.c link_play.c presets.c legality.c stat_tools.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
+# PC FAN GAMES: the companion script (pc_companion.rb) built in as bytes, written out for each game at launch.
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/pc_companion.rb pd_pc_rb HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," pd_pc_rb "${pd_pc_rb}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/pc_companion_rb.h.tmp "static const unsigned char PC_COMPANION_RB[] = {${pd_pc_rb}};\n")
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/pc_companion_rb.h.tmp ${CMAKE_CURRENT_BINARY_DIR}/pc_companion_rb.h COPYONLY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS pc_companion.rb)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/pc_rgss_standins.rb pd_pc_si HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," pd_pc_si "${pd_pc_si}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/pc_standins_rb.h.tmp "static const unsigned char PC_STANDINS_RB[] = {${pd_pc_si}};\n")
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/pc_standins_rb.h.tmp ${CMAKE_CURRENT_BINARY_DIR}/pc_standins_rb.h COPYONLY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS pc_rgss_standins.rb)
+add_library(pd_linux_common STATIC pc_game.c pc_wings.c bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c ra.c screen_filter.c link_play.c presets.c legality.c stat_tools.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
   ../app/src/main/cpp/pk_call.c ../app/src/main/cpp/pk_host.c ../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c
   ../app/src/main/cpp/pk_rewind.c ../app/src/main/cpp/pk_link.c)
-target_include_directories(pd_linux_common PUBLIC ../third_party/xbrz ../3ds/core ../third_party/mgba/include ${CMAKE_CURRENT_BINARY_DIR}/mgba/include ${SDL2_INCLUDE_DIR})
+target_include_directories(pd_linux_common PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ../third_party/xbrz ../3ds/core ../third_party/mgba/include ${CMAKE_CURRENT_BINARY_DIR}/mgba/include ${SDL2_INCLUDE_DIR})
 target_compile_definitions(pd_linux_common PUBLIC _GNU_SOURCE _POSIX_C_SOURCE=200809L)
 if(WIN32)
   # libmgba uses Windows threads there (its threading.h picks them without USE_PTHREADS),
@@ -120,7 +131,8 @@ if(BUILD_TESTING)
   add_executable(linux-presets-test test_presets.c)
   add_executable(linux-stretch-test test_stretch.c)
   add_executable(linux-touch-test test_touch.c)
-  foreach(test linux-io-test linux-runtime-test linux-wild-test linux-view-test linux-updater-test linux-shader-test linux-rom-list-test linux-game-name-test linux-boxart-folder-test linux-backdrop-test linux-wide-camera-test linux-day-night-test linux-bps-test linux-bezel-test linux-moves-test linux-save-edit-test linux-rom-tweaks-test linux-ff-music-test linux-shiny-odds-test linux-nuzlocke-test linux-screen-filter-test linux-link-play-test linux-presets-test linux-touch-test linux-stretch-test)
+  add_executable(linux-pc-game-test test_pc_game.c)
+  foreach(test linux-io-test linux-runtime-test linux-wild-test linux-view-test linux-updater-test linux-shader-test linux-rom-list-test linux-game-name-test linux-boxart-folder-test linux-backdrop-test linux-wide-camera-test linux-day-night-test linux-bps-test linux-bezel-test linux-moves-test linux-save-edit-test linux-rom-tweaks-test linux-ff-music-test linux-shiny-odds-test linux-nuzlocke-test linux-screen-filter-test linux-link-play-test linux-presets-test linux-touch-test linux-stretch-test linux-pc-game-test)
     target_compile_options(${test} PRIVATE -UNDEBUG -Wall -Wextra -Werror)
     target_link_libraries(${test} PRIVATE pd_linux_common)
     if(WIN32)

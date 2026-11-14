@@ -1,4 +1,5 @@
 /* GPL-3.0, see ../NOTICE. The game grid's support tag (game_support.h). */
+#include "pc_game.h"
 #include "game_support.h"
 #include "pd_dex.h"
 #include "pd_game.h"
@@ -93,6 +94,19 @@ static int ds_support(const char *path, char *detail, size_t size) {
 
 int game_support_of_rom(const char *path, char *detail, size_t size) {
   detail[0] = 0;
+  struct pc_game_info pc;
+  if (pc_game_path(path)) { // PC FAN GAMES: the wings' party, place and battle where the companion runs
+    if (!pc_game_info(path, &pc) || pc.player == PC_PLAYER_NONE) {
+      snprintf(detail, size, "No player this can start");
+      return GAME_SUPPORT_UNKNOWN;
+    }
+    if (pc.companion) {
+      snprintf(detail, size, "Wings: party, place, battle. No BAG, DEX, GUIDE");
+      return GAME_SUPPORT_PARTLY;
+    }
+    snprintf(detail, size, "Its own player, drawn full height with your SHADER; no wings");
+    return GAME_SUPPORT_PLAY;
+  }
   if (ends_with(path, ".nds"))
     return ds_support(path, detail, size);
   FILE *f = fopen(path, "rb");
