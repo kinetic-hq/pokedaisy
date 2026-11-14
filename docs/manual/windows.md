@@ -282,6 +282,15 @@ doesn't check out, is refused and left alone.
   lists the items of every pocket at once and puts the one you pick in its own
   pocket. An item you already carry goes onto that stack, up to a full stack.
   Key items and HMs stay as they are.
+  - How many is a stepper: left and right step it by one (hold to keep going),
+    LB and RB by ten, `Y` sets the most, `X` the least, A keeps it, and
+    `TYPE A NUMBER` opens the keyboard.
+  - `MAX ALL` fills every stack in the pocket to its most. The TM pocket has
+    `ADD ALL TMS` (one of each you don't have) and the berry pocket has
+    `ADD ALL BERRIES` (a full stack of each). If the pocket fills up first, it
+    tells you how many didn't fit.
+  - The items you added last are at the top of `ADD AN ITEM`, marked
+    `ADDED LAST`, and each pocket shows how many of its slots are used.
 - `PARTY` and `PC BOXES`: pick a Pokemon to change its species, nickname,
   level, nature, ability, held item, moves, IVs, EVs and whether it's shiny.
   `ALL IVS TO 31` fills them in one go. `IVs` and `EVs` open a slider for each

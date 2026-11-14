@@ -7529,6 +7529,59 @@ static void editor_box(struct save_edit *e, int box, const char *title) {
 /* An item for pocket P from the game's own list (P -1: any that goes in a pocket the editor changes): the pocket's
  * items to scroll through, SEARCH BY NAME first to narrow them. A game that can't tell its pockets searches every
  * item instead. The item, or -1. */
+static int recentItems[8], recentCount; // the items added last, newest first, offered at the top of ADD AN ITEM
+static void editor_recent(int id) {
+  int n = 0, keep[8];
+  keep[n++] = id;
+  for (int i = 0; i < recentCount && n < 8; i++)
+    if (recentItems[i] != id)
+      keep[n++] = recentItems[i];
+  memcpy(recentItems, keep, sizeof keep);
+  recentCount = n;
+}
+/* HOW MANY?: left / right step it by one (held, it repeats), LB / RB by ten, Y is the most, X the least, A keeps it;
+ * TYPE A NUMBER for the keyboard. False for B. */
+static bool editor_count(const char *title, int now, int min, int max, int *out) {
+  int v = now < min ? min : now > max ? max : now, at = 0, key;
+  while (running) {
+    static char line[48], most[48];
+    snprintf(line, sizeof line, "x%d\tKEEP IT", v);
+    snprintf(most, sizeof most, "MOST\tx%d", max);
+    const char *rows[3] = {line, most, "TYPE A NUMBER"};
+    unsigned keys = 1u << LEFT | 1u << RIGHT | 1u << L | 1u << R | 1u << L2 | 1u << R2 | 1u << X | 1u << Y;
+    at = menu_pick_keys(title, "LEFT/RIGHT 1, LB/RB 10, Y most, X least, A keeps it.", rows, 3, at, keys, &key);
+    if (at < 0)
+      return false;
+    if (key == LEFT)
+      v--;
+    else if (key == RIGHT)
+      v++;
+    else if (key == L || key == L2)
+      v -= 10;
+    else if (key == R || key == R2)
+      v += 10;
+    else if (key == Y)
+      v = max;
+    else if (key == X)
+      v = min;
+    else if (at == 0) {
+      *out = v;
+      return true;
+    } else if (at == 1) {
+      *out = max;
+      return true;
+    } else {
+      long typed;
+      if (editor_number(title, v, min, max, &typed)) {
+        *out = (int)typed;
+        return true;
+      }
+    }
+    v = v < min ? min : v > max ? max : v;
+    at = 0;
+  }
+  return false;
+}
 static int editor_pick_item(struct save_edit *e, int p, const char *title) {
   if (!e->ops->item_pocket)
     return editor_search(e, title, e->ops->item_name, e->ops->item_max(e), false);
@@ -7541,6 +7594,15 @@ static int editor_pick_item(struct save_edit *e, int p, const char *title) {
     int n = 0, max = e->ops->item_max(e);
     if (!searched)
       rows[n] = "SEARCH BY NAME", ids[n++] = -1;
+    static char recent[8][64];
+    for (int i = 0; i < recentCount && !searched; i++) {
+      int id = recentItems[i], ip = id <= max ? e->ops->item_pocket(e, id) : -1;
+      const char *s = ip >= 0 && (p < 0 || ip == p) ? e->ops->item_name(e, id) : NULL;
+      if (!s)
+        continue;
+      snprintf(recent[i], sizeof recent[i], "%s\tADDED LAST", s);
+      rows[n] = recent[i], ids[n++] = id;
+    }
     for (int id = 1; id <= max && n < CAP; id++) {
       int ip = e->ops->item_pocket(e, id);
       if (ip < 0 || (p >= 0 ? ip != p : e->ops->pocket_locked(e, ip) != NULL))
@@ -7583,7 +7645,6 @@ static void editor_add_item(struct save_edit *e, int p, int id) {
       else if (!it.id && empty < 0)
         empty = i;
     }
-  long v;
   int count;
   if (have >= 0) {
     e->ops->pocket_item(e, p, have, &it);
@@ -7591,17 +7652,14 @@ static void editor_add_item(struct save_edit *e, int p, int id) {
       editor_say(name ? name : "CAN'T ADD IT", "That stack is full already.");
       return;
     }
-    if (!editor_number("ADD HOW MANY?", 1, 1, max - it.count, &v))
+    if (!editor_count("ADD HOW MANY?", 1, 1, max - it.count, &count))
       return;
-    count = it.count + (int)v;
+    count += it.count;
   } else if (empty < 0) {
     editor_say("CAN'T ADD IT", "That pocket is full: take something out first.");
     return;
-  } else {
-    if (!editor_number("HOW MANY?", 1, 1, max, &v))
-      return;
-    count = (int)v;
-  }
+  } else if (!editor_count("HOW MANY?", 1, 1, max, &count))
+    return;
   if (!e->ops->set_item(e, p, have >= 0 ? have : empty, id, count, err, sizeof err)) {
     editor_say("CAN'T ADD IT", err);
     return;
@@ -7609,6 +7667,52 @@ static void editor_add_item(struct save_edit *e, int p, int id) {
   snprintf(line, sizeof line, "%.40s x%d in %.20s: SAVE CHANGES writes it", name ? name : "?", count,
            e->ops->pocket_name(e, p));
   notice(line);
+  editor_recent(id);
+}
+/* ADD ALL: every item of pocket P the bag lacks, COUNT each (or a full stack), into its empty slots. */
+static void editor_add_all(struct save_edit *e, int p, int count) {
+  int slots = e->ops->pocket_slots(e, p), max = e->ops->item_max(e), added = 0, left = 0;
+  bool have[4096] = {false};
+  struct se_item it;
+  for (int i = 0; i < slots; i++)
+    if (e->ops->pocket_item(e, p, i, &it) && it.id > 0 && it.id < 4096)
+      have[it.id] = true;
+  int slot = 0;
+  for (int id = 1; id <= max && id < 4096; id++) {
+    if (have[id] || e->ops->item_pocket(e, id) != p)
+      continue;
+    while (slot < slots && (!e->ops->pocket_item(e, p, slot, &it) || it.id))
+      slot++;
+    if (slot >= slots) {
+      left++;
+      continue;
+    }
+    int full = e->ops->item_max_count(e, p, id), n = count > 0 && count < full ? count : full;
+    char err[160];
+    if (e->ops->set_item(e, p, slot, id, n, err, sizeof err))
+      added++;
+  }
+  char line[128];
+  if (left)
+    snprintf(line, sizeof line, "%d added; %d more didn't fit: the pocket is full.", added, left);
+  else
+    snprintf(line, sizeof line, added ? "%d added: SAVE CHANGES writes them." : "The bag has all of them already.",
+             added);
+  editor_say("ADD ALL", line);
+}
+/* MAX ALL: every stack in pocket P at its most. How many changed. */
+static int editor_max_all(struct save_edit *e, int p) {
+  int slots = e->ops->pocket_slots(e, p), changed = 0;
+  for (int i = 0; i < slots; i++) {
+    struct se_item it;
+    char err[160];
+    if (!e->ops->pocket_item(e, p, i, &it) || !it.id)
+      continue;
+    int full = e->ops->item_max_count(e, p, it.id);
+    if (it.count < full && e->ops->set_item(e, p, i, it.id, full, err, sizeof err))
+      changed++;
+  }
+  return changed;
 }
 static void editor_pocket(struct save_edit *e, int p) {
   const char *title = e->ops->pocket_name(e, p), *locked = e->ops->pocket_locked(e, p);
@@ -7627,22 +7731,40 @@ static void editor_pocket(struct save_edit *e, int p) {
       rows[n] = text[n];
       ids[n++] = i;
     }
+    int used = n;
+    bool tms = strstr(title, "TM") != NULL, berries = strstr(title, "BERR") != NULL;
     if (!locked) {
       rows[n] = "ADD AN ITEM";
       ids[n++] = -1;
+      if (used)
+        rows[n] = "MAX ALL\tEVERY STACK AT ITS MOST", ids[n++] = -2;
+      if (tms || berries)
+        rows[n] = tms ? "ADD ALL TMS\tONE EACH" : "ADD ALL BERRIES\tA FULL STACK EACH", ids[n++] = -3;
     }
     if (!n) {
       editor_say(title, locked);
       return;
     }
-    int pick = menu_pick_hint(title, locked, rows, n, selected);
+    char hint[96];
+    if (!locked)
+      snprintf(hint, sizeof hint, used >= slots ? "%d of %d slots used: the pocket is full." : "%d of %d slots used.",
+               used, slots);
+    int pick = menu_pick_hint(title, locked ? locked : hint, rows, n, selected);
     if (pick < 0)
       return;
     selected = pick;
     if (locked)
       continue;
     char err[160] = "";
-    long v;
+    if (ids[pick] == -2) {
+      int changed = editor_max_all(e, p);
+      notice(changed ? "Every stack at its most: SAVE CHANGES writes it" : "Every stack is full already");
+      continue;
+    }
+    if (ids[pick] == -3) {
+      editor_add_all(e, p, tms ? 1 : 0);
+      continue;
+    }
     if (ids[pick] < 0) {
       int id = editor_pick_item(e, p, "ADD WHICH ITEM?");
       if (id > 0)
@@ -7653,8 +7775,9 @@ static void editor_pocket(struct save_edit *e, int p) {
     e->ops->pocket_item(e, p, ids[pick], &it);
     static const char *const what[] = {"CHANGE HOW MANY", "TAKE IT OUT"};
     int k = menu_pick(rows[pick], what, 2, 0);
-    if (k == 0 && editor_number("HOW MANY?", it.count, 1, e->ops->item_max_count(e, p, it.id), &v) &&
-        !e->ops->set_item(e, p, ids[pick], it.id, (int)v, err, sizeof err))
+    int c;
+    if (k == 0 && editor_count("HOW MANY?", it.count, 1, e->ops->item_max_count(e, p, it.id), &c) &&
+        !e->ops->set_item(e, p, ids[pick], it.id, c, err, sizeof err))
       editor_say("CAN'T CHANGE IT", err);
     if (k == 1 && !e->ops->set_item(e, p, ids[pick], 0, 0, err, sizeof err))
       editor_say("CAN'T TAKE IT OUT", err);
