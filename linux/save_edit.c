@@ -1343,12 +1343,22 @@ static void g3_free(struct save_edit *e) {
   free(e);
 }
 
+static bool g3_base_stats(struct save_edit *e, int species, int out[6]) {
+  uint8_t b[28];
+  if (!base_stats(G(e), species, b))
+    return false;
+  for (int i = 0; i < 6; i++)
+    out[i] = b[i]; // gBaseStats keeps HP, Attack, Defense, Speed, Sp. Atk, Sp. Def: se_mon's order
+  return true;
+}
+
 static const struct se_ops G3_OPS = {
     g3_title,        g3_money,        g3_money_max,   g3_set_money,     g3_coins,     g3_set_coins,
     g3_pockets,      g3_pocket_name,  g3_pocket_slots, g3_pocket_item,  g3_pocket_locked, g3_set_item,
     g3_item_max_count, g3_boxes,      g3_box_slots,   g3_mon,           g3_set_mon,   g3_heal,
     g3_species_name, g3_species_max,  g3_move_name,   g3_move_max,      g3_item_name, g3_item_max,
     g3_abilities,    g3_build,        g3_verify,      g3_free,      g3_item_pocket, g3_learnable,
+    g3_base_stats,
 };
 
 struct save_edit *se_open_gen3(const uint8_t *save, size_t saveSize, const uint8_t *rom, size_t romSize, char *err,

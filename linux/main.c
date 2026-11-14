@@ -27,6 +27,7 @@
 #include "screen_filter.h"
 #include "link_play.h"
 #include "legality.h"
+#include "stat_tools.h"
 #include "presets.h"
 #include "../app/src/main/cpp/pk_link.h"
 #include "backdrop.h"
@@ -6466,7 +6467,7 @@ static bool text_entry(const char *title, char *buf, size_t size) {
                 PD_NO_SHADOW);
       }
     }
-    pd_text_fit(&canvas, 10, canvas.h - 18, canvas.w - 20, "A KEY   B DELETE   Y SPACE   START DONE   OR JUST TYPE",
+    pd_text_fit(&canvas, 10, canvas.h - 18, canvas.w - 20, "A KEY   B/X DELETE   Y SPACE   START DONE   OR JUST TYPE",
                 muted, PD_NO_SHADOW);
     if (menu_frame())
       break;
@@ -6881,6 +6882,220 @@ static void editor_presets(struct save_edit *e, struct se_mon *m) {
   }
 }
 
+static const char *const STAT_NAME[6] = {"HP", "ATTACK", "DEFENSE", "SPEED", "SP. ATK", "SP. DEF"};
+/* IVs / EVs: a slider per stat. */
+static void editor_ivev(struct se_mon *m, bool ivs) {
+  static const char *const *const statName = STAT_NAME;
+  long lv;
+    // A slider per stat: LEFT / RIGHT step it (held, it repeats), the shoulders step by 10, Y is its most, X is 0,
+    // A types it. EVs keep to 252 a stat and 510 in all (a typed value can go to the game's own 255).
+    int *values = ivs ? m->ivs : m->evs, stat = 0, key;
+    while (running) {
+      int total = 0;
+      for (int i = 0; i < 6; i++)
+        total += values[i];
+      char lines[8][64], hint[160];
+      const char *r8[8];
+      for (int i = 0; i < 6; i++) {
+        int top = ivs ? 31 : 252, n = (values[i] > top ? top : values[i]) * 10 / top;
+        char bar[11];
+        for (int b = 0; b < 10; b++)
+          bar[b] = b < n ? '#' : '.';
+        bar[10] = 0;
+        snprintf(lines[i], sizeof lines[i], "%s%s%s %3d", statName[i], "\t", bar, values[i]);
+        r8[i] = lines[i];
+      }
+      r8[6] = ivs ? "ALL TO 31" : "ALL TO 0";
+      r8[7] = "DONE";
+      if (ivs)
+        snprintf(hint, sizeof hint, "LEFT/RIGHT 1, LB/RB 10, Y 31, X 0, A types it.");
+      else
+        snprintf(hint, sizeof hint, "TOTAL %d / 510 (%d left). LEFT/RIGHT 1, LB/RB 10, Y most, X 0, A types it.",
+                 total, total < 510 ? 510 - total : 0);
+      unsigned keys = 1u << LEFT | 1u << RIGHT | 1u << L | 1u << R | 1u << L2 | 1u << R2 | 1u << X | 1u << Y;
+      stat = menu_pick_keys(ivs ? "IVs" : "EVs", hint, r8, 8, stat, keys, &key);
+      if (stat < 0 || stat == 7)
+        break;
+      if (stat == 6) {
+        for (int i = 0; i < 6; i++)
+          values[i] = ivs ? 31 : 0;
+        continue;
+      }
+      int now = values[stat], others = total - now;
+      int most = ivs ? 31 : (510 - others < 252 ? 510 - others : 252);
+      if (most < 0)
+        most = 0;
+      int next = now;
+      if (key == LEFT)
+        next = now - 1;
+      else if (key == RIGHT)
+        next = now + 1;
+      else if (key == L || key == L2)
+        next = now - 10;
+      else if (key == R || key == R2)
+        next = now + 10;
+      else if (key == Y)
+        next = most;
+      else if (key == X)
+        next = 0;
+      else if (editor_number(statName[stat], now, 0, ivs ? 31 : 255, &lv)) {
+        next = (int)lv;
+        if (!ivs && next > 510 - others) {
+          char why[96];
+          snprintf(why, sizeof why, "EVs come to 510 in all: this one can have %d.", 510 - others);
+          editor_say(statName[stat], why);
+          next = now;
+        }
+        values[stat] = next;
+        continue;
+      }
+      if (next > most && next > now)
+        next = most > now ? most : now; // a step up stops at the cap, never pushing an old value down
+      if (next < 0)
+        next = 0;
+      values[stat] = next;
+    }
+}
+static int editorRole = -1; // the QUICK EVS role picked last, tagged in the nature list
+/* How often each nature turns up in SPECIES' sets (this generation's, or any when it has none). */
+static void editor_set_natures(struct save_edit *e, int species, int counts[25]) {
+  memset(counts, 0, 25 * sizeof *counts);
+  const char *name = e->ops->species_name(e, species);
+  struct preset_list *all = presets_all(false);
+  if (!name || !all->count)
+    return;
+  int gen = se_generation(e);
+  for (int pass = 0; pass < 2; pass++) {
+    int found = 0;
+    for (int i = 0; i < all->count; i++) {
+      const struct preset *pr = &all->v[i];
+      if ((pass == 0 && pr->gen && pr->gen != gen) || !preset_for(pr, name))
+        continue;
+      for (int k = 0; k < 25; k++)
+        if (!strcasecmp(pr->nature, se_nature_name(k)))
+          counts[k]++, found++;
+    }
+    if (found)
+      return;
+  }
+}
+/* NATURE: the suggested ones first (from the sets, else the base stats), each with its +/-, then all 25. */
+static void editor_natures(struct save_edit *e, struct se_mon *m) {
+  int base[6], counts[25], rec[3] = {0}, recN = 0, roleNature = -1;
+  bool fromSets[3] = {false};
+  bool known = e->ops->base_stats && e->ops->base_stats(e, m->species, base);
+  if (known) {
+    editor_set_natures(e, m->species, counts);
+    recN = st_recommend(base, counts, rec, fromSets);
+    if (editorRole >= 0) {
+      int evs[6];
+      st_role_spread(editorRole, base, evs, &roleNature);
+    }
+  }
+  static char text[3 + 25][96];
+  const char *rows[3 + 25];
+  int ids[3 + 25], n = 0;
+  char fx[32];
+  for (int i = 0; i < recN; i++) {
+    snprintf(text[n], sizeof text[n], "%s  %s\t%s%s", se_nature_name(rec[i]), st_nature_effect(rec[i], fx, sizeof fx),
+             fromSets[i] ? "USED IN SETS" : "SUITS ITS STATS", rec[i] == roleNature ? ", FITS THE ROLE" : "");
+    rows[n] = text[n], ids[n] = rec[i], n++;
+  }
+  for (int k = 0; k < 25; k++) {
+    snprintf(text[n], sizeof text[n], "%s%s\t%s", se_nature_name(k), k == m->nature ? " (NOW)" : "",
+             st_nature_effect(k, fx, sizeof fx));
+    rows[n] = text[n], ids[n] = k, n++;
+  }
+  int at = recN ? 0 : m->nature; // the suggestions in view first
+  int k = menu_pick_hint("NATURE", recN ? "The first ones suit this Pokemon; all 25 follow." : NULL, rows, n, at);
+  if (k >= 0)
+    m->nature = ids[k];
+}
+/* QUICK EVS: a spread by role, the best fit for the base stats first; its nature offered after. */
+static void editor_roles(struct save_edit *e, struct se_mon *m) {
+  int base[6];
+  if (!e->ops->base_stats || !e->ops->base_stats(e, m->species, base)) {
+    editor_say("QUICK EVS", "This game's base stats aren't known.");
+    return;
+  }
+  int best = st_best_role(base);
+  static char text[ROLE_COUNT][128];
+  const char *rows[ROLE_COUNT];
+  char spread[64], fx[32];
+  for (int r = 0; r < ROLE_COUNT; r++) {
+    int evs[6], nature;
+    st_role_spread(r, base, evs, &nature);
+    snprintf(text[r], sizeof text[r], "%s%s\t%s, %s", st_role_name(r), r == best ? " (BEST FIT)" : "",
+             st_spread_text(evs, spread, sizeof spread), se_nature_name(nature));
+    rows[r] = text[r];
+  }
+  int r = menu_pick_hint("QUICK EVS", "A sets the EVs; the role's nature is offered next.", rows, ROLE_COUNT, best);
+  if (r < 0)
+    return;
+  int evs[6], nature;
+  st_role_spread(r, base, evs, &nature);
+  memcpy(m->evs, evs, sizeof evs);
+  editorRole = r;
+  if (m->nature != nature) {
+    char q[64];
+    snprintf(q, sizeof q, "%s (%s)", se_nature_name(nature), st_nature_effect(nature, fx, sizeof fx));
+    const char *yn[2] = {"YES", "KEEP MINE"};
+    if (menu_pick_hint("SET THE NATURE TOO?", q, yn, 2, 0) == 0)
+      m->nature = nature;
+  }
+}
+/* STATS: each stat's base, now, least and most (31 IV, 252 EV, this nature), worked out again after every change. */
+static void editor_stats(struct save_edit *e, struct se_mon *m, const struct se_mon *was) {
+  int base[6];
+  if (!e->ops->base_stats || !e->ops->base_stats(e, m->species, base)) {
+    editor_say("STATS", "This game's base stats aren't known.");
+    return;
+  }
+  int at = 0;
+  while (running) {
+    int now[6], before[6];
+    st_stats(base, m->ivs, m->evs, m->level, m->nature, now);
+    st_stats(base, was->ivs, was->evs, was->level, was->nature, before);
+    static char text[10][128];
+    const char *rows[10];
+    char fx[32];
+    int up = st_nature_up(m->nature), down = st_nature_down(m->nature);
+    for (int i = 0; i < 6; i++) {
+      int lo = st_stat_min(base, i, m->level, m->nature), hi = st_stat_max(base, i, m->level, m->nature);
+      int fill = hi > lo ? (now[i] - lo) * 10 / (hi - lo) : 10;
+      char bar[9], change[24] = "";
+      fill = fill * 8 / 10;
+      for (int b = 0; b < 8; b++)
+        bar[b] = b < fill ? '#' : '.';
+      bar[8] = 0;
+      if (now[i] != before[i])
+        snprintf(change, sizeof change, " WAS %d", before[i]);
+      snprintf(text[i], sizeof text[i], "%s%s  BASE %d\t%d%s  %s  %d-%d", STAT_NAME[i],
+               i == up ? " +" : i == down ? " -" : "", base[i], now[i], change, bar, lo, hi);
+      rows[i] = text[i];
+    }
+    snprintf(text[6], sizeof text[6], "NATURE: %s\t%s", se_nature_name(m->nature),
+             st_nature_effect(m->nature, fx, sizeof fx));
+    rows[6] = text[6];
+    rows[7] = "QUICK EVS\tBY ROLE";
+    rows[8] = "IVs\tA SLIDER EACH";
+    rows[9] = "EVs\tA SLIDER EACH";
+    char hint[96];
+    snprintf(hint, sizeof hint, "Lv%d. The range runs from 0 IVs and EVs to 31 and 252, with this nature.",
+             m->level);
+    at = menu_pick_hint("STATS: NOW, THEN LEAST TO MOST", hint, rows, 10, at);
+    if (at < 0)
+      return;
+    if (at < 6 || at == 9)
+      editor_ivev(m, false);
+    else if (at == 6)
+      editor_natures(e, m);
+    else if (at == 7)
+      editor_roles(e, m);
+    else
+      editor_ivev(m, true);
+  }
+}
 static bool editor_move(struct save_edit *e, int box, int slot);
 /* LEGALITY: M's issues (legality.h), each with FIX where that's safe, and FIX ALL. */
 static void editor_legality(struct save_edit *e, struct se_mon *m) {
@@ -6918,11 +7133,12 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
   struct se_mon m;
   if (!e->ops->mon(e, box, slot, &m))
     return;
-  static const char *const statName[6] = {"HP", "ATTACK", "DEFENSE", "SPEED", "SP. ATK", "SP. DEF"};
+  struct se_mon was = m; // as the save has it: STATS shows what changed
+  editorRole = -1;
   int selected = 0;
   while (running) {
     enum { R_SPECIES, R_NICK, R_LEVEL, R_EXP, R_NATURE, R_ABILITY, R_HELD, R_FRIEND, R_MOVE, R_PPUPS = R_MOVE + 4,
-           R_IVS, R_EVS, R_SHINY, R_OT, R_FROM, R_MAX_IVS, R_PRESET, R_PASTE, R_LEGAL, R_APPLY, R_MOVE_IT, R_COUNT };
+           R_IVS, R_EVS, R_STATS, R_ROLES, R_SHINY, R_OT, R_FROM, R_MAX_IVS, R_PRESET, R_PASTE, R_LEGAL, R_APPLY, R_MOVE_IT, R_COUNT };
     static char text[R_COUNT][96];
     const char *rows[R_COUNT];
     int ids[R_COUNT], shown = 0;
@@ -6935,7 +7151,12 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     snprintf(text[R_EXP], 96, "EXP: %ld", m.exp);
     snprintf(text[R_FRIEND], 96, "FRIENDSHIP: %d", m.friendship);
     snprintf(text[R_PPUPS], 96, "PP BOOSTS: %d/%d/%d/%d", m.ppUps[0], m.ppUps[1], m.ppUps[2], m.ppUps[3]);
-    snprintf(text[R_NATURE], 96, "NATURE: %s", se_nature_name(m.nature));
+    {
+      char fx[32];
+      snprintf(text[R_NATURE], 96, "NATURE: %s\t%s", se_nature_name(m.nature), st_nature_effect(m.nature, fx, sizeof fx));
+    }
+    snprintf(text[R_STATS], 96, "STATS\tBASE, NOW, LEAST, MOST");
+    snprintf(text[R_ROLES], 96, "QUICK EVS\tBY ROLE");
     snprintf(text[R_ABILITY], 96, "ABILITY: %s", m.ability ? (a2 ? a2 : "?") : (a1 ? a1 : "?"));
     snprintf(text[R_HELD], 96, "HOLDS: %s", held ? held : "?");
     for (int i = 0; i < 4; i++) {
@@ -6966,7 +7187,7 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     snprintf(text[R_MOVE_IT], 96, "MOVE IT\tTO ANOTHER SLOT OR BOX");
     for (int i = 0; i < R_COUNT; i++)
       if ((m.extras || (i != R_EXP && i != R_FRIEND && i != R_PPUPS)) && (m.origin || (i != R_OT && i != R_FROM)) &&
-          (i != R_MOVE_IT || se_trade_ready(e)))
+          (i != R_MOVE_IT || se_trade_ready(e)) && ((i != R_STATS && i != R_ROLES) || e->ops->base_stats))
         rows[shown] = text[i], ids[shown++] = i;
     int row = menu_pick_hint(m.nick, "B leaves this Pokemon as it was.", rows, shown, selected);
     if (row < 0)
@@ -7020,15 +7241,9 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
       }
       break;
     }
-    case R_NATURE: {
-      const char *natures[25];
-      for (int i = 0; i < 25; i++)
-        natures[i] = se_nature_name(i);
-      int k = menu_pick("NATURE", natures, 25, m.nature);
-      if (k >= 0)
-        m.nature = k;
+    case R_NATURE:
+      editor_natures(e, &m);
       break;
-    }
     case R_ABILITY: {
       if (!a2) {
         editor_say("ABILITY", "This Pokemon has only one ability.");
@@ -7045,78 +7260,15 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
         m.held = id;
       break;
     case R_IVS:
-    case R_EVS: {
-      // A slider per stat: LEFT / RIGHT step it (held, it repeats), the shoulders step by 10, Y is its most, X is 0,
-      // A types it. EVs keep to 252 a stat and 510 in all (a typed value can go to the game's own 255).
-      bool ivs = pick == R_IVS;
-      int *values = ivs ? m.ivs : m.evs, stat = 0, key;
-      while (running) {
-        int total = 0;
-        for (int i = 0; i < 6; i++)
-          total += values[i];
-        char lines[8][64], hint[160];
-        const char *r8[8];
-        for (int i = 0; i < 6; i++) {
-          int top = ivs ? 31 : 252, n = (values[i] > top ? top : values[i]) * 10 / top;
-          char bar[11];
-          for (int b = 0; b < 10; b++)
-            bar[b] = b < n ? '#' : '.';
-          bar[10] = 0;
-          snprintf(lines[i], sizeof lines[i], "%s%s%s %3d", statName[i], "\t", bar, values[i]);
-          r8[i] = lines[i];
-        }
-        r8[6] = ivs ? "ALL TO 31" : "ALL TO 0";
-        r8[7] = "DONE";
-        if (ivs)
-          snprintf(hint, sizeof hint, "LEFT/RIGHT 1, LB/RB 10, Y 31, X 0, A types it.");
-        else
-          snprintf(hint, sizeof hint, "TOTAL %d / 510 (%d left). LEFT/RIGHT 1, LB/RB 10, Y most, X 0, A types it.",
-                   total, total < 510 ? 510 - total : 0);
-        unsigned keys = 1u << LEFT | 1u << RIGHT | 1u << L | 1u << R | 1u << L2 | 1u << R2 | 1u << X | 1u << Y;
-        stat = menu_pick_keys(ivs ? "IVs" : "EVs", hint, r8, 8, stat, keys, &key);
-        if (stat < 0 || stat == 7)
-          break;
-        if (stat == 6) {
-          for (int i = 0; i < 6; i++)
-            values[i] = ivs ? 31 : 0;
-          continue;
-        }
-        int now = values[stat], others = total - now;
-        int most = ivs ? 31 : (510 - others < 252 ? 510 - others : 252);
-        if (most < 0)
-          most = 0;
-        int next = now;
-        if (key == LEFT)
-          next = now - 1;
-        else if (key == RIGHT)
-          next = now + 1;
-        else if (key == L || key == L2)
-          next = now - 10;
-        else if (key == R || key == R2)
-          next = now + 10;
-        else if (key == Y)
-          next = most;
-        else if (key == X)
-          next = 0;
-        else if (editor_number(statName[stat], now, 0, ivs ? 31 : 255, &v)) {
-          next = (int)v;
-          if (!ivs && next > 510 - others) {
-            char why[96];
-            snprintf(why, sizeof why, "EVs come to 510 in all: this one can have %d.", 510 - others);
-            editor_say(statName[stat], why);
-            next = now;
-          }
-          values[stat] = next;
-          continue;
-        }
-        if (next > most && next > now)
-          next = most > now ? most : now; // a step up stops at the cap, never pushing an old value down
-        if (next < 0)
-          next = 0;
-        values[stat] = next;
-      }
+    case R_EVS:
+      editor_ivev(&m, pick == R_IVS);
       break;
-    }
+    case R_STATS:
+      editor_stats(e, &m, &was);
+      break;
+    case R_ROLES:
+      editor_roles(e, &m);
+      break;
     case R_SHINY:
       m.shiny = !m.shiny;
       break;

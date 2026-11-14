@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "pocket_os.h"
+#include "stat_tools.h"
 
 #define CHECK(c)                                                                                                       \
   do {                                                                                                                 \
@@ -209,6 +210,52 @@ static void fill(const char *spec, const char *scratch) {
 }
 
 int main(void) {
+  {
+    /* STATS: the game's formula, the natures' +/-, the roles and the suggested natures. */
+    enum { JOLLY = 13, ADAMANT = 3, TIMID = 10, HARDY = 0, MODEST = 15 };
+    CHECK(st_nature_up(JOLLY) == 3 && st_nature_down(JOLLY) == 4); // +Speed -Sp. Atk
+    CHECK(st_nature_up(ADAMANT) == 1 && st_nature_down(ADAMANT) == 4);
+    CHECK(st_nature_up(TIMID) == 3 && st_nature_down(TIMID) == 1);
+    CHECK(!st_nature_up(HARDY) && st_nature_of(3, 4) == JOLLY);
+    char fx[32];
+    CHECK(!strcmp(st_nature_effect(JOLLY, fx, sizeof fx), "+SPE -SP. ATK"));
+    const int base[6] = {108, 130, 95, 102, 80, 85}, ivs[6] = {31, 31, 31, 31, 31, 31}, evs[6] = {4, 252, 0, 252, 0, 0};
+    int out[6];
+    st_stats(base, ivs, evs, 100, JOLLY, out);
+    CHECK(out[0] == 358 && out[1] == 359 && out[3] == 333 && out[4] == 176); // the numbers a damage calculator gives
+    CHECK(st_stat_max(base, 3, 100, JOLLY) == 333 && st_stat_min(base, 3, 100, HARDY) == 209);
+    const int shedinja[6] = {1, 90, 45, 40, 30, 30};
+    st_stats(shedinja, ivs, evs, 100, HARDY, out);
+    CHECK(out[0] == 1);
+    CHECK(st_best_role(base) == ROLE_PHYS_SWEEPER);
+    const int special[6] = {80, 50, 65, 110, 135, 95}, slow[6] = {100, 135, 120, 30, 60, 80}, wall[6] = {120, 60, 60, 40,
+                                                                                                         60, 130};
+    CHECK(st_best_role(special) == ROLE_SPEC_SWEEPER && st_best_role(slow) == ROLE_TRICK_ROOM);
+    CHECK(st_best_role(wall) == ROLE_SPEC_TANK);
+    int spread[6], nature;
+    st_role_spread(ROLE_TRICK_ROOM, slow, spread, &nature);
+    CHECK(spread[3] == 0 && spread[1] == 252 && nature == 2); // Brave: +Attack -Speed
+    char text[64];
+    st_role_spread(ROLE_PHYS_SWEEPER, base, spread, &nature);
+    CHECK(!strcmp(st_spread_text(spread, text, sizeof text), "252 ATK / 252 SPE / 4 HP") && nature == JOLLY);
+    for (int r = 0; r < ROLE_COUNT; r++) {
+      st_role_spread(r, base, spread, &nature);
+      int total = 0;
+      for (int i = 0; i < 6; i++) {
+        total += spread[i];
+        CHECK(spread[i] <= 252);
+      }
+      CHECK(total <= 510 && nature >= 0 && nature < 25);
+    }
+    int rec[3];
+    bool fromSets[3];
+    CHECK(st_recommend(base, NULL, rec, fromSets) >= 2 && rec[0] == JOLLY && rec[1] == ADAMANT && !fromSets[0]);
+    int counts[25] = {0};
+    counts[MODEST] = 1, counts[ADAMANT] = 5;
+    int n = st_recommend(base, counts, rec, fromSets);
+    CHECK(n == 3 && rec[0] == ADAMANT && fromSets[0] && rec[1] == MODEST && rec[2] == JOLLY && !fromSets[2]);
+    puts("PASS STATS: the formula, natures, roles and suggested natures");
+  }
   {
     /* COPY WHAT?: STATS ONLY takes the set's nature, IVs and EVs and keeps the Pokemon's own moves and item. */
     struct se_mon m = {0}, next = {0};

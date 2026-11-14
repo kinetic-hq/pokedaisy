@@ -89,6 +89,9 @@ struct se_ops {
    * when the game's lists aren't known. COMPLETE: the game is retail, so set_mon refuses a new move outside them (egg
    * moves aren't listed: a Pokemon keeps the ones it knows). NULL = not offered. */
   int (*learnable)(struct save_edit *, int species, int level, uint16_t *out, int cap, bool *complete);
+  /* SPECIES' base stats, in se_mon's order (HP, Attack, Defense, Speed, Sp. Atk, Sp. Def): false when the game's table
+   * isn't known. NULL = not offered. */
+  bool (*base_stats)(struct save_edit *, int species, int out[6]);
 };
 
 struct save_edit {

@@ -302,6 +302,21 @@ doesn't check out, is refused and left alone.
   them, and `FIX ALL` puts every one right; `KEEP THESE CHANGES` keeps it. `CHECK`
   means a move it can't learn by level, TM, tutor or egg in this game. That may
   still be fine, since an event can teach one, so it's never changed for you.
+- `STATS` on a Pokemon shows each stat's base, what it is now (and what it was
+  before your changes), and its range from 0 IVs and EVs up to 31 IVs and 252
+  EVs with its nature, with a bar towards the most. The stat its nature raises
+  has a `+` and the one it lowers a `-`. Everything is worked out again as you
+  change the IVs, EVs, nature or level.
+- `QUICK EVS` sets a spread by role: `PHYSICAL SWEEPER`, `SPECIAL SWEEPER`,
+  `MIXED ATTACKER`, `PHYSICAL TANK`, `SPECIAL TANK`, `BULKY ATTACKER`,
+  `BULKY SPECIAL ATTACKER`, a slow attacker with no Speed EVs, or `BALANCED`. Each shows its
+  spread and nature, the one that fits the Pokemon's base stats best is marked
+  `BEST FIT` and picked first, and after you choose you can take its nature too.
+- `NATURE` lists two or three natures that suit the Pokemon at the top: the ones
+  its battle sets use most (once you have sets, see `PRESETS`), else the ones
+  that fit its base stats. The one that goes with the `QUICK EVS` role you picked
+  says `FITS THE ROLE`. All 25 follow, each with the stat it raises and lowers,
+  or `NEUTRAL`.
   Picking a move lists the moves it can learn by its level first: by level
   up, TM or HM, the move tutors, from an egg, or as what it evolved from.
   `SEARCH ALL MOVES` finds any other. In a retail GBA game a new move it

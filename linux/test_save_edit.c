@@ -3,6 +3,7 @@
  * originals: the test copies the save into a scratch folder first). */
 #include "save_edit.h"
 #include "legality.h"
+#include "stat_tools.h"
 #include "pocket_os.h"
 
 #include <stdio.h>
@@ -106,6 +107,24 @@ static void round_trip(const char *spec, const char *scratch) {
     }
     CHECK(total == 510 && bad.evs[0] == 255 && bad.evs[5] == 0 && bad.held == 0);
     puts("  FIX ALL puts IVs, EVs and the item right");
+  }
+  /* STATS: the party's most HP, worked out from the base stats, is what the game itself keeps. */
+  if (o->base_stats) {
+    int checked = 0;
+    for (int s = 0; s < 6; s++) {
+      struct se_mon pm;
+      int base[6], st[6];
+      if (!o->mon(e, SE_PARTY, s, &pm) || pm.egg || !pm.maxHp)
+        continue;
+      CHECK(o->base_stats(e, pm.species, base));
+      st_stats(base, pm.ivs, pm.evs, pm.level, pm.nature, st);
+      if (st[0] != pm.maxHp)
+        fprintf(stderr, "  %s Lv%d: HP worked out %d, the game's %d\n", o->species_name(e, pm.species), pm.level, st[0],
+                pm.maxHp);
+      CHECK(st[0] == pm.maxHp);
+      checked++;
+    }
+    printf("  STATS: %d party HP worked out as the game has them\n", checked);
   }
 
   /* The party's first Pokemon: a new level, nature, IVs and a nickname; then refusals. */
