@@ -460,8 +460,9 @@ void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,Ds
   // BLACK / DARK: the wing is a card inset in its room, on the background, its content moved a step now and then.
   pocket_backdrop look=pocket_backdrop_for(background);int dx=0,dy=0;
   if(look.cards){int pad=std::max(3,box.w/40);pocket_wing_shift(background,SDL_GetTicks(),pad/3,&dx,&dy);box={box.x+pad,box.y+pad,box.w-2*pad-2,box.h-2*pad-2};}
-  // One scale for both wings (from the wing's width and the window's height), whatever room each panel has.
-  int scale=std::max(1,std::min(box.w/120,oh/300));
+  // One scale for both wings (from the wing's width and the window's height), whatever room each panel has: 150
+  // pixels across at least, so the party's names fit (120 let 2560 x 1600's wings cut them).
+  int scale=std::max(1,std::min(box.w/150,oh/300));
   int w=std::min(WING_W,box.w/scale),h=std::min(WING_H,box.h/scale);
   pd_canvas c;pd_canvas_init(&c,w,h,px.data());pd_fill(&c,0,0,w,h,look.card);
   pocket_wing_look wl;pocket_wing_look_begin(background,&wl);
@@ -1129,6 +1130,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
           else if(t.y>=g.y+g.h)area.h=t.y;
           else if(t.y+t.h<=g.y){area.y=t.y+t.h;area.h=oh-area.y;}
         }
+        // The wings' panels too: the picture stays between them (in Black it ran under the left wing, cutting its
+        // text box off).
+        int left=area.x,right=area.x+area.w;
+        for(const DsBox& p:place.panel)if(p.shown()){
+          if(p.x+p.w<=g.x+g.w/2)left=std::max(left,p.x+p.w);
+          else if(p.x>=g.x+g.w/2)right=std::min(right,p.x);
+        }
+        if(right-left>=256){area.x=left;area.w=right-left;}
         wideLevelCount=wide_camera_levels(area.w,area.h,256,192,PK_NDS_WIDE_MAX_W,PK_NDS_WIDE_MAX_H,wideLevels);
         if(zoomStep){
           // ZOOM IN / OUT step the camera (closest first), as in a GBA game.
