@@ -361,6 +361,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **SCENE SPEEDS on the desktop, and GAME SPEED that works there**: `SPEED OPTIONS` gets `BATTLE`, `TEXT`, `MENU`,
   `BIKE` and `SURF SPEED` in Game Boy and GBA games, as on Android (`MENU SPEED` where `EXPAND` reads the screen).
   `GAME SPEED` was shown on the desktop but never applied; it now sets the pace in between.
+- **Finer GAME SPEED steps, sound at its own pitch** on the desktop host: `1.15x`, `1.25x`, `1.75x` and `2.5x` join
+  `1x` to `4x` and the slow two, and the game's sound is time stretched to keep its pitch at any `GAME SPEED` or
+  `SCENE SPEEDS` pace instead of rising or dropping with it. An older `settings.ini` keeps its pick.
 - **TRADE EVOS on the desktop**: in the English FireRed (rev 1), LeafGreen and Emerald, a party Pokémon that would
   evolve by trading gets `EVOLVE` on its summary, and the game plays its own evolution, as on Android.
 - **NUZLOCKE on the desktop**: the Android app's tracker and its tab (under `MORE`): one encounter per area, fainted

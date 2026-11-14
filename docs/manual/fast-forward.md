@@ -51,6 +51,9 @@ A few things stay fast in `SMART` on purpose:
 
 It's saved for each game separately. Set a hack you're replaying to `1.5×` and it opens at 1.5x every time, while your other games stay at 1x. Below 1x the sound is muted. If fast-forward is on, it wins over `GAME SPEED`; turn fast-forward off and you're back at your game speed.
 
+> [!NOTE]
+> On Windows and Linux, `GAME SPEED` also has `1.15×`, `1.25×`, `1.75×` and `2.5×`, for a pace just a little quicker than the game's own. The sound keeps its pitch at every speed, the slow ones too, rather than rising or dropping with the game. While it isn't `1×`, the bottom bar shows it (`SPEED x1.15`).
+
 The `SPEED CYCLE` hotkey (L2 on a controller, or the = key) steps through `1×`, `1.5×`, `2×`, `3×` and `4×` and round again, without opening `SETTINGS`. If you're on one of the slow speeds, it goes back to `1×`. Where it stops is saved for that game too.
 
 ## Battles, text and menus at their own speed: SCENE SPEEDS

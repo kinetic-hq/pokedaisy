@@ -110,6 +110,14 @@ static int int_list(const char* p, int* list, int cap, int max) {
     return n;
 }
 
+const int PD_GAME_SPEED_PCT[PD_GAME_SPEED_COUNT] = {100, 115, 125, 150, 175, 200, 250, 300, 400, 50, 25};
+
+int pd_game_speed_index(int pct) {
+    for (int i = 0; i < PD_GAME_SPEED_COUNT; i++)
+        if (PD_GAME_SPEED_PCT[i] == pct) return i;
+    return 0;
+}
+
 const int PD_FF_SPEEDS[PD_FF_CHOICES] = {2, 3, 4, 5, 6, 8, 10, 0};
 
 int pd_ff_index(int speed) {
@@ -187,7 +195,15 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "quickbtn")) int_in(value, 0, PD_BTN_L2 + 1, &s->quickBtn);
         else if (!strcmp(key, "companionbtn")) int_in(value, 0, PD_BTN_L2 + 1, &s->companionBtn);
         else if (!strcmp(key, "hudbtn")) int_in(value, 0, PD_BUTTONS - 1, &s->hudBtn);
-        else if (!strcmp(key, "speed")) int_in(value, 0, PD_GAME_SPEED_COUNT - 1, &s->gameSpeed);
+        else if (!strcmp(key, "speed")) {
+            // Before the small steps: an index into 1x, 1.5x, 2x, 3x, 4x, 0.5x, 0.25x.
+            static const int OLD_PCT[] = {100, 150, 200, 300, 400, 50, 25};
+            int n;
+            if (int_in(value, 0, 6, &n)) s->gameSpeed = pd_game_speed_index(OLD_PCT[n]);
+        } else if (!strcmp(key, "gamespeed")) {
+            int n;
+            if (int_in(value, 1, 1000, &n) && PD_GAME_SPEED_PCT[pd_game_speed_index(n)] == n) s->gameSpeed = pd_game_speed_index(n);
+        }
         else if (!strcmp(key, "shinyodds")) int_in(value, 0, PD_SHINY_CHOICES - 1, &s->shinyOdds);
         else if (!strcmp(key, "battlespeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_BATTLE]);
         else if (!strcmp(key, "textspeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_TEXT]);
@@ -300,7 +316,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "levelcap=%d\nresume=%d\nrumble=%d\nbatterysaver=%d\n", s->levelCap ? 1 : 0, s->resumeGames ? 1 : 0,
             s->rumble ? 1 : 0, s->batterySaver);
     fprintf(f, "dark=%d\ntheme=%d\nffnormal=%d\ncheats=%d\n", s->darkMode, s->theme, s->ffNormal, s->cheats);
-    fprintf(f, "speed=%d\nvolume=%d\nnohints=%d\nonetap=%d\nmute=%d\nautorun=%d\nperf=%d\n", s->gameSpeed,
+    fprintf(f, "gamespeed=%d\nvolume=%d\nnohints=%d\nonetap=%d\nmute=%d\nautorun=%d\nperf=%d\n", PD_GAME_SPEED_PCT[s->gameSpeed],
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);
     fprintf(f, "updatecheck=%d\nshader=%d\ncolors=%d\ndim=%d\nsavesbeside=%d\n", s->updateCheck ? 1 : 0, s->shader,
             s->colors, s->dimCompanion ? 1 : 0, s->savesBeside ? 1 : 0);

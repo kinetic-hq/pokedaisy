@@ -210,8 +210,10 @@ enum pd_filter { PD_FILTER_OFF, PD_FILTER_LCD, PD_FILTER_LCD_PAPER, PD_FILTER_SC
 extern const char* const pd_filter_names[PD_FILTERS];
 extern const char* const pd_grid_names[PD_GRIDS];
 
-// GAME SPEED's steps, as the app's SPEED_STEPS: the old five, then the slow two.
-#define PD_GAME_SPEED_COUNT 7
+// GAME SPEED's steps: 1x, the small steps up to 4x, then the slow two. PD_GAME_SPEED_PCT is each in percent.
+#define PD_GAME_SPEED_COUNT 11
+extern const int PD_GAME_SPEED_PCT[PD_GAME_SPEED_COUNT];
+int pd_game_speed_index(int pct);
 #define PD_SCENE_SPEED_COUNT 6
 #define PD_SHINY_CHOICES 5
 extern const char* const PD_SHINY_LABELS[PD_SHINY_CHOICES];

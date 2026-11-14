@@ -140,7 +140,7 @@ The companion's list puts what you change while you play first: speed and `SOUND
 | --- | --- | --- | --- |
 | `FF` | `ON`, **`OFF`** | Fast-forward on or off, like the `FF TOGGLE` hotkey. | [Fast-forward](fast-forward.md) |
 | `FF SPEED` | as on the top screen | How fast fast-forward runs. | [Fast-forward](fast-forward.md) |
-| `GAME SPEED` | 0.25x, 0.5x, **1x**, 1.5x, 2x, 3x, 4x | A pace that stays, saved for each game. Below 1x the sound is muted. Fast-forward, when on, wins. | [Fast-forward](fast-forward.md) |
+| `GAME SPEED` | 0.25x, 0.5x, **1x**, 1.5x, 2x, 3x, 4x | A pace that stays, saved for each game. Below 1x the sound is muted. Fast-forward, when on, wins. On Windows and Linux also 1.15x, 1.25x, 1.75x and 2.5x, with the sound at its own pitch. | [Fast-forward](fast-forward.md) |
 | `REWIND` | as on the top screen | Keep the last seconds to rewind. | [Fast-forward](fast-forward.md) |
 | `SPEED OPTIONS` | a page | `SCENE SPEEDS`, then `FF MODE` and `FF MUSIC`; see the next table. | [Fast-forward](fast-forward.md) |
 

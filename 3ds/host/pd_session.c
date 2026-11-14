@@ -1092,11 +1092,10 @@ void pd_session_tick(struct pd_session* s, const struct pd_input* in, unsigned m
     }
     uint32_t keys = s->quickOpen ? 0 : in->held;
     // A loop is one screen refresh, so a speed is frames a refresh: 1.5x runs one, two, one, two; 0.5x every other.
-    static const int SPEED_X4[PD_GAME_SPEED_COUNT] = { 4, 6, 8, 12, 16, 2, 1 };
-    int quarter = ff && !smart_slows(s) ? s->settings->ffSpeed * 4 : SPEED_X4[s->settings->gameSpeed];
-    s->speedDebt += quarter;
-    int count = s->speedDebt / 4;
-    s->speedDebt %= 4;
+    int pct = ff && !smart_slows(s) ? s->settings->ffSpeed * 100 : PD_GAME_SPEED_PCT[s->settings->gameSpeed];
+    s->speedDebt += pct;
+    int count = s->speedDebt / 100;
+    s->speedDebt %= 100;
     for (int i = 0; i < count; i++) pd_session_run_frame(s, keys, i == count - 1);
     field_jobs(s);
     item_jobs(s);

@@ -1,6 +1,7 @@
 /* Native single-screen host for PokeDaisy. GPL-3.0, see ../NOTICE. */
 #include "../3ds/desktop/pd_png.h"
 #include "boxart.h"
+#include "stretch.h"
 #include "game_grid.h"
 #include "game_support.h"
 #include "game_name.h"
@@ -220,6 +221,9 @@ static void audio_check(void) {
   if (audio)
     fprintf(stderr, "Audio device reopened\n");
 }
+/* GAME SPEED away from 1x: the sound keeps its pitch (stretch.h); 1 lets it straight through. */
+static double stretchSpeed = 1;
+static struct stretch gameStretch = {.speed = 1};
 static void post_audio(struct mAVStream *s, blip_t *l, blip_t *r) {
   (void)s;
   int16_t out[2048];
@@ -228,6 +232,16 @@ static void post_audio(struct mAVStream *s, blip_t *l, blip_t *r) {
     n = 1024;
   blip_read_samples(l, out, n, true);
   blip_read_samples(r, out + 1, n, true);
+  if (stretchSpeed != 1 || gameStretch.speed != 1) {
+    static int16_t stretched[2 * 8192];
+    stretch_speed(&gameStretch, stretchSpeed);
+    if (stretchSpeed != 1) {
+      int made = stretch_run(&gameStretch, out, n, stretched, 8192);
+      if (audio && !muted && SDL_GetQueuedAudioSize(audio) < 32768)
+        SDL_QueueAudio(audio, stretched, made * 4);
+      return;
+    }
+  }
 #ifdef POCKET_TEST
   for (int i = 0; i < n * 2; i++)
     if (out[i])
@@ -3120,11 +3134,10 @@ static int scene_now(int flags, bool fieldKnown, const struct pd_snapshot *snap)
 }
 /* The speed with fast-forward off: the scene's SCENE SPEEDS pick, else GAME SPEED's. */
 static double scene_pace(const struct pd_settings *s, const struct pd_host_info *h, int scene) {
-  static const double GAME_X[PD_GAME_SPEED_COUNT] = {1, 1.5, 2, 3, 4, 0.5, 0.25};
   static const double SCENE_X[PD_SCENE_SPEED_COUNT] = {0, 1, 1.5, 2, 3, 4};
   if (scene >= 0 && h->sceneKnown[scene] && s->sceneSpeed[scene] > 0)
     return SCENE_X[s->sceneSpeed[scene]];
-  return GAME_X[s->gameSpeed];
+  return PD_GAME_SPEED_PCT[s->gameSpeed] / 100.0;
 }
 /* plorpOS: fast-forward's frames this refresh - its speed, or for MAX as many as ~80% of a frame's time fits
  * (frameMs: what one cost lately). */
@@ -4306,7 +4319,9 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       }
       if (saving && count > 3)
         count = 3;
-      audio_rate(c, hz, fast ? count : pace);
+      // GAME SPEED's sound is stretched to its pitch; fast-forward's plays sped up, as FF MUSIC says.
+      stretchSpeed = fast || rewinding ? 1 : pace;
+      audio_rate(c, hz, fast ? count : stretchSpeed != 1 ? 1 : pace);
       if ((settings.instantText && textPatch.count > 0) != textOn) {
         textOn = !textOn;
         tweak_apply(c, romdata, &textPatch, textOn);
