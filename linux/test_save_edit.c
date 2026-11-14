@@ -3,6 +3,7 @@
  * originals: the test copies the save into a scratch folder first). */
 #include "save_edit.h"
 #include "legality.h"
+#include "presets.h"
 #include "stat_tools.h"
 #include "pocket_os.h"
 
@@ -125,6 +126,28 @@ static void round_trip(const char *spec, const char *scratch) {
       checked++;
     }
     printf("  STATS: %d party HP worked out as the game has them\n", checked);
+  }
+  /* COPY AS SHOWDOWN: the lead written as a set and read back by PASTE SET gives the same nature, EVs, IVs and moves. */
+  {
+    struct se_mon lead, back;
+    CHECK(o->mon(e, SE_PARTY, 0, &lead));
+    char text[1024];
+    CHECK(preset_export(e, &lead, text, sizeof text) < (int)sizeof text);
+    struct preset_list one = {0};
+    CHECK(presets_parse("copy.txt", text, strlen(text), se_generation(e), &one) == 1);
+    back = lead;
+    for (int i = 0; i < 6; i++)
+      back.evs[i] = back.ivs[i] = 0;
+    back.nature = (lead.nature + 1) % 25;
+    struct preset_notes notes;
+    preset_apply(e, &one.v[0], &back, &notes);
+    if (memcmp(back.evs, lead.evs, sizeof lead.evs) || memcmp(back.ivs, lead.ivs, sizeof lead.ivs) ||
+        back.nature != lead.nature || memcmp(back.moves, lead.moves, sizeof lead.moves))
+      fprintf(stderr, "%s\n", text);
+    CHECK(!memcmp(back.evs, lead.evs, sizeof lead.evs) && !memcmp(back.ivs, lead.ivs, sizeof lead.ivs));
+    CHECK(back.nature == lead.nature && !memcmp(back.moves, lead.moves, sizeof lead.moves));
+    presets_free(&one);
+    printf("  COPY AS SHOWDOWN reads back the same\n");
   }
 
   /* The party's first Pokemon: a new level, nature, IVs and a nickname; then refusals. */

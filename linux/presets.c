@@ -1167,3 +1167,119 @@ int preset_apply(struct save_edit *e, const struct preset *p, struct se_mon *m, 
   }
   return filled;
 }
+
+/* ---- COPY AS SHOWDOWN and the Hidden Power type picker -------------------------------------------------------- */
+int preset_hp_type(const int iv[6]) { return hp_type(iv); }
+const char *preset_hp_type_name(int type) { return type >= 0 && type < 16 ? HP_TYPES[type] : "?"; }
+int preset_hp_power(const int iv[6]) {
+  int sum = 0;
+  for (int i = 0; i < 6; i++)
+    sum |= ((iv[i] >> 1) & 1) << i;
+  return sum * 40 / 63 + 30;
+}
+/* The IVs nearest IV (fewest points moved, then the most power) that give TYPE: each IV keeps its value or moves by
+ * one to change its lowest bit. */
+void preset_hp_set(int iv[6], int type) {
+  int best[6], bestCost = 1 << 30, bestPower = -1;
+  for (int bits = 0; bits < 64; bits++) {
+    if (bits * 15 / 63 != type)
+      continue;
+    int t[6], cost = 0;
+    for (int i = 0; i < 6; i++) {
+      int want = bits >> i & 1, v = iv[i] < 0 ? 0 : iv[i] > 31 ? 31 : iv[i];
+      if ((v & 1) != want) // up for an odd one, down for an even one (31 down, 0 up)
+        v = v == 0 ? 1 : v == 31 ? 30 : (want ? v + 1 : v - 1);
+      cost += v > iv[i] ? v - iv[i] : iv[i] - v;
+      t[i] = v;
+    }
+    int power = preset_hp_power(t);
+    if (cost < bestCost || (cost == bestCost && power > bestPower)) {
+      memcpy(best, t, sizeof best);
+      bestCost = cost, bestPower = power;
+    }
+  }
+  if (bestPower >= 0)
+    memcpy(iv, best, sizeof best);
+}
+
+/* "SALAMENCE" as "Salamence", "SP. ATK" as "Sp. Atk", "KING'S ROCK" as "King's Rock". */
+static void title_case(char *out, size_t n, const char *s) {
+  size_t k = 0;
+  bool start = true;
+  for (; s && *s && k + 1 < n; s++) {
+    unsigned char c = (unsigned char)*s;
+    out[k++] = (char)(start ? toupper(c) : tolower(c));
+    start = c == ' ' || c == '-' || c == '.' || c == '(';
+  }
+  out[k] = 0;
+}
+
+int preset_export(struct save_edit *e, const struct se_mon *m, char *out, size_t n) {
+  static const char *const EV[6] = {"HP", "Atk", "Def", "Spe", "SpA", "SpD"};
+  static const int ORDER[6] = {0, 1, 2, 4, 5, 3}; // Showdown writes Speed last
+  char species[48], nick[48], item[48], buf[64];
+  const struct se_ops *o = e->ops;
+  title_case(species, sizeof species, o->species_name(e, m->species));
+  size_t k = 0;
+#define PUT(...)                                                                                                       \
+  do {                                                                                                                 \
+    int w_ = snprintf(out + k, k < n ? n - k : 0, __VA_ARGS__);                                                        \
+    if (w_ > 0)                                                                                                        \
+      k += (size_t)w_;                                                                                                 \
+  } while (0)
+  title_case(nick, sizeof nick, m->nick);
+  if (*m->nick && strcasecmp(nick, species))
+    PUT("%s (%s)", m->nick, species);
+  else
+    PUT("%s", species);
+  const char *held = m->held ? o->item_name(e, m->held) : NULL;
+  if (held) {
+    title_case(item, sizeof item, held);
+    PUT(" @ %s", item);
+  }
+  PUT("\n");
+  const char *a1 = NULL, *a2 = NULL;
+  if (o->abilities(e, m->species, &a1, &a2)) {
+    const char *a = m->ability && a2 ? a2 : a1;
+    if (a) {
+      title_case(buf, sizeof buf, a);
+      PUT("Ability: %s\n", buf);
+    }
+  }
+  if (m->level != 100)
+    PUT("Level: %d\n", m->level);
+  if (m->shiny)
+    PUT("Shiny: Yes\n");
+  int any = 0;
+  for (int j = 0; j < 6; j++)
+    if (m->evs[ORDER[j]]) {
+      PUT("%s%d %s", any++ ? " / " : "EVs: ", m->evs[ORDER[j]], EV[ORDER[j]]);
+    }
+  if (any)
+    PUT("\n");
+  title_case(buf, sizeof buf, se_nature_name(m->nature));
+  PUT("%s Nature\n", buf);
+  any = 0;
+  for (int j = 0; j < 6; j++)
+    if (m->ivs[ORDER[j]] != 31) {
+      PUT("%s%d %s", any++ ? " / " : "IVs: ", m->ivs[ORDER[j]], EV[ORDER[j]]);
+    }
+  if (any)
+    PUT("\n");
+  for (int s = 0; s < 4; s++) {
+    const char *mv = m->moves[s] ? o->move_name(e, m->moves[s]) : NULL;
+    if (!mv)
+      continue;
+    title_case(buf, sizeof buf, mv);
+    if (!strcasecmp(mv, "HIDDEN POWER")) {
+      char type[16];
+      title_case(type, sizeof type, HP_TYPES[hp_type(m->ivs)]);
+      PUT("- %s [%s]\n", buf, type);
+    } else
+      PUT("- %s\n", buf);
+  }
+#undef PUT
+  if (k >= n && n)
+    out[n - 1] = 0;
+  return (int)k;
+}

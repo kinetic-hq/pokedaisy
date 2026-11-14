@@ -257,6 +257,25 @@ int main(void) {
     puts("PASS STATS: the formula, natures, roles and suggested natures");
   }
   {
+    /* QUICK SET's Hidden Power: every type reachable from perfect IVs with each IV moved by one at most, at 70 power
+     * where it can be; DARK is all 31s. */
+    int all31[6] = {31, 31, 31, 31, 31, 31};
+    CHECK(preset_hp_type(all31) == 15 && preset_hp_power(all31) == 70);
+    CHECK(!strcmp(preset_hp_type_name(8), "FIRE"));
+    for (int type = 0; type < 16; type++) {
+      int iv[6] = {31, 31, 31, 31, 31, 31};
+      preset_hp_set(iv, type);
+      CHECK(preset_hp_type(iv) == type);
+      for (int i = 0; i < 6; i++)
+        CHECK(iv[i] == 30 || iv[i] == 31);
+      CHECK(preset_hp_power(iv) == 70);
+    }
+    int low[6] = {31, 0, 31, 31, 31, 31}; // a special attacker's 0 Attack stays low
+    preset_hp_set(low, 13);               // ICE
+    CHECK(preset_hp_type(low) == 13 && low[1] <= 1);
+    puts("PASS QUICK SET's Hidden Power picker");
+  }
+  {
     /* COPY WHAT?: STATS ONLY takes the set's nature, IVs and EVs and keeps the Pokemon's own moves and item. */
     struct se_mon m = {0}, next = {0};
     m.species = next.species = 25, m.nature = 3, m.held = 7, m.moves[0] = 85, m.ivs[0] = 1, m.evs[3] = 10;

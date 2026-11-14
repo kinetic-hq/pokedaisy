@@ -59,6 +59,15 @@ enum { PART_NATURE = 1, PART_IVS = 2, PART_EVS = 4, PART_MOVES = 8, PART_ITEM = 
 /* The parts of NEXT (M with a set filled in by preset_apply) that PARTS names, onto M; the rest of M stays. */
 void preset_take(struct se_mon *m, const struct se_mon *next, int parts);
 
+/* COPY AS SHOWDOWN: M as Showdown writes a set (PASTE SET reads it back). Returns the length it needed. */
+int preset_export(struct save_edit *e, const struct se_mon *m, char *out, size_t n);
+/* Hidden Power from the IVs (Gen 3 to 5): its type (0 FIGHTING .. 15 DARK), the type's name and its power (30-70). */
+int preset_hp_type(const int iv[6]);
+const char *preset_hp_type_name(int type);
+int preset_hp_power(const int iv[6]);
+/* IV moved as little as it can be (one point a stat at most) to give Hidden Power TYPE. */
+void preset_hp_set(int iv[6], int type);
+
 #ifdef __cplusplus
 }
 #endif
