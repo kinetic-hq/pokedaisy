@@ -750,11 +750,22 @@ void free_edit(save_edit *e) {
   delete e;
 }
 
+// The personal record starts HP, Attack, Defense, Speed, Sp. Atk, Sp. Def: se_mon's order.
+bool base_six(save_edit *e, int species, int out[6]) {
+  const uint8_t *b = base_stats(G(e), species);
+  if (!b)
+    return false;
+  for (int i = 0; i < 6; i++)
+    out[i] = b[i];
+  return true;
+}
+
 const se_ops G4_OPS = {
     title,         money,      money_max,    set_money,    coins,     set_coins,  pockets,
     pocket_name,   pocket_slots, pocket_item, pocket_locked, set_item, item_max_count, boxes,
     box_slots,     get_mon,    set_mon,      heal,         species_name, species_max, move_name,
     move_max,      item_name,  item_max,     abilities,    build,     verify,     free_edit, item_pocket,
+    nullptr /* learnable */, base_six,
 };
 } // namespace
 
