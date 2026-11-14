@@ -273,6 +273,12 @@ English and the other Western languages, the hacks that kept those games' save
 layout, and English HeartGold, SoulSilver and Platinum. Any other game, or a save that
 doesn't check out, is refused and left alone.
 
+With a controller, the bar along the bottom of each editor screen shows what the
+buttons do there. It names the shoulder buttons `LB` and `RB`, or `L` and `R`
+when `BUTTON LAYOUT` is `NINTENDO`. In a long list of names (the species, the
+moves, the items) `RB` jumps to the first name starting with the next letter
+and `LB` to the previous letter, so you don't have to scroll through it.
+
 - `MONEY` and `COINS`: type a new amount, up to what the game allows.
 - `TRAINER` (GBA games): `PLAY TIME` takes hours and minutes. `BADGES` lists the
   eight, and A switches one on or off (or pick `ALL EIGHT` or `NONE`).
