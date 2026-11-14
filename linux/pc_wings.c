@@ -165,6 +165,34 @@ void pc_play_time(long seconds, char *out, int size) {
   snprintf(out, (size_t)size, "%ld:%02ld", seconds / 3600, (seconds / 60) % 60);
 }
 
+void pc_side_panel(struct pd_canvas *c, int which, int hour, int minute, int battery, bool charging, long playSeconds,
+                   int zoomPct) {
+  char big[24] = "", small[32] = "";
+  const char *top = which ? "PLAY TIME" : "CLOCK";
+  if (which) {
+    pc_play_time(playSeconds, big, sizeof big);
+    snprintf(small, sizeof small, "ZOOM %d%%", zoomPct);
+  } else {
+    if (hour >= 0)
+      snprintf(big, sizeof big, "%02d:%02d", hour, minute);
+    if (battery >= 0)
+      snprintf(small, sizeof small, "BATTERY %d%%%s", battery, charging ? "+" : "");
+  }
+  // The big line at 2x when it fits, else 1x.
+  int k = pd_text_width(big) * 2 + 8 <= c->w ? 2 : 1;
+  int h = 16 + 16 * k + (small[0] ? 18 : 0), y = (c->h - h) / 2;
+  pd_text_fit(c, (c->w - pd_text_width(top)) / 2 > 2 ? (c->w - pd_text_width(top)) / 2 : 2, y, c->w - 4, top,
+              PD_MUTED, PD_MUTED_SHADOW);
+  y += 16;
+  if (big[0])
+    pd_text_scaled(c, (c->w - pd_text_width(big) * k) / 2, y, big, PD_VALUE, PD_VALUE_SHADOW, k);
+  y += 16 * k + 2;
+  if (small[0]) {
+    int sw = pd_text_width(small);
+    pd_text_fit(c, sw < c->w - 4 ? (c->w - sw) / 2 : 2, y, c->w - 4, small, PD_LABEL, PD_LABEL_SHADOW);
+  }
+}
+
 /* ---- the party ---- */
 struct icon_ctx {
   const struct pc_state *s;
