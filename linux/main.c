@@ -3243,6 +3243,20 @@ static int ff_frames(const struct pd_settings *s, double hz, double frameMs) {
   int n = frameMs > 0 ? (int)(800.0 / hz / frameMs) : 2;
   return n < 2 ? 2 : n > 30 ? 30 : n;
 }
+/* FF MUSIC's SPED-UP for a host that only has the game's samples (LINK PLAY): a refresh's frames of stereo sound cut to
+ * one refresh's length by keeping every speed-th sample, so it plays faster and higher, as fast-forward's does in a
+ * single game. Returns the frames kept. */
+static int ff_speed_up(int16_t *stereo, int frames, double speed) {
+  if (speed <= 1)
+    return frames;
+  int out = (int)(frames / speed);
+  for (int i = 0; i < out; i++) {
+    int j = (int)(i * speed);
+    stereo[2 * i] = stereo[2 * j];
+    stereo[2 * i + 1] = stereo[2 * j + 1];
+  }
+  return out;
+}
 #ifdef POCKET_DS
 extern int pd_ds_run(const char*, const char*, int, const char*, SDL_Renderer*, bool (*)(void));
 extern void (*pd_ds_device_event)(const SDL_Event*);
@@ -3255,7 +3269,8 @@ extern int pd_ds_game_touch_off;
 extern bool (*pd_ds_rewind_held)(void);
 extern int pd_ds_rewind_on;
 extern int pd_ds_ui_size, pd_ds_wing_room, pd_ds_theme;
-extern bool pd_ds_dark, pd_ds_expand, pd_ds_auto_zoom;
+extern bool pd_ds_dark, pd_ds_expand, pd_ds_auto_zoom, pd_ds_ff_audio;
+extern int pd_ds_ff_speed;
 static bool ds_rewind_held(void) { return rewindHeld || rewindKey; }
 static bool ds_running(void) { return running != 0; }
 #endif
@@ -3479,6 +3494,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       pd_ds_wing_room = st.wingRoom;
       pd_ds_expand = st.aspect == PD_ASPECT_EXPAND; // ASPECT and AUTO ZOOM IN: DS EXPAND and its camera
       pd_ds_auto_zoom = st.autoZoom;
+      pd_ds_ff_speed = st.ffSpeed;   // FF SPEED and FF MUSIC: fast-forward's pace, and its sound sped up or none
+      pd_ds_ff_audio = st.ffAudio;
     }
     appError = pd_ds_run(path, root, maxFrames, shot, renderer, ds_running);
     // The DS backend owns its device while running. Restore the normal host's
@@ -8738,6 +8755,17 @@ static void link_run(int n, char roms[][1024], int maxFrames, const char *shot) 
   bool ff = false, leave = false, faulted = false;
   struct link_rect at[LINK_PLAY_MAX];
   static int16_t sound[4096 * 2];
+  // Fast-forward as in a single game: FF SPEED's frames a refresh (MAX: what fits), and with FF MUSIC on the heard
+  // game's sound sped up to match (SPED-UP; STEADY has no recording here), else none.
+  struct pd_settings linkSt;
+  {
+    char cfg[1100];
+    snprintf(cfg, sizeof cfg, "%s/settings.ini", root);
+    pd_settings_load(&linkSt, cfg);
+  }
+  enum { FF_MOST = 12 };
+  static int16_t ffSound[4096 * 2 * FF_MOST];
+  double frameMs = 0;
   if (audio)
     SDL_ClearQueuedAudio(audio);
   held = pressed = 0;
@@ -8780,8 +8808,12 @@ static void link_run(int n, char roms[][1024], int maxFrames, const char *shot) 
       double queued = SDL_GetQueuedAudioSize(audio) / 4.0, target = 32768 * 0.06, d = (target - queued) / target;
       d = d > 1 ? 1 : d < -1 ? -1 : d;
       pk_link_set_audio_rate(32768 * (1 + 0.005 * d));
-    }
-    int count = ff ? 4 : 1;
+    } else if (audio)
+      pk_link_set_audio_rate(32768);
+    int count = ff ? ff_frames(&linkSt, hz, frameMs) : 1, ffGot = 0;
+    if (count > FF_MOST)
+      count = FF_MOST;
+    uint64_t runStart = SDL_GetPerformanceCounter();
     for (int k = 0; k < count && !faulted; k++) {
       if (!pk_link_run_frame()) {
         char status[512];
@@ -8794,7 +8826,17 @@ static void link_run(int n, char roms[][1024], int maxFrames, const char *shot) 
         int got = pk_link_read_audio(i, sound, 4096);
         if (i == focus && !ff && got > 0 && audio && SDL_GetQueuedAudioSize(audio) < 32768 * 4 / 4)
           SDL_QueueAudio(audio, sound, (Uint32)got * 4);
+        else if (i == focus && ff && linkSt.ffAudio && got > 0 && ffGot + got <= 4096 * FF_MOST) {
+          memcpy(ffSound + 2 * ffGot, sound, (size_t)got * 4);
+          ffGot += got;
+        }
       }
+    }
+    if (count > 0)
+      frameMs = (double)(SDL_GetPerformanceCounter() - runStart) * 1000.0 / freq / count;
+    if (ffGot > 0 && audio && SDL_GetQueuedAudioSize(audio) < 32768 * 4 / 4) {
+      int kept = ff_speed_up(ffSound, ffGot, linkSt.ffSpeed ? linkSt.ffSpeed / 100.0 : count);
+      SDL_QueueAudio(audio, ffSound, (Uint32)kept * 4);
     }
     int ow = 1, oh = 1;
     SDL_RenderSetLogicalSize(renderer, 0, 0);
@@ -8823,7 +8865,7 @@ static void link_run(int n, char roms[][1024], int maxFrames, const char *shot) 
       }
     }
     if (ff) {
-      // FF: four frames a refresh, every game, silent; a bar under the focused game says so.
+      // FF: every game at FF SPEED; a bar under the focused game says so.
       SDL_SetRenderDrawColor(renderer, 255, 140, 26, 255);
       SDL_Rect bar = {at[focus].x, at[focus].y + at[focus].h + 8, at[focus].w / 6, 4};
       SDL_RenderFillRect(renderer, &bar);

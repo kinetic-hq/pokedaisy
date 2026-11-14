@@ -519,6 +519,7 @@ extern "C" { bool (*pd_ds_host_event)(const SDL_Event*)=nullptr; }
 // BUTTON LAYOUT XBOX: the bottom face button is A (SDL reports pads by position); else the right one, as before.
 extern "C" { int pd_ds_xbox_layout=0; }
 // UI SIZE and WING ROOM, the host's SCREEN settings, for the DS companion and the layouts with wings.
+extern "C" { int pd_ds_ff_speed=0; bool pd_ds_ff_audio=true; }  // FF SPEED (percent, 0 = MAX) and FF MUSIC on
 extern "C" { int pd_ds_ui_size=1; int pd_ds_wing_room=1; int pd_ds_theme=0; bool pd_ds_dark=false;
   // ASPECT on EXPAND and AUTO ZOOM IN, from the host's settings.
   bool pd_ds_expand=false; bool pd_ds_auto_zoom=true; }
@@ -686,6 +687,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   uint32_t r3Since=0;bool r3Held=false,r3Chord=false;std::string toast;uint32_t toastUntil=0;
   // FF TOGGLE (L3 by default): three frames a turn, muted. ZOOM: WING ROOM for this run (-1 the setting's).
   bool fastForward=false;int zoomStep=0,zoomRoom=-1;
+  double ffOwed=0,ffFrameMs=0;std::vector<int16_t> ffSound,ffOut;  // FF SPEED's fraction carried; a frame's cost
   auto showToast=[&](const char* text){toast=text;toastUntil=SDL_GetTicks()+1500;std::fprintf(stderr,"DS LAYOUT %s\n",text);};
   int setting=0,touchX=128,touchY=96;uint32_t keys=0,lastActivityKeys=0,wingActivity=SDL_GetTicks(),wingSign=0;unsigned repeat[8]={};int frame=0,lastPhase=-1,overrideScreen=-1;
   const int raw[]={1,0,11,10,9,8,2,3,15,-1,12,13};const bool rawTrimui=std::getenv("POCKET_RAW_TRIMUI")!=nullptr;
@@ -1021,10 +1023,25 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         }
         nds->setButtons(held);
         nds->runFrame();
-        if(fastForward){  // two more frames, and no sound (it would only stutter at three times the speed)
-          for(int i=0;i<2;i++)nds->runFrame();
-          int16_t drop[2048];while(nds->takeAudio(drop,1024)){}
-        }
+        if(fastForward){
+          // FF SPEED's frames this refresh (1.5x: one more, then none, the fraction carried; MAX: as many as about
+          // 80% of a refresh fits), and with FF MUSIC on their sound sped up to one refresh's length, as in a GBA game.
+          int n=2;
+          if(pd_ds_ff_speed>0){ffOwed+=pd_ds_ff_speed/100.0;n=std::max(1,int(ffOwed));ffOwed-=n;}
+          else if(ffFrameMs>0)n=std::clamp(int(800.0/nds->fps()/ffFrameMs),2,10);
+          uint64_t ran=SDL_GetPerformanceCounter();
+          for(int i=1;i<n;i++)nds->runFrame();
+          if(n>1)ffFrameMs=1000.0*(SDL_GetPerformanceCounter()-ran)/SDL_GetPerformanceFrequency()/(n-1);
+          int16_t buf[2048];size_t got;ffSound.clear();
+          while((got=nds->takeAudio(buf,1024)))if(pd_ds_ff_audio)ffSound.insert(ffSound.end(),buf,buf+got*2);
+          if(pd_ds_ff_audio && audio.stream && !ffSound.empty()){
+            const double speed=pd_ds_ff_speed>0?pd_ds_ff_speed/100.0:double(n);
+            const size_t frames=ffSound.size()/2,kept=std::max<size_t>(1,size_t(frames/std::max(1.0,speed)));
+            ffOut.resize(kept*2);
+            for(size_t i=0;i<kept;i++){size_t j=std::min(frames-1,size_t(i*speed));ffOut[2*i]=ffSound[2*j];ffOut[2*i+1]=ffSound[2*j+1];}
+            SDL_AudioStreamPut(audio.stream,ffOut.data(),int(ffOut.size()*2));
+          }
+        }else ffOwed=0;
       }
       if(nds->batteryWrites()!=lastWrites){lastWrites=nds->batteryWrites();quiet=0;}else quiet++;
       if(quiet>=60 && nds->batteryDirty()){auto s=nds->battery();if(!s.empty() && !atomic_file(save,s.data(),s.size())){failed=true;done=true;}else nds->clearBatteryDirty();}
