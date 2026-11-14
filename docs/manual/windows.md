@@ -3,7 +3,7 @@ title: Windows handhelds and PCs
 summary: Run the Linux host's PokeDaisy on a Windows handheld or PC from a portable zip, with your own games and saves.
 section: start
 order: 91
-keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy, filter, lcd, lcd paper, scanlines, crt, subpixel, grid, gba colors, audio effects, equalizer, link play, link cable, cable club, start link, add a game, add any item, add an item, search by name, bag editor, items, balls, tms, friendship, pp boosts, pp, exp, experience, legal, legality, learnable moves, learnset, search all moves, egg moves, presets, sets, import sets, paste set, showdown, smogon, competitive, battle ready]
+keywords: [windows, pc, ui size, too big, smaller, wing room, stretch, update, updates, check for updates, new version, rog ally, legion go, onexplayer, steam deck, portable, zip, exe, sdl, controller, fullscreen, full screen, f11, alt+enter, borderless, windowed, button layout, xbox, nintendo, a and b swapped, hotkeys, paddles, back buttons, guide, home button, share, screenshot, controls, touch, touch screen, mouse, tap, game touch, orientation, portrait, landscape, rotate, rotation, flipped, upside down, vertical screen, companion view, battle wings, side panel, glass drawer, step back, nds, ds, nintendo ds, melonds, touch screen, mouse, ds layout, touch window, second monitor, second screen, pop out, one screen, picture in picture, touch in wing, stacked, side by side, large + small, shader, shaders, xbrz, sharp, colors, colours, handheld, oled, dim companion, black panels, brightness, bezel, bezel bars, bezel style, glow, zoom in, zoom out, remap, r3, view, game folders, roms folders, roms-folders.txt, other folders, emulation folder, retroarch, saves beside games, save next to game, sav, time of day, night, berries, plant pots, heartgold, soulsilver, black, white, black 2, white 2, patch a rom, bps, patch, rom hack patch, makeover, day and night, trade saves, trade, trading, here, quick bag, save state button, close game, zoom percent, light mode, dark mode, sun, moon, theme button, layout, top bar, bottom bar, right wing, party types, next leader, level cap, area encounter, caught and seen, tip or weaknesses, retroachievements, achievements, cheevos, sign in, sign out, account, battle top bar, battle bottom bar, battle right wing, foe ivs, switch to, foe team, best matchup, catch chance, physical, special, accuracy, filter, lcd, lcd paper, scanlines, crt, subpixel, grid, gba colors, audio effects, equalizer, link play, link cable, cable club, start link, add a game, add any item, add an item, search by name, bag editor, items, balls, tms, friendship, pp boosts, pp, exp, experience, legal, legality, learnable moves, learnset, search all moves, egg moves, presets, sets, import sets, paste set, showdown, smogon, competitive, battle ready]
 ---
 
 The Windows version is the [Linux host](linux.md) built for Windows: the same
@@ -510,7 +510,7 @@ SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
 ### Screen, touch and orientation
 
 The game list's `SETTINGS` (in the bar at its top, or `Y`) is in the app's groups: `SCREEN`
-(`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE`, `LAYOUT` and `DISPLAY OPTIONS`, which has
+(`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE`, `TOUCH WINDOW`, `LAYOUT` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
 `GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `TRADE SAVES`, `LINK PLAY`, `BOX ART DOWNLOAD`,
 `STEAMGRIDDB KEY`, `BOX ART LOCATION`), `CONTROLS` (`GAME BUTTONS`,
@@ -618,7 +618,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 
 Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close
 with B. A DS game's companion keeps its own `SETTINGS` (the gear tab), which has
-`DS LAYOUT` and `DS WING SIDE`.
+`DS LAYOUT`, `DS WING SIDE` and `TOUCH WINDOW`.
 
 ## Shaders and colours
 
@@ -821,6 +821,16 @@ either wing opens the companion too.
 The companion's panels in the wings read Platinum (USA), Renegade Platinum,
 HeartGold, SoulSilver, Origin HeartGold, Black, White, Black 2 and White 2; in other DS games
 they say so. While they show, the HUD leaves out its party row.
+
+`TOUCH WINDOW` puts the touch screen in a window of its own, for a second
+monitor or a handheld with two screens. Turn it on in the game list's
+`SETTINGS` (next to `DS LAYOUT`) or in a DS game's companion settings. The first
+time, the window opens on your other display if you have one, else beside the
+game. Move it and size it as you like: it opens there again next time. The
+game's window then shows the top screen alone, or with its wings in `WINGS`.
+Click or tap the touch screen in its window, or hold SELECT and use the D-pad
+as usual. Close that window to turn `TOUCH WINDOW` off. It is still an
+experiment, so tell us how it works on your setup.
 
 SELECT and R3 together (Space on a keyboard) swap the two screens: in `ONE SCREEN` you see the
 touch screen alone, in `PICTURE IN PICTURE`, `LARGE + SMALL` and
