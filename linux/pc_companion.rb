@@ -515,6 +515,9 @@ module PokeDaisyCompanion
         when 'ff' then @ff = [[v.to_i, 1].max, 8].min
         when 'instant_text' then @instantText = v == '1'
         when 'zoom' then @zoom = [[v.to_i, -2].max, 2].min
+        when 'shape'
+          w, h = v.split('x').map { |n| n.to_i }
+          @shape = w && h && w > 0 && h > 0 ? [w, h] : nil
         when 'window'
           w, h = v.split('x').map { |n| n.to_i }
           @window = w && h && w > 0 && h > 0 ? [w, h] : nil
@@ -545,27 +548,33 @@ module PokeDaisyCompanion
       true
     end
 
+    # WIDE VIEW (PokeDaisy's shape= ask): on the plain map the picture takes the shape of PokeDaisy's room for it, so
+    # more of the map shows beside; menus and battles keep the game's own shape (PokeDaisy's window fits them in).
     def apply_zoom
       return unless Graphics.respond_to?(:resize_screen)
-      want = quiet_map? ? zoom_scale : 1.0
-      return if want == (@zoomShown || 1.0)
-      set_screen(want)
+      quiet = quiet_map?
+      want = quiet ? zoom_scale : 1.0
+      wide = quiet ? @shape : nil
+      return if want == (@zoomShown || 1.0) && wide == @wideShown
+      set_screen(want, wide)
     rescue Exception
       @zoomShown = want
+      @wideShown = wide
     end
 
     # The menus and battles: the game's own size while they're open.
     def unzoom
-      set_screen(1.0) if (@zoomShown || 1.0) != 1.0
+      set_screen(1.0) if (@zoomShown || 1.0) != 1.0 || @wideShown
     rescue Exception
       nil
     end
 
-    def set_screen(k)
+    def set_screen(k, wide = nil)
       @baseSize ||= [Graphics.width, Graphics.height]
       bw, bh = @baseSize
-      w = ((bw * k) / 32).round * 32
       h = ((bh * k) / 32).round * 32
+      w = wide ? ((h * wide[0] / wide[1].to_f) / 8).round * 8 : ((bw * k) / 32).round * 32
+      w = ((bw * k) / 32).round * 32 if w < bw * k
       Graphics.resize_screen(w, h)
       # Some players size their window to the new picture: it gets PokeDaisy's size back at once (no flash).
       Graphics.resize_window(@window[0], @window[1]) if @window && Graphics.respond_to?(:resize_window)
@@ -576,6 +585,7 @@ module PokeDaisyCompanion
       end
       $game_player.center($game_player.x, $game_player.y) if $game_player && $game_player.respond_to?(:center)
       @zoomShown = k
+      @wideShown = wide
     end
 
     # Where a game keeps the screen's size as a constant (v19+ Settings, older DEFAULTSCREENWIDTH), it follows.

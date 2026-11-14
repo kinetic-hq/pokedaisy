@@ -18,4 +18,8 @@ void pc_wing_right(struct pd_canvas *c, const struct pc_state *s, const char *ga
 void pc_wings_free(void);
 /* Play time as the wings show it: "12:05" (hours:minutes). */
 void pc_play_time(long seconds, char *out, int size);
+/* The sides of a PLAY ONLY game (no game data to show): WHICH 0, the clock and the battery (BATTERY < 0: none to
+ * show); 1, the play time PokeDaisy has counted for the game and the zoom. Centred in the canvas. */
+void pc_side_panel(struct pd_canvas *c, int which, int hour, int minute, int battery, bool charging, long playSeconds,
+                   int zoomPct);
 #endif

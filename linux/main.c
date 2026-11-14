@@ -3610,6 +3610,8 @@ static void pc_wing_draw(int which, SDL_Rect box, const struct pc_state *s, cons
   SDL_Rect dst = {box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale};
   SDL_RenderCopy(renderer, pcWingTexture[which], &(SDL_Rect){0, 0, w, h}, &dst);
 }
+/* WIDE VIEW (GAME MENU, kept per game): the room for the picture as pc_wide_layout makes it. */
+static bool pcWide;
 /* The bars above and below the picture (WING ROOM leaves them room): the place, the clock and the battery, the
  * badges, play time and money on top; the dex, ZOOM and SPEED, and what's wild here below. */
 static SDL_Texture *pcBarTexture[2];
@@ -3650,7 +3652,7 @@ static void pc_bar_draw(int which, SDL_Rect box, const struct pc_state *s, int s
     if (s->seen || s->caught)
       snprintf(a, sizeof a, "SEEN %d  CAUGHT %d", s->seen, s->caught);
     static const int pct[] = {67, 80, 100, 133, 200}; // LT shows more of the map, RT less
-    snprintf(b, sizeof b, "ZOOM %d%%  SPEED %dx", pct[zoom + 2], ff);
+    snprintf(b, sizeof b, "ZOOM %d%%  SPEED %dx%s", pct[zoom + 2], ff, pcWide ? "  WIDE" : "");
     if (s->battle)
       snprintf(c, sizeof c, "IN BATTLE");
     else if (!s->wildCount)
@@ -3675,14 +3677,77 @@ static void pc_bar_draw(int which, SDL_Rect box, const struct pc_state *s, int s
   SDL_Rect dst = {box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale};
   SDL_RenderCopy(renderer, pcBarTexture[which], &(SDL_Rect){0, 0, w, h}, &dst);
 }
+/* A PLAY ONLY game's sides (the room beside its full-height picture): the clock and the battery left, the play time
+ * PokeDaisy has counted for it and the zoom right. */
+static SDL_Texture *pcSideTexture[2];
+static void pc_side_draw(int which, SDL_Rect box, int oh, long played, int zoomPct) {
+  if (box.w < 64 || box.h < 64)
+    return;
+  int scale = box.w / 80 < oh / 270 ? box.w / 80 : oh / 270;
+  if (scale < 1)
+    scale = 1;
+  int w = box.w / scale, h = box.h / scale;
+  if (w > CANVAS_MAX_W)
+    w = CANVAS_MAX_W;
+  if (h > PANEL_MAX_H)
+    h = PANEL_MAX_H;
+  if (!pcSideTexture[which]) {
+    pcSideTexture[which] =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, CANVAS_MAX_W, PANEL_MAX_H);
+    if (!pcSideTexture[which])
+      return;
+  }
+  int hour = -1, minute = 0, pct = -1;
+  time_t t = time(NULL);
+  struct tm *lt = localtime(&t);
+  if (lt)
+    hour = lt->tm_hour, minute = lt->tm_min;
+  SDL_PowerState ps = SDL_GetPowerInfo(NULL, &pct);
+  if (ps == SDL_POWERSTATE_NO_BATTERY || ps == SDL_POWERSTATE_UNKNOWN)
+    pct = -1;
+  struct pd_canvas c;
+  pd_canvas_init(&c, w, h, panelPixels);
+  struct pocket_wing_look wl;
+  pocket_wing_look_begin(background, &wl);
+  pd_fill(&c, 0, 0, w, h, panel_back());
+  pc_side_panel(&c, which, hour, minute, pct, ps == SDL_POWERSTATE_CHARGING, played, zoomPct);
+  pocket_wing_look_end(&wl);
+  SDL_UpdateTexture(pcSideTexture[which], &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
+  set_color(panel_back(), 255);
+  SDL_RenderFillRect(renderer, &box);
+  SDL_Rect dst = {box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale};
+  SDL_RenderCopy(renderer, pcSideTexture[which], &(SDL_Rect){0, 0, w, h}, &dst);
+}
+/* The play time PokeDaisy counts for a PLAY ONLY game (its own isn't readable), kept in its DATA/pc folder. */
+static long pc_played_read(const char *path) {
+  FILE *f = fopen(path, "rb");
+  long v = 0;
+  if (f) {
+    if (fscanf(f, "%ld", &v) != 1 || v < 0)
+      v = 0;
+    fclose(f);
+  }
+  return v;
+}
+static void pc_played_write(const char *path, long seconds) {
+  char tmp[1310];
+  snprintf(tmp, sizeof tmp, "%s.tmp", path);
+  FILE *f = fopen(tmp, "wb");
+  if (!f)
+    return;
+  fprintf(f, "%ld\n", seconds);
+  if (fclose(f) == 0)
+    pocket_replace(tmp, path);
+}
 /* The companion's asks of the game (pc_companion.rb reads them): fast forward, instant text, zoom, and the size its
  * window has in PokeDaisy (put back at once when the game's zoom resizes it). */
 static int pcWindowW, pcWindowH;
 static void pc_commands(const char *path, int ff, bool instant, int zoom) {
-  char tmp[1310], text[160];
+  char tmp[1310], text[200];
   snprintf(tmp, sizeof tmp, "%s.tmp", path);
-  int n = snprintf(text, sizeof text, "ff=%d\ninstant_text=%d\nzoom=%d\nwindow=%dx%d\n", ff, instant ? 1 : 0, zoom,
-                   pcWindowW, pcWindowH);
+  int n = snprintf(text, sizeof text, "ff=%d\ninstant_text=%d\nzoom=%d\nwindow=%dx%d\nwide=%d\nshape=%dx%d\n", ff,
+                   instant ? 1 : 0, zoom, pcWindowW, pcWindowH, pcWide ? 1 : 0, pcWide ? pcWindowW : 0,
+                   pcWide ? pcWindowH : 0);
   FILE *f = fopen(tmp, "wb");
   if (!f)
     return;
@@ -3767,8 +3832,22 @@ static void pc_play(const char *path) {
     pocket_shader_set(st.shader, st.colors, false);
     pocket_shader_brightness(st.brightness);
   }
+  // WIDE VIEW from last time (the commands file keeps it with the zoom).
+  pcWide = false;
+  if (info.companion) {
+    char cp[1300];
+    snprintf(cp, sizeof cp, "%s/pc/%s/commands.txt", root, stem);
+    char *last = pc_read_file(cp);
+    pcWide = last && strstr(last, "\nwide=1");
+    free(last);
+  }
+  if (getenv("POCKET_PC_WIDE"))
+    pcWide = info.companion && atoi(getenv("POCKET_PC_WIDE")) != 0;
   struct pc_layout lay;
-  pc_layout_for(ow, oh, baseW, baseH, room, &lay);
+  if (pcWide)
+    pc_wide_layout(ow, oh, room, &lay);
+  else
+    pc_layout_for(ow, oh, baseW, baseH, room, &lay);
   int gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
   pcWindowW = gw, pcWindowH = gh;
   char dir[1200], err[200] = "", jsonPath[1300], cmdPath[1300];
@@ -3807,7 +3886,7 @@ static void pc_play(const char *path) {
     zoom = atoi(getenv("POCKET_PC_ZOOM"));
   if (getenv("POCKET_PC_INSTANT"))
     instant = atoi(getenv("POCKET_PC_INSTANT")) != 0;
-  zoom = zoom < -2 ? -2 : zoom > 2 ? 2 : zoom;
+  zoom = zoom < -2 ? -2 : zoom > (capture ? 4 : 2) ? (capture ? 4 : 2) : zoom;
   if (capture && !getenv("POCKET_PC_ZOOM")) // the whole picture first (RT zooms in for this play only)
     zoom = 0;
   pc_commands(cmdPath, ff, instant, zoom);
@@ -3835,6 +3914,16 @@ static void pc_play(const char *path) {
   int stopAfter = getenv("POCKET_PC_SECONDS") ? atoi(getenv("POCKET_PC_SECONDS")) * 1000 : 0;
   void *self = native_window();
   int restarts = 0;
+  // A PLAY ONLY game: its zoom eased toward 100 + 25% a step, the right stick's pan, the picture at its own size for
+  // xBRZ when the game doubles it (pc_undouble), and the play time counted here.
+  float zoomShown = 1, panX = 0, panY = 0;
+  bool undoubled = false;
+  int notDoubled = 0;
+  uint32_t *half = NULL, lastFrame = SDL_GetTicks();
+  char playedPath[1300];
+  snprintf(playedPath, sizeof playedPath, "%s/played.txt", dir);
+  long played = capture ? pc_played_read(playedPath) : 0;
+  uint32_t playedTick = SDL_GetTicks();
   held = pressed = 0;
   while (running && pc_running()) {
     events();
@@ -3854,23 +3943,38 @@ static void pc_play(const char *path) {
     }
     if ((info.companion || capture) && (pressed & ((1u << L2) | (1u << R2)))) {
       zoom += (pressed & (1u << L2)) ? -1 : 1;
-      zoom = zoom < (capture ? 0 : -2) ? (capture ? 0 : -2) : zoom > 2 ? 2 : zoom;
+      zoom = zoom < (capture ? 0 : -2) ? (capture ? 0 : -2) : zoom > (capture ? 4 : 2) ? (capture ? 4 : 2) : zoom;
       pc_commands(cmdPath, ff, instant, zoom);
-      if (capture)
-        notice(zoom ? (zoom > 1 ? "ZOOM 200%" : "ZOOM 133%") : "ZOOM 100%");
+      if (capture) {
+        char z[24];
+        snprintf(z, sizeof z, "ZOOM %d%%", 100 + 25 * zoom);
+        notice(z);
+      }
     }
     if (menu && !closing) {
       chordSince = 0;
       pc_show(false);
       pc_focus_self();
-      static const char *const rows[] = {"BACK TO THE GAME", "CLOSE GAME", "FAST FORWARD", "INSTANT TEXT"};
-      int pick = menu_pick(info.title, rows, info.companion ? 4 : 2, 0);
+      static const char *const rows[] = {"BACK TO THE GAME", "CLOSE GAME", "FAST FORWARD", "INSTANT TEXT",
+                                         "WIDE VIEW"};
+      int pick = menu_pick(info.title, rows, info.companion ? 5 : 2, 0);
       if (pick == 2) {
         ff = ff > 1 ? 1 : 4;
         pc_commands(cmdPath, ff, instant, zoom);
       } else if (pick == 3) {
         instant = !instant;
         pc_commands(cmdPath, ff, instant, zoom);
+      } else if (pick == 4) {
+        pcWide = !pcWide;
+        if (pcWide)
+          pc_wide_layout(ow, oh, room, &lay);
+        else
+          pc_layout_for(ow, oh, baseW, baseH, room, &lay);
+        gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
+        pcWindowW = gw, pcWindowH = gh;
+        lastPlace = 0;
+        pc_commands(cmdPath, ff, instant, zoom);
+        notice(pcWide ? "WIDE VIEW ON" : "WIDE VIEW OFF");
       } else if (pick == 1) {
         closing = true;
         closeAsked = now;
@@ -3928,7 +4032,7 @@ static void pc_play(const char *path) {
       if (text && pc_state_parse(text, &next)) {
         state = next;
         // A game drawing at another shape than 4:3: the picture follows it.
-        if (state.screenW > 0 && state.screenH > 0 && state.screenW * baseH != state.screenH * baseW) {
+        if (!pcWide && state.screenW > 0 && state.screenH > 0 && state.screenW * baseH != state.screenH * baseW) {
           baseW = state.screenW;
           baseH = state.screenH;
           pc_layout_for(ow, oh, baseW, baseH, room, &lay);
@@ -3958,14 +4062,79 @@ static void pc_play(const char *path) {
           pc_layout_for(ow, oh, baseW, baseH, room, &lay);
           gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
         }
-        // RT zoom: the middle of the picture, 3/4 or 1/2 of it.
-        int sw = zoom == 2 ? cw / 2 : zoom == 1 ? cw * 3 / 4 : cw, sh = zoom == 2 ? ch / 2 : zoom == 1 ? ch * 3 / 4 : ch;
-        const uint32_t *from = px + (size_t)((ch - sh) / 2) * cw + (cw - sw) / 2;
+        // xBRZ: a doubled picture at its own size (back to doubled after a few seconds of full-size frames).
+        const uint32_t *pic = px;
+        int pw = cw, ph = ch;
+        if (st.shader == POCKET_SHADER_XBRZ && cw >= 4 && ch >= 4) {
+          static int halfCap;
+          int need = (cw / 2) * (ch / 2);
+          if (need > halfCap || !half) {
+            uint32_t *more = realloc(half, (size_t)need * 4);
+            if (more)
+              half = more, halfCap = need;
+          }
+          if (half && need <= halfCap) {
+            bool doubled = pc_undouble(px, cw, cw, ch, half, undoubled);
+            if (doubled)
+              undoubled = true, notDoubled = 0;
+            else if (undoubled && ++notDoubled > 240)
+              undoubled = false;
+            if (undoubled)
+              pic = half, pw = cw / 2, ph = ch / 2;
+          }
+        }
+        // RT zoom, eased; the right stick moves the view while zoomed in (POCKET_LOOK="x,y" holds it for checks).
+        float dt = (now - lastFrame) / 1000.0f;
+        dt = dt > 0.1f ? 0.1f : dt;
+        lastFrame = now;
+        float target = 1 + 0.25f * zoom;
+        zoomShown = reduceMotion ? target : zoomShown + (target - zoomShown) * (dt * 12 > 1 ? 1 : dt * 12);
+        if (fabsf(target - zoomShown) < 0.002f)
+          zoomShown = target;
+        float stx = 0, sty = 0;
+        for (int i = 0; i < padCount; i++) {
+          float x = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_RIGHTX) / 32767.0f;
+          float y = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_RIGHTY) / 32767.0f;
+          if (x * x + y * y > stx * stx + sty * sty)
+            stx = x, sty = y;
+        }
+        if (getenv("POCKET_LOOK") && stx == 0 && sty == 0 && sscanf(getenv("POCKET_LOOK"), "%f,%f", &stx, &sty) != 2)
+          stx = sty = 0;
+        if (stx * stx + sty * sty < 0.04f)
+          stx = sty = 0;
+        if (zoom > 0) {
+          panX += stx * dt * 1.2f, panY += sty * dt * 1.2f;
+          panX = panX < -1 ? -1 : panX > 1 ? 1 : panX;
+          panY = panY < -1 ? -1 : panY > 1 ? 1 : panY;
+        } else {
+          float k8 = reduceMotion ? 1 : (dt * 8 > 1 ? 1 : dt * 8);
+          panX -= panX * k8, panY -= panY * k8;
+        }
+        float vx, vy, vw, vh;
+        pc_zoom_view(zoomShown, panX, panY, pw, ph, &vx, &vy, &vw, &vh);
         float k = ow ? (float)rw / ow : 1;
-        SDL_Rect dst = {(int)(gx * k), (int)(gy * k), (int)(gw * k), (int)(gh * k)};
-        pocket_shader_draw(renderer, from, cw, sw, sh, true, &dst);
-        checkFrom = from, checkStride = cw, checkW = sw, checkH = sh;
+        SDL_Rect area = {(int)(gx * k), (int)(gy * k), (int)(gw * k), (int)(gh * k)};
+        float fx = area.w / vw, fy = area.h / vh;
+        SDL_Rect dst = {area.x - (int)(vx * fx + 0.5f), area.y - (int)(vy * fy + 0.5f), (int)(pw * fx + 0.5f),
+                        (int)(ph * fy + 0.5f)};
+        SDL_RenderSetClipRect(renderer, &area);
+        pocket_shader_draw(renderer, pic, pw, pw, ph, true, &dst);
+        SDL_RenderSetClipRect(renderer, NULL);
+        checkFrom = pic + (size_t)(int)vy * pw + (int)vx, checkStride = pw, checkW = (int)vw, checkH = (int)vh;
       }
+    }
+    if (capture) {
+      if (now - playedTick >= 1000) {
+        long secs = (long)((now - playedTick) / 1000);
+        played += secs;
+        playedTick += (uint32_t)secs * 1000;
+        if (played % 30 < secs)
+          pc_played_write(playedPath, played);
+      }
+      float kx = ow ? (float)rw / ow : 1;
+      pc_side_draw(0, (SDL_Rect){0, 0, (int)(gx * kx), rh}, rh, played, 100 + 25 * zoom);
+      pc_side_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, rh, played,
+                   100 + 25 * zoom);
     }
     if (info.companion) {
       // Drawing pixels may differ from window points (a high-DPI screen): the wings go by drawing pixels.
@@ -3991,6 +4160,9 @@ static void pc_play(const char *path) {
     SDL_Delay(capture ? 8 : 30);
   }
   pc_capture_free();
+  free(half);
+  if (capture)
+    pc_played_write(playedPath, played);
   if (pc_running()) // PokeDaisy is closing: the game is asked to close too
     pc_close(false);
   fprintf(stderr, "PC game: ended (%d)\n", pc_exit_code());
@@ -4000,6 +4172,9 @@ static void pc_play(const char *path) {
     if (pcBarTexture[i])
       SDL_DestroyTexture(pcBarTexture[i]);
     pcBarTexture[i] = NULL;
+    if (pcSideTexture[i])
+      SDL_DestroyTexture(pcSideTexture[i]);
+    pcSideTexture[i] = NULL;
   }
   pd_look_apply(NULL, &st);
   if (sized)

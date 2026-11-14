@@ -109,6 +109,20 @@ struct pc_layout {
   int wing;       // each wing's width
 };
 void pc_layout_for(int ow, int oh, int bw, int bh, int room, struct pc_layout *out);
+/* WIDE VIEW: the picture as tall as pc_layout_for puts a 512 x 384 game (the same bars), and as wide as leaves each
+ * wing a tenth of the screen's height (120 pixels at least): on the map the game draws that shape, so more of it
+ * fills the room beside; its menus and battles keep their own shape inside it. */
+void pc_wide_layout(int ow, int oh, int room, struct pc_layout *out);
+
+/* A game on its own player that draws its art at half size and doubles it (Phoenix Rising: 320 x 240 drawn as
+ * 640 x 480): true when nearly every 2 x 2 block of the W x H picture PX (pitch in pixels) is one colour, and then
+ * OUT (W/2 x H/2) gets the picture back at its own size, each block's average (the few undoubled bits, a scaled logo,
+ * keep their look); with ALWAYS, OUT gets it whatever the answer. xBRZ on the real pixels rounds the art's edges instead of the doubled blocks'. */
+bool pc_undouble(const uint32_t *px, int pitch, int w, int h, uint32_t *out, bool always);
+
+/* The zoomed part of a W x H picture: SCALE (1 = all of it, 2 = half its width) around the middle, moved by PAN
+ * (-1..1 each way: as far as the zoom lets it go toward that edge). X, Y, VW, VH in the picture's pixels. */
+void pc_zoom_view(float scale, float panX, float panY, int w, int h, float *x, float *y, float *vw, float *vh);
 
 /* ---- playing (Windows) ---- */
 /* DATA/pc/<stem>: the game's own folder of PokeDaisy's, made or brought up to date for the game in INFO: the

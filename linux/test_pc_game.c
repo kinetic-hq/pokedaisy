@@ -97,7 +97,39 @@ static void test_layout(void) {
   assert(l.w == 1280);
 }
 
+static void test_undouble(void) {
+  static uint32_t big[8 * 6], half[4 * 3];
+  for (int y = 0; y < 6; y++)
+    for (int x = 0; x < 8; x++)
+      big[y * 8 + x] = 0x00102030u + (uint32_t)((y / 2) * 4 + x / 2);
+  assert(pc_undouble(big, 8, 8, 6, half, false));
+  assert((half[0] & 0xffffff) == 0x102030 && (half[4 * 2 + 3] & 0xffffff) == 0x102030 + 11);
+  // One block of twelve not doubled (a scaled logo): still the doubled kind, that block averaged.
+  big[0] = 0x00000000, big[1] = 0x00ffffff, big[8] = 0x00000000, big[9] = 0x00ffffff;
+  assert(pc_undouble(big, 8, 8, 6, half, false) && (half[0] & 0xffffff) == 0x808080);
+  // Drawn at full size: left alone.
+  for (int i = 0; i < 8 * 6; i++)
+    big[i] = (uint32_t)i * 0x010203u;
+  half[0] = 1;
+  assert(!pc_undouble(big, 8, 8, 6, half, false) && half[0] == 1);
+  assert(!pc_undouble(big, 8, 8, 6, half, true) && half[0] != 1);
+  float x, y, vw, vh;
+  struct pc_layout a, b;
+  pc_layout_for(1920, 1200, 512, 384, 3, &a);
+  pc_wide_layout(1920, 1200, 3, &b);
+  assert(b.h == a.h && b.y == a.y && b.bar == a.bar && b.w == 1920 - 240 && b.x == 120);
+  pc_wide_layout(1920, 1080, 3, &b);
+  assert(b.w == 1920 - 240 && b.h == 960);
+  pc_zoom_view(1, 1, 1, 640, 480, &x, &y, &vw, &vh);
+  assert(x == 0 && y == 0 && vw == 640 && vh == 480);
+  pc_zoom_view(2, 0, 0, 640, 480, &x, &y, &vw, &vh);
+  assert(x == 160 && y == 120 && vw == 320 && vh == 240);
+  pc_zoom_view(2, 1, -1, 640, 480, &x, &y, &vw, &vh);
+  assert(x == 320 && y == 0);
+}
+
 int main(void) {
+  test_undouble();
   test_layout();
   test_state();
   test_mkxp();

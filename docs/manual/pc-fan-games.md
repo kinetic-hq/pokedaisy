@@ -3,7 +3,7 @@ title: PC fan games
 summary: Play PC fan games made with RPG Maker inside PokeDaisy on Windows, full screen, with your party and the battle in the wings.
 section: start
 order: 92
-keywords: [pc, fan game, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, zoom, camera, fast forward, instant text, controller, full screen, pc game, windows]
+keywords: [pc, fan game, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
 ---
 
 On Windows, PokeDaisy plays PC fan games made with RPG Maker (most of them are
@@ -44,7 +44,7 @@ Nothing in the game's folder is written by PokeDaisy.
 
 Press the controller's Guide button (or hold `SELECT` and `START` for a second)
 for the game menu: `BACK TO THE GAME`, `CLOSE GAME`, and on games with wings,
-`FAST FORWARD` and `INSTANT TEXT`. `CLOSE GAME` asks the game to close the way
+`FAST FORWARD`, `INSTANT TEXT` and `WIDE VIEW`. `CLOSE GAME` asks the game to close the way
 its own close button would; if it hasn't closed after a few seconds, you're
 asked whether to wait or end it (unsaved play is lost).
 
@@ -88,8 +88,12 @@ On games with wings:
 - `L3` turns fast forward on and off.
 - `INSTANT TEXT` in the game menu shows each message whole instead of letter by
   letter.
+- `WIDE VIEW` in the game menu widens the game on the map to fill the room
+  beside it: the wings get narrower and you see more of the map left and right.
+  Menus and battles keep the game's own shape, in the middle of that room. The
+  bar below the game says `WIDE` while it's on.
 
-Your zoom and `INSTANT TEXT` are kept for each game for next time. Fast forward
+Your zoom, `INSTANT TEXT` and `WIDE VIEW` are kept for each game for next time. Fast forward
 starts off. Most fan games have their own running shoes or auto run option in
 their own options menu; use that one.
 
@@ -123,11 +127,24 @@ writes, so you can go back and forth.
 ## Games on their own player
 
 A game with its own player (Phoenix Rising is one) plays `PLAY ONLY`. PokeDaisy
-leaves its window the size the game makes it and draws the game's picture full
-screen, whole, through your `SHADER` and `COLORS`. `RT` zooms into the middle of
-the picture and `LT` zooms back out. The game keeps the keyboard and the mouse.
-If the game stops with a script error while it's starting, PokeDaisy starts it
-again for you.
+leaves its window the size the game makes it and draws the game's picture as
+tall as the screen, whole, through your `SHADER` and `COLORS`.
+
+- `RT` zooms in a step at a time (125%, 150%, 175%, 200%) and `LT` zooms back
+  out; each step glides rather than jumps. While you're zoomed in, the right
+  stick moves the view around the picture. Back at 100% the whole picture
+  shows again.
+- With `SHADER` on `xBRZ`, a game that draws its art at half size and doubles it
+  (Phoenix Rising does) is smoothed from its real pixels, so edges come out
+  round instead of blocky.
+- The room beside the picture shows the clock and the battery on the left, and
+  on the right the play time PokeDaisy has counted for the game and the zoom.
+  The play time is kept for each game and goes on from where it was next time.
+
+Phoenix Rising reads an Xbox style controller (most handheld PCs' built in
+controls are one) by itself, so the D-pad and buttons go straight to the game. The game keeps
+the keyboard and the mouse too. If the game stops with a script error while it's
+starting, PokeDaisy starts it again for you.
 
 ## Tested games
 
@@ -141,7 +158,7 @@ again for you.
 | Bushido | `PARTLY` | Party, place |
 | Desolation | `PARTLY` | Party, place |
 | Empire | `PARTLY` | Party, place |
-| Insurgence | `PARTLY` | Runs on another game's newer player (above); party, place |
+| Insurgence | `PARTLY` | Runs on another game's newer player (above); party, place, zoom, `WIDE VIEW` |
 | Indigo | `PARTLY` | Party, place; starts in English |
 | Opalo | `PARTLY` | Party, place; starts in English |
 | Realidea | `PARTLY` | Party, place; starts in English |
@@ -150,7 +167,7 @@ again for you.
 | Rejuvenation | `PARTLY` | Party, place |
 | Floral Tempest | `PARTLY` | Party, place |
 | Itinerant | `PARTLY` | Party, place |
-| Phoenix Rising | `PLAY ONLY` | Its own player, drawn whole full screen |
+| Phoenix Rising | `PLAY ONLY` | Its own player, drawn whole full screen; xBRZ from its real pixels, zoom with the right stick, clock and play time beside it |
 
 A game in a folder whose name has an accented letter in it plays too: PokeDaisy gives the game a plain path to its folder (a Windows junction
 in `DATA\pc\links`) without moving anything.

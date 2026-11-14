@@ -783,6 +783,58 @@ unsigned pc_status_bits(const char *w) {
 
 /* ---------------------------------------------------------------- layout */
 
+void pc_wide_layout(int ow, int oh, int room, struct pc_layout *out) {
+  pc_layout_for(ow, oh, 512, 384, room, out);
+  int wing = oh / 10 > 120 ? oh / 10 : 120;
+  int w = (ow - 2 * wing) & ~1;
+  if (w > out->w) {
+    out->w = w;
+    out->x = (ow - w) / 2;
+    out->wing = out->x;
+  }
+}
+
+bool pc_undouble(const uint32_t *px, int pitch, int w, int h, uint32_t *out, bool always) {
+  if (!px || !out || w < 4 || h < 4 || pitch < w)
+    return false;
+  int hw = w / 2, hh = h / 2;
+  long same = 0, all = (long)hw * hh;
+  for (int y = 0; y < hh; y++) {
+    const uint32_t *a = px + (size_t)(2 * y) * pitch, *b = a + pitch;
+    for (int x = 0; x < hw; x++) {
+      uint32_t p = a[2 * x] & 0xffffff;
+      same += (a[2 * x + 1] & 0xffffff) == p && (b[2 * x] & 0xffffff) == p && (b[2 * x + 1] & 0xffffff) == p;
+    }
+  }
+  bool doubled = same * 100 >= all * 85; // else a picture drawn at its full size
+  if (!doubled && !always)
+    return false;
+  for (int y = 0; y < hh; y++) {
+    const uint32_t *a = px + (size_t)(2 * y) * pitch, *b = a + pitch;
+    uint32_t *o = out + (size_t)y * hw;
+    for (int x = 0; x < hw; x++) {
+      uint32_t q[4] = {a[2 * x], a[2 * x + 1], b[2 * x], b[2 * x + 1]}, r = 0;
+      for (int c = 0; c < 24; c += 8)
+        r |= (uint32_t)((((q[0] >> c) & 255) + ((q[1] >> c) & 255) + ((q[2] >> c) & 255) + ((q[3] >> c) & 255) + 2) /
+                        4)
+             << c;
+      o[x] = r | 0xff000000u;
+    }
+  }
+  return doubled;
+}
+
+void pc_zoom_view(float scale, float panX, float panY, int w, int h, float *x, float *y, float *vw, float *vh) {
+  if (scale < 1)
+    scale = 1;
+  panX = panX < -1 ? -1 : panX > 1 ? 1 : panX;
+  panY = panY < -1 ? -1 : panY > 1 ? 1 : panY;
+  *vw = w / scale;
+  *vh = h / scale;
+  *x = (w - *vw) / 2 * (1 + panX);
+  *y = (h - *vh) / 2 * (1 + panY);
+}
+
 void pc_layout_for(int ow, int oh, int bw, int bh, int room, struct pc_layout *out) {
   if (bw <= 0 || bh <= 0)
     bw = 512, bh = 384;
