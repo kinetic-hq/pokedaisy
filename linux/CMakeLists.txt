@@ -35,7 +35,7 @@ list(FILTER RCHEEVOS_SOURCES EXCLUDE REGEX "rc_libretro\\.c$|rc_client_external\
 add_library(pd_rcheevos STATIC ${RCHEEVOS_SOURCES} ../third_party/rcheevos/src/rhash/md5.c)
 target_include_directories(pd_rcheevos PUBLIC ../third_party/rcheevos/include)
 target_compile_options(pd_rcheevos PRIVATE -w)
-add_library(pd_linux_common STATIC bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c ra.c screen_filter.c link_play.c presets.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
+add_library(pd_linux_common STATIC bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c ra.c screen_filter.c link_play.c presets.c legality.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
   ../app/src/main/cpp/pk_call.c ../app/src/main/cpp/pk_host.c ../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c
   ../app/src/main/cpp/pk_rewind.c ../app/src/main/cpp/pk_link.c)
 target_include_directories(pd_linux_common PUBLIC ../third_party/xbrz ../3ds/core ../third_party/mgba/include ${CMAKE_CURRENT_BINARY_DIR}/mgba/include ${SDL2_INCLUDE_DIR})

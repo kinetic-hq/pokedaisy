@@ -471,6 +471,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   (nature, IVs, EVs) or any mix of nature, IVs, EVs, moves, held item and ability, so a Pokemon can keep its moves.
 - **EDIT SAVE's IV and EV sliders**: left / right step a stat (held, it repeats), LB / RB by ten, Y to the most, X to 0,
   with the EV total and what's left of 510 shown and kept to; the pad's X is a backspace wherever you type.
+- **EDIT SAVE's LEGALITY**: a LEGAL / CHECK / NOT LEGAL badge on every party and box Pokemon, and a LEGALITY page per
+  Pokemon listing IVs over 31, EVs over 255 / 510, moves or items the game lacks, a met level over its own (each with
+  FIX, plus FIX ALL), and as CHECK a move outside its level, TM, tutor and egg lists.
 - **EDIT SAVE's DS bag sorts by pocket**: in Platinum, HeartGold and SoulSilver a pocket's `ADD AN ITEM` and its
   search list only that pocket's items, and `ADD ANY ITEM` puts each in its own pocket.
 - **EDIT SAVE's bag** on the desktop host lists each pocket's items from the game's own item table to scroll through (`SEARCH BY NAME`
