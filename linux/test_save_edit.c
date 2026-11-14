@@ -2,6 +2,7 @@
  * POCKET_SAVE_EDIT_GBA="<rom>|<save>" and / or POCKET_SAVE_EDIT_NDS="<rom>|<save>" (never committed, never the
  * originals: the test copies the save into a scratch folder first). */
 #include "save_edit.h"
+#include "legality.h"
 #include "pocket_os.h"
 
 #include <stdio.h>
@@ -68,6 +69,43 @@ static void round_trip(const char *spec, const char *scratch) {
         checked++;
       }
     printf("  %d items each in its own pocket\n", checked);
+  }
+  /* LEGALITY: a save from real play has nothing the game couldn't have made (a CHECK, an egg move, is fine). */
+  {
+    int legal = 0, soft = 0, slots = o->box_slots(e);
+    for (int b = SE_PARTY; b < o->boxes(e); b++)
+      for (int s = 0; s < (b == SE_PARTY ? 6 : slots); s++) {
+        struct se_mon pm;
+        if (!o->mon(e, b, s, &pm))
+          continue;
+        struct lg_issue v[LG_MAX];
+        int n = lg_check(e, &pm, v, LG_MAX);
+        for (int i = 0; i < n; i++)
+          fprintf(stderr, "  box %d slot %d %s: %s%s\n", b, s, o->species_name(e, pm.species), v[i].text,
+                  v[i].hard ? " (NOT LEGAL)" : "");
+        CHECK(lg_soft_only(v, n));
+        legal += !n;
+        soft += n > 0;
+      }
+    printf("  legality: %d LEGAL, %d CHECK, none not legal\n", legal, soft);
+    struct se_mon bad;
+    CHECK(o->mon(e, SE_PARTY, 0, &bad));
+    for (int i = 0; i < 6; i++)
+      bad.evs[i] = 255, bad.ivs[i] = 40;
+    bad.held = o->item_max(e) + 1;
+    struct lg_issue v[LG_MAX];
+    int n = lg_check(e, &bad, v, LG_MAX);
+    CHECK(n >= 8 && !lg_soft_only(v, n));
+    CHECK(lg_fix_all(e, &bad) >= 8);
+    n = lg_check(e, &bad, v, LG_MAX);
+    CHECK(lg_soft_only(v, n));
+    int total = 0;
+    for (int i = 0; i < 6; i++) {
+      total += bad.evs[i];
+      CHECK(bad.ivs[i] == 31);
+    }
+    CHECK(total == 510 && bad.evs[0] == 255 && bad.evs[5] == 0 && bad.held == 0);
+    puts("  FIX ALL puts IVs, EVs and the item right");
   }
 
   /* The party's first Pokemon: a new level, nature, IVs and a nickname; then refusals. */

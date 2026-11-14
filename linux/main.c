@@ -26,6 +26,7 @@
 #include "ra.h"
 #include "screen_filter.h"
 #include "link_play.h"
+#include "legality.h"
 #include "presets.h"
 #include "../app/src/main/cpp/pk_link.h"
 #include "backdrop.h"
@@ -6881,6 +6882,38 @@ static void editor_presets(struct save_edit *e, struct se_mon *m) {
 }
 
 static bool editor_move(struct save_edit *e, int box, int slot);
+/* LEGALITY: M's issues (legality.h), each with FIX where that's safe, and FIX ALL. */
+static void editor_legality(struct save_edit *e, struct se_mon *m) {
+  int at = 0;
+  while (running) {
+    struct lg_issue v[LG_MAX];
+    int n = lg_check(e, m, v, LG_MAX), fixable = 0;
+    if (!n) {
+      editor_say("LEGAL", "Nothing here the game couldn't have made.");
+      return;
+    }
+    static char text[LG_MAX + 1][128];
+    const char *rows[LG_MAX + 1];
+    int count = 0;
+    for (int i = 0; i < n; i++) {
+      fixable += v[i].fixable;
+      snprintf(text[count], sizeof text[count], "%s\t%s", v[i].text, v[i].fixable ? "FIX" : v[i].hard ? "" : "CHECK");
+      rows[count] = text[count];
+      count++;
+    }
+    if (fixable)
+      rows[count++] = "FIX ALL";
+    at = menu_pick_hint(lg_soft_only(v, n) ? "CHECK" : "NOT LEGAL",
+                        "A on FIX puts it right (KEEP THESE CHANGES keeps it). CHECK may be fine: an event's move.",
+                        rows, count, at);
+    if (at < 0)
+      return;
+    if (at == n)
+      lg_fix_all(e, m);
+    else if (v[at].fixable)
+      lg_fix(e, m, &v[at]);
+  }
+}
 static void editor_mon(struct save_edit *e, int box, int slot) {
   struct se_mon m;
   if (!e->ops->mon(e, box, slot, &m))
@@ -6889,7 +6922,7 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
   int selected = 0;
   while (running) {
     enum { R_SPECIES, R_NICK, R_LEVEL, R_EXP, R_NATURE, R_ABILITY, R_HELD, R_FRIEND, R_MOVE, R_PPUPS = R_MOVE + 4,
-           R_IVS, R_EVS, R_SHINY, R_OT, R_FROM, R_MAX_IVS, R_PRESET, R_PASTE, R_APPLY, R_MOVE_IT, R_COUNT };
+           R_IVS, R_EVS, R_SHINY, R_OT, R_FROM, R_MAX_IVS, R_PRESET, R_PASTE, R_LEGAL, R_APPLY, R_MOVE_IT, R_COUNT };
     static char text[R_COUNT][96];
     const char *rows[R_COUNT];
     int ids[R_COUNT], shown = 0;
@@ -6921,6 +6954,14 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     snprintf(text[R_MAX_IVS], 96, "ALL IVs TO 31");
     snprintf(text[R_PRESET], 96, "PRESETS\tFILL IN A SET");
     snprintf(text[R_PASTE], 96, "PASTE SET\tA COPIED SHOWDOWN SET");
+    {
+      struct lg_issue v[LG_MAX];
+      int n = lg_check(e, &m, v, LG_MAX);
+      if (!n)
+        snprintf(text[R_LEGAL], 96, "LEGALITY\tLEGAL");
+      else
+        snprintf(text[R_LEGAL], 96, "LEGALITY\t%s: %d TO LOOK AT", lg_soft_only(v, n) ? "CHECK" : "NOT LEGAL", n);
+    }
     snprintf(text[R_APPLY], 96, "KEEP THESE CHANGES");
     snprintf(text[R_MOVE_IT], 96, "MOVE IT\tTO ANOTHER SLOT OR BOX");
     for (int i = 0; i < R_COUNT; i++)
@@ -7113,6 +7154,9 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
       editor_say("CAN'T CHANGE IT", err);
       break;
     }
+    case R_LEGAL:
+      editor_legality(e, &m);
+      break;
     case R_OT:
     case R_FROM:
       break; // shown, not changed
@@ -7148,9 +7192,12 @@ static bool editor_slot_label(struct save_edit *e, int box, int s, char *out, si
   const char *sp = e->ops->species_name(e, m.species);
   if (m.egg)
     snprintf(out, n, "%d  EGG", s + 1);
-  else
-    snprintf(out, n, "%d  %s  Lv%d%s%s", s + 1, m.nick, m.level, sp && strcmp(sp, m.nick) ? "  " : "",
-             sp && strcmp(sp, m.nick) ? sp : "");
+  else {
+    struct lg_issue v[LG_MAX];
+    int issues = lg_check(e, &m, v, LG_MAX);
+    snprintf(out, n, "%d  %s  Lv%d%s%s\t%s", s + 1, m.nick, m.level, sp && strcmp(sp, m.nick) ? "  " : "",
+             sp && strcmp(sp, m.nick) ? sp : "", !issues ? "LEGAL" : lg_soft_only(v, issues) ? "CHECK" : "NOT LEGAL");
+  }
   return true;
 }
 /* MOVE IT: where the Pokemon at BOX / SLOT goes, the party or a box and then a slot there (a Pokemon in it swaps

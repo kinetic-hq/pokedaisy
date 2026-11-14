@@ -295,6 +295,13 @@ doesn't check out, is refused and left alone.
   level starts at that level's least EXP. Only values the game itself could
   have are taken: a move the game doesn't have, the same move twice, EVs over
   510, a level over 100 or EXP outside the level are refused with the reason.
+- Each Pokemon in `PARTY` and `PC BOXES` carries a badge: `LEGAL`, `CHECK` or
+  `NOT LEGAL`. `LEGALITY` on a Pokemon lists what the game itself couldn't have
+  made: IVs over 31, EVs over 255 for a stat or 510 in all, a move or held item
+  the game doesn't have, or met at a level over its own. Most have `FIX` next to
+  them, and `FIX ALL` puts every one right; `KEEP THESE CHANGES` keeps it. `CHECK`
+  means a move it can't learn by level, TM, tutor or egg in this game. That may
+  still be fine, since an event can teach one, so it's never changed for you.
   Picking a move lists the moves it can learn by its level first: by level
   up, TM or HM, the move tutors, from an egg, or as what it evolved from.
   `SEARCH ALL MOVES` finds any other. In a retail GBA game a new move it
