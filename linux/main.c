@@ -9282,6 +9282,20 @@ int main(int argc, char **argv) {
   // Every pad's face buttons by position (SDL would otherwise swap a Nintendo pad's by its labels): BUTTON LAYOUT
   // says which one is A.
   SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
+  {
+    /* A first start (no settings.ini yet) takes the XBOX layout: A is the bottom button, B the right one, as on most
+     * pads. A settings.ini already there keeps the BUTTON LAYOUT it has, so nobody's choice changes. */
+    snprintf(path, sizeof path, "%s/settings.ini", root);
+    FILE *had = fopen(path, "r");
+    if (had)
+      fclose(had);
+    else {
+      struct pd_settings st;
+      pd_settings_load(&st, path);
+      st.buttonLayout = PD_LAYOUT_XBOX;
+      pd_settings_save(&st, path);
+    }
+  }
   controls_load();
   SDL_DisplayMode display = {0};
   bool fullscreen = getenv("POCKET_FULLSCREEN") != NULL;

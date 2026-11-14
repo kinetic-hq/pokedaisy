@@ -216,7 +216,7 @@ Every change, one line each (a pull request that changes what the fork adds upda
   Boy saves sit next to the game (`SAVES BESIDE GAMES`, on), so an existing emulation folder works as it is.
 - **Full screen** on the desktop host: `FULLSCREEN` (borderless) switched any time by F11, Alt+Enter, L3 + R3, the
   game menu or `SETTINGS`, remembered, and on by default the first time on a handheld's screen.
-- **Button layout and hotkeys** on the desktop host: `BUTTON LAYOUT` `NINTENDO` / `XBOX` picks which face button is
+- **Button layout and hotkeys** on the desktop host: `BUTTON LAYOUT` `XBOX` (the default on a first start; an existing setup keeps its own) / `NINTENDO` picks which face button is
   A; LT / RT zoom out / in and L3 toggles fast forward by default (L2 / R2 stay the DS controls in a DS game);
   a tap on R3 switches WINGS / BATTLE WINGS (in a DS game it steps the DS layouts, skipping any that look the same
   on your screen), a hold picks a view; the triggers, sticks and extra

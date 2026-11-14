@@ -470,10 +470,11 @@ Escape for the game menu.
 
 `SETTINGS` > `CONTROLS` on the game list's rail sets up your controller.
 `GAME BUTTONS` > `BUTTON LAYOUT` says which face button is the game's A. Pick the one printed on
-your controller: `NINTENDO` (the default) makes the right button A and the
-bottom one B, as on a Nintendo style controller or a handheld with the A on the
-right; `XBOX` makes the button labelled A, the bottom one, the game's A. The
-companion's `SETTINGS` has the same `BUTTON LAYOUT` row.
+your controller: `XBOX` (the default) makes the button labelled A, the bottom one, the game's A,
+and the right one B. `NINTENDO` makes the right button A and the bottom one B, as on a
+Nintendo style controller or a handheld with the A on the right. If you set up an
+earlier version, it keeps the layout you had. The companion's `SETTINGS` has the same
+`BUTTON LAYOUT` row.
 
 In `HOTKEYS`, the triggers and sticks come first (`L2 / LT`, `R2 / RT`, `L3`,
 `R3`), then each extra button your controller may have: `GUIDE / HOME`, `SHARE`
