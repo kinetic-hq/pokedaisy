@@ -53,6 +53,22 @@ static void round_trip(const char *spec, const char *scratch) {
   long money = o->money(e) == 1234 ? 4321 : 1234;
   CHECK(o->set_money(e, money, err, sizeof err));
   CHECK(!o->set_money(e, o->money_max(e) + 1, err, sizeof err));
+  /* ADD AN ITEM lists a pocket's own items: every item the save already keeps in a pocket goes in that one. */
+  if (o->item_pocket) {
+    int checked = 0;
+    for (int p = 0; p < o->pockets(e); p++)
+      for (int i = 0; i < o->pocket_slots(e, p); i++) {
+        struct se_item it;
+        if (!o->pocket_item(e, p, i, &it) || !it.id || o->item_pocket(e, it.id) < 0)
+          continue;
+        if (o->item_pocket(e, it.id) != p)
+          fprintf(stderr, "item %d is in %s, read as %s\n", it.id, o->pocket_name(e, p),
+                  o->pocket_name(e, o->item_pocket(e, it.id)));
+        CHECK(o->item_pocket(e, it.id) == p);
+        checked++;
+      }
+    printf("  %d items each in its own pocket\n", checked);
+  }
 
   /* The party's first Pokemon: a new level, nature, IVs and a nickname; then refusals. */
   struct se_mon m, again;

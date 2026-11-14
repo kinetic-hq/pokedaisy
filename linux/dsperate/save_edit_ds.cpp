@@ -719,6 +719,32 @@ bool build(save_edit *e, uint8_t **out, size_t *size, char *err, size_t n) {
   *size = bytes.size();
   return true;
 }
+// The pocket an item goes in (POCKET_NAME's order), -1 for none: Gen 4's own ranges, the same in Platinum and
+// HeartGold / SoulSilver (checked against both carts' full bags), with HeartGold / SoulSilver's Apricorn balls and
+// their own key items after Platinum's.
+int item_pocket(save_edit *e, int id) {
+  enum { ITEMS, KEY, TMHM, MAIL, MEDICINE, BERRIES, BALLS, BATTLE };
+  if (!item_name(e, id))
+    return -1;
+  const bool johto = G(e)->lay->game == DsGame::Johto;
+  if ((id >= 1 && id <= 16) || (johto && id >= 492 && id <= 500))
+    return BALLS;
+  if (id <= 54)
+    return MEDICINE;
+  if (id <= 67)
+    return BATTLE;
+  if (id <= 136 || (id >= 213 && id <= 327))
+    return ITEMS;
+  if (id <= 148)
+    return MAIL;
+  if (id <= 212)
+    return BERRIES;
+  if (id <= 427)
+    return TMHM;
+  if (id <= (johto ? 536 : 467))
+    return KEY;
+  return -1;
+}
 void free_edit(save_edit *e) {
   delete G(e);
   delete e;
@@ -728,7 +754,7 @@ const se_ops G4_OPS = {
     title,         money,      money_max,    set_money,    coins,     set_coins,  pockets,
     pocket_name,   pocket_slots, pocket_item, pocket_locked, set_item, item_max_count, boxes,
     box_slots,     get_mon,    set_mon,      heal,         species_name, species_max, move_name,
-    move_max,      item_name,  item_max,     abilities,    build,     verify,     free_edit,
+    move_max,      item_name,  item_max,     abilities,    build,     verify,     free_edit, item_pocket,
 };
 } // namespace
 
