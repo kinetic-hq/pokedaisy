@@ -46,8 +46,11 @@ it. `SKIP SETUP` on the welcome page leaves it for later. To see it again, open
 
 ## Your game list
 
-Your games open as a grid of box art. Each tile shows the whole box, never cut
-off, over a blurred copy of it where the box is a different shape. Each game
+Your games open as a grid of box art. `SETTINGS` > `LIBRARY` > `ART STYLE`
+picks the tiles' shape: `TALL` (the default) is SteamGridDB's tall 600 x 900
+art, and `BOX` is the shape of the game's own box. Art of the tile's shape fills
+it edge to edge. Art of another shape is shown whole over a blurred, darker copy
+of itself, so there's never a black bar. Each game
 shows its name (on up to three lines when it is long), the system (`GBA`, `GBC`,
 `GB` or `NDS`), `ORIGINAL` or `ROMHACK`, its version when the file name has one,
 and how much of the companion it gets:
@@ -73,7 +76,10 @@ Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 `BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
 games, by the file's name and then by the game the file itself says it is (so a
 game under a name of your own still gets its box), then SteamGridDB when you add
-your own key, which has many ROM hacks. SteamGridDB's art is only used when its
+your own key, which has many ROM hacks. With `ART STYLE` on `TALL` and a key,
+SteamGridDB's tall art is looked for first. The box a game had stays in its art
+folder as an alternate, and `BOX` still shows it. When you switch to `TALL`, the
+list looks for tall art for each game that has none. SteamGridDB's art is only used when its
 game has the same name as yours, and only in English, so a hack never gets the
 box of a sequel or a spin off. Spaces and "and" don't count, so "Ash Gray" finds
 "AshGray" and "Heart and Soul" finds "Heart & Soul". To add one, make a free key on
@@ -121,7 +127,9 @@ Press `X`, right click or hold a finger on a game for its options:
   Your pick stays, and `SYNC BOX ART` never replaces it. Along the top bar:
   - `SEARCH AGAIN` (or `Y`): type another name, then pick the right game from
     SteamGridDB's list to see its covers.
-  - `SHAPE` (or `X`): box shaped covers only, or every shape.
+  - `SHAPE` (or `X`): covers of your `ART STYLE`'s shape only, or every shape.
+  - Your pick belongs to the `ART STYLE` you made it in. A game can keep a
+    tall pick and a box pick, and each style shows its own.
   - `FROM URL`: use a copied https link to a PNG or JPG, or type one.
   - `FROM FILE`: browse your folders for a PNG or JPG. You can also drop an image
     on the window to set the selected game's art.
@@ -521,7 +529,7 @@ The game list's `SETTINGS` (in the bar at its top, or `Y`) is in the app's group
 (`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE`, `TOUCH WINDOW`, `LAYOUT` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
 `GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `TRADE SAVES`, `LINK PLAY`, `BOX ART DOWNLOAD`,
-`STEAMGRIDDB KEY`, `BOX ART LOCATION`), `CONTROLS` (`GAME BUTTONS`,
+`ART STYLE`, `STEAMGRIDDB KEY`, `BOX ART LOCATION`), `CONTROLS` (`GAME BUTTONS`,
 `HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `RUN SETUP`, `VERSION`). The companion's
 `SETTINGS` has the same rows (see "Where the settings are" below).
 
