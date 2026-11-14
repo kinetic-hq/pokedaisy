@@ -1348,10 +1348,13 @@ static void grid_art_draw(void) {
     SDL_Texture *t = boxart_texture(renderer, gridStems[a->index], &tw, &th);
     if (!t || tw <= 0 || th <= 0)
       continue;
-    // The whole cover, never cut (a GBA or DS box is about square, SteamGridDB's art 2:3): as large as fits in the
-    // well, over a blurred, darkened copy of itself filling the rest.
+    // Edge to edge in ART STYLE's shape, never a bare bar: art about the tile's shape fills it, its edges trimmed (a
+    // seventh or less cut off); any other shape is drawn whole, as large as fits, over a blurred, darkened copy of
+    // itself filling the rest (a box in a TALL tile, a tall grid in a BOX one).
     double wx = a->w * k, wy = a->h * k, f = wx / tw < wy / th ? wx / tw : wy / th;
     double cf = wx / tw > wy / th ? wx / tw : wy / th;
+    if (cf <= f * 1.16)
+      f = cf;
     int dw = (int)(tw * f + 0.5), dh = (int)(th * f + 0.5), cw = (int)(tw * cf + 0.5), ch = (int)(th * cf + 0.5);
     SDL_Rect dst = {canvasAt.x + (int)(a->x * k + (wx - dw) / 2), canvasAt.y + (int)(a->y * k + (wy - dh) / 2), dw, dh};
     SDL_Rect fill = {canvasAt.x + (int)(a->x * k + (wx - cw) / 2), canvasAt.y + (int)(a->y * k + (wy - ch) / 2), cw, ch};
@@ -3390,6 +3393,7 @@ static void settings_host_wide(struct pd_settings *dst, const struct pd_settings
   dst->fullscreen = src->fullscreen;
   dst->savesBeside = src->savesBeside;
   dst->boxartAuto = src->boxartAuto;
+  dst->artStyle = src->artStyle;
   dst->quickBtn = src->quickBtn;
   dst->companionBtn = src->companionBtn;
   dst->hudBtn = src->hudBtn;
@@ -6214,6 +6218,7 @@ enum {
   ROW_TRADE,
   ROW_LINK,
   ROW_BOXART,
+  ROW_ART_STYLE,
   ROW_SGDB,
   ROW_BOXART_WHERE,
   ROW_BUTTONS,
@@ -6334,6 +6339,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_TRADE, "TRADE SAVES" PD_MENU_PAGE);
       ROW(ROW_LINK, "LINK PLAY" PD_MENU_PAGE);
       ROW(ROW_BOXART, "BOX ART DOWNLOAD	%s", st.boxartAuto ? "ON" : "OFF");
+      ROW(ROW_ART_STYLE, "ART STYLE\t%s", ((const char *const[]){"TALL", "BOX"})[st.artStyle >= 0 && st.artStyle < BOXART_STYLES ? st.artStyle : 0]);
       {
         char key[80];
         boxart_key(key, sizeof key);
@@ -6572,6 +6578,19 @@ static int settings_page(bool *foldersChanged) {
       st.boxartAuto = !st.boxartAuto;
       *foldersChanged = true; // the list looks again (or stops)
       break;
+    case ROW_ART_STYLE: {
+      static const char *const rows[] = {"TALL\tSTEAMGRIDDB'S 600 X 900", "BOX\tTHE GAME'S OWN BOX"};
+      int k = menu_pick_hint("ART STYLE",
+                             "The shape of the game list's art. A game can keep one picture of each shape: with a "
+                             "SteamGridDB key, the list looks for the new shape.",
+                             rows, BOXART_STYLES, st.artStyle);
+      if (k >= 0 && k != st.artStyle) {
+        st.artStyle = k;
+        boxart_style_set(k);
+        *foldersChanged = true; // the tiles change shape, and the list looks for art of that shape
+      }
+      break;
+    }
     case ROW_RA: {
       if (ra_login_state() == RA_LOGGED_IN) {
         static const char *const raRowsOut[] = {"SIGN OUT", "CANCEL"};
@@ -7266,6 +7285,8 @@ static void library_load(struct library *l) {
   pd_settings_load(&st, path);
   pd_look_apply(NULL, &st); // DARK MODE on the landing page too
   LIBRARY_BAR[GRID_BAR_THEME] = st.darkMode ? GAME_GRID_ICON_MOON : GAME_GRID_ICON_SUN;
+  boxart_style_set(st.artStyle); // ART STYLE: the tiles' shape, and the art drawn and looked for
+  l->grid.artStyle = boxart_style();
   // Never from a headless check unless asked (POCKET_BOXART): those don't go online.
   if (st.boxartAuto && (!menuFrames || getenv("POCKET_BOXART")))
     boxart_queue(l->art, count);
@@ -9137,13 +9158,17 @@ static bool boxart_picker(struct library *l, int g) {
   static int itemOf[400];          // a tile's candidate
   static char stems[400][16], *stemPtr[400];
   static char sizes[400][24];
-  static const char *const BAR_BOX[] = {"SEARCH AGAIN", "SHAPE: BOX", "FROM URL", "FROM FILE"};
+  static const char *BAR_BOX[] = {"SEARCH AGAIN", "SHAPE: BOX", "FROM URL", "FROM FILE"};
+  static const char *const SHAPE_NAMES[] = {"SHAPE: TALL", "SHAPE: BOX"};
+  int style = boxart_style();
+  BAR_BOX[PICK_BAR_SHAPE] = SHAPE_NAMES[style];
   static const char *const BAR_ALL[] = {"SEARCH AGAIN", "SHAPE: ALL", "FROM URL", "FROM FILE"};
   static char labels[400][32];
   bool allShapes = false, changed = false, done = false;
   char title[300], hint[400], entry[128];
   memset(&grid, 0, sizeof grid);
   game_grid_init(&grid, items, 0);
+  grid.artStyle = style; // the covers in ART STYLE's shape, as the list will show them
   grid.bar = BAR_BOX;
   grid.barCount = 4;
   grid.title = title;
@@ -9166,7 +9191,10 @@ static bool boxart_picker(struct library *l, int g) {
         struct boxart_pick_item it;
         if (!boxart_pick_item(i, &it) || it.failed)
           continue;
-        bool box = it.source != BOXART_PICK_STEAMGRIDDB || !it.w || it.h * 10 >= it.w * 12; // taller than wide
+        // SteamGridDB's of ART STYLE's shape (BOX: taller than wide, as box art and TALL's grids are); the rest always.
+        int shape = boxart_shape(it.w, it.h);
+        bool box = it.source != BOXART_PICK_STEAMGRIDDB || !it.w ||
+                   (style == BOXART_STYLE_BOX ? it.h * 10 >= it.w * 12 : shape == style);
         if (!allShapes && !box)
           continue;
         itemOf[n] = i;
@@ -9259,6 +9287,7 @@ static bool boxart_picker(struct library *l, int g) {
         notice(err);
     } else if (bar == PICK_BAR_SHAPE) {
       allShapes = !allShapes;
+      boxart_pick_all_shapes(allShapes); // TALL: SteamGridDB's other sizes are asked for too
       seenCount = -1;
     } else if (bar == PICK_BAR_SEARCH) {
       char term[128];

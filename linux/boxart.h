@@ -56,6 +56,16 @@ bool boxart_is_base(const char *stem);
 /* Bumped whenever art is found or cleared: the list redraws (and rechecks its banners) when it changes. */
 int boxart_generation(void);
 
+/* ART STYLE: the shape of the list's tiles, and so of the art looked for. TALL is SteamGridDB's 600x900 grid, BOX the
+ * games' own box (about square). A game's art folder can hold one of each: the list
+ * draws the box art when its shape suits the style (or it was picked under this style), else the newest alternate of
+ * that shape, else the box art (fitted whole over a blurred copy of itself). Changing it redraws the list. */
+enum { BOXART_STYLE_TALL, BOXART_STYLE_BOX, BOXART_STYLES };
+void boxart_style_set(int style);
+int boxart_style(void);
+/* A picture's shape: TALL under 0.8 wide to high, else BOX (a wide picture too: it is drawn as a box is). */
+int boxart_shape(int w, int h);
+
 /* DATA, once at start (starts the background worker). */
 void boxart_init(const char *root);
 void boxart_quit(void);
@@ -96,6 +106,8 @@ void boxart_pick_open(const struct boxart_game *g);
 void boxart_pick_search(const char *term);
 int boxart_pick_names(char names[][128], int max);
 void boxart_pick_use_entry(int i);
+/* SHAPE: false (as it opens) asks SteamGridDB for ART STYLE's sizes only (TALL), true for every size. */
+void boxart_pick_all_shapes(bool all);
 int boxart_pick_count(void);
 bool boxart_pick_item(int i, struct boxart_pick_item *out);
 void boxart_pick_stem(int i, char *out, size_t size);

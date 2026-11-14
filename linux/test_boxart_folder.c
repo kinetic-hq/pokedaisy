@@ -50,6 +50,10 @@ static void remove_each(const char *name, void *dir) {
 }
 
 int main(void) {
+  // ART STYLE's shapes: SteamGridDB's tall grids are TALL; a box, a square and a wide grid are BOX.
+  assert(boxart_shape(600, 900) == BOXART_STYLE_TALL && boxart_shape(342, 482) == BOXART_STYLE_TALL);
+  assert(boxart_shape(512, 512) == BOXART_STYLE_BOX && boxart_shape(920, 430) == BOXART_STYLE_BOX);
+  assert(boxart_shape(500, 498) == BOXART_STYLE_BOX && boxart_shape(0, 0) == BOXART_STYLE_BOX);
   int num = -1;
   // Names: the list's name, any case, "Pokemon" for "Pokémon", .png / .jpg / .jpeg; a number after a space.
   assert(boxart_art_name_matches("Pok" E "mon Emerald.png", "Pok" E "mon Emerald", &num) && num == 0);

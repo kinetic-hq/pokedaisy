@@ -43,8 +43,10 @@ static void layout(struct game_grid *g, int w, int h) {
   if (g->columns < 2)
     g->columns = 2;
   g->tileW = (w - PAD * (g->columns + 1)) / g->columns;
-  int artH = g->tileW - 8; // square: about the shape of a GBA or DS box (the art is fitted whole, never cut)
-  g->tileH = 4 + artH + 3 + NAME_LINES * LINE_H + 3 + TAG_H + 2 + 12 + 2;
+  int aw = g->tileW - 8;
+  // The art's shape (ART STYLE): SteamGridDB's 600x900 grid, or a GBA or DS box (about square).
+  g->artH = g->artStyle == BOXART_STYLE_TALL ? aw * 3 / 2 : aw;
+  g->tileH = 4 + g->artH + 3 + NAME_LINES * LINE_H + 3 + TAG_H + 2 + 12 + 2;
   g->gridTop = BAR_H + 6;
   g->gridBottom = h - (g->hint ? HINT_H : 0) - 2;
 }
@@ -154,7 +156,7 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   pd_round_rect(c, x, y, g->tileW, g->tileH, 6, on ? RING : p->tileEdge);
   pd_round_rect(c, x + 1, y + 1, g->tileW - 2, g->tileH - 2, 5, on ? p->tileOn : p->tile);
   // The art's well: the system's colour, darkened, with its name, until a picture covers it.
-  int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = g->tileW - 8;
+  int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = g->artH;
   int sys = it->system >= 0 && it->system <= BOXART_PC ? it->system : 0;
   uint32_t sc = SYSTEM_COLORS[sys];
   uint32_t well = pd_dark ? ((sc >> 2) & 0x3F3F3F) + 0x0A0A0A : (sc & 0xFEFEFE) / 2 + 0x7F7F7F;
@@ -204,18 +206,21 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   bool kindLater = tx + pd_text_width(kind) + 6 > x + g->tileW - 4; // too narrow: it leads the next line instead
   if (!kindLater)
     tag(c, tx, ty, kind, kindColor);
-  ty += TAG_H + 2;
-  // How well the companion supports it, at the right of the version's line: FULL, PARTLY or PLAY ONLY.
+  // How well the companion supports it, at the right of the version's line: FULL, PARTLY or PLAY ONLY. With the kind
+  // moved down a line, the support tag takes the system's line instead (never over the kind).
   static const char *const SUPPORT[] = {NULL, "FULL", "PARTLY", "PLAY ONLY"};
   static const uint32_t SUPPORT_COLORS[] = {0, 0x1F8F9E, 0xB7791F, 0x5B6270};
   int right = x + g->tileW - 4;
   if (it->support > 0 && it->support <= 3) {
     int w = pd_text_width(SUPPORT[it->support]) + 6;
-    if (right - w >= x + 4) {
-      tag(c, right - w, ty - 1, SUPPORT[it->support], SUPPORT_COLORS[it->support]);
+    if (kindLater && right - w >= tx)
+      tag(c, right - w, ty, SUPPORT[it->support], SUPPORT_COLORS[it->support]);
+    else if (!kindLater && right - w >= x + 4) {
+      tag(c, right - w, ty + TAG_H + 1, SUPPORT[it->support], SUPPORT_COLORS[it->support]);
       right -= w + 4;
     }
   }
+  ty += TAG_H + 2;
   int left = x + 4;
   if (kindLater)
     left += tag(c, left, ty - 1, kind, kindColor) + 3;

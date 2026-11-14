@@ -43,6 +43,7 @@ static const char *const LIBRETRO_SYSTEMS[] = {"Nintendo - Game Boy Advance", "N
                                                "Nintendo - Game Boy", "Nintendo - Nintendo DS", ""};
 
 static int working; // the game being looked for now (1) or none (0), for the progress (under lock)
+static SDL_atomic_t artStyle; // ART STYLE (BOXART_STYLE_*): 0, TALL, until the list says otherwise
 static bool forceAll; // SYNC BOX ART > ALL AGAIN: this queue looks again even where art was found (under lock)
 
 /* GBA game codes (3 letters at 0xAC), DS game codes (at 0x0C) and Game Boy titles (at 0x134): the libretro name. */
@@ -366,6 +367,75 @@ static bool art_main_path(const char *stem, char *out, size_t size) {
   return true;
 }
 
+/* --- ART STYLE --- */
+int boxart_shape(int w, int h) {
+  if (w <= 0 || h <= 0)
+    return BOXART_STYLE_BOX;
+  return w * 10 < h * 8 ? BOXART_STYLE_TALL : BOXART_STYLE_BOX;
+}
+void boxart_style_set(int style) {
+  if (style < 0 || style >= BOXART_STYLES)
+    style = BOXART_STYLE_TALL;
+  if (SDL_AtomicSet(&artStyle, style) != style)
+    SDL_AtomicAdd(&generation, 1);
+}
+int boxart_style(void) { return SDL_AtomicGet(&artStyle); }
+static int file_shape(const char *path) {
+  int w, h, n;
+  return stbi_info(path, &w, &h, &n) ? boxart_shape(w, h) : -1;
+}
+static const char *const STYLE_KINDS[] = {"none-tall", "none-box"};
+/* The style the box art was put in place under (a pick, a find): it stays that style's art whatever its shape. */
+static void main_style_mark(const char *stem) {
+  char path[1400], s[2] = {(char)('0' + boxart_style()), 0};
+  path_of(path, sizeof path, stem, "mainstyle");
+  write_file(path, s, 1);
+}
+static int main_style(const char *stem) {
+  char path[1400], c = 0;
+  path_of(path, sizeof path, stem, "mainstyle");
+  SDL_RWops *f = SDL_RWFromFile(path, "rb");
+  if (!f)
+    return -1;
+  size_t got = SDL_RWread(f, &c, 1, 1);
+  SDL_RWclose(f);
+  return got == 1 && c >= '0' && c < '0' + BOXART_STYLES ? c - '0' : -1;
+}
+/* The picture the list draws for STYLE: the box art if it suits (or was picked under it), else the newest alternate of
+ * that shape, else the box art. *shaped: the one chosen has the style's shape. */
+static bool art_styled_path(const char *stem, int style, char *out, size_t size, bool *shaped) {
+  struct art_game g;
+  char home[1100], path[1500];
+  if (shaped)
+    *shaped = false;
+  if (!art_game_of(stem, &g) || !art_home(&g, home, sizeof home))
+    return false;
+  struct art_file *f = malloc(64 * sizeof *f);
+  if (!f)
+    return false;
+  int n = art_files(home, g.name, f, 64), main = -1, best = -1;
+  for (int i = 0; i < n; i++) {
+    snprintf(path, sizeof path, "%s/%s", home, f[i].name);
+    bool fits = file_shape(path) == style;
+    if (!f[i].num && main < 0) {
+      main = i;
+      if (fits || main_style(stem) == style) {
+        best = i;
+        break;
+      }
+    } else if (f[i].num && fits && (best < 0 || f[i].num > f[best].num))
+      best = i;
+  }
+  int pick = best >= 0 ? best : main;
+  if (pick >= 0) {
+    snprintf(out, size, "%s/%s", home, f[pick].name);
+    if (shaped)
+      *shaped = best >= 0;
+  }
+  free(f);
+  return pick >= 0;
+}
+
 static const char *image_ext(const char *data, size_t len) {
   return len >= 4 && !memcmp(data, "\x89PNG", 4) ? ".png" : ".jpg";
 }
@@ -413,6 +483,8 @@ static bool art_save_main(const char *stem, const char *data, size_t len) {
   snprintf(to, sizeof to, "%s/%s%s", home, base, image_ext(data, len));
   if (pocket_exists(to) || !write_file(to, data, len))
     return false;
+  path_of(to, sizeof to, stem, "mainstyle"); // a find: no style claims it (a pick marks it after)
+  pocket_remove(to);
   SDL_AtomicAdd(&generation, 1);
   return true;
 }
@@ -457,6 +529,7 @@ bool boxart_art_use(const char *stem, int num) {
       return false;
     }
   }
+  main_style_mark(stem);
   SDL_AtomicAdd(&generation, 1);
   return true;
 }
@@ -625,7 +698,9 @@ bool boxart_title_matches(const char *want, const char *got) {
 
 /* SteamGridDB: the title searched, the first entry with the same name (boxart_title_matches), its first English
  * grid (600x900, else any) as a PNG or JPEG. None that match: nothing, so a hack falls back to its base game's box. */
-static char *from_steamgriddb(const struct boxart_game *g, const char *key, size_t *len) {
+/* SteamGridDB's grid sizes of each ART STYLE (BOX: its tall grid first, as before ART STYLE). */
+static const char *const STYLE_DIMENSIONS[] = {"600x900,342x482,660x930", "600x900"};
+static char *from_steamgriddb(const struct boxart_game *g, const char *key, size_t *len, int style, bool strict) {
   if (!*key)
     return NULL;
   char auth[160], term[512], url[1024], id[32];
@@ -656,10 +731,12 @@ static char *from_steamgriddb(const struct boxart_game *g, const char *key, size
   free(json);
   if (!found)
     return NULL;
-  static const char *const QUERIES[] = {"?dimensions=600x900&mimes=image/png,image/jpeg",
-                                        "?mimes=image/png,image/jpeg"};
-  for (int q = 0; q < 2; q++) {
-    snprintf(url, sizeof url, "https://www.steamgriddb.com/api/v2/grids/game/%s%s", id, QUERIES[q]);
+  for (int q = 0; q < (strict ? 1 : 2); q++) {
+    if (q == 0)
+      snprintf(url, sizeof url, "https://www.steamgriddb.com/api/v2/grids/game/%s?dimensions=%s&mimes=image/png,image/jpeg",
+               id, STYLE_DIMENSIONS[style]);
+    else
+      snprintf(url, sizeof url, "https://www.steamgriddb.com/api/v2/grids/game/%s?mimes=image/png,image/jpeg", id);
     json = http_get(url, auth, MAX_JSON, &jlen);
     char art[1024];
     data = json ? strstr(json, "\"data\"") : NULL;
@@ -689,11 +766,39 @@ static bool look(const struct boxart_game *g) {
   boxart_key(key, sizeof key);
   size_t len = 0;
   bool base = false;
+  char path[1400], had[1400];
+  int style = boxart_style();
+  if (style != BOXART_STYLE_BOX && *key) {
+    // TALL: SteamGridDB's tall grid first, put in the game's folder as its box art (the box art it had
+    // stays, an alternate the BOX style still draws). None: marked, so the list doesn't ask again each time.
+    bool shaped;
+    char now[1500];
+    if (!art_styled_path(g->stem, style, now, sizeof now, &shaped) || !shaped) {
+      char *grid = from_steamgriddb(g, key, &len, style, true);
+      int w = 0, h = 0, n;
+      bool fits = grid && stbi_info_from_memory((const unsigned char *)grid, (int)len, &w, &h, &n) &&
+                  boxart_shape(w, h) == style;
+      bool saved = fits && art_save_main(g->stem, grid, len);
+      free(grid);
+      path_of(path, sizeof path, g->stem, STYLE_KINDS[style]);
+      if (saved) {
+        pocket_remove(path);
+        path_of(path, sizeof path, g->stem, "none");
+        pocket_remove(path);
+        path_of(path, sizeof path, g->stem, "base");
+        pocket_remove(path);
+        return true;
+      }
+      write_file(path, "", 0);
+      if (art_main_path(g->stem, now, sizeof now))
+        return false; // it keeps the box it has
+    }
+  }
   char *img = g->system == BOXART_PC ? NULL : from_libretro(g, &len); // libretro has no PC games
   if (!img && !g->hack && g->base[0]) // an original under a name of the player's own
     img = libretro_named(g->base, g->baseSystem, &len);
   if (!img)
-    img = from_steamgriddb(g, key, &len);
+    img = from_steamgriddb(g, key, &len, style, false);
   if (!img && g->pcArt[0]) { // a PC fan game nobody has art for: its own title picture
     FILE *f = fopen(g->pcArt, "rb");
     if (f) {
@@ -709,7 +814,6 @@ static bool look(const struct boxart_game *g) {
       fclose(f);
     }
   }
-  char path[1400], had[1400];
   path_of(had, sizeof had, g->stem, "img");
   path_of(path, sizeof path, g->stem, "base");
   bool ownArt = pocket_exists(had) && !pocket_exists(path); // art of its own from before: never swapped for the base
@@ -762,7 +866,17 @@ bool boxart_is_base(const char *stem) {
 }
 
 static bool tried(const char *stem) {
-  char path[1400];
+  char path[1400], key[80];
+  int style = boxart_style();
+  boxart_key(key, sizeof key);
+  if (style != BOXART_STYLE_BOX && *key) { // TALL with a key: looked for that shape, or has it
+    bool shaped;
+    char now[1500];
+    path_of(path, sizeof path, stem, STYLE_KINDS[style]);
+    if (!pocket_exists(path) && !boxart_has_custom(stem) &&
+        !(art_styled_path(stem, style, now, sizeof now, &shaped) && shaped))
+      return false;
+  }
   if (art_main_path(stem, path, sizeof path))
     return true;
   path_of(path, sizeof path, stem, "img");
@@ -821,6 +935,10 @@ void boxart_sync(const struct boxart_game *games, int count, bool all) {
   for (int i = 0; i < count; i++) {
     path_of(path, sizeof path, games[i].stem, "none"); // tried before and none found: try again
     pocket_remove(path);
+    for (int s = 0; s < BOXART_STYLES; s++) {
+      path_of(path, sizeof path, games[i].stem, STYLE_KINDS[s]);
+      pocket_remove(path);
+    }
   }
   SDL_AtomicAdd(&generation, 1);
   boxart_queue(games, count);
@@ -1085,8 +1203,11 @@ bool boxart_set_custom(const char *stem, const char *source, char *err, size_t e
   char path[1400];
   struct art_game g;
   bool inFolder = art_game_of(stem, &g), ok;
-  if (inFolder) // the game's art folder: the box art it had becomes an alternate
+  if (inFolder) { // the game's art folder: the box art it had becomes an alternate, and this one ART STYLE's
     ok = art_save_main(stem, data, len);
+    if (ok)
+      main_style_mark(stem);
+  }
   else {
     path_of(path, sizeof path, stem, "custom");
     ok = write_file(path, data, len);
@@ -1133,6 +1254,7 @@ static int pickCount, pickFocus, pickPage, pickGameIndex = -1, pickJob, pickSeri
 static bool pickPagesDone, pickNoKey, pickBusy;
 static char pickTerm[128], pickEntryNames[PICK_ENTRIES][128], pickEntryIds[PICK_ENTRIES][32];
 static int pickEntryCount = -1;
+static bool pickAllShapes; // SHAPE: ALL (every size from SteamGridDB, not only ART STYLE's)
 static struct boxart_game pickGame;
 enum { JOB_NONE, JOB_OPEN, JOB_SEARCH, JOB_ENTRY };
 
@@ -1245,9 +1367,17 @@ static bool sgdb_page(const char *id, int page) {
     return false;
   char auth[160], url[1024];
   snprintf(auth, sizeof auth, "Authorization: Bearer %s", key);
+  // TALL: its sizes only (until SHAPE: ALL); BOX: every size.
+  int style = boxart_style();
+  SDL_LockMutex(lock);
+  bool all = pickAllShapes;
+  SDL_UnlockMutex(lock);
+  char dims[64] = "";
+  if (style != BOXART_STYLE_BOX && !all)
+    snprintf(dims, sizeof dims, "&dimensions=%s", STYLE_DIMENSIONS[style]);
   snprintf(url, sizeof url,
-           "https://www.steamgriddb.com/api/v2/grids/game/%s?mimes=image/png,image/jpeg&nsfw=false&humor=false&page=%d",
-           id, page);
+           "https://www.steamgriddb.com/api/v2/grids/game/%s?mimes=image/png,image/jpeg&nsfw=false&humor=false&page=%d%s",
+           id, page, dims);
   size_t jlen;
   char *json = http_get(url, auth, MAX_JSON, &jlen);
   static struct boxart_grid grids[100];
@@ -1438,6 +1568,7 @@ void boxart_pick_open(const struct boxart_game *g) {
   if (!pick)
     pick = calloc(PICK_MAX, sizeof *pick);
   pickGame = *g;
+  pickAllShapes = false;
   snprintf(pickTerm, sizeof pickTerm, "%.127s", g->title);
   pick_reset();
   pickEntryCount = -1;
@@ -1449,6 +1580,16 @@ void boxart_pick_open(const struct boxart_game *g) {
     SDL_AtomicSet(&pickQuit, 0);
     pickThread = SDL_CreateThread(pick_work, "boxart-pick", NULL);
   }
+}
+
+void boxart_pick_all_shapes(bool all) {
+  SDL_LockMutex(lock);
+  bool changed = pickAllShapes != all;
+  pickAllShapes = all;
+  int entry = pickGameIndex;
+  SDL_UnlockMutex(lock);
+  if (changed && entry >= 0)
+    boxart_pick_use_entry(entry); // the entry's grids again, in the sizes asked for
 }
 
 void boxart_pick_search(const char *term) {
@@ -1575,8 +1716,11 @@ bool boxart_pick_choose(const char *stem, int i, char *err, size_t errSize) {
   struct art_game g;
   if (!img)
     ok = false;
-  else if (art_game_of(stem, &g)) // into the game's art folder: the box art it had becomes an alternate
+  else if (art_game_of(stem, &g)) { // into the game's art folder: the box art it had becomes an alternate
     ok = art_save_main(stem, img, len);
+    if (ok)
+      main_style_mark(stem); // picked under this ART STYLE: its art there, whatever its shape
+  }
   else {
     path_of(path, sizeof path, stem, "custom");
     ok = write_file(path, img, len);
@@ -1617,8 +1761,8 @@ static struct {
 static uint32_t useTick;
 
 static SDL_Texture *load(SDL_Renderer *r, const char *stem, int *w, int *h) {
-  char path[1400];
-  if (!art_main_path(stem, path, sizeof path)) {
+  char path[1500];
+  if (!art_styled_path(stem, boxart_style(), path, sizeof path, NULL)) {
     path_of(path, sizeof path, stem, "custom");
     if (!pocket_exists(path))
       path_of(path, sizeof path, stem, "img");
