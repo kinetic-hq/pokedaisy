@@ -714,9 +714,9 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   screen sits small in its bottom right corner.
 - **`TOUCH IN WING`**: the top screen in the middle at the largest whole size
   that leaves a wing on each side. The touch screen sits in one wing, level
-  with the top screen's bottom, and the companion fills the other: your party
-  down that wing, and your trainer's place, money, badges and dex above the
-  touch screen. `DS WING SIDE` puts the touch screen on the `LEFT` or the
+  with the top screen's bottom, on a card of its own titled `TOUCH SCREEN`,
+  and the companion fills the other: your party down that wing, and the
+  right wing's map and facts above the touch screen. `DS WING SIDE` puts the touch screen on the `LEFT` or the
   `RIGHT` (the default). A window too narrow for that gets `PICTURE IN
   PICTURE`.
 - **`STACKED`**: the top screen over the touch screen, like the DS itself.
@@ -724,8 +724,8 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   than it is wide they go `STACKED`.
 - **`LARGE + SMALL`**: a large top screen with a small touch screen beside it.
 - **`WINGS`**: `ONE SCREEN` with the companion beside it. The top screen sits
-  in the middle at a whole size, your party fills one wing and your trainer's
-  facts the other (`DS WING SIDE` says which side the party is on). The touch
+  in the middle at a whole size, your party fills one wing and the right wing
+  the other (`DS WING SIDE` says which side the party is on). The touch
   screen floats in over the game when the game wants it, as in `ONE SCREEN`,
   or when you press R2. A window with no room for wings gets `ONE SCREEN`.
   The facts wing also shows `TIME`, the time of day the game goes by
@@ -746,6 +746,15 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   half to the other, and `DS WING SIDE` set to `LEFT` swaps them. The
   companion's panels don't show here, since the wings hold the touch screen. A
   window too narrow for that gets `TOUCH IN WING`.
+
+The right wing works like a GBA game's: the map round you with the place's
+name, the next boss with each of its team's levels, the wild kinds of this
+area (a shape until you've seen one, a green dot once you've caught it), a tip
+for here, then your money, badges, dex, the time of day, the spray's steps and
+the plant pots, as many as fit. At its foot, `COMPANION` opens the companion,
+`SAVE STATE` saves a state at once, and `CLOSE GAME` opens the quick menu on
+`LEAVE GAME` (press A to leave, B to stay). A tap or click anywhere else on
+either wing opens the companion too.
 
 The companion's panels in the wings read Platinum (USA), Renegade Platinum,
 HeartGold, SoulSilver, Origin HeartGold, Black, White, Black 2 and White 2; in other DS games
