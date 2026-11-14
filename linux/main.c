@@ -221,6 +221,15 @@ static void audio_check(void) {
   if (audio)
     fprintf(stderr, "Audio device reopened\n");
 }
+/* GAME VOLUME and MUTE GAME: the game's sound (and FF MUSIC's recording) at this many 256ths; silence still queues,
+ * so the screen's pacing by the queue holds. */
+static int gameGain = 256;
+static void game_gain(int16_t *s, int n) {
+  if (gameGain == 256)
+    return;
+  for (int i = 0; i < n; i++)
+    s[i] = (int16_t)(s[i] * gameGain / 256);
+}
 /* GAME SPEED away from 1x: the sound keeps its pitch (stretch.h); 1 lets it straight through. */
 static double stretchSpeed = 1;
 static struct stretch gameStretch = {.speed = 1};
@@ -232,6 +241,7 @@ static void post_audio(struct mAVStream *s, blip_t *l, blip_t *r) {
     n = 1024;
   blip_read_samples(l, out, n, true);
   blip_read_samples(r, out + 1, n, true);
+  game_gain(out, n * 2);
   if (stretchSpeed != 1 || gameStretch.speed != 1) {
     static int16_t stretched[2 * 8192];
     stretch_speed(&gameStretch, stretchSpeed);
@@ -2748,6 +2758,67 @@ static bool state(struct mCore *c, const char *path, bool save) {
   }
   return ok;
 }
+/* STATES' UNDO SAVE / UNDO LOAD, as on the 3DS and Android: a save over a slot first copies what the slot held
+ * (<state>.undo and its thumbnail), and a load first keeps the game as it is (<state>.undoload) to go back to. Only the
+ * last one of each can be undone; a state never touches the save file. */
+static char undoSaveSlot[1200];  // the slot whose last save can be put back, "" for none
+static char undoLoadState[1220]; // the game from just before the last load, "" for none
+static void undo_forget(void) {
+  undoSaveSlot[0] = undoLoadState[0] = 0;
+}
+static bool user_state(struct mCore *c, const char *path, bool save) {
+  char undo[1220], thumb[1220], undoThumb[1240];
+  if (save) {
+    snprintf(undo, sizeof undo, "%s.undo", path);
+    snprintf(thumb, sizeof thumb, "%s.thumb", path);
+    snprintf(undoThumb, sizeof undoThumb, "%s.undo.thumb", path);
+    bool had = pocket_exists(path) && rom_copy_file(path, undo);
+    if (had && pocket_exists(thumb) && !rom_copy_file(thumb, undoThumb))
+      pocket_remove(undoThumb);
+    bool ok = state(c, path, true);
+    if (ok)
+      snprintf(undoSaveSlot, sizeof undoSaveSlot, "%s", had ? path : "");
+    return ok;
+  }
+  snprintf(undo, sizeof undo, "%s.undoload", path);
+  struct VFile *f = VFileOpen(undo, O_CREAT | O_TRUNC | O_RDWR);
+  bool kept = f && mCoreSaveStateNamed(c, f, SAVESTATE_RTC);
+  if (f && !f->close(f))
+    kept = false;
+  if (kept)
+    ra_progress_save(undo);
+  bool ok = state(c, path, false);
+  if (ok)
+    snprintf(undoLoadState, sizeof undoLoadState, "%s", kept ? undo : "");
+  return ok;
+}
+static bool undo_save(void) {
+  if (!undoSaveSlot[0])
+    return false;
+  char undo[1220], thumb[1220], undoThumb[1240];
+  snprintf(undo, sizeof undo, "%s.undo", undoSaveSlot);
+  snprintf(thumb, sizeof thumb, "%s.thumb", undoSaveSlot);
+  snprintf(undoThumb, sizeof undoThumb, "%s.undo.thumb", undoSaveSlot);
+  bool ok = rom_copy_file(undo, undoSaveSlot);
+  if (ok) {
+    if (pocket_exists(undoThumb))
+      rom_copy_file(undoThumb, thumb);
+    pocket_remove(undo);
+    pocket_remove(undoThumb);
+    slotsStale = true;
+  }
+  undoSaveSlot[0] = 0;
+  return ok;
+}
+static bool undo_load(struct mCore *c) {
+  if (!undoLoadState[0])
+    return false;
+  bool ok = state(c, undoLoadState, false);
+  if (ok)
+    pocket_remove(undoLoadState);
+  undoLoadState[0] = 0;
+  return ok;
+}
 /* The D-pad's cursor over the companion. Kept by hit id, since every draw makes
  * the hit list anew: a press that leaves the screen as it was keeps it where it
  * is (the nearest item if that one went), and a new screen (a tab, a summary, a
@@ -3138,6 +3209,24 @@ static double scene_pace(const struct pd_settings *s, const struct pd_host_info 
   if (scene >= 0 && h->sceneKnown[scene] && s->sceneSpeed[scene] > 0)
     return SCENE_X[s->sceneSpeed[scene]];
   return PD_GAME_SPEED_PCT[s->gameSpeed] / 100.0;
+}
+/* FF MODE SMART: 1x while the game waits for the player (the app's SmartFf.kt, the 3DS's smart_slows): a GBA battle's
+ * menus (FIGHT / a move / a target / the bag / the party), and a menu screen where EXPAND reads the scene. Never its
+ * animations or text. */
+static bool smart_slows(struct mCore *c, const struct pd_game *g, bool inBattle) {
+  if (inBattle && g->cfg && c->platform(c) == mPLATFORM_GBA) {
+    switch (pd_battle_state_read(g->cfg, read_memory, c, NULL)) {
+    case PD_BATTLE_ACTION:
+    case PD_BATTLE_MOVE:
+    case PD_BATTLE_TARGET:
+    case PD_BATTLE_PARTY_OPEN:
+    case PD_BATTLE_BAG_OPEN:
+      return true;
+    default:
+      return false;
+    }
+  }
+  return wideSupported && pk_wide_scene() == PK_WIDE_SCENE_MENU;
 }
 /* plorpOS: fast-forward's frames this refresh - its speed, or for MAX as many as ~80% of a frame's time fits
  * (frameMs: what one cost lately). */
@@ -3679,6 +3768,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
   pd_menu_init(&resumeMenu, "Continue where you left off?", resumeOpts, 2);
   int menuOpen = 0; // 1 the game menu, 2 / 3 / 5 its confirms, 4 About, 6 RESUME GAMES' question, 7 ACHIEVEMENTS
   bool companion = false, ff = false, leave = false;
+  undo_forget(); // a new game: the last one's undos aren't this one's
   if (resumeOffer) {
     menuOpen = 6;
     companion = true;
@@ -3775,9 +3865,9 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     }
     hostActions &= ~((1u << HA_DS_LAYOUT_NEXT) | (1u << HA_DS_LAYOUT_BACK) | (1u << HA_SWAP_SCREENS)); // DS only
     if (hkFired & (1u << HK_SAVE))
-      notice(state(c, ss, true) ? "State saved" : "State save failed");
+      notice(user_state(c, ss, true) ? "State saved" : "State save failed");
     if (hkFired & (1u << HK_LOAD))
-      notice(!pocket_exists(ss) ? "No state saved yet" : state(c, ss, false) ? "State loaded" : "State load failed");
+      notice(!pocket_exists(ss) ? "No state saved yet" : user_state(c, ss, false) ? "State loaded" : "State load failed");
     bool ffHeld = hkOn & (1u << HK_FF), rewinding = ((hkOn & (1u << HK_REWIND)) || rewindHeld || rewindKey) && rewindOn;
     // R3 (its usual use): a tap switches between WINGS and BATTLE WINGS (from any other view: WINGS), a hold opens
     // every view to pick from (A or a tap picks, B leaves it as it was). The view's name shows either way.
@@ -3832,7 +3922,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     if (wingClicked && !companion && !menuOpen && !quickOpen) {
       int button = wing_button_at(wingClickX, wingClickY);
       if (button == PD_WING_SAVE_STATE)
-        notice(state(c, ss, true) ? "State saved" : "State save failed");
+        notice(user_state(c, ss, true) ? "State saved" : "State save failed");
       else if (button == PD_WING_CLOSE_GAME) {
         companion = true;
         menuOpen = 3;
@@ -4050,10 +4140,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           notice(settings.wildOff ? "Wild encounters off" : "Wild encounters on");
           break;
         case QUICK_SAVE_STATE:
-          notice(state(c, ss, true) ? "State saved" : "State save failed");
+          notice(user_state(c, ss, true) ? "State saved" : "State save failed");
           break;
         case QUICK_LOAD_STATE:
-          notice(state(c, ss, false) ? "State loaded" : "State load failed");
+          notice(user_state(c, ss, false) ? "State loaded" : "State load failed");
           break;
         case QUICK_FF:
           ff = !ff;
@@ -4162,10 +4252,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                 if (menuOpen == 3)
                   leave = true;
                 else if (menuOpen == 5)
-                  notice(state(c, ss, true) ? "State saved"
+                  notice(user_state(c, ss, true) ? "State saved"
                                             : "State save failed");
                 else
-                  notice(state(c, ss, false) ? "State loaded"
+                  notice(user_state(c, ss, false) ? "State loaded"
                                              : "State load failed");
               }
               menuOpen = 1;
@@ -4214,10 +4304,16 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           ff = !ff;
           break;
         case PD_ACTION_SAVE_STATE:
-          notice(state(c, ss, true) ? "State saved" : "State save failed");
+          notice(user_state(c, ss, true) ? "State saved" : "State save failed");
           break;
         case PD_ACTION_LOAD_STATE:
-          notice(state(c, ss, false) ? "State loaded" : "State load failed");
+          notice(user_state(c, ss, false) ? "State loaded" : "State load failed");
+          break;
+        case PD_ACTION_UNDO_SAVE:
+          notice(undo_save() ? "Save undone: the slot is as it was" : "Nothing to undo");
+          break;
+        case PD_ACTION_UNDO_LOAD:
+          notice(undo_load(c) ? "Load undone" : "Nothing to undo");
           break;
         case PD_ACTION_STATE_SLOT:
           // The picked slot is where SAVE / LOAD and their hotkeys go from now on.
@@ -4278,7 +4374,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         confirmMenu.selected = 0;
       }
     } else {
-      bool fast = (ff || ffHeld) && !rewinding;
+      bool fast = (ff || ffHeld) && !rewinding &&
+                  (settings.ffNormal || !smart_slows(c, &game, snap.inBattle || (fieldFlags & PK_FIELD_BATTLE)));
       if (fieldFlags & PK_FIELD_AVATAR)
         host.sceneKnown[PD_SCENE_BIKE] = host.sceneKnown[PD_SCENE_SURF] = true;
       double pace = fast || rewinding ? 1 : scene_pace(&settings, &host, scene_now(fieldFlags, fieldKnown, &snap));
@@ -4312,7 +4409,14 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           SDL_ClearQueuedAudio(audio);
       }
       muted = rewinding || clipOn || (racing && songState == FFM_COMING) || (racing && !settings.ffAudio);
-      c->setKeys(c, ((quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023) | (gameKeyFrames > 0 ? gameKeys : 0));
+      uint32_t playerKeys = (quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023;
+      // AUTO-RUN: B flipped while walking on the player's own field (holding it walks), as on the 3DS and Android -
+      // never in a script, a battle, a menu or on a bike (the Acro Bike's wheelie is B).
+      if (settings.autoRun && gameKeyFrames <= 0 && (playerKeys & 0xF0) && !(playerKeys & 1) &&
+          (fieldFlags & PK_FIELD_KNOWN) && !(fieldFlags & (PK_FIELD_LOCKED | PK_FIELD_BATTLE | PK_FIELD_BIKE)) &&
+          !snap.inBattle && (!wideSupported || pk_wide_scene() == PK_WIDE_SCENE_FIELD))
+        playerKeys ^= 2;
+      c->setKeys(c, playerKeys | (gameKeyFrames > 0 ? gameKeys : 0));
       int count = 1;
       if (fast) {
         count = ff_frames(&settings, hz, frameCost);
@@ -4388,6 +4492,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         int16_t clipBuf[1024 * 2];
         while (SDL_GetQueuedAudioSize(audio) < FFM_RATE * 4 / 10) {
           ffm_clip_fill(&ffClip, clipBuf, 1024);
+          game_gain(clipBuf, 1024 * 2);
           SDL_QueueAudio(audio, clipBuf, sizeof clipBuf);
         }
       }
@@ -4552,6 +4657,9 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         // The companion draws the focused hit as its own cursor where it has one.
         ui.focusId = focusId;
         host.ffOn = ff;
+      gameGain = settings.gameMuted ? 0 : settings.gameVolume * 256 / 100;
+      host.undoSave = undoSaveSlot[0] != 0;
+      host.undoLoad = undoLoadState[0] != 0;
         host.hasState = pocket_exists(ss);
         if (slotsStale)
           slots_read(&host, root, name);
