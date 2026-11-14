@@ -639,6 +639,67 @@ static void mouse_event_at(int ex, int ey, int *mx, int *my) {
   }
   SDL_RenderLogicalToWindow(renderer, (float)ex, (float)ey, mx, my);
 }
+/* A finger's own place in the window. SDL's renderer moves a finger event's x / y into its viewport (and clamps a
+ * touch outside it to the viewport's edge) before the event reaches us, unlike a mouse's (#143 turns those back): with
+ * the game letterboxed in a logical size, a tap on the right wing's SAVE STATE or CLOSE GAME landed on the wing's
+ * edge and opened the companion. This watch, added before the renderer is made (so it runs before the renderer's),
+ * keeps each finger event's x / y as the window had them; finger_at() finds them again. */
+#define RAW_FINGERS 64
+static struct {
+  Uint32 type, timestamp;
+  SDL_FingerID id;
+  float x, y;
+} rawFingers[RAW_FINGERS];
+static unsigned rawFingerNext;
+static int SDLCALL raw_finger_watch(void *userdata, SDL_Event *e) {
+  (void)userdata;
+  if (e->type == SDL_FINGERDOWN || e->type == SDL_FINGERUP || e->type == SDL_FINGERMOTION) {
+    unsigned i = rawFingerNext++ % RAW_FINGERS;
+    rawFingers[i].type = e->type;
+    rawFingers[i].timestamp = e->tfinger.timestamp;
+    rawFingers[i].id = e->tfinger.fingerId;
+    rawFingers[i].x = e->tfinger.x;
+    rawFingers[i].y = e->tfinger.y;
+  }
+  return 1;
+}
+static void finger_at(const SDL_Event *e, float *x, float *y) {
+  *x = e->tfinger.x;
+  *y = e->tfinger.y;
+  for (unsigned k = 1; k <= RAW_FINGERS && k <= rawFingerNext; k++) {
+    unsigned i = (rawFingerNext - k) % RAW_FINGERS;
+    if (rawFingers[i].type == e->type && rawFingers[i].timestamp == e->tfinger.timestamp &&
+        rawFingers[i].id == e->tfinger.fingerId) {
+      *x = rawFingers[i].x;
+      *y = rawFingers[i].y;
+      return;
+    }
+  }
+}
+/* A left click or a finger's touch (not SDL's mouse copy of a touch: the finger's own event stands for it) in the
+ * renderer's pixels, where the wings and their buttons are measured. False for any other event. */
+static bool click_point(const SDL_Event *e, float *px, float *py) {
+  if (!((e->type == SDL_MOUSEBUTTONDOWN && e->button.button == SDL_BUTTON_LEFT && e->button.which != SDL_TOUCH_MOUSEID) ||
+        e->type == SDL_FINGERDOWN))
+    return false;
+  int mx = 0, my = 0, ww = 1, wh = 1;
+  if (e->type != SDL_FINGERDOWN)
+    mouse_event_at(e->button.x, e->button.y, &mx, &my);
+  SDL_GetWindowSize(window, &ww, &wh);
+  float nx = (float)mx / (ww > 0 ? ww : 1), ny = (float)my / (wh > 0 ? wh : 1);
+  if (e->type == SDL_FINGERDOWN)
+    finger_at(e, &nx, &ny);
+  pd_host_point(nx, ny, px, py);
+  return true;
+}
+/* The renderer, with the finger watch ahead of its own (finger_at). */
+static SDL_Renderer *make_renderer(SDL_Window *w, Uint32 flags) {
+  static bool watching;
+  if (!watching)
+    SDL_AddEventWatch(raw_finger_watch, NULL);
+  watching = true;
+  return SDL_CreateRenderer(w, -1, flags);
+}
 static void tap_event(const SDL_Event *e) {
   if ((e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP) && e->button.button == SDL_BUTTON_LEFT &&
       e->button.which != SDL_TOUCH_MOUSEID) {
@@ -653,11 +714,15 @@ static void tap_event(const SDL_Event *e) {
     SDL_GetWindowSize(window, &ww, &wh);
     tap_push((float)mx / (ww > 0 ? ww : 1), (float)my / (wh > 0 ? wh : 1), 1);
   } else if (e->type == SDL_FINGERDOWN && !tapHeld) {
-    tap_push(e->tfinger.x, e->tfinger.y, 0);
+    float fx, fy;
+    finger_at(e, &fx, &fy);
+    tap_push(fx, fy, 0);
     if (tapHeld)
       tapFinger = e->tfinger.fingerId;
   } else if ((e->type == SDL_FINGERMOTION || e->type == SDL_FINGERUP) && tapHeld && e->tfinger.fingerId == tapFinger) {
-    tap_push(e->tfinger.x, e->tfinger.y, e->type == SDL_FINGERUP ? 2 : 1);
+    float fx, fy;
+    finger_at(e, &fx, &fy);
+    tap_push(fx, fy, e->type == SDL_FINGERUP ? 2 : 1);
     if (e->type == SDL_FINGERUP)
       tapFinger = -1;
   }
@@ -776,17 +841,8 @@ static void events(void) {
         e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_FINGERDOWN || e.type == SDL_CONTROLLERAXISMOTION)
       wingActivity = lastInputAt = SDL_GetTicks();
     controller_device_event(&e);
-    if ((e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT && e.button.which != SDL_TOUCH_MOUSEID) ||
-        e.type == SDL_FINGERDOWN) {
-      int mx = 0, my = 0, ww = 1, wh = 1;
-      if (e.type != SDL_FINGERDOWN)
-        mouse_event_at(e.button.x, e.button.y, &mx, &my);
-      SDL_GetWindowSize(window, &ww, &wh);
-      float nx = e.type == SDL_FINGERDOWN ? e.tfinger.x : (float)mx / (ww > 0 ? ww : 1);
-      float ny = e.type == SDL_FINGERDOWN ? e.tfinger.y : (float)my / (wh > 0 ? wh : 1);
-      pd_host_point(nx, ny, &wingClickX, &wingClickY);
+    if (click_point(&e, &wingClickX, &wingClickY))
       wingClicked = true;
-    }
     tap_event(&e);
     if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
       tapHeld = false;
@@ -8331,9 +8387,9 @@ int main(int argc, char **argv) {
       SDL_WINDOW_RESIZABLE | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0));
   fullscreenOn = fullscreen && window;
   // Presents wait for the refresh (the pacing, above); a driver without it gets the timer.
-  renderer = window ? SDL_CreateRenderer(window, -1, getenv("POCKET_NO_VSYNC") ? 0 : SDL_RENDERER_PRESENTVSYNC) : NULL;
+  renderer = window ? make_renderer(window, getenv("POCKET_NO_VSYNC") ? 0 : SDL_RENDERER_PRESENTVSYNC) : NULL;
   if (!renderer && window)
-    renderer = SDL_CreateRenderer(window, -1, 0);
+    renderer = make_renderer(window, 0);
   if (!renderer) {
     fprintf(stderr, "Video: %s\n", SDL_GetError());
     SDL_Quit();

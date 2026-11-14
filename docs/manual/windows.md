@@ -513,7 +513,7 @@ faded). `QUICK BAG` counts your balls, your healing items and your keep-away
 sprays, and while a spray works it shows the steps it has left. At the foot of
 the wing, `SAVE STATE` saves a state at once (the same one the hotkey and the
 quick menu save), and `CLOSE GAME` asks before it takes you back to the game
-list: `Cancel` is picked first, and `B` or `Esc` keeps playing. Whatever doesn't
+list: `Cancel` is picked first, and `B` or `Esc` keeps playing. Both take a tap, a click or a pen. Whatever doesn't
 fit the wing, or your game doesn't tell the app, is left out. When no strip runs above or below the game, a
 small card at the bottom of the left wing shows the buttons for a few seconds
 as a game starts, and again when you've been idle a while.
