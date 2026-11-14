@@ -14,6 +14,12 @@
 static const char* const SCREEN_NAMES[PD_SCREEN_MODES] = { "PIXEL 1x", "SHARP 1.25x", "SHARP 1.5x", "STRETCH" };
 static const char* const ASPECT_NAMES[PD_ASPECTS] = { "ORIGINAL", "EXPAND", "ZOOM OUT" };
 const char* const PD_GAME_SPEEDS[PD_GAME_SPEED_COUNT] = { "1x", "1.15x", "1.25x", "1.5x", "1.75x", "2x", "2.5x", "3x", "4x", "0.5x", "0.25x" };
+// A speed in percent as the lists write it: 2x, 1.5x, 1.75x.
+void pd_speed_label(char* out, size_t n, int pct) {
+    if (pct % 10) snprintf(out, n, "%d.%02dx", pct / 100, pct % 100);
+    else if (pct % 100) snprintf(out, n, "%d.%dx", pct / 100, pct % 100 / 10);
+    else snprintf(out, n, "%dx", pct / 100);
+}
 const char* const PD_SHINY_LABELS[PD_SHINY_CHOICES] = { "NORMAL", "1 IN 4096", "1 IN 1024", "1 IN 512", "1 IN 128" };
 const char* const PD_SCENE_SPEEDS[PD_SCENE_SPEED_COUNT] = { "SAME", "1x", "1.5x", "2x", "3x", "4x" };
 static const char* const SCENE_NAMES[PD_SCENE_COUNT] = { "BATTLE SPEED", "TEXT SPEED", "MENU SPEED", "BIKE SPEED", "SURF SPEED" };
@@ -196,7 +202,7 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
 
     group(c, ix, &y, "FF / SPEED");
     setting(ui, c, ix, &y, iw, SETTING_FF_TOGGLE, "FF", on_off(host->ffOn));
-    if (st->ffSpeed) snprintf(buf, sizeof(buf), "%dx", st->ffSpeed);
+    if (st->ffSpeed) pd_speed_label(buf, sizeof(buf), st->ffSpeed);
     else snprintf(buf, sizeof(buf), "MAX");
     setting(ui, c, ix, &y, iw, SETTING_FF, "FF SPEED", buf);
     if (host->hasGameSpeed) setting(ui, c, ix, &y, iw, SETTING_GAME_SPEED, "GAME SPEED", PD_GAME_SPEEDS[st->gameSpeed]);
@@ -429,7 +435,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         group(c, ix, &y, "FF / SPEED");
         setting(ui, c, ix, &y, iw, SETTING_FF_TOGGLE, "FF", host->ffOn ? "ON" : "OFF");
     }
-    if (st->ffSpeed) snprintf(buf, sizeof(buf), "%dx", st->ffSpeed);
+    if (st->ffSpeed) pd_speed_label(buf, sizeof(buf), st->ffSpeed);
     else snprintf(buf, sizeof(buf), "MAX");
     if (full || !host || !host->frontendOwnsPlayback) setting(ui, c, ix, &y, iw, SETTING_FF, full ? "FF SPEED" : "FAST-FORWARD", buf);
     if (full) {
@@ -730,7 +736,7 @@ void ui_overlay(struct pd_ui* ui, struct pd_canvas* c) {
     pd_dim(c, 0xE6);
     // Swallows taps beside the windows (they close the overlay).
     ui_add_hit(ui, 0, 0, c->w, c->h, HIT_SCRIM);
-    static const char* const FF[PD_FF_CHOICES] = { "2x", "3x", "4x", "5x", "6x", "8x", "10x", "MAX" };
+    static const char* const FF[PD_FF_CHOICES] = { "1.5x", "1.75x", "2x", "3x", "4x", "5x", "6x", "8x", "10x", "MAX" };
     switch (ui->overlay) {
     case PD_OVERLAY_PICK_SCREEN:
     {

@@ -156,7 +156,7 @@ int main(void) {
     test_crystal_guide();
     test_dex_evolutions();
     test_dex_machine_tables();
-    struct pd_settings settings={.ffSpeed=2};struct pd_ui ui;
+    struct pd_settings settings={.ffSpeed=200};struct pd_ui ui;
     pd_ui_init(&ui,&settings);ui.tab=PD_TAB_SETTINGS;
     struct pd_snapshot snap={0};struct pd_game game={0};
     struct pd_host_info host={.hasState=true};struct pd_canvas c;
@@ -195,7 +195,7 @@ int main(void) {
     struct pd_settings back;assert(pd_settings_load(&back,path));
     assert(back.aspect==PD_ASPECT_ZOOM_OUT && !back.autoZoom && back.ffSpeed==settings.ffSpeed);
     FILE* old=fopen(path,"w");fputs("screen=1\nff=3\nguide=0\n",old);fclose(old);
-    assert(pd_settings_load(&back,path) && back.aspect==PD_ASPECT_ORIGINAL && back.autoZoom && back.ffSpeed==3);
+    assert(pd_settings_load(&back,path) && back.aspect==PD_ASPECT_ORIGINAL && back.autoZoom && back.ffSpeed==300);
     remove(path);
     // PARTY at a Linux canvas size: Android's slot, edge to edge, three columns past 2:1 (426x240's tab).
     // The selected look (orange outline) follows the host's D-pad focus, else slot 0; empty slots are

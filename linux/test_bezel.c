@@ -18,7 +18,7 @@ static int failures;
 int main(void) {
   struct bezel_facts f = {.place = "VIRIDIAN CITY", .hour = 9, .minute = 5, .battery = 82, .charging = true,
                           .badges = 1, .playHours = 3, .playMinutes = 7, .hints = true, .companion = true,
-                          .quickMenu = true, .ff = 4, .zoomPct = 75, .saved = true, .money = 3300, .repel = 0};
+                          .quickMenu = true, .ff = 400, .zoomPct = 75, .saved = true, .money = 3300, .repel = 0};
   EXPECT(BEZEL_NONE, &f, "");
   EXPECT(BEZEL_LOCATION, &f, "VIRIDIAN CITY");
   EXPECT(BEZEL_CLOCK_BATTERY, &f, "09:05  +82%");
@@ -27,6 +27,11 @@ int main(void) {
   EXPECT(BEZEL_BADGES_TIME, &f, "BADGES 1/8  3:07");
   EXPECT(BEZEL_HINTS, &f, "Y QUICK MENU  X COMPANION  R3 VIEW");
   EXPECT(BEZEL_CHIPS, &f, "FF x4  ZOOM 75%  SAVED");
+  f.ff = 175;
+  EXPECT(BEZEL_SPEED, &f, "FF x1.75");
+  f.ff = 150;
+  EXPECT(BEZEL_SPEED, &f, "FF x1.5");
+  f.ff = 400;
   EXPECT(BEZEL_REPEL_MONEY, &f, "$3300");
   f.repel = 87;
   EXPECT(BEZEL_REPEL_MONEY, &f, "REPEL 87");

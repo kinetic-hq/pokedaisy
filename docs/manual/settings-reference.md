@@ -21,7 +21,7 @@ Many rows are on both. They're the same setting, so changing it on one screen ch
 
 | Setting | Choices | What it does | More |
 | --- | --- | --- | --- |
-| `FF SPEED` | `INFINITE`, 1.5x, **2x**, 3x, 4x, 5x, 6x, 8x, 10x | How fast fast-forward runs. `INFINITE` means as fast as the device can go. | [Fast-forward](fast-forward.md) |
+| `FF SPEED` | `INFINITE`, 1.5x, **2x**, 3x, 4x, 5x, 6x, 8x, 10x | How fast fast-forward runs. `INFINITE` means as fast as the device can go. On Windows and Linux also 1.75x, with `MAX` for `INFINITE`. | [Fast-forward](fast-forward.md) |
 | `REWIND` | `ON`, **`OFF`** | Keeps the last 20 seconds or so, so the `REWIND HOLD` hotkey can play them backwards. Never touches your save file. | [Fast-forward](fast-forward.md) |
 | `SPEED OPTIONS` | a page | `FF MODE` and `FF MUSIC`; see the next table. | [Fast-forward](fast-forward.md) |
 

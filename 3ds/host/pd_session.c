@@ -1092,7 +1092,8 @@ void pd_session_tick(struct pd_session* s, const struct pd_input* in, unsigned m
     }
     uint32_t keys = s->quickOpen ? 0 : in->held;
     // A loop is one screen refresh, so a speed is frames a refresh: 1.5x runs one, two, one, two; 0.5x every other.
-    int pct = ff && !smart_slows(s) ? s->settings->ffSpeed * 100 : PD_GAME_SPEED_PCT[s->settings->gameSpeed];
+    // MAX: 4x, about what the 3DS keeps up with.
+    int pct = ff && !smart_slows(s) ? (s->settings->ffSpeed ? s->settings->ffSpeed : 400) : PD_GAME_SPEED_PCT[s->settings->gameSpeed];
     s->speedDebt += pct;
     int count = s->speedDebt / 100;
     s->speedDebt %= 100;
