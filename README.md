@@ -469,6 +469,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   with a backup first; a second copy of a game plays `<save> (link 2)`.
 - **EDIT SAVE's COPY WHAT?**: `PRESETS` and `PASTE SET` first ask what to take from a set: all of it, `STATS ONLY`
   (nature, IVs, EVs) or any mix of nature, IVs, EVs, moves, held item and ability, so a Pokemon can keep its moves.
+- **EDIT SAVE's IV and EV sliders**: left / right step a stat (held, it repeats), LB / RB by ten, Y to the most, X to 0,
+  with the EV total and what's left of 510 shown and kept to; the pad's X is a backspace wherever you type.
 - **EDIT SAVE's DS bag sorts by pocket**: in Platinum, HeartGold and SoulSilver a pocket's `ADD AN ITEM` and its
   search list only that pocket's items, and `ADD ANY ITEM` puts each in its own pocket.
 - **EDIT SAVE's bag** on the desktop host lists each pocket's items from the game's own item table to scroll through (`SEARCH BY NAME`

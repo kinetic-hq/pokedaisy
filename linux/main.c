@@ -4881,6 +4881,51 @@ static int menu_pick_hint(const char *title, const char *hint, const char *const
 static int menu_pick(const char *title, const char *const *items, int count, int selected) {
   return menu_pick_hint(title, NULL, items, count, selected);
 }
+/* A pick-list that also ends on any key in KEYS (LEFT, RIGHT and the shoulders repeat while held): the row, with
+ * *KEY the key that ended it (A for a pick or a tap), or -1 for B. */
+static int menu_pick_keys(const char *title, const char *hint, const char *const *items, int count, int selected,
+                          unsigned keys, int *key) {
+  char shortTitle[1100];
+  struct pd_menu m;
+  pd_menu_init(&m, menu_title(title, shortTitle, sizeof shortTitle), items, count);
+  m.hint = hint;
+  m.selected = selected >= 0 && selected < count ? selected : 0;
+  *key = A;
+  while (running) {
+    events();
+    repeat_directions();
+    static const int shoulders[] = {L, R, L2, R2};
+    for (int i = 0; i < 4; i++) {
+      int k = shoulders[i];
+      if ((held & (1u << k)) && SDL_GetTicks() >= repeatAt[k]) {
+        pressed |= 1u << k;
+        repeatAt[k] = SDL_GetTicks() + 120;
+      }
+    }
+    menu_script();
+    if (down(B) || down(MENU))
+      return -1;
+    if (down(UP))
+      pd_menu_move(&m, -1);
+    if (down(DOWN))
+      pd_menu_move(&m, 1);
+    for (int k = 0; k < NKEYS; k++)
+      if ((keys & (1u << k)) && down(k) && count) {
+        *key = k;
+        return m.selected;
+      }
+    if (down(A) && count)
+      return m.selected;
+    int tapped = menu_taps(&m);
+    if (tapped >= 0 && tapped < count)
+      return tapped;
+    companion_canvas();
+    pd_menu_draw(&m, &canvas);
+    if (menu_frame())
+      return -1;
+  }
+  return -1;
+}
 #ifdef POCKET_DS
 extern const struct pd_layout_option *pd_ds_layouts(int *count);
 extern int pd_ds_layout_load(const char *root);
@@ -6320,6 +6365,8 @@ static bool text_entry(const char *title, char *buf, size_t size) {
       press = row * COLS + col;
     if (down(Y))
       ADD(" ");
+    if (down(X)) // the pad's X (Xbox's left face button) is a backspace
+      DEL_ONE();
     if (down(START))
       done = ok = true;
     if (down(B)) {
@@ -6958,19 +7005,74 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
       break;
     case R_IVS:
     case R_EVS: {
-      int *values = pick == R_IVS ? m.ivs : m.evs, stat = 0;
+      // A slider per stat: LEFT / RIGHT step it (held, it repeats), the shoulders step by 10, Y is its most, X is 0,
+      // A types it. EVs keep to 252 a stat and 510 in all (a typed value can go to the game's own 255).
+      bool ivs = pick == R_IVS;
+      int *values = ivs ? m.ivs : m.evs, stat = 0, key;
       while (running) {
-        char lines[6][32];
-        const char *r6[6];
+        int total = 0;
+        for (int i = 0; i < 6; i++)
+          total += values[i];
+        char lines[8][64], hint[160];
+        const char *r8[8];
         for (int i = 0; i < 6; i++) {
-          snprintf(lines[i], sizeof lines[i], "%s: %d", statName[i], values[i]);
-          r6[i] = lines[i];
+          int top = ivs ? 31 : 252, n = (values[i] > top ? top : values[i]) * 10 / top;
+          char bar[11];
+          for (int b = 0; b < 10; b++)
+            bar[b] = b < n ? '#' : '.';
+          bar[10] = 0;
+          snprintf(lines[i], sizeof lines[i], "%s%s%s %3d", statName[i], "\t", bar, values[i]);
+          r8[i] = lines[i];
         }
-        stat = menu_pick(pick == R_IVS ? "IVs" : "EVs", r6, 6, stat);
-        if (stat < 0)
+        r8[6] = ivs ? "ALL TO 31" : "ALL TO 0";
+        r8[7] = "DONE";
+        if (ivs)
+          snprintf(hint, sizeof hint, "LEFT/RIGHT 1, LB/RB 10, Y 31, X 0, A types it.");
+        else
+          snprintf(hint, sizeof hint, "TOTAL %d / 510 (%d left). LEFT/RIGHT 1, LB/RB 10, Y most, X 0, A types it.",
+                   total, total < 510 ? 510 - total : 0);
+        unsigned keys = 1u << LEFT | 1u << RIGHT | 1u << L | 1u << R | 1u << L2 | 1u << R2 | 1u << X | 1u << Y;
+        stat = menu_pick_keys(ivs ? "IVs" : "EVs", hint, r8, 8, stat, keys, &key);
+        if (stat < 0 || stat == 7)
           break;
-        if (editor_number(statName[stat], values[stat], 0, pick == R_IVS ? 31 : 255, &v))
-          values[stat] = (int)v;
+        if (stat == 6) {
+          for (int i = 0; i < 6; i++)
+            values[i] = ivs ? 31 : 0;
+          continue;
+        }
+        int now = values[stat], others = total - now;
+        int most = ivs ? 31 : (510 - others < 252 ? 510 - others : 252);
+        if (most < 0)
+          most = 0;
+        int next = now;
+        if (key == LEFT)
+          next = now - 1;
+        else if (key == RIGHT)
+          next = now + 1;
+        else if (key == L || key == L2)
+          next = now - 10;
+        else if (key == R || key == R2)
+          next = now + 10;
+        else if (key == Y)
+          next = most;
+        else if (key == X)
+          next = 0;
+        else if (editor_number(statName[stat], now, 0, ivs ? 31 : 255, &v)) {
+          next = (int)v;
+          if (!ivs && next > 510 - others) {
+            char why[96];
+            snprintf(why, sizeof why, "EVs come to 510 in all: this one can have %d.", 510 - others);
+            editor_say(statName[stat], why);
+            next = now;
+          }
+          values[stat] = next;
+          continue;
+        }
+        if (next > most && next > now)
+          next = most > now ? most : now; // a step up stops at the cap, never pushing an old value down
+        if (next < 0)
+          next = 0;
+        values[stat] = next;
       }
       break;
     }
