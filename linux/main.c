@@ -50,6 +50,15 @@
 #include "../app/src/main/cpp/pk_rewind.h"
 #include "pocket_os.h"
 #include "save_edit.h"
+#include "pc_game.h"
+#include "pc_wings.h"
+#include "pc_companion_rb.h"
+#include "pc_standins_rb.h"
+#include <sys/stat.h>
+#ifdef _WIN32
+#include <SDL_syswm.h>
+#include <windows.h>
+#endif
 #include <SDL.h>
 #include <errno.h>
 #include <time.h>
@@ -3458,6 +3467,545 @@ static void nuz_store(uint32_t crc) {
   rename(tmp, path);
 }
 
+/* ---- PC FAN GAMES (pc_game.h): the game's own player in a borderless window between the wings ---- */
+static int menu_pick(const char *title, const char *const *items, int count, int selected);
+static void *native_window(void) {
+#ifdef _WIN32
+  SDL_SysWMinfo info;
+  SDL_VERSION(&info.version);
+  if (window && SDL_GetWindowWMInfo(window, &info))
+    return info.info.win.window;
+#endif
+  return NULL;
+}
+/* POCKET_PC_SHOT: the screen's pixels where PokeDaisy's window is, written as a PNG (the game's window over it). */
+static void pc_screen_shot(const char *path, int x, int y, int w, int h) {
+#ifdef _WIN32
+  HDC screen = GetDC(NULL), mem = CreateCompatibleDC(screen);
+  HBITMAP bmp = CreateCompatibleBitmap(screen, w, h);
+  HGDIOBJ old = SelectObject(mem, bmp);
+  BitBlt(mem, 0, 0, w, h, screen, x, y, SRCCOPY | CAPTUREBLT);
+  BITMAPINFO bi = {.bmiHeader = {sizeof(BITMAPINFOHEADER), w, -h, 1, 32, BI_RGB, 0, 0, 0, 0, 0}};
+  uint32_t *px = malloc((size_t)w * h * 4);
+  if (px && GetDIBits(mem, bmp, 0, (UINT)h, px, &bi, DIB_RGB_COLORS)) {
+    for (int i = 0; i < w * h; i++)
+      px[i] &= 0xFFFFFF;
+    pd_png_write(path, w, h, px);
+  }
+  free(px);
+  SelectObject(mem, old);
+  DeleteObject(bmp);
+  DeleteDC(mem);
+  ReleaseDC(NULL, screen);
+#else
+  (void)path, (void)x, (void)y, (void)w, (void)h;
+#endif
+}
+/* POCKET_PC_CHECK_DIR (tests only): the screen check. When the test's script in the game leaves DIR/request.txt with a
+ * name in it, PokeDaisy's window as it looks with the game's over it goes to DIR/<name>.png, and DIR/<name>.txt gets where the game
+ * area, the wings and the bars are and where the game's window really draws (or, for a game drawn from its own
+ * window, the picture PokeDaisy drew there, as DIR/<name>_ref.png). A script then checks nothing is cut off. */
+static void pc_check_request(const char *dir, bool capture, int wx, int wy, int ow, int oh, int gx, int gy, int gw,
+                             int gh, bool bars, const uint32_t *from, int stride, int fw, int fh) {
+  char req[1100], name[128] = "", path[1300];
+  (void)wx, (void)wy;
+  snprintf(req, sizeof req, "%.1000s/request.txt", dir);
+  FILE *f = fopen(req, "rb");
+  if (!f)
+    return;
+  size_t n = fread(name, 1, sizeof name - 1, f);
+  fclose(f);
+  name[n] = 0;
+  name[strcspn(name, "\r\n")] = 0;
+  for (char *c = name; *c; c++)
+    if (!isalnum((unsigned char)*c) && *c != '_' && *c != '-')
+      *c = '_';
+  if (!name[0])
+    return;
+  // PokeDaisy's window with the game's over it, as each draws itself: right whatever is in front on the desktop.
+  snprintf(path, sizeof path, "%.1000s/%s.png", dir, name);
+  uint32_t *all = malloc((size_t)ow * oh * 4);
+  if (all && pc_compose(native_window(), ow, oh, all))
+    pd_png_write(path, ow, oh, all);
+  free(all);
+  int cx = 0, cy = 0, cw = 0, ch = 0;
+  if (capture && from && fw > 0 && fh > 0) {
+    uint32_t *copy = malloc((size_t)fw * fh * 4);
+    if (copy) {
+      for (int y = 0; y < fh; y++)
+        for (int x = 0; x < fw; x++)
+          copy[(size_t)y * fw + x] = from[(size_t)y * stride + x] & 0xFFFFFF;
+      snprintf(path, sizeof path, "%.1000s/%s_ref.png", dir, name);
+      pd_png_write(path, fw, fh, copy);
+      free(copy);
+    }
+    cx = gx, cy = gy, cw = gw, ch = gh;
+  } else if (pc_client_rect(&cx, &cy, &cw, &ch)) {
+    cx -= wx, cy -= wy;
+  }
+  snprintf(path, sizeof path, "%.1000s/%s.txt", dir, name);
+  FILE *o = fopen(path, "w");
+  if (o) {
+    fprintf(o, "window %d %d\narea %d %d %d %d\nbars %d\nclient %d %d %d %d\ncapture %d\nref %d %d\n", ow, oh, gx, gy,
+            gw, gh, bars ? 1 : 0, cx, cy, cw, ch, capture ? 1 : 0, fw, fh);
+    fclose(o);
+  }
+  remove(req);
+  fprintf(stderr, "PC game: check %s\n", name);
+}
+static void pc_focus_self(void) {
+#ifdef _WIN32
+  HWND h = native_window();
+  if (h)
+    SetForegroundWindow(h);
+#endif
+  if (window)
+    SDL_RaiseWindow(window);
+}
+/* A wing drawn the DS games' way: one scale from the wing's width and the screen's height. */
+static SDL_Texture *pcWingTexture[2];
+static void pc_wing_draw(int which, SDL_Rect box, const struct pc_state *s, const char *gameDir, int oh) {
+  if (box.w < 64 || box.h < 64)
+    return;
+  struct pocket_backdrop look = pocket_backdrop_for(background);
+  if (look.cards) {
+    int pad = box.w / 40 > 3 ? box.w / 40 : 3;
+    box = (SDL_Rect){box.x + pad, box.y + pad, box.w - 2 * pad - 2, box.h - 2 * pad - 2};
+  }
+  // The GBA wings' text size: a canvas 120 to 240 pixels wide (a 256 pixel wing at 2x), never past the height's.
+  int scale = box.w / 120 < oh / 300 ? box.w / 120 : oh / 300;
+  if (scale < 1)
+    scale = 1;
+  int w = box.w / scale, h = box.h / scale;
+  if (w > CANVAS_MAX_W)
+    w = CANVAS_MAX_W;
+  if (h > PANEL_MAX_H)
+    h = PANEL_MAX_H;
+  if (!pcWingTexture[which]) {
+    pcWingTexture[which] =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, CANVAS_MAX_W, PANEL_MAX_H);
+    if (!pcWingTexture[which])
+      return;
+  }
+  struct pd_canvas c;
+  pd_canvas_init(&c, w, h, panelPixels);
+  struct pocket_wing_look wl;
+  pocket_wing_look_begin(background, &wl);
+  pd_fill(&c, 0, 0, w, h, panel_back());
+  pd_ui_now_ms = SDL_GetTicks();
+  pd_ui_reduce_motion = reduceMotion;
+  pd_ui_panel_moving = false;
+  if (which == 0)
+    pc_wing_left(&c, s, gameDir);
+  else
+    pc_wing_right(&c, s, gameDir);
+  pocket_wing_look_end(&wl);
+  SDL_UpdateTexture(pcWingTexture[which], &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
+  set_color(look.cards ? look.card : panel_back(), 255);
+  SDL_RenderFillRect(renderer, &box);
+  SDL_Rect dst = {box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale};
+  SDL_RenderCopy(renderer, pcWingTexture[which], &(SDL_Rect){0, 0, w, h}, &dst);
+}
+/* The bars above and below the picture (WING ROOM leaves them room): the place, the clock and the battery, the
+ * badges, play time and money on top; the dex, ZOOM and SPEED, and what's wild here below. */
+static SDL_Texture *pcBarTexture[2];
+static void pc_bar_draw(int which, SDL_Rect box, const struct pc_state *s, int scale, int zoom, int ff) {
+  if (box.w < 64 || box.h < 12 || !s->valid)
+    return;
+  if (box.h / 12 < scale) // a bar at least 12 canvas pixels tall
+    scale = box.h / 12 > 0 ? box.h / 12 : 1;
+  int w = box.w / scale, h = box.h / scale;
+  if (w > CANVAS_MAX_W)
+    w = CANVAS_MAX_W;
+  if (h > PANEL_MAX_H)
+    h = PANEL_MAX_H;
+  if (!pcBarTexture[which]) {
+    pcBarTexture[which] =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, CANVAS_MAX_W, PANEL_MAX_H);
+    if (!pcBarTexture[which])
+      return;
+  }
+  char a[96] = "", b[96] = "", c[160] = "";
+  if (which == 0) {
+    snprintf(a, sizeof a, "%s", s->map[0] ? s->map : s->scene);
+    time_t t = time(NULL);
+    struct tm *lt = localtime(&t);
+    int pct = -1;
+    SDL_PowerState ps = SDL_GetPowerInfo(NULL, &pct);
+    if (lt)
+      snprintf(b, sizeof b, "%02d:%02d", lt->tm_hour, lt->tm_min);
+    if (pct >= 0 && ps != SDL_POWERSTATE_NO_BATTERY && ps != SDL_POWERSTATE_UNKNOWN)
+      snprintf(b + strlen(b), sizeof b - strlen(b), "  %d%%%s", pct, ps == SDL_POWERSTATE_CHARGING ? "+" : "");
+    char tm[16];
+    pc_play_time(s->seconds, tm, sizeof tm);
+    if (s->money >= 0)
+      snprintf(c, sizeof c, "BADGES %d  TIME %s  $%ld", s->badges, tm, s->money);
+    else
+      snprintf(c, sizeof c, "BADGES %d  TIME %s", s->badges, tm);
+  } else {
+    if (s->seen || s->caught)
+      snprintf(a, sizeof a, "SEEN %d  CAUGHT %d", s->seen, s->caught);
+    static const int pct[] = {67, 80, 100, 133, 200}; // LT shows more of the map, RT less
+    snprintf(b, sizeof b, "ZOOM %d%%  SPEED %dx", pct[zoom + 2], ff);
+    if (s->battle)
+      snprintf(c, sizeof c, "IN BATTLE");
+    else if (!s->wildCount)
+      snprintf(c, sizeof c, "NO WILD ONES HERE");
+    else
+      for (int i = 0; i < s->wildCount; i++) {
+        size_t at = strlen(c), n = strlen(s->wild[i].species);
+        if (at + n + 8 >= sizeof c)
+          break;
+        memcpy(c + at, i ? ", " : "WILD ", i ? 2 : 5);
+        memcpy(c + at + (i ? 2 : 5), s->wild[i].species, n + 1);
+      }
+  }
+  struct pd_canvas pc;
+  pd_canvas_init(&pc, w, h, panelPixels);
+  struct pocket_wing_look wl;
+  pocket_wing_look_begin(background, &wl);
+  pd_fill(&pc, 0, 0, w, h, panel_back());
+  pd_ui_strip(&pc, a, b, c);
+  pocket_wing_look_end(&wl);
+  SDL_UpdateTexture(pcBarTexture[which], &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
+  SDL_Rect dst = {box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale};
+  SDL_RenderCopy(renderer, pcBarTexture[which], &(SDL_Rect){0, 0, w, h}, &dst);
+}
+/* The companion's asks of the game (pc_companion.rb reads them): fast forward, instant text, zoom, and the size its
+ * window has in PokeDaisy (put back at once when the game's zoom resizes it). */
+static int pcWindowW, pcWindowH;
+static void pc_commands(const char *path, int ff, bool instant, int zoom) {
+  char tmp[1310], text[160];
+  snprintf(tmp, sizeof tmp, "%s.tmp", path);
+  int n = snprintf(text, sizeof text, "ff=%d\ninstant_text=%d\nzoom=%d\nwindow=%dx%d\n", ff, instant ? 1 : 0, zoom,
+                   pcWindowW, pcWindowH);
+  FILE *f = fopen(tmp, "wb");
+  if (!f)
+    return;
+  fwrite(text, 1, (size_t)n, f);
+  if (fclose(f) == 0)
+    pocket_replace(tmp, path);
+}
+static char *pc_read_file(const char *path) {
+  FILE *f = fopen(path, "rb");
+  if (!f)
+    return NULL;
+  fseek(f, 0, SEEK_END);
+  long n = ftell(f);
+  rewind(f);
+  char *s = n > 0 && n < (1 << 20) ? malloc((size_t)n + 1) : NULL;
+  if (s)
+    s[fread(s, 1, (size_t)n, f)] = 0;
+  fclose(f);
+  return s;
+}
+static void pc_play(const char *path) {
+  struct pc_game_info info;
+  if (!pc_game_info(path, &info) || info.player == PC_PLAYER_NONE) {
+    appError = 1;
+    notice("No player PokeDaisy can start in that folder");
+    return;
+  }
+#ifndef _WIN32
+  notice("PC fan games play on Windows");
+  return;
+#endif
+  char cfg[1100];
+  snprintf(cfg, sizeof cfg, "%s/settings.ini", root);
+  struct pd_settings st;
+  pd_settings_load(&st, cfg);
+  oledBlack = st.colors == POCKET_COLORS_OLED;
+  reduceMotion = st.reduceMotion;
+  background = pocket_background_resolve(st.background, oledBlack, st.darkMode);
+  pd_look_apply(NULL, &st);
+  // The game's folder name as DATA/pc's folder for it.
+  char stem[200];
+  {
+    const char *a = strrchr(path, '/'), *b = strrchr(path, '\\');
+    const char *cut = a > b ? a : b;
+    snprintf(stem, sizeof stem, "%s", cut ? cut + 1 : path);
+  }
+  // Full screen (the desktop's mode) for the game's length, and back as it was after.
+  bool wasFull = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP;
+  SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
+  SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+  // POCKET_WINDOW (checks and screenshots): that size, borderless at the screen's corner, in place of full screen.
+  bool sized = getenv("POCKET_WINDOW") != NULL;
+  if (sized) {
+    SDL_SetWindowBordered(window, SDL_FALSE);
+    // At the screen's bottom left: clear of a taskbar along the top when it's smaller than the screen.
+    SDL_Rect db = {0, 0, 0, 0};
+    int sw = 0, sh = 0;
+    SDL_GetWindowSize(window, &sw, &sh);
+    SDL_GetDisplayBounds(SDL_GetWindowDisplayIndex(window), &db);
+    SDL_SetWindowPosition(window, db.x, db.y + (db.h > sh ? db.h - sh : 0));
+  } else if (!wasFull)
+    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+  for (int i = 0; i < 10; i++) { // the switch settles
+    SDL_PumpEvents();
+    SDL_Delay(20);
+  }
+  int ow = W, oh = H;
+  SDL_GetWindowSize(window, &ow, &oh);
+  int wx = 0, wy = 0;
+  SDL_GetWindowPosition(window, &wx, &wy);
+  int rw = ow, rh = oh;
+  if (SDL_GetRendererOutputSize(renderer, &rw, &rh) < 0)
+    rw = ow, rh = oh;
+  // The game's picture: WING ROOM's size for the game's own (512 x 384 until the companion says), centred; the
+  // wings either side, the bars above and below. PLAY ONLY games have the full height (nothing to show beside).
+  int room = info.companion ? st.wingRoom : 0, baseW = 512, baseH = 384;
+  // A game on its own player (its own scripts size its window): its window's picture drawn here, through SHADER and
+  // COLORS, zoomed with RT.
+  bool capture = info.player == PC_PLAYER_RGSS;
+  if (capture) {
+    pocket_shader_desaturate(st.filter == PD_FILTER_LCD_PAPER ? 15 : 0);
+    pocket_shader_set(st.shader, st.colors, false);
+    pocket_shader_brightness(st.brightness);
+  }
+  struct pc_layout lay;
+  pc_layout_for(ow, oh, baseW, baseH, room, &lay);
+  int gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
+  pcWindowW = gw, pcWindowH = gh;
+  char dir[1200], err[200] = "", jsonPath[1300], cmdPath[1300];
+  struct pc_launch_opts lo = {root,
+                              stem,
+                              gw,
+                              gh,
+                              (const char *)PC_COMPANION_RB,
+                              sizeof PC_COMPANION_RB,
+                              (const char *)PC_STANDINS_RB,
+                              sizeof PC_STANDINS_RB};
+  if (!pc_prepare(&info, &lo, dir, sizeof dir, err, sizeof err)) {
+    appError = 1;
+    notice(err);
+    if (!wasFull)
+      SDL_SetWindowFullscreen(window, 0);
+    return;
+  }
+  snprintf(jsonPath, sizeof jsonPath, "%s/companion.json", dir);
+  snprintf(cmdPath, sizeof cmdPath, "%s/commands.txt", dir);
+  pocket_remove(jsonPath);
+  // The game's own settings from last time (INSTANT TEXT, ZOOM): kept in its commands file. Fast forward starts off.
+  int ff = 1, zoom = 0;
+  bool instant = false;
+  {
+    char *last = pc_read_file(cmdPath);
+    for (char *line = last ? strtok(last, "\n") : NULL; line; line = strtok(NULL, "\n")) {
+      if (!strncmp(line, "instant_text=", 13))
+        instant = atoi(line + 13) != 0;
+      else if (!strncmp(line, "zoom=", 5))
+        zoom = atoi(line + 5);
+    }
+    free(last);
+  }
+  if (getenv("POCKET_PC_ZOOM")) // checks
+    zoom = atoi(getenv("POCKET_PC_ZOOM"));
+  if (getenv("POCKET_PC_INSTANT"))
+    instant = atoi(getenv("POCKET_PC_INSTANT")) != 0;
+  zoom = zoom < -2 ? -2 : zoom > 2 ? 2 : zoom;
+  if (capture && !getenv("POCKET_PC_ZOOM")) // the whole picture first (RT zooms in for this play only)
+    zoom = 0;
+  pc_commands(cmdPath, ff, instant, zoom);
+  if (!pc_start(&info, dir, jsonPath, cmdPath)) {
+    appError = 1;
+    notice("Couldn't start the game");
+    if (!wasFull)
+      SDL_SetWindowFullscreen(window, 0);
+    return;
+  }
+  fprintf(stderr, "PC game: %s (%s, %s) from %s\n", info.title, info.exe,
+          info.player == PC_PLAYER_MKXPZ ? "mkxp-z" : "RGSS", dir);
+  if (info.companion)
+    pc_wings_types(true);
+  static struct pc_state state;
+  memset(&state, 0, sizeof state);
+  long long jsonStamp = -1;
+  uint32_t start = SDL_GetTicks(), lastPlace = 0, chordSince = 0, closeAsked = 0;
+  bool placed = false, focused = false, closing = false, shotTaken = false;
+  const char *shot = getenv("POCKET_PC_SHOT");
+  const char *checkDir = getenv("POCKET_PC_CHECK_DIR");
+  const uint32_t *checkFrom = NULL;
+  int checkStride = 0, checkW = 0, checkH = 0;
+  int shotAfter = getenv("POCKET_PC_SHOT_AFTER") ? atoi(getenv("POCKET_PC_SHOT_AFTER")) : 20000;
+  int stopAfter = getenv("POCKET_PC_SECONDS") ? atoi(getenv("POCKET_PC_SECONDS")) * 1000 : 0;
+  void *self = native_window();
+  int restarts = 0;
+  held = pressed = 0;
+  while (running && pc_running()) {
+    events();
+    uint32_t now = SDL_GetTicks();
+    // GAME MENU: the pad's Guide button (it reaches PokeDaisy while the game has the screen), or SELECT + START
+    // held a second.
+    bool chord = (held & (1u << SELECT)) && (held & (1u << START));
+    if (!chord)
+      chordSince = 0;
+    else if (!chordSince)
+      chordSince = now;
+    bool menu = (pressed & (1u << MENU)) || (chordSince && now - chordSince > 1000);
+    // HOTKEYS the PC games share with the others: L3 fast forward, LT / RT zoom.
+    if (info.companion && (pressed & (1u << L3))) {
+      ff = ff > 1 ? 1 : 4;
+      pc_commands(cmdPath, ff, instant, zoom);
+    }
+    if ((info.companion || capture) && (pressed & ((1u << L2) | (1u << R2)))) {
+      zoom += (pressed & (1u << L2)) ? -1 : 1;
+      zoom = zoom < (capture ? 0 : -2) ? (capture ? 0 : -2) : zoom > 2 ? 2 : zoom;
+      pc_commands(cmdPath, ff, instant, zoom);
+      if (capture)
+        notice(zoom ? (zoom > 1 ? "ZOOM 200%" : "ZOOM 133%") : "ZOOM 100%");
+    }
+    if (menu && !closing) {
+      chordSince = 0;
+      pc_show(false);
+      pc_focus_self();
+      static const char *const rows[] = {"BACK TO THE GAME", "CLOSE GAME", "FAST FORWARD", "INSTANT TEXT"};
+      int pick = menu_pick(info.title, rows, info.companion ? 4 : 2, 0);
+      if (pick == 2) {
+        ff = ff > 1 ? 1 : 4;
+        pc_commands(cmdPath, ff, instant, zoom);
+      } else if (pick == 3) {
+        instant = !instant;
+        pc_commands(cmdPath, ff, instant, zoom);
+      } else if (pick == 1) {
+        closing = true;
+        closeAsked = now;
+        pc_close(false);
+      }
+      pc_show(true);
+      focused = false;
+      held = pressed = 0;
+      continue;
+    }
+    if (stopAfter && !closing && now - start > (uint32_t)stopAfter) {
+      closing = true;
+      closeAsked = now;
+      pc_close(false);
+    }
+    if (closing && now - closeAsked > 8000) {
+      int pick = 1;
+      if (!stopAfter) {
+        pc_show(false);
+        pc_focus_self();
+        static const char *const ask[] = {"WAIT", "END IT (UNSAVED PLAY IS LOST)"};
+        pick = menu_pick("The game hasn't closed", ask, 2, 0);
+        pc_show(true);
+      }
+      if (pick == 1)
+        pc_close(true);
+      closeAsked = SDL_GetTicks();
+    }
+    // A game on its own player that stops with a script error as it starts (Phoenix Rising's, now and then: its
+    // window script, after its online update check): started again, twice at most, before anything is played.
+    if (now - lastPlace > 250 && capture && now - start < 30000 && restarts < 2 && pc_error_box()) {
+      restarts++;
+      fprintf(stderr, "PC game: an error box as it started, starting it again\n");
+      pc_close(true);
+      for (int i = 0; i < 100 && pc_running(); i++)
+        SDL_Delay(20);
+      if (!pc_start(&info, dir, jsonPath, cmdPath))
+        break;
+      start = now;
+      placed = focused = false;
+    }
+    // The game's window kept where it belongs (the game resizes it when it starts, Alt+Enter, ...).
+    if (now - lastPlace > (capture ? 250u : 30u)) {
+      lastPlace = now;
+      placed = capture ? pc_capture_place(self, placed && !focused)
+                       : pc_place(self, wx + gx, wy + gy, gw, gh, placed && !focused);
+      if (placed && !focused)
+        focused = true;
+    }
+    // The companion's news.
+    struct stat sb;
+    if (info.companion && !stat(jsonPath, &sb) && (long long)sb.st_mtime * 1000000 + sb.st_size != jsonStamp) {
+      char *text = pc_read_file(jsonPath);
+      static struct pc_state next;
+      if (text && pc_state_parse(text, &next)) {
+        state = next;
+        // A game drawing at another shape than 4:3: the picture follows it.
+        if (state.screenW > 0 && state.screenH > 0 && state.screenW * baseH != state.screenH * baseW) {
+          baseW = state.screenW;
+          baseH = state.screenH;
+          pc_layout_for(ow, oh, baseW, baseH, room, &lay);
+          gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
+          lastPlace = 0;
+          pcWindowW = gw, pcWindowH = gh;
+          pc_commands(cmdPath, ff, instant, zoom);
+        }
+        jsonStamp = (long long)sb.st_mtime * 1000000 + sb.st_size;
+      } else if (getenv("POCKET_PC_DEBUG"))
+        fprintf(stderr, "PC game: companion unreadable: %.300s\n", text ? text : "(none)");
+      if (getenv("POCKET_PC_DEBUG") && state.valid)
+        fprintf(stderr, "PC game: party %d map %s battle %d\n", state.partyCount, state.map, state.battle);
+      free(text);
+    }
+    set_color(0, 255);
+    SDL_RenderClear(renderer);
+    if (capture && placed) {
+      int cw = 0, ch = 0;
+      const uint32_t *px = pc_capture(&cw, &ch);
+      if (px) {
+        // The picture's shape sets the box (WING ROOM's full height: nothing beside a PLAY ONLY game).
+        if (cw != baseW || ch != baseH) {
+          fprintf(stderr, "PC game: the game's picture is %dx%d\n", cw, ch);
+          baseW = cw;
+          baseH = ch;
+          pc_layout_for(ow, oh, baseW, baseH, room, &lay);
+          gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
+        }
+        // RT zoom: the middle of the picture, 3/4 or 1/2 of it.
+        int sw = zoom == 2 ? cw / 2 : zoom == 1 ? cw * 3 / 4 : cw, sh = zoom == 2 ? ch / 2 : zoom == 1 ? ch * 3 / 4 : ch;
+        const uint32_t *from = px + (size_t)((ch - sh) / 2) * cw + (cw - sw) / 2;
+        float k = ow ? (float)rw / ow : 1;
+        SDL_Rect dst = {(int)(gx * k), (int)(gy * k), (int)(gw * k), (int)(gh * k)};
+        pocket_shader_draw(renderer, from, cw, sw, sh, true, &dst);
+        checkFrom = from, checkStride = cw, checkW = sw, checkH = sh;
+      }
+    }
+    if (info.companion) {
+      // Drawing pixels may differ from window points (a high-DPI screen): the wings go by drawing pixels.
+      float kx = ow ? (float)rw / ow : 1;
+      pc_wing_draw(0, (SDL_Rect){0, 0, (int)(gx * kx), rh}, &state, info.dir, rh);
+      pc_wing_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, &state, info.dir, rh);
+      int bs = (int)(gx * kx) / 120 < rh / 300 ? (int)(gx * kx) / 120 : rh / 300;
+      if (lay.bar > 0) {
+        pc_bar_draw(0, (SDL_Rect){(int)(gx * kx), 0, (int)(gw * kx), (int)(gy * kx)}, &state, bs > 0 ? bs : 1, zoom, ff);
+        pc_bar_draw(1, (SDL_Rect){(int)(gx * kx), (int)((gy + gh) * kx), (int)(gw * kx), rh - (int)((gy + gh) * kx)},
+                    &state, bs > 0 ? bs : 1, zoom, ff);
+      }
+    }
+    SDL_RenderPresent(renderer);
+    if (shot && !shotTaken && now - start > (uint32_t)shotAfter) {
+      pc_screen_shot(shot, wx, wy, ow, oh);
+      shotTaken = true;
+      fprintf(stderr, "PC game: screenshot %s\n", shot);
+    }
+    if (checkDir)
+      pc_check_request(checkDir, capture, wx, wy, ow, oh, gx, gy, gw, gh, lay.bar > 0, checkFrom, checkStride, checkW,
+                       checkH);
+    SDL_Delay(capture ? 8 : 30);
+  }
+  pc_capture_free();
+  if (pc_running()) // PokeDaisy is closing: the game is asked to close too
+    pc_close(false);
+  fprintf(stderr, "PC game: ended (%d)\n", pc_exit_code());
+  pc_wings_types(false);
+  pc_wings_free();
+  for (int i = 0; i < 2; i++) {
+    if (pcBarTexture[i])
+      SDL_DestroyTexture(pcBarTexture[i]);
+    pcBarTexture[i] = NULL;
+  }
+  pd_look_apply(NULL, &st);
+  if (sized)
+    SDL_SetWindowBordered(window, SDL_TRUE);
+  else if (!wasFull)
+    SDL_SetWindowFullscreen(window, 0);
+  SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "0");
+  pc_focus_self();
+  held = pressed = 0;
+}
 static void run_game(const char *path, int maxFrames, const char *shot) {
   {
     const char *file = path + strlen(path);
@@ -3469,6 +4017,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       *dot = 0;
   }
   hostActions = 0;
+  if (pc_game_path(path)) {
+    pc_play(path);
+    return;
+  }
 #ifdef POCKET_DS
   const char *ext = strrchr(path, '.');
   if (ext && !strcasecmp(ext, ".nds")) {
@@ -6644,7 +7196,8 @@ static void library_load(struct library *l) {
     const char *label = l->games.labels[i];
     grid_stem(label, l->art[i].stem, sizeof l->art[i].stem);
     snprintf(l->art[i].title, sizeof l->art[i].title, "%s", l->games.names[i]);
-    l->art[i].system = grid_system(label);
+    bool pc = pc_game_path(l->games.paths[i]);
+    l->art[i].system = pc ? BOXART_PC : grid_system(label);
     // The ROM's folder: BOX ART LOCATION's BESIDE GAMES keeps its art in a "boxart" folder there.
     snprintf(l->art[i].dir, sizeof l->art[i].dir, "%s", l->games.paths[i]);
     char *cut = strrchr(l->art[i].dir, '/'), *back = strrchr(l->art[i].dir, '\\');
@@ -6659,9 +7212,35 @@ static void library_load(struct library *l) {
       count = i;
       break;
     }
-    l->art[i].hack = !game_is_original(label);
-    boxart_base_of_rom(l->games.paths[i], l->art[i].base, sizeof l->art[i].base, &l->art[i].baseSystem);
-    game_version(label, l->versions[i], sizeof l->versions[i]);
+    l->art[i].hack = !pc && !game_is_original(label);
+    l->art[i].pcArt[0] = 0;
+    if (pc) {
+      // A PC fan game: no cart to name a base game; its own title picture is the art's last resort.
+      struct pc_game_info info;
+      l->art[i].base[0] = 0;
+      if (pc_game_info(l->games.paths[i], &info))
+        snprintf(l->versions[i], sizeof l->versions[i], "%s", info.version);
+      // Else a version in its folder's name or its own title ("Reborn 19.5"), read as a ROM's file name is.
+      // (A folder has no file type for it to drop, so one is added: "19.5" stays whole.)
+      char named[300];
+      snprintf(named, sizeof named, "%.200s.dir", label);
+      if (!l->versions[i][0])
+        game_version(named, l->versions[i], sizeof l->versions[i]);
+      snprintf(named, sizeof named, "%.200s.dir", info.title);
+      if (!l->versions[i][0] && info.title[0])
+        game_version(named, l->versions[i], sizeof l->versions[i]);
+      static const char *const titles[] = {"Graphics/Titles/title.png", "Graphics/Titles/start.png",
+                                           "Graphics/Titles/splash.png"};
+      for (size_t t = 0; t < sizeof titles / sizeof titles[0] && !l->art[i].pcArt[0]; t++) {
+        char p[1400];
+        snprintf(p, sizeof p, "%s/%s", l->games.paths[i], titles[t]);
+        if (strlen(p) < sizeof l->art[i].pcArt && pocket_exists(p))
+          memcpy(l->art[i].pcArt, p, strlen(p) + 1);
+      }
+    } else {
+      boxart_base_of_rom(l->games.paths[i], l->art[i].base, sizeof l->art[i].base, &l->art[i].baseSystem);
+      game_version(label, l->versions[i], sizeof l->versions[i]);
+    }
     l->items[i] = (struct game_grid_item){l->games.names[i], l->versions[i], l->art[i].system, l->art[i].hack,
                                           boxart_is_base(l->stems[i]), GAME_SUPPORT_UNKNOWN, NULL, 0};
   }
@@ -9063,7 +9642,8 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   OPT(OPT_RENAME, "RENAME");
   if (hasName)
     OPT(OPT_RESET, "USE THE FILE'S NAME");
-  OPT(OPT_EDIT, "EDIT SAVE");
+  if (!pc_game_path(l->games.paths[g])) // a PC game's save is the game's own business
+    OPT(OPT_EDIT, "EDIT SAVE");
   if (trade_is_gba(l->games.paths[g])) {
     OPT(OPT_TRADE, "TRADE SAVES");
     OPT(OPT_LINK, "LINK PLAY");

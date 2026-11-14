@@ -24,8 +24,8 @@ static struct palette colors(void) {
   return (struct palette){0xE9ECF1, 0xFFFFFF, 0xD3D8E0, 0xFFFFFF, 0xD3D8E0, 0xFFFFFF, 0xDDE1E8, 0x1E2229, 0x6B7280};
 }
 
-static const char *const SYSTEM_NAMES[] = {"GBA", "GBC", "GB", "NDS"};
-static const uint32_t SYSTEM_COLORS[] = {0x5A6FD8, 0x8E5BD0, 0x6E9B3A, 0xC2415E};
+static const char *const SYSTEM_NAMES[] = {"GBA", "GBC", "GB", "NDS", "PC"};
+static const uint32_t SYSTEM_COLORS[] = {0x5A6FD8, 0x8E5BD0, 0x6E9B3A, 0xC2415E, 0x2F7FB8};
 
 void game_grid_init(struct game_grid *g, const struct game_grid_item *items, int count) {
   memset(g, 0, sizeof *g);
@@ -155,7 +155,7 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   pd_round_rect(c, x + 1, y + 1, g->tileW - 2, g->tileH - 2, 5, on ? p->tileOn : p->tile);
   // The art's well: the system's colour, darkened, with its name, until a picture covers it.
   int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = g->tileW - 8;
-  int sys = it->system >= 0 && it->system <= BOXART_NDS ? it->system : 0;
+  int sys = it->system >= 0 && it->system <= BOXART_PC ? it->system : 0;
   uint32_t sc = SYSTEM_COLORS[sys];
   uint32_t well = pd_dark ? ((sc >> 2) & 0x3F3F3F) + 0x0A0A0A : (sc & 0xFEFEFE) / 2 + 0x7F7F7F;
   pd_round_rect(c, ax, ay, aw, ah, 4, well);
@@ -198,8 +198,9 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   }
   int tx = x + 4;
   tx += tag(c, tx, ty, sn, sc) + 3;
-  const char *kind = it->hack ? "ROMHACK" : "ORIGINAL"; // one word each, the same length, never shortened
-  uint32_t kindColor = it->hack ? 0xD9822B : 0x2E9E6A;
+  // One word each, the same length, never shortened; a PC game is a fan game.
+  const char *kind = sys == BOXART_PC ? "FAN GAME" : it->hack ? "ROMHACK" : "ORIGINAL";
+  uint32_t kindColor = sys == BOXART_PC ? 0x7A55B8 : it->hack ? 0xD9822B : 0x2E9E6A;
   bool kindLater = tx + pd_text_width(kind) + 6 > x + g->tileW - 4; // too narrow: it leads the next line instead
   if (!kindLater)
     tag(c, tx, ty, kind, kindColor);

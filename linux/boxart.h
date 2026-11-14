@@ -15,7 +15,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-enum boxart_system { BOXART_GBA, BOXART_GBC, BOXART_GB, BOXART_NDS };
+enum boxart_system { BOXART_GBA, BOXART_GBC, BOXART_GB, BOXART_NDS, BOXART_PC };
 
 struct boxart_game {
   char stem[256];  // the ROM's file name without its extension: the art's name too
@@ -25,6 +25,7 @@ struct boxart_game {
   int baseSystem;
   bool hack;       // a ROM hack: the base game's box is the last resort, with a banner
   char dir[1024];  // the ROM's folder: BESIDE GAMES keeps its art in dir/boxart
+  char pcArt[1024]; // a PC fan game's own title picture: its box art when no search finds one ("" none)
 };
 
 /* BOX ART LOCATION (DATA/boxart-location.txt). */

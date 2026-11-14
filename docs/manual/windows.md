@@ -155,6 +155,10 @@ folders inside it are always listed too, and folders whose name starts with a
 dot are skipped. The list is kept in `DATA\roms-folders.txt`, one folder a
 line, if you'd rather write it yourself.
 
+PC fan games made with RPG Maker are found in the same folders, up to three
+folders down (so `D:\Emulation\roms` finds `D:\Emulation\roms\rpg\<game>`).
+[PC fan games](pc-fan-games.md) says how they play.
+
 ## Updates
 
 Each time it starts, PokeDaisy looks for a newer release in the background, so
