@@ -11,6 +11,8 @@
 #include "ds_layout.h"
 #include "touch_pieces.h"
 #include "companion_ui.h"
+#include "guide_view.h"
+#include "map_view.h"
 #include "retro_pad.h"
 #include "../shader.h"
 #include "../backdrop.h"
@@ -295,7 +297,129 @@ void gutter_screen(SDL_Renderer* r,const DsBox& box,int background){
   SDL_Rect sides[4]={{box.x-t,box.y-t,box.w+2*t,t},{box.x-t,box.y+box.h,box.w+2*t,t},{box.x-t,box.y,t,box.h},{box.x+box.w,box.y,t,box.h}};
   SDL_RenderFillRects(r,sides,4);
 }
-void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,DsBox box,int which,const DsCompanion& s,bool supported,bool facts,const std::vector<std::vector<uint32_t>>& art,bool dim,int oh,int background,uint32_t idleMs){
+// The right wing, as the GBA LAYOUT's default (pd_wing_default): the map round the player and the place, the next
+// boss's team, this area's wild kinds, a tip for here, then the trainer's facts, as far as each fits; COMPANION,
+// SAVE STATE and CLOSE GAME at the foot. The guide's rows are worked out twice a second at most.
+enum { WING_COMPANION, WING_SAVE, WING_CLOSE, WING_BUTTONS };
+constexpr const char* wingButtonNames[WING_BUTTONS]={"COMPANION","SAVE STATE","CLOSE GAME"};
+SDL_Rect wingButtons[WING_BUTTONS];  // where each was last drawn, in output pixels (w 0: not shown)
+pd_ui_rect wingCanvasButtons[WING_BUTTONS];
+constexpr int WING_LINE=16,WING_BUTTON_H=20;
+struct WingGuide {int map=-1;uint32_t at=0;std::vector<GuideRow> boss,here;};
+int wing_heading(pd_canvas* c,int x,int y,int w,const char* label){
+  pd_heading_fit(c,x,y,w,label,PD_VALUE,PD_VALUE_SHADOW);return WING_LINE+2;
+}
+void wing_icon(pd_canvas* c,const std::vector<std::vector<uint32_t>>& art,int species,int x,int y,bool seen){
+  if(species<=0 || size_t(species)>=art.size() || art[species].size()!=1024)return;
+  for(int yy=0;yy<32;yy++)for(int xx=0;xx<32;xx++){
+    uint32_t p=art[species][yy*32+xx];if(!(p>>24))continue;
+    pd_fill(c,x+xx,y+yy,1,1,seen?p&0xffffff:0x404858);  // one not seen yet: its shape only
+  }
+}
+void ds_right_wing(pd_canvas* c,const DsCompanion& s,const DsMapArt* map,const std::vector<std::vector<uint32_t>>& art,
+                   bool soulSilver,pd_ui_rect* buttons){
+  const int f=pd_title_box(c,0,0,c->w,c->h,PD_TITLE_FILL);
+  const int x=f+4,w=c->w-2*(f+4),bottom=c->h-f-3;
+  // The buttons first: they're always there.
+  const int buttonTop=bottom-WING_BUTTONS*WING_BUTTON_H-(WING_BUTTONS-1)*3;
+  for(int i=0;i<WING_BUTTONS;i++){
+    pd_ui_rect r{x,buttonTop+i*(WING_BUTTON_H+3),w,WING_BUTTON_H};
+    pd_title_box(c,r.x,r.y,r.w,r.h,i==WING_COMPANION?0x3a5a9a:PD_TITLE_FILL);
+    const int tw=pd_text_width(wingButtonNames[i]);
+    if(tw<=r.w-6)pd_text(c,r.x+(r.w-tw)/2,pd_text_y(r.y,r.h),wingButtonNames[i],PD_TITLE_TEXT,PD_TITLE_SHADOW);
+    else pd_text_fit(c,r.x+3,pd_text_y(r.y,r.h),r.w-6,wingButtonNames[i],PD_TITLE_TEXT,PD_TITLE_SHADOW);
+    buttons[i]=r;
+  }
+  const int limit=buttonTop-6;
+  int y=f+3;
+  if(!s.valid){wing_heading(c,x,y,w,"WAITING");pd_text_wrap(c,x,y+WING_LINE+2,w,WING_LINE,3,"For the game's save",PD_LABEL,PD_LABEL_SHADOW);return;}
+  static WingGuide guide;
+  if(guide.map!=s.map || SDL_GetTicks()-guide.at>500){
+    guide.map=s.map;guide.at=SDL_GetTicks();
+    guide.boss=ds_guide_rows(s,GuidePage::NextBoss,soulSilver);guide.here=ds_guide_rows(s,GuidePage::Here,soulSilver);
+  }
+  // MAP: the region round the player, the place under it.
+  const char* place=ds_place(s.map,s.game);
+  const auto player=ds_map_position(s);
+  const int mapH=std::min(w*3/4,96);
+  if(map && !map->background.empty() && player.x>=0 && y+mapH+WING_LINE<=limit){
+    pd_fill(c,x-1,y-1,w+2,mapH+2,0x101418);
+    ds_draw_minimap(c,s,*map,x,y,w,mapH);
+    y+=mapH+3;
+  }
+  if(place && *place && y+WING_LINE<=limit){pd_text_fit(c,x,y,w,place,PD_LABEL,PD_LABEL_SHADOW);y+=WING_LINE+4;}
+  // NEXT BOSS: who and where, then the team's levels and kinds.
+  {
+    size_t first=0;while(first<guide.boss.size() && !guide.boss[first].heading)first++;
+    if(first<guide.boss.size() && y+3*WING_LINE<=limit){
+      y+=wing_heading(c,x,y,w,"NEXT BOSS");
+      std::string who=guide.boss[first].title;if(who.rfind("NEXT: ",0)==0)who.erase(0,6);
+      pd_text_fit(c,x,y,w,who.c_str(),PD_LABEL,PD_LABEL_SHADOW);y+=WING_LINE;
+      for(size_t i=first+1;i<guide.boss.size() && !guide.boss[i].heading && y+WING_LINE<=limit;i++){
+        const auto& mon=guide.boss[i];
+        std::string name=mon.answer.substr(0,mon.answer.find(':'));
+        std::string line=mon.detail+" "+name;
+        pd_text_fit(c,x+4,y,w-4,line.c_str(),PD_MUTED,PD_MUTED_SHADOW);y+=WING_LINE;
+      }
+      y+=4;
+    }
+  }
+  // HERE: this area's wild kinds (a shape until seen, a green dot once caught).
+  {
+    const auto here=ds_guide_here(s,soulSilver);
+    std::vector<int> kinds;
+    for(int i=0;i<here.count;i++){int sp=here.entries[i].species;if(std::find(kinds.begin(),kinds.end(),sp)==kinds.end())kinds.push_back(sp);}
+    if(!kinds.empty() && !art.empty() && y+WING_LINE+2+32<=limit){
+      y+=wing_heading(c,x,y,w,"HERE");
+      const int perRow=std::max(1,(w+4)/30);
+      int rows=std::min<int>((int(kinds.size())+perRow-1)/perRow,std::max(1,(limit-y)/32));
+      for(int i=0;i<int(kinds.size()) && i/perRow<rows;i++){
+        const int sp=kinds[i];const int ix=x+(i%perRow)*30-1,iy=y+(i/perRow)*32;
+        const bool seen=s.dexValid && size_t(sp)<s.dexSeen.size() && s.dexSeen[sp];
+        const bool caught=size_t(sp)<s.dexCaught.size() && s.dexCaught[sp];
+        wing_icon(c,art,sp,ix,iy,seen);
+        if(caught)pd_fill(c,ix+26,iy+26,4,4,0x58c858);
+      }
+      y+=rows*32+4;
+    }
+  }
+  // TIP: the first thing the guide says to do here.
+  for(size_t i=0;i+1<guide.here.size();i++)if(guide.here[i].heading && guide.here[i].title=="TO DO"){
+    const auto& tip=guide.here[i+1];
+    if(tip.heading || y+3*WING_LINE>limit)break;
+    y+=wing_heading(c,x,y,w,"TIP");
+    std::string text=tip.title;if(!tip.detail.empty() && tip.detail!="TO DO")text+=": "+tip.detail;
+    int lines=std::min(4,(limit-y)/WING_LINE);
+    y+=pd_text_wrap(c,x,y,w,WING_LINE,lines,text.c_str(),PD_LABEL,PD_LABEL_SHADOW)*WING_LINE+4;
+    break;
+  }
+  // The trainer's facts, a line each, as far as they fit.
+  std::vector<std::pair<std::string,std::string>> facts;
+  facts.push_back({"MONEY","$"+std::to_string(s.money)});
+  {int n=0;for(int b=s.badges;b;b&=b-1)n++;facts.push_back({"BADGES",std::to_string(n)});}
+  if(s.dexValid)facts.push_back({"DEX",std::to_string(s.caughtCount)+"/"+std::to_string(s.seenCount)});
+  std::time_t now=std::time(nullptr);
+  if(const std::tm* local=std::localtime(&now))
+    if(const char* period=ds_day_period(s.game,local->tm_hour))facts.push_back({"TIME",period});
+  if(s.repelSteps>0)facts.push_back({"REPEL",std::to_string(s.repelSteps)+" STEPS"});
+  if(s.hasPots)
+    for(int i=0;i<4;++i){
+      const DsBerryPot& pot=s.pots[i];
+      std::string name=pot.item?ds_item(pot.item,s.game):"";
+      if(name.size()>6&&name.compare(name.size()-6,6," Berry")==0)name.resize(name.size()-6);
+      facts.push_back({"POT "+std::to_string(i+1),pot.item?name+": "+ds_berry_pot_text(pot):std::string("EMPTY")});
+    }
+  for(auto& fact:facts){
+    if(y+WING_LINE>limit)break;
+    pd_text(c,x,y,fact.first.c_str(),PD_MUTED,PD_MUTED_SHADOW);
+    const int lw=pd_text_width(fact.first.c_str())+6;
+    const int vw=std::min(w-lw,pd_text_width(fact.second.c_str()));
+    pd_text_fit(c,x+w-vw,y,w-lw,fact.second.c_str(),PD_LABEL,PD_LABEL_SHADOW);
+    y+=WING_LINE;
+  }
+}
+void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,DsBox box,int which,const DsCompanion& s,bool supported,bool facts,const std::vector<std::vector<uint32_t>>& art,bool dim,int oh,int background,uint32_t idleMs,
+                     const DsMapArt* map=nullptr,bool soulSilver=false){
   if(!box.shown() || box.w<64 || box.h<64)return;
   // BLACK / DARK: the wing is a card inset in its room, on the background, its content moved a step now and then.
   pocket_backdrop look=pocket_backdrop_for(background);int dx=0,dy=0;
@@ -311,6 +435,8 @@ void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,Ds
     pd_ui_party_panel_icons(&c,nullptr,&hs,[](pd_canvas* c,void* data,int slot,int x,int y,bool fainted){
       auto& ctx=*static_cast<Ctx*>(data);return ds_party_icon(c,ctx.s->party[slot],*ctx.art,x,y,fainted);
     },&ctx);
+  }else if(facts){
+    ds_right_wing(&c,s,map,art,soulSilver,wingCanvasButtons);
   }else{
     std::vector<std::string> rows;
     if(!facts)rows.push_back("COMPANION\tPLATINUM ONLY");
@@ -344,6 +470,9 @@ void draw_wing_panel(SDL_Renderer* r,SDL_Texture* t,std::vector<uint32_t>& px,Ds
   uint8_t v=pocket_wing_shade(background,dim,idleMs);SDL_SetTextureColorMod(t,v,v,v);
   SDL_Rect dst{box.x+dx+(box.w-w*scale)/2,box.y+dy+(box.h-h*scale)/2,w*scale,h*scale};SDL_RenderCopy(r,t,&src,&dst);
   SDL_SetTextureColorMod(t,255,255,255);
+  if(which==1 && facts)
+    for(int i=0;i<WING_BUTTONS;i++){const pd_ui_rect& b=wingCanvasButtons[i];
+      wingButtons[i]={dst.x+b.x*scale,dst.y+b.y*scale,b.w*scale,b.h*scale};}
 }
 // The host's controller bookkeeping (main.c): a pad switched on or off mid-game is opened / closed there,
 // so its buttons reach this loop and the GBA host still has it afterwards.
@@ -428,7 +557,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   const auto& shellIcons=other?otherIcons:partyArt;
   auto shell=std::make_unique<DsCompanionUi>();
   shell->init(root);
-  shell->set_game(shellGame,johto && !std::memcmp(bytes.data()+12,"IPG",3));
+  const bool soulSilverCart=johto && !std::memcmp(bytes.data()+12,"IPG",3);
+  shell->set_game(shellGame,soulSilverCart);
   if(shellGame!=DsGame::Unsupported)shell->dexArt=ds_dex_art(bytes,shellGame);
   DsCompanion shellSnap,lastGood;bool shellOpen=false;
   auto nds=ds_core_create();active=nds.get();
@@ -488,6 +618,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   std::vector<uint32_t> wingPixels(size_t(WING_W)*WING_H);
   Texture pieceTex{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,256,192)};
   Texture pieceLabel{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,128,32)};
+  Texture cardLabel{SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGB888,SDL_TEXTUREACCESS_STREAMING,192,24)};
   if(pieceTex.p)SDL_SetTextureBlendMode(pieceTex.p,SDL_BLENDMODE_BLEND);
   const DsPieceGame* pieceGame=ds_pieces_game(code);
   DsPieceLayout pieceLay;int pointerPiece=-1;  // TOUCH PIECES as last drawn; the piece a press began on
@@ -536,6 +667,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // The mouse's left button and a finger on a touch display press the DS touch screen where it's drawn.
   bool pointerDown=false;const char* driver=SDL_GetCurrentVideoDriver();const bool headless=driver && !std::strcmp(driver,"dummy");int pointerX=0,pointerY=0;SDL_FingerID pointerFinger=-1;
   DsPlacement touchPlace;  // where the touch screen was last drawn, in output pixels (none = not shown)
+  // The wings as last drawn: a tap on one opens the companion, as in a GBA game; the right wing's buttons do their own.
+  DsBox wingBoxes[2]{};int wingAction=-1;
   // DS LAYOUT: ONE SCREEN floats the touch screen in when the game wants it (PK_NDS_FIELD_TOUCH, held a few frames
   // so a flicker doesn't flash it). A game without touch rules can't say so, so its ONE SCREEN is PICTURE IN PICTURE.
   int touchOn=0,touchOff=0;bool touchWanted=false;
@@ -549,6 +682,13 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(pointerPiece<0){if(start)pointerDown=false;return;}
     }else if(!ds_touch_at(touchPlace,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return;}
     pointerX=x;pointerY=y;if(start)pointerDown=true;
+  };
+  // A press on a wing that the touch screen didn't take: the right wing's buttons, else the companion.
+  auto wingTap=[&](float px,float py){
+    if(showCompanion || showQuick || paused)return;
+    const SDL_Point at{int(px),int(py)};
+    for(int i=0;i<WING_BUTTONS;i++)if(wingButtons[i].w>0 && SDL_PointInRect(&at,&wingButtons[i])){wingAction=i;return;}
+    for(const DsBox& b:wingBoxes)if(b.shown() && at.x>=b.x && at.y>=b.y && at.x<b.x+b.w && at.y<b.y+b.h){wingAction=WING_COMPANION;return;}
   };
   // Mouse events are in window coordinates; the picture is laid out in the renderer's output pixels.
   auto toOutput=[&](int wx,int wy,float& px,float& py){
@@ -589,14 +729,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         if(e.type==SDL_JOYAXISMOTION && (e.jaxis.axis==2 || e.jaxis.axis==5)){k=e.jaxis.axis==2?12:13;down=e.jaxis.value>16000;}
       }
       key(k,down);
-      if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID){float px,py;toOutput(e.button.x,e.button.y,px,py);pointerAt(px,py,true);}
+      if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID){float px,py;toOutput(e.button.x,e.button.y,px,py);pointerAt(px,py,true);if(!pointerDown)wingTap(px,py);}
       if(e.type==SDL_MOUSEMOTION && pointerDown && pointerFinger<0 && (e.motion.state&SDL_BUTTON_LMASK) && e.motion.which!=SDL_TOUCH_MOUSEID){float px,py;toOutput(e.motion.x,e.motion.y,px,py);pointerAt(px,py,false);}
       if(e.type==SDL_MOUSEBUTTONUP && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID && pointerFinger<0)pointerDown=false;
       auto fingerAt=[&](float nx,float ny,float& px,float& py){
         if(pd_ds_point){pd_ds_point(nx,ny,&px,&py);return;}
         int ow=1,oh=1;SDL_GetRendererOutputSize(renderer,&ow,&oh);px=nx*ow;py=ny*oh;
       };
-      if(e.type==SDL_FINGERDOWN && !pointerDown){float px,py;fingerAt(e.tfinger.x,e.tfinger.y,px,py);pointerAt(px,py,true);if(pointerDown)pointerFinger=e.tfinger.fingerId;}
+      if(e.type==SDL_FINGERDOWN && !pointerDown){float px,py;fingerAt(e.tfinger.x,e.tfinger.y,px,py);pointerAt(px,py,true);if(pointerDown)pointerFinger=e.tfinger.fingerId;else wingTap(px,py);}
       if(e.type==SDL_FINGERMOTION && pointerDown && e.tfinger.fingerId==pointerFinger){float px,py;fingerAt(e.tfinger.x,e.tfinger.y,px,py);pointerAt(px,py,false);}
       if(e.type==SDL_FINGERUP && e.tfinger.fingerId==pointerFinger){pointerDown=false;pointerFinger=-1;}
       if(!pointerDown)pointerFinger=-1;
@@ -628,6 +768,12 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       }
       if(act&(1u<<10))pressed|=1u<<13;                                // SWAP SCREENS: R2's own
       if(act&((1u<<4)|(1u<<5))){paused=true;pressed=(act&(1u<<4))?1u:1u<<10;}  // SAVE / LOAD STATE, as the quick menu's
+    }
+    if(wingAction>=0){
+      if(wingAction==WING_COMPANION){showCompanion=true;showQuick=false;}
+      else if(wingAction==WING_SAVE){paused=true;pressed=1;}                    // as the quick menu's SAVE STATE
+      else {showQuick=true;quickSelected=3;}                                       // CLOSE GAME: LEAVE GAME, A to go
+      wingAction=-1;blocked|=keys&4095u;nds->setButtons(0);nds->setTouch(0,0,false);
     }
     blocked &= keys;
     // SELECT + R2 / L2 step DS LAYOUT forward / back (the app's R2 hotkey); SELECT is then kept from the game.
@@ -710,7 +856,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(showQuick || showCompanion || done)pressed=0;
     }
     if(paused){if(pressed&(1u<<1))paused=false;if(pressed&(1u<<3))done=true;
-      if(pressed&1){std::vector<uint8_t> w;if(!nds->saveState(w,err) || !atomic_file(state,w.data(),w.size())){std::fprintf(stderr,"DS state save failed: %s\n",err.c_str());failed=true;done=true;}paused=false;}
+      if(pressed&1){std::vector<uint8_t> w;if(!nds->saveState(w,err) || !atomic_file(state,w.data(),w.size())){std::fprintf(stderr,"DS state save failed: %s\n",err.c_str());failed=true;done=true;}else showToast("STATE SAVED");paused=false;}
       if(pressed&(1u<<10)){auto data=read_file(state);if(!data.empty()){rewindRing.clear();if(!nds->loadState(data,true,err)){failed=true;done=true;std::fprintf(stderr,"DS state load failed: %s\n",err.c_str());}else std::fprintf(stderr,"DS manual state loaded at core frame %llu\n",(unsigned long long)nds->frameCount());}paused=false;}
     }else if(showQuick){
       nds->setButtons(0);nds->setTouch(0,0,false);
@@ -847,6 +993,15 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         zoomStep=0;
       }
       DsPlacement place=placeIn(zoomRoom>=0?zoomRoom:pd_ds_wing_room);
+      // TOUCH IN WING: the touch screen on a card of its own in its wing, titled, so it reads as part of the wing.
+      DsBox touchCard{};
+      if(place.used==DSL_WING && place.touch.shown() && place.touch.w<place.top.w && !place.touchFloats){
+        const DsBox wing=place.touch;
+        const int m=std::max(4,wing.w/24),title=std::max(18,wing.w/12),tw=wing.w-2*m,th=tw*3/4;
+        place.touch={wing.x+m,wing.y+wing.h-th-m,tw,th};
+        touchCard={wing.x+m/2,place.touch.y-title-m/2,wing.w-m,th+title+m};
+        if(place.panel[1].shown())place.panel[1].h=std::max(0,touchCard.y-m/2-place.panel[1].y);
+      }
       // EXPAND's room: the window, less the side the touch screen sits on when it's beside the game.
       bool wideShown=false;
       if(expand && !view.bottom && !paused){
@@ -898,10 +1053,31 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(!wideShown)draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       // TOUCH IN WING / WINGS: the companion's panels in the wings (under a floating touch screen's dim).
       if(!wideShown && (place.panel[0].shown() || place.panel[1].shown() || place.split()))gutter_screen(renderer,topInset?place.touch:place.top,look);
-      for(int i=0;i<2;i++)if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,shellGame!=DsGame::Unsupported,shellIcons,prefs.dim,oh,look,SDL_GetTicks()-wingActivity);
+      for(auto& b:wingButtons)b={};
+      if(snap.valid && place.panel[1].shown())ds_map_update(shellMap,snap);  // the right wing's map: its marks as the save has them
+      for(int i=0;i<2;i++){
+        wingBoxes[i]=place.touchFloats?DsBox{}:place.panel[i];  // dimmed under a floating touch screen: no taps
+        if(wingTex[i].p)draw_wing_panel(renderer,wingTex[i].p,wingPixels,place.panel[i],i,snap,supported,shellGame!=DsGame::Unsupported,shellIcons,prefs.dim,oh,look,SDL_GetTicks()-wingActivity,&shellMap,soulSilverCart);
+      }
+      if(place.touchFloats)for(auto& b:wingButtons)b={};
       wingPanels=place.panel[0].shown();
       if(place.touchFloats){SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(renderer,0,0,0,150);SDL_RenderFillRect(renderer,nullptr);SDL_SetRenderDrawBlendMode(renderer,SDL_BLENDMODE_NONE);}
       if(place.touchFloats || place.inset)frame_screen(renderer,topInset?place.top:place.touch);
+      if(touchCard.shown() && !topInset){
+        const pocket_backdrop bk=pocket_backdrop_for(look);
+        const uint32_t edge=bk.cards?bk.border:0x283040,face=bk.cards?bk.card:0x181c24;
+        const int step=std::max(1,touchCard.w/160);
+        fill_card(renderer,touchCard,step,edge);
+        fill_card(renderer,{touchCard.x+step,touchCard.y+step,touchCard.w-2*step,touchCard.h-2*step},step,face);
+        if(cardLabel.p){
+          static std::vector<uint32_t> lp(192*24);pd_canvas lc;pd_canvas_init(&lc,192,24,lp.data());
+          pd_fill(&lc,0,0,192,24,face);
+          const int lw=std::min(192,pd_heading(&lc,2,4,"TOUCH SCREEN",PD_VALUE,PD_VALUE_SHADOW)+4);
+          SDL_UpdateTexture(cardLabel.p,nullptr,lp.data(),192*4);
+          const int s=std::max(1,(place.touch.y-touchCard.y)/24);
+          SDL_Rect src{0,0,lw,24},dst{touchCard.x+2*step,place.touch.y-24*s,lw*s,24*s};SDL_RenderCopy(renderer,cardLabel.p,&src,&dst);
+        }
+      }
       if(topInset)draw_screen(renderer,top.p,nds->framebuffer(0),place.top);
       else draw_screen(renderer,touchTex.p,nds->framebuffer(1),place.touch);
       if(lay.shown() && pieceTex.p && pieceLabel.p)draw_pieces(renderer,pieceTex.p,pieceLabel.p,*pieceGame,lay,nds->framebuffer(1),look);
