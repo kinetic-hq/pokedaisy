@@ -79,7 +79,9 @@ struct DsPrefs {
   int shader=POCKET_SHADER_OFF, colors=POCKET_COLORS_ORIGINAL;bool dim=false;  // SHADER / COLORS / DIM COMPANION (shader.h)
   bool wingLeft=false;  // WING SIDE: TOUCH IN WING's touch screen (and WINGS' party) in the left wing
   int background=POCKET_BACKGROUND_AUTO;  // BACKGROUND (backdrop.h): -1 = BLACK (a DS window is mostly room round the screens)
-  bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud || layout!=other.layout || shader!=other.shader || colors!=other.colors || dim!=other.dim || wingLeft!=other.wingLeft || background!=other.background;}
+  // TOUCH WINDOW: the touch screen in a window of its own, where it was last left (popW 0 = not placed yet).
+  bool popout=false;int popX=0,popY=0,popW=0,popH=0;
+  bool operator!=(const DsPrefs& other)const{return bottom!=other.bottom || resume!=other.resume || battle!=other.battle || hud!=other.hud || layout!=other.layout || shader!=other.shader || colors!=other.colors || dim!=other.dim || wingLeft!=other.wingLeft || background!=other.background || popout!=other.popout || popX!=other.popX || popY!=other.popY || popW!=other.popW || popH!=other.popH;}
   int look()const{return background==POCKET_BACKGROUND_AUTO?POCKET_BACKGROUND_BLACK:pocket_background_resolve(background,true,false);}
 };
 DsPrefs load_prefs(const std::string& path){
@@ -96,11 +98,14 @@ DsPrefs load_prefs(const std::string& path){
     else if(line=="dim=1")p.dim=true;else if(line=="dim=0")p.dim=false;
     else if(line=="wingside=1")p.wingLeft=true;else if(line=="wingside=0")p.wingLeft=false;
     else if(line.rfind("background=",0)==0){int v=std::atoi(line.c_str()+11);if(v>=-1 && v<POCKET_BACKGROUNDS)p.background=v;}
+    else if(line=="popout=1")p.popout=true;else if(line=="popout=0")p.popout=false;
+    else if(line.rfind("popwindow=",0)==0){int x,y,w,h;if(std::sscanf(line.c_str()+10,"%d,%d,%d,%d",&x,&y,&w,&h)==4 && w>=128 && h>=96 && w<=8192 && h<=8192){p.popX=x;p.popY=y;p.popW=w;p.popH=h;}}
   }
   return p;
 }
 bool save_prefs(const std::string& path,const DsPrefs& p){
-  std::string text="# PokeDaisy DS preferences\nbottom="+std::to_string(p.bottom)+"\nresume="+std::to_string(p.resume)+"\nbattle="+std::to_string(p.battle)+"\nhud="+std::to_string(p.hud)+"\nlayout="+std::to_string(p.layout)+"\nshader="+std::to_string(p.shader)+"\ncolors="+std::to_string(p.colors)+"\ndim="+std::to_string(p.dim)+"\nwingside="+std::to_string(p.wingLeft)+"\nbackground="+std::to_string(p.background)+"\n";
+  std::string text="# PokeDaisy DS preferences\nbottom="+std::to_string(p.bottom)+"\nresume="+std::to_string(p.resume)+"\nbattle="+std::to_string(p.battle)+"\nhud="+std::to_string(p.hud)+"\nlayout="+std::to_string(p.layout)+"\nshader="+std::to_string(p.shader)+"\ncolors="+std::to_string(p.colors)+"\ndim="+std::to_string(p.dim)+"\nwingside="+std::to_string(p.wingLeft)+"\nbackground="+std::to_string(p.background)+"\npopout="+std::to_string(p.popout)+"\n";
+  if(p.popW>0)text+="popwindow="+std::to_string(p.popX)+","+std::to_string(p.popY)+","+std::to_string(p.popW)+","+std::to_string(p.popH)+"\n";
   return atomic_file(path,reinterpret_cast<const uint8_t*>(text.data()),text.size());
 }
 int keyboard(SDL_Keycode k){switch(k){
@@ -161,8 +166,39 @@ extern "C" bool pd_ds_wing_left_save(const char* root,bool left){
   std::string path=(std::filesystem::u8path(root)/"ds-settings.ini").string();
   DsPrefs p=load_prefs(path);p.wingLeft=left;return save_prefs(path,p);
 }
-// The SET tab's rows: SCREEN, DS LAYOUT, AUTO-RESUME, BATTLES, HUD, SHADER, COLORS, DIM COMPANION, WING SIDE, BACKGROUND.
-constexpr int DS_SETTINGS=10;
+extern "C" bool pd_ds_popout_load(const char* root){return load_prefs((std::filesystem::u8path(root)/"ds-settings.ini").string()).popout;}
+extern "C" bool pd_ds_popout_save(const char* root,bool on){
+  std::string path=(std::filesystem::u8path(root)/"ds-settings.ini").string();
+  DsPrefs p=load_prefs(path);p.popout=on;return save_prefs(path,p);
+}
+// The SET tab's rows: SCREEN, DS LAYOUT, AUTO-RESUME, BATTLES, HUD, SHADER, COLORS, DIM COMPANION, WING SIDE, BACKGROUND,
+// TOUCH WINDOW.
+constexpr int DS_SETTINGS=11;
+// TOUCH WINDOW: the touch screen in a second window (for a second monitor, or a dual-screen handheld's other panel).
+// The main window keeps the top screen (WINGS keeps its wings); a click, a finger or SELECT + the D-pad press the touch
+// screen there. Closing that window turns TOUCH WINDOW off.
+struct DsPopout {
+  SDL_Window* win=nullptr;SDL_Renderer* ren=nullptr;SDL_Texture* tex=nullptr;uint32_t id=0;DsBox at{};
+  void close(){if(tex)SDL_DestroyTexture(tex);if(ren)SDL_DestroyRenderer(ren);if(win)SDL_DestroyWindow(win);win=nullptr;ren=nullptr;tex=nullptr;id=0;at={};}
+  ~DsPopout(){close();}
+};
+// Where TOUCH WINDOW opens: where it was left while that spot is still on a display, else the middle of another display
+// than the game's, else beside the game's window when there's room, else the middle of the screen.
+static void ds_popout_spot(SDL_Window* game,const DsPrefs& p,int& x,int& y,int& w,int& h){
+  w=p.popW>0?p.popW:512;h=p.popH>0?p.popH:384;x=y=SDL_WINDOWPOS_CENTERED;
+  const int displays=SDL_GetNumVideoDisplays();
+  if(p.popW>0)for(int i=0;i<displays;i++){
+    SDL_Rect b;if(!SDL_GetDisplayBounds(i,&b) && p.popX+40>=b.x && p.popX+40<b.x+b.w && p.popY+20>=b.y && p.popY+20<b.y+b.h){x=p.popX;y=p.popY;return;}
+  }
+  const int at=game?SDL_GetWindowDisplayIndex(game):0;
+  if(displays>1){const int other=at==0?1:0;x=int(SDL_WINDOWPOS_CENTERED_DISPLAY(other));y=x;return;}
+  SDL_Rect b;int gx,gy,gw,gh;
+  if(game && !SDL_GetDisplayUsableBounds(std::max(0,at),&b)){
+    SDL_GetWindowPosition(game,&gx,&gy);SDL_GetWindowSize(game,&gw,&gh);
+    if(gx+gw+16+w<=b.x+b.w){x=gx+gw+16;y=std::max(b.y,gy);}
+    else if(gx-16-w>=b.x){x=gx-16-w;y=std::max(b.y,gy);}
+  }
+}
 struct Texture {SDL_Texture* p=nullptr;~Texture(){if(p)SDL_DestroyTexture(p);}};
 struct Audio {SDL_AudioDeviceID id=0;SDL_AudioStream* stream=nullptr;~Audio(){SDL_FreeAudioStream(stream);if(id)SDL_CloseAudioDevice(id);}};
 // UI SIZE: the companion's canvas (341 x 256) at no more than the scale the host's companion has for this size of
@@ -667,6 +703,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // The mouse's left button and a finger on a touch display press the DS touch screen where it's drawn.
   bool pointerDown=false;const char* driver=SDL_GetCurrentVideoDriver();const bool headless=driver && !std::strcmp(driver,"dummy");int pointerX=0,pointerY=0;SDL_FingerID pointerFinger=-1;
   DsPlacement touchPlace;  // where the touch screen was last drawn, in output pixels (none = not shown)
+  DsPopout pop;int focusCheck=-1;  // TOUCH WINDOW; the frame a window lost focus (paused if neither has it after)
   // The wings as last drawn: a tap on one opens the companion, as in a GBA game; the right wing's buttons do their own.
   DsBox wingBoxes[2]{};int wingAction=-1;
   // DS LAYOUT: ONE SCREEN floats the touch screen in when the game wants it (PK_NDS_FIELD_TOUCH, held a few frames
@@ -704,7 +741,9 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     auto key=[&](int k,bool down){if(k<0)return;uint32_t bit=1u<<k;if(down){if(!(keys&bit))pressed|=bit;keys|=bit;}else keys&=~bit;};
     for(auto t:hostTaps)if(frame==t.at || frame==t.at+t.n){
       SDL_Event m{};m.type=frame==t.at?SDL_MOUSEBUTTONDOWN:SDL_MOUSEBUTTONUP;m.button.button=SDL_BUTTON_LEFT;m.button.which=0;
-      m.button.state=frame==t.at?SDL_PRESSED:SDL_RELEASED;m.button.x=t.x;m.button.y=t.y;SDL_PushEvent(&m);
+      m.button.state=frame==t.at?SDL_PRESSED:SDL_RELEASED;m.button.x=t.x;m.button.y=t.y;
+      if(pop.win && std::getenv("POCKET_DS_TAPS_TOUCH_WINDOW"))m.button.windowID=pop.id;  // tests: taps in TOUCH WINDOW
+      SDL_PushEvent(&m);
     }
     while(SDL_PollEvent(&e)){
       if(e.type==SDL_QUIT)done=true;
@@ -714,6 +753,47 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         continue;
       }
       if(e.type==SDL_CONTROLLERBUTTONDOWN && e.cbutton.button==SDL_CONTROLLER_BUTTON_LEFTSTICK && (keys&(1u<<14)))r3Chord=true;
+      if(pop.win){
+        uint32_t wid=0;
+        switch(e.type){
+        case SDL_MOUSEBUTTONDOWN:case SDL_MOUSEBUTTONUP:wid=e.button.windowID;break;
+        case SDL_MOUSEMOTION:wid=e.motion.windowID;break;
+        case SDL_MOUSEWHEEL:wid=e.wheel.windowID;break;
+        case SDL_FINGERDOWN:case SDL_FINGERUP:case SDL_FINGERMOTION:wid=e.tfinger.windowID;break;
+        case SDL_WINDOWEVENT:wid=e.window.windowID;break;
+        default:break;
+        }
+        // With two windows open SDL sends no SDL_QUIT when the game's is closed: send it, as one window would.
+        if(e.type==SDL_WINDOWEVENT && wid!=pop.id && e.window.event==SDL_WINDOWEVENT_CLOSE){SDL_Event q{};q.type=SDL_QUIT;SDL_PushEvent(&q);}
+        if(wid && wid==pop.id){
+          if(e.type==SDL_WINDOWEVENT){
+            if(e.window.event==SDL_WINDOWEVENT_CLOSE){prefs.popout=false;pointerDown=false;showToast("TOUCH WINDOW OFF");}
+            else if(e.window.event==SDL_WINDOWEVENT_MOVED || e.window.event==SDL_WINDOWEVENT_SIZE_CHANGED){
+              int x,y,w,h;SDL_GetWindowPosition(pop.win,&x,&y);SDL_GetWindowSize(pop.win,&w,&h);
+              if(w>=128 && h>=96){prefs.popX=x;prefs.popY=y;prefs.popW=w;prefs.popH=h;}
+            }else if(e.window.event==SDL_WINDOWEVENT_FOCUS_LOST && !headless)focusCheck=frame;
+            continue;
+          }
+          // A press there: the touch screen as drawn in it (window points to its drawing pixels, then to 256 x 192).
+          auto popAt=[&](float nx,float ny,bool start){
+            if(pd_ds_game_touch_off || showCompanion || showQuick || paused || !pop.at.shown()){pointerDown=false;return;}
+            int pw=1,ph=1;SDL_GetRendererOutputSize(pop.ren,&pw,&ph);
+            const float px=nx*pw,py=ny*ph;const DsBox& b=pop.at;
+            if(start && (px<b.x || py<b.y || px>=b.x+b.w || py>=b.y+b.h)){pointerDown=false;return;}
+            pointerX=std::clamp(int((px-b.x)*256/b.w),0,255);pointerY=std::clamp(int((py-b.y)*192/b.h),0,191);
+            if(start)pointerDown=true;
+          };
+          int ww=1,wh=1;SDL_GetWindowSize(pop.win,&ww,&wh);ww=std::max(1,ww);wh=std::max(1,wh);
+          if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID)popAt(float(e.button.x)/ww,float(e.button.y)/wh,true);
+          if(e.type==SDL_MOUSEMOTION && pointerDown && pointerFinger<0 && (e.motion.state&SDL_BUTTON_LMASK) && e.motion.which!=SDL_TOUCH_MOUSEID)popAt(float(e.motion.x)/ww,float(e.motion.y)/wh,false);
+          if(e.type==SDL_MOUSEBUTTONUP && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID && pointerFinger<0)pointerDown=false;
+          if(e.type==SDL_FINGERDOWN && !pointerDown){popAt(e.tfinger.x,e.tfinger.y,true);if(pointerDown)pointerFinger=e.tfinger.fingerId;}
+          if(e.type==SDL_FINGERMOTION && pointerDown && e.tfinger.fingerId==pointerFinger)popAt(e.tfinger.x,e.tfinger.y,false);
+          if(e.type==SDL_FINGERUP && e.tfinger.fingerId==pointerFinger){pointerDown=false;pointerFinger=-1;}
+          if(!pointerDown)pointerFinger=-1;
+          continue;
+        }
+      }
       if(pd_ds_host_event && pd_ds_host_event(&e))continue;
       int k=-1;bool down=false;
       if(e.type==SDL_KEYDOWN || e.type==SDL_KEYUP){if(e.key.repeat)continue;k=keyboard(e.key.keysym.sym);down=e.type==SDL_KEYDOWN;}
@@ -741,7 +821,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(e.type==SDL_FINGERUP && e.tfinger.fingerId==pointerFinger){pointerDown=false;pointerFinger=-1;}
       if(!pointerDown)pointerFinger=-1;
       // A headless (dummy driver) window has no focus to lose: it pausing there kept test runs from playing.
-      if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST && !headless){keys=0;pointerDown=false;nds->setButtons(0);nds->setTouch(0,0,false);paused=true;}
+      if(e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_FOCUS_LOST && !headless){
+        if(pop.win)focusCheck=frame;  // the focus may only have gone to TOUCH WINDOW: looked at next frame
+        else{keys=0;pointerDown=false;nds->setButtons(0);nds->setTouch(0,0,false);paused=true;}
+      }
+    }
+    if(focusCheck>=0 && frame>focusCheck){
+      focusCheck=-1;SDL_Window* focus=SDL_GetKeyboardFocus();
+      if(focus!=SDL_RenderGetWindow(renderer) && (!pop.win || focus!=pop.win)){keys=0;pointerDown=false;nds->setButtons(0);nds->setTouch(0,0,false);paused=true;}
     }
     // Test the same host input path as real controls, rather than only guest buttons.
     for(auto p:hostScript)for(int k=0;k<16;k++)if(p.mask&(1u<<k)){
@@ -829,6 +916,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
     bool wants=field && !inBattle && (fieldBits&PK_NDS_FIELD_TOUCH);
     if(wants){touchOff=0;if(++touchOn>=2)touchWanted=true;}else{touchOn=0;if(++touchOff>=6)touchWanted=false;}
     int layout=prefs.layout==DSL_ONE && !field?DSL_PIP:prefs.layout;
+    // TOUCH WINDOW: the touch screen is in its own window, so this one shows the top screen (in WINGS' wings or alone).
+    if(pop.win){layout=prefs.layout==DSL_WINGS?DSL_WINGS:DSL_ONE;view.bottom=false;}
     if(choosing && std::getenv("POCKET_DS_STOP_ON_BATTLE_INPUT"))limit=frame+1;
     if(pressed&(1u<<15)){paused=!paused;showQuick=false;blocked|=keys&4095u;}
     DsCompanion snap=shellGame!=DsGame::Unsupported?ds_read_companion(nds->mainRam(),nds->mainRamSize(),shellGame):DsCompanion{};
@@ -883,14 +972,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         if(pressed&(1u<<6))setting=(setting+DS_SETTINGS-1)%DS_SETTINGS;
         if(pressed&(1u<<7))setting=(setting+1)%DS_SETTINGS;
         if(pressed&1){if(setting==0)bottom=!bottom;else if(setting==1){layoutPick=true;layoutSel=prefs.layout;}else if(setting==2)prefs.resume=!prefs.resume;else if(setting==3)prefs.battle=1-prefs.battle;else if(setting==4)prefs.hud=!prefs.hud;
-          else if(setting==5)prefs.shader=(prefs.shader+1)%POCKET_SHADERS;else if(setting==6)prefs.colors=(prefs.colors+1)%POCKET_COLORS_COUNT;else if(setting==7)prefs.dim=!prefs.dim;else if(setting==8)prefs.wingLeft=!prefs.wingLeft;else prefs.background=(prefs.look()+1)%POCKET_BACKGROUNDS;}
+          else if(setting==5)prefs.shader=(prefs.shader+1)%POCKET_SHADERS;else if(setting==6)prefs.colors=(prefs.colors+1)%POCKET_COLORS_COUNT;else if(setting==7)prefs.dim=!prefs.dim;else if(setting==8)prefs.wingLeft=!prefs.wingLeft;else if(setting==9)prefs.background=(prefs.look()+1)%POCKET_BACKGROUNDS;else prefs.popout=!prefs.popout;}
       }
       if(retro && shell->control(retro) && (!shell->frame.moreOpened || !pd_ui_back(&shell->frame)))showCompanion=false;
     }else if(!done){
       uint32_t gameKeys=keys&~blocked;
-      bool touchMode=ds_touch_shown(touchPlace) && (gameKeys&(1u<<2));
+      bool touchMode=(ds_touch_shown(touchPlace) || pop.win) && (gameKeys&(1u<<2));
       if(touchMode){if(gameKeys&(1u<<4))touchX=std::min(255,touchX+3);if(gameKeys&(1u<<5))touchX=std::max(0,touchX-3);if(gameKeys&(1u<<6))touchY=std::max(0,touchY-3);if(gameKeys&(1u<<7))touchY=std::min(191,touchY+3);}
-      if(!ds_touch_shown(touchPlace))pointerDown=false;
+      if(!ds_touch_shown(touchPlace) && !pop.win)pointerDown=false;
       if(pointerDown)nds->setTouch(pointerX,pointerY,true);
       else nds->setTouch(touchX,touchY,touchMode && (gameKeys&1));
       uint32_t held=touchMode?0:gameKeys&4095u;for(auto p:script)if(frame>=p.at && frame<p.at+p.n)held|=p.mask;
@@ -922,6 +1011,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       int16_t samples[2048];size_t n;while((n=nds->takeAudio(samples,1024)))if(audio.stream)SDL_AudioStreamPut(audio.stream,samples,int(n*4));
       if(audio.stream){int available=SDL_AudioStreamAvailable(audio.stream);std::vector<uint8_t> out(std::max(0,available));if(available>0){SDL_AudioStreamGet(audio.stream,out.data(),available);if(SDL_GetQueuedAudioSize(audio.id)>unsigned(got.freq*2))SDL_ClearQueuedAudio(audio.id);SDL_QueueAudio(audio.id,out.data(),available);}}
     }
+    if(prefs.popout && !pop.win){
+      SDL_Window* game=SDL_RenderGetWindow(renderer);int x,y,w,h;ds_popout_spot(game,prefs,x,y,w,h);
+      pop.win=SDL_CreateWindow("PokeDaisy touch screen",x,y,w,h,SDL_WINDOW_RESIZABLE);
+      if(pop.win)pop.ren=SDL_CreateRenderer(pop.win,-1,0);
+      if(pop.ren)pop.tex=SDL_CreateTexture(pop.ren,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,256,192);
+      if(!pop.tex){std::fprintf(stderr,"TOUCH WINDOW: %s\n",SDL_GetError());pop.close();prefs.popout=false;showToast("NO TOUCH WINDOW HERE");}
+      else{pop.id=SDL_GetWindowID(pop.win);if(game)SDL_RaiseWindow(game);pointerDown=false;}
+    }else if(!prefs.popout && pop.win){pop.close();pointerDown=false;}
     if(prefs!=previous && !save_prefs(config,prefs))std::fprintf(stderr,"DS settings write failed\n");
     if((paused || showCompanion || showQuick) && audio.id)SDL_ClearQueuedAudio(audio.id);
     int ow=1024,oh=768;
@@ -960,8 +1057,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       // SET: the facts (TRAINER, PLACE, MONEY, DEX, or what this cart is), then this app's DS settings.
       char money[32];pd_ui_format_money(shellSnap.valid?shellSnap.money:-1,money,sizeof money);
       const std::string values[]={bottom?"BOTTOM":"TOP",ds_layout_name(prefs.layout),prefs.resume?"ON":"OFF",prefs.battle?"AUTO":"OFF",prefs.hud?"ON":"OFF",
-        pocket_shader_name(prefs.shader),pocket_colors_name(prefs.colors),prefs.dim?"ON":"OFF",std::string("TOUCH ")+(prefs.wingLeft?"LEFT":"RIGHT"),pocket_background_name(look)};
-      static const char* const labels[DS_SETTINGS]={"SCREEN","DS LAYOUT","AUTO-RESUME","BATTLES","HUD","SHADER","COLORS","DIM COMPANION","DS WING SIDE","BACKGROUND"};
+        pocket_shader_name(prefs.shader),pocket_colors_name(prefs.colors),prefs.dim?"ON":"OFF",std::string("TOUCH ")+(prefs.wingLeft?"LEFT":"RIGHT"),pocket_background_name(look),prefs.popout?"ON":"OFF"};
+      static const char* const labels[DS_SETTINGS]={"SCREEN","DS LAYOUT","AUTO-RESUME","BATTLES","HUD","SHADER","COLORS","DIM COMPANION","DS WING SIDE","BACKGROUND","TOUCH WINDOW"};
       pd_option_row rows[4+DS_SETTINGS];int info=0;
       if(shellGame==DsGame::Unsupported){
         rows[info++]={"THIS CART",ds_unsupported_label.c_str()};
@@ -980,7 +1077,7 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       if(layoutPick)pd_layout_picker_draw(&canvas,"DS LAYOUT",ds_layout_options(),DSL_COUNT,prefs.layout,layoutSel,-1,&layoutScroll,layoutTiles);
       uint8_t v=prefs.dim?150:255;SDL_SetTextureColorMod(ui.p,v,v,v);blit(renderer,ui.p,uiPixels.data(),canvas.w,canvas.h,ow,oh);SDL_SetTextureColorMod(ui.p,255,255,255);}
     else{
-      auto placeIn=[&](int room){return ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom,
+      auto placeIn=[&](int room){return ds_place_with_pieces(pieceGame,layout,ow,oh,view.bottom,touchWanted && !view.bottom && !pop.win,
                                                              prefs.wingLeft,room);};
       if(zoomStep && !(expand && !view.bottom && !paused)){  // EXPAND: the camera takes ZOOM (below)
         // Larger game = less wing room: WINGS FIRST, BALANCED, GAME FIRST (AUTO starts from BALANCED).
@@ -1117,10 +1214,30 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       blit(renderer,ui.p,uiPixels.data(),canvas.w,canvas.h,ow,oh);}
     if(shot && limit && frame==limit-1){std::vector<uint32_t> pixels(size_t(ow)*oh);if(!SDL_RenderReadPixels(renderer,nullptr,SDL_PIXELFORMAT_ARGB8888,pixels.data(),ow*4))pd_png_write(shot,ow,oh,pixels.data());}
     if(pd_ds_present)pd_ds_present();else SDL_RenderPresent(renderer);
+    if(pop.win){
+      // TOUCH WINDOW: the touch screen filling its window (whole scales from 3x), dimmed while the game stands still.
+      int pw=1,ph=1;SDL_GetRendererOutputSize(pop.ren,&pw,&ph);
+      SDL_SetRenderDrawColor(pop.ren,0,0,0,255);SDL_RenderClear(pop.ren);
+      pop.at=ds_fit(0,0,pw,ph,256,192);
+      SDL_UpdateTexture(pop.tex,nullptr,nds->framebuffer(1),256*4);
+      SDL_Rect dst{pop.at.x,pop.at.y,pop.at.w,pop.at.h};SDL_RenderCopy(pop.ren,pop.tex,nullptr,&dst);
+      if(showCompanion || paused || showQuick){SDL_SetRenderDrawBlendMode(pop.ren,SDL_BLENDMODE_BLEND);SDL_SetRenderDrawColor(pop.ren,0,0,0,150);SDL_RenderFillRect(pop.ren,nullptr);SDL_SetRenderDrawBlendMode(pop.ren,SDL_BLENDMODE_NONE);}
+      else if(keys&(1u<<2)){
+        const int x=pop.at.x+(touchX*pop.at.w+pop.at.w/2)/256,y=pop.at.y+(touchY*pop.at.h+pop.at.h/2)/192;
+        SDL_SetRenderDrawColor(pop.ren,0,0,0,255);SDL_Rect outline{x-5,y-5,11,11};SDL_RenderDrawRect(pop.ren,&outline);
+        SDL_SetRenderDrawColor(pop.ren,255,255,255,255);SDL_RenderDrawLine(pop.ren,x-4,y,x+4,y);SDL_RenderDrawLine(pop.ren,x,y-4,x,y+4);
+      }
+      if(shot && limit && frame==limit-1){
+        std::string path=shot;size_t dot=path.rfind('.');path.insert(dot==std::string::npos?path.size():dot,"-touch");
+        std::vector<uint32_t> pixels(size_t(pw)*ph);if(!SDL_RenderReadPixels(pop.ren,nullptr,SDL_PIXELFORMAT_ARGB8888,pixels.data(),pw*4))pd_png_write(path.c_str(),pw,ph,pixels.data());
+      }
+      SDL_RenderPresent(pop.ren);
+    }
     frame++;
     if(!limit){double ms=1000.0*(SDL_GetPerformanceCounter()-tick)/SDL_GetPerformanceFrequency();if(ms<1000.0/nds->fps())SDL_Delay(unsigned(1000.0/nds->fps()-ms));}
   }
   nds->setButtons(0);nds->setTouch(0,0,false);
+  pop.close();
   // Let an in-progress battery write finish before replacing the disk copy.
   // A bounded failure preserves the last completed save and its startup backup.
   if(!failed && nds->batteryDirty()){

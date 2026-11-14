@@ -162,7 +162,7 @@ An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everythi
 | Area | What the fork adds |
 | --- | --- |
 | Platforms | A Windows build of the desktop host (one zip for GBA, Game Boy and DS), Linux zips, self-updates and automatic `desktop-vX.Y.Z` pre-releases |
-| Nintendo DS | melonDS, `DS LAYOUT` (one screen, picture in picture, stacked, side by side, large + small, wings, touch pieces), touch by mouse, finger or controller, rewind, time of day and Berry Pots |
+| Nintendo DS | melonDS, `DS LAYOUT` (one screen, picture in picture, stacked, side by side, large + small, wings, touch pieces), `TOUCH WINDOW` (the touch screen in a window of its own, for a second monitor), touch by mouse, finger or controller, rewind, time of day and Berry Pots |
 | Companion on one screen | `COMPANION VIEW`: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER`, `STEP BACK`, with redesigned wing cards |
 | Screen | `SHARP` / `xBRZ`, `HANDHELD` / `OLED` colours, `BRIGHTNESS`, black backgrounds and bezel bars, full screen, `ORIENTATION` |
 | Controls | Hot plugged controllers (several at once), `NINTENDO` / `XBOX` layouts, hotkeys for paddles and extra buttons, touch and mouse, rumble |
@@ -178,7 +178,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **Windows build of the desktop host**: one portable zip that plays GBA, Game Boy and DS games, with an icon,
   a UTF-8 manifest and safe save / state writes on Windows.
 - **Nintendo DS on melonDS** in the desktop host, with `DS LAYOUT` (six ways to place the two screens) and touch by
-  mouse, finger or controller.
+  mouse, finger or controller. `TOUCH WINDOW` (an experiment) puts the touch screen in a second window, for a
+  second monitor or a two-screen handheld.
 - **COMPANION VIEW** on the desktop host: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER` and
   `STEP BACK`.
 - **Controllers**: hot plugging, several at once (a handheld's own controls and an Xbox pad together).

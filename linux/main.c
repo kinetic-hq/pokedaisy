@@ -4934,6 +4934,8 @@ extern int pd_ds_layout_load(const char *root);
 extern bool pd_ds_layout_save(const char *root, int layout);
 extern bool pd_ds_wing_left_load(const char *root);
 extern bool pd_ds_wing_left_save(const char *root, bool left);
+extern bool pd_ds_popout_load(const char *root);
+extern bool pd_ds_popout_save(const char *root, bool on);
 #endif
 /* LAYOUT's picker from the game list's Settings: the layouts as drawn tiles (pd_layout_pick.h). The D-pad walks
  * them, A or a tap picks one, B leaves. The picked index, or -1. */
@@ -5591,6 +5593,7 @@ enum {
   ROW_VIEW = 1,
   ROW_DS,
   ROW_DS_SIDE,
+  ROW_DS_POPOUT,
   ROW_DISPLAY,
   ROW_FOLDERS,
   ROW_PATCH,
@@ -5683,12 +5686,13 @@ static int settings_page(bool *foldersChanged) {
     pd_settings_load(&st, path);
     const struct pd_layout_option *views = companion_layouts();
     int dsCount = 0, dsLayout = 0;
-    bool dsWingLeft = false;
+    bool dsWingLeft = false, dsPopout = false;
     const struct pd_layout_option *dsLayouts = NULL;
 #ifdef POCKET_DS
     dsLayouts = pd_ds_layouts(&dsCount);
     dsLayout = pd_ds_layout_load(root);
     dsWingLeft = pd_ds_wing_left_load(root);
+    dsPopout = pd_ds_popout_load(root);
 #else
     (void)dsCount;
 #endif
@@ -5706,6 +5710,7 @@ static int settings_page(bool *foldersChanged) {
       if (dsLayouts) {
         ROW(ROW_DS, "DS LAYOUT\t%s", dsLayouts[dsLayout].name);
         ROW(ROW_DS_SIDE, "DS WING SIDE\tTOUCH %s", dsWingLeft ? "LEFT" : "RIGHT");
+        ROW(ROW_DS_POPOUT, "TOUCH WINDOW\t%s", dsPopout ? "ON" : "OFF");
       }
       ROW(ROW_DISPLAY, "DISPLAY OPTIONS" PD_MENU_PAGE);
       ROW(ROW_SCREEN_LAYOUT, "LAYOUT" PD_MENU_PAGE);
@@ -5898,6 +5903,13 @@ static int settings_page(bool *foldersChanged) {
 #ifdef POCKET_DS
       if (!pd_ds_wing_left_save(root, !dsWingLeft))
         notice("Couldn't save DS WING SIDE");
+#endif
+      save = false;
+      break;
+    case ROW_DS_POPOUT:
+#ifdef POCKET_DS
+      if (!pd_ds_popout_save(root, !dsPopout))
+        notice("Couldn't save TOUCH WINDOW");
 #endif
       save = false;
       break;
