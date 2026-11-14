@@ -317,6 +317,13 @@ doesn't check out, is refused and left alone.
   that fit its base stats. The one that goes with the `QUICK EVS` role you picked
   says `FITS THE ROLE`. All 25 follow, each with the stat it raises and lowers,
   or `NEUTRAL`.
+- `QUICK SET` on a Pokemon:
+  - `LEVEL 50` and `LEVEL 100` set the level in one press.
+  - `PERFECT` sets every IV to 31 and gives it the `BEST FIT` role's EVs and nature.
+  - The next row picks the type of the move whose type comes from the IVs. Each
+    IV moves by one point at most, so a low one stays low.
+  - `COPY AS SHOWDOWN` copies the Pokemon as a Showdown set, ready for
+    `PASTE SET` or a team builder, and shows what it copied.
   Picking a move lists the moves it can learn by its level first: by level
   up, TM or HM, the move tutors, from an egg, or as what it evolved from.
   `SEARCH ALL MOVES` finds any other. In a retail GBA game a new move it

@@ -7096,6 +7096,89 @@ static void editor_stats(struct save_edit *e, struct se_mon *m, const struct se_
       editor_ivev(m, true);
   }
 }
+/* QUICK SET: a level in one press, PERFECT (31 IVs, the best-fit role's EVs and nature), Hidden Power's type, and
+ * the Pokemon copied as a Showdown set. */
+static void editor_quick(struct save_edit *e, struct se_mon *m) {
+  int at = 0;
+  while (running) {
+    int base[6], role = -1, evs[6], nature = 0;
+    bool known = e->ops->base_stats && e->ops->base_stats(e, m->species, base);
+    if (known) {
+      role = st_best_role(base);
+      st_role_spread(role, base, evs, &nature);
+    }
+    static char perfect[96], hidden[64];
+    snprintf(perfect, sizeof perfect, "PERFECT\t31 IVS, %s EVS, %s", known ? st_role_name(role) : "?",
+             se_nature_name(nature));
+    snprintf(hidden, sizeof hidden, "HIDDEN POWER\t%s, %d POWER", preset_hp_type_name(preset_hp_type(m->ivs)),
+             preset_hp_power(m->ivs));
+    const char *rows[5];
+    int ids[5], n = 0;
+    rows[n] = "LEVEL 50", ids[n++] = 0;
+    rows[n] = "LEVEL 100", ids[n++] = 1;
+    if (known)
+      rows[n] = perfect, ids[n++] = 2;
+    rows[n] = hidden, ids[n++] = 3;
+    rows[n] = "COPY AS SHOWDOWN\tFOR PASTE SET OR A TEAM BUILDER", ids[n++] = 4;
+    at = menu_pick_hint("QUICK SET", "Nothing is kept until KEEP THESE CHANGES.", rows, n, at);
+    if (at < 0)
+      return;
+    switch (ids[at]) {
+    case 0:
+    case 1:
+      m->level = ids[at] ? 100 : 50;
+      notice(ids[at] ? "Level 100" : "Level 50");
+      break;
+    case 2:
+      for (int i = 0; i < 6; i++)
+        m->ivs[i] = 31;
+      if (role == ROLE_TRICK_ROOM)
+        m->ivs[3] = 0; // the slowest it can be
+      memcpy(m->evs, evs, sizeof evs);
+      m->nature = nature;
+      editorRole = role;
+      notice("Perfect: KEEP THESE CHANGES keeps it");
+      break;
+    case 3: {
+      static char names[16][48];
+      const char *types[16];
+      for (int k = 0; k < 16; k++) {
+        int iv[6];
+        memcpy(iv, m->ivs, sizeof iv);
+        preset_hp_set(iv, k);
+        snprintf(names[k], sizeof names[k], "%s\t%d POWER", preset_hp_type_name(k), preset_hp_power(iv));
+        types[k] = names[k];
+      }
+      int k = menu_pick_hint("HIDDEN POWER TYPE", "Its IVs move by one point at most to give the type.", types, 16,
+                             preset_hp_type(m->ivs));
+      if (k >= 0)
+        preset_hp_set(m->ivs, k);
+      break;
+    }
+    default: {
+      char text[1024];
+      preset_export(e, m, text, sizeof text);
+      if (!getenv("POCKET_PASTE") && SDL_SetClipboardText(text) != 0) {
+        editor_say("COPY AS SHOWDOWN", "The clipboard couldn't take it.");
+        break;
+      }
+      // The set shown a line a row, as it went to the clipboard.
+      const char *lines[16];
+      int count = 0;
+      for (char *s = text; *s && count < 16;) {
+        lines[count++] = s;
+        char *end = strchr(s, '\n');
+        if (!end)
+          break;
+        *end = 0;
+        s = end + 1;
+      }
+      menu_pick_hint("COPIED TO THE CLIPBOARD", "PASTE SET or a team builder reads it back.", lines, count, 0);
+      break;
+    }
+    }
+  }
+}
 static bool editor_move(struct save_edit *e, int box, int slot);
 /* LEGALITY: M's issues (legality.h), each with FIX where that's safe, and FIX ALL. */
 static void editor_legality(struct save_edit *e, struct se_mon *m) {
@@ -7138,7 +7221,7 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
   int selected = 0;
   while (running) {
     enum { R_SPECIES, R_NICK, R_LEVEL, R_EXP, R_NATURE, R_ABILITY, R_HELD, R_FRIEND, R_MOVE, R_PPUPS = R_MOVE + 4,
-           R_IVS, R_EVS, R_STATS, R_ROLES, R_SHINY, R_OT, R_FROM, R_MAX_IVS, R_PRESET, R_PASTE, R_LEGAL, R_APPLY, R_MOVE_IT, R_COUNT };
+           R_IVS, R_EVS, R_STATS, R_ROLES, R_QUICK, R_SHINY, R_OT, R_FROM, R_MAX_IVS, R_PRESET, R_PASTE, R_LEGAL, R_APPLY, R_MOVE_IT, R_COUNT };
     static char text[R_COUNT][96];
     const char *rows[R_COUNT];
     int ids[R_COUNT], shown = 0;
@@ -7157,6 +7240,7 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
     }
     snprintf(text[R_STATS], 96, "STATS\tBASE, NOW, LEAST, MOST");
     snprintf(text[R_ROLES], 96, "QUICK EVS\tBY ROLE");
+    snprintf(text[R_QUICK], 96, "QUICK SET\tLEVEL, PERFECT, HIDDEN POWER, SHOWDOWN");
     snprintf(text[R_ABILITY], 96, "ABILITY: %s", m.ability ? (a2 ? a2 : "?") : (a1 ? a1 : "?"));
     snprintf(text[R_HELD], 96, "HOLDS: %s", held ? held : "?");
     for (int i = 0; i < 4; i++) {
@@ -7268,6 +7352,9 @@ static void editor_mon(struct save_edit *e, int box, int slot) {
       break;
     case R_ROLES:
       editor_roles(e, &m);
+      break;
+    case R_QUICK:
+      editor_quick(e, &m);
       break;
     case R_SHINY:
       m.shiny = !m.shiny;
