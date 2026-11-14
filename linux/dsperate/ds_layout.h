@@ -47,7 +47,7 @@ inline DsBox ds_fit(int boxX,int boxY,int boxW,int boxH,int w,int h,bool whole=t
 enum {DS_WING_ROOM_GAME_FIRST,DS_WING_ROOM_BALANCED,DS_WING_ROOM_WINGS_FIRST,DS_WING_ROOM_AUTO};
 
 // The top screen centred with a wing on each side at least minWing / 8 of its width: the largest whole scale that
-// leaves them (one step under the largest that fits, at most), or under 3x the full height. Zero size: no room.
+// leaves them (down to 3x), or under 3x the full height. Zero size: no room.
 // WING ROOM: GAME FIRST fills the height when that still leaves the wings; WINGS FIRST wants two eighths more
 // (or one) when there's room for that.
 inline DsBox ds_winged_top(int ow,int oh,int minWing,int room=DS_WING_ROOM_BALANCED){
@@ -57,7 +57,12 @@ inline DsBox ds_winged_top(int ow,int oh,int minWing,int room=DS_WING_ROOM_BALAN
     room=DS_WING_ROOM_BALANCED;
   }
   if(room==DS_WING_ROOM_WINGS_FIRST){
-    for(int more=2;more>=1;more--){DsBox wide=ds_winged_top(ow,oh,minWing+more);if(wide.shown())return wide;}
+    // Wider wings only for one whole scale off the largest, at most.
+    const int most=std::min(ow/256,oh/192);
+    for(int more=2;more>=1;more--){
+      DsBox wide=ds_winged_top(ow,oh,minWing+more);
+      if(wide.shown() && (most<3 || wide.w>=256*(most-1)))return wide;
+    }
     // else as BALANCED
   }
   if(room==DS_WING_ROOM_GAME_FIRST){
@@ -66,7 +71,8 @@ inline DsBox ds_winged_top(int ow,int oh,int minWing,int room=DS_WING_ROOM_BALAN
   }
   int most=std::min(ow/256,oh/192);
   if(most>=3){
-    for(int s=most;s>=most-1;s--){
+    // Every whole scale down to 3x: a large screen (2560 x 1600) whose top two scales leave no wings still gets them.
+    for(int s=most;s>=3;s--){
       int w=256*s,h=192*s;
       if((ow-w)/2*8>=w*minWing)return {(ow-w)/2,(oh-h)/2,w,h};
     }
