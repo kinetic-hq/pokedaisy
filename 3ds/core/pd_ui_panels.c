@@ -196,7 +196,9 @@ void pd_ui_party_panel_icons(struct pd_canvas* c, const struct pd_game* g, const
         }
         int cx = x + slide;
         int t1 = 0, t2 = 0;
-        if (!egg && g) pd_species_type_pair(g, m->species, &t1, &t2);
+        if (!egg && m->hasTypes) t1 = m->type1, t2 = m->type2;
+        else if (!egg && g) pd_species_type_pair(g, m->species, &t1, &t2);
+        else if (!egg) t1 = t2 = PD_TYPE_NONE;
         uint32_t accent = egg || t1 == PD_TYPE_NONE ? 0 : ui_type_color(t1);
         int flash = egg ? 0 : level_flash(i, m->personality ^ (uint32_t)m->species, m->level);
         if (flash) // a gold rim round the card, fading

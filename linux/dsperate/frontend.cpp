@@ -209,6 +209,9 @@ pd_snapshot ds_party_snapshot(const DsCompanion& snap){
     // A draw-only adapter. Do not put national DS IDs in its internal GBA species field (Burmy 412 collides with
     // its egg).
     h.species=m.egg?PD_SPECIES_EGG:0;h.hp=m.hp;h.maxHp=m.maxHp;h.level=m.level;h.status=m.status;
+    // Its types from the cart's own tables (the panel can't look a DS species up).
+    if(!m.egg){h.type1=ds_species_type(m.species,0,snap.game);h.type2=ds_species_type(m.species,1,snap.game);
+      h.hasTypes=h.type1>=0;if(h.type2<0)h.type2=h.type1;}
     std::snprintf(h.nickname,sizeof h.nickname,"%s",m.egg?"EGG":ds_species(m.species,snap.game));
   }
   return hs;
