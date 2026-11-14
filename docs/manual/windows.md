@@ -433,8 +433,9 @@ While the link runs:
   running behind a dim.
 - `L2` / `R2` (`1` / `2` on the keyboard), a stick click or `X` (`Tab`) moves
   the buttons to the previous or next game. A click on a game picks it.
-- The `FF TOGGLE` hotkey fast-forwards every game at once, four times the
-  normal speed, with the sound off.
+- The `FF TOGGLE` hotkey fast-forwards every game at once at `FF SPEED`. With
+  `FF MUSIC` on you hear the game with the buttons sped up; with it `OFF`, no
+  sound.
 - `MENU` (`Esc`) asks `KEEP PLAYING` or `LEAVE`. Save in each game first: a
   game in the middle of saving finishes before it closes, and anything after a
   game's last save is lost, as when you turn a console off.
@@ -504,8 +505,9 @@ one before it on your screen. Holding R3 opens every view as a small picture to
 pick from (A takes one, B leaves it as it was). The view's name shows for a
 moment when it changes. A button with
 a job no longer reaches the game. Screenshots go to `DATA\screenshots`, named
-after the game. Fast forward has no effect in DS games, and the DS LAYOUT and
-SWAP SCREENS jobs only in them. Everything is kept in `DATA\settings.ini`.
+after the game. Fast forward runs a DS game at `FF SPEED` too, with its sound sped
+up when `FF MUSIC` is on (`STEADY` plays it sped up there as well). The DS LAYOUT and
+SWAP SCREENS jobs work only in DS games. Everything is kept in `DATA\settings.ini`.
 
 ### Screen, touch and orientation
 
