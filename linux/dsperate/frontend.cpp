@@ -709,16 +709,28 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
   // DS LAYOUT: ONE SCREEN floats the touch screen in when the game wants it (PK_NDS_FIELD_TOUCH, held a few frames
   // so a flicker doesn't flash it). A game without touch rules can't say so, so its ONE SCREEN is PICTURE IN PICTURE.
   int touchOn=0,touchOff=0;bool touchWanted=false;
-  auto pointerAt=[&](float px,float py,bool start){
-    if(pd_ds_game_touch_off || !ds_touch_shown(touchPlace) || showCompanion || showQuick || paused){pointerDown=false;return;}
+  // TOUCH IN WING's pop out: a tap on the wing's TOUCH SCREEN card grows the touch screen over the dimmed game (the
+  // game keeps running), where taps press it; a tap outside it, or B, puts it back. Neither of those taps reaches the
+  // game or the wing. popAnim runs 0 (in the wing) to 1 (popped out).
+  DsBox wingCard{};bool popTarget=false;float popAnim=0;
+  auto inBox=[](const DsBox& b,float px,float py){return b.shown() && px>=b.x && py>=b.y && px<b.x+b.w && py<b.y+b.h;};
+  // A press: true when the touch screen (or the pop out) took it, so the wing doesn't.
+  auto pointerAt=[&](float px,float py,bool start)->bool{
+    if(start && !pd_ds_game_touch_off && !showCompanion && !showQuick && !paused){
+      if(popTarget){
+        if(popAnim<1 || !inBox(touchPlace.touch,px,py)){if(!inBox(touchPlace.touch,px,py))popTarget=false;pointerDown=false;return true;}
+      }else if(inBox(wingCard,px,py)){popTarget=true;pointerDown=false;return true;}
+    }
+    if(pd_ds_game_touch_off || !ds_touch_shown(touchPlace) || showCompanion || showQuick || paused){pointerDown=false;return false;}
     int x,y;
     if(touchPlace.pieces && pieceLay.shown()){
       if(start)pointerPiece=ds_pieces_hit(*pieceGame,pieceLay,int(px),int(py),x,y);
       else if(pointerPiece>=0 && pointerPiece<int(pieceLay.placed.size()))ds_pieces_drag(*pieceGame,pieceLay,pointerPiece,int(px),int(py),x,y);
-      else {pointerDown=false;return;}
-      if(pointerPiece<0){if(start)pointerDown=false;return;}
-    }else if(!ds_touch_at(touchPlace,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return;}
+      else {pointerDown=false;return false;}
+      if(pointerPiece<0){if(start)pointerDown=false;return pointerDown;}
+    }else if(!ds_touch_at(touchPlace,int(px),int(py),!start,x,y)){if(start)pointerDown=false;return pointerDown;}
     pointerX=x;pointerY=y;if(start)pointerDown=true;
+    return true;
   };
   // A press on a wing that the touch screen didn't take: the right wing's buttons, else the companion.
   auto wingTap=[&](float px,float py){
@@ -743,6 +755,11 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       SDL_Event m{};m.type=frame==t.at?SDL_MOUSEBUTTONDOWN:SDL_MOUSEBUTTONUP;m.button.button=SDL_BUTTON_LEFT;m.button.which=0;
       m.button.state=frame==t.at?SDL_PRESSED:SDL_RELEASED;m.button.x=t.x;m.button.y=t.y;
       if(pop.win && std::getenv("POCKET_DS_TAPS_TOUCH_WINDOW"))m.button.windowID=pop.id;  // tests: taps in TOUCH WINDOW
+      if(std::getenv("POCKET_DS_TAPS_FINGER")){  // tests: the same taps as a finger on a touch display
+        int ww=1,wh=1;SDL_GetWindowSize(SDL_RenderGetWindow(renderer),&ww,&wh);
+        m=SDL_Event{};m.type=frame==t.at?SDL_FINGERDOWN:SDL_FINGERUP;m.tfinger.fingerId=7;
+        m.tfinger.x=float(t.x)/std::max(1,ww);m.tfinger.y=float(t.y)/std::max(1,wh);
+      }
       SDL_PushEvent(&m);
     }
     while(SDL_PollEvent(&e)){
@@ -809,14 +826,14 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
         if(e.type==SDL_JOYAXISMOTION && (e.jaxis.axis==2 || e.jaxis.axis==5)){k=e.jaxis.axis==2?12:13;down=e.jaxis.value>16000;}
       }
       key(k,down);
-      if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID){float px,py;toOutput(e.button.x,e.button.y,px,py);pointerAt(px,py,true);if(!pointerDown)wingTap(px,py);}
+      if(e.type==SDL_MOUSEBUTTONDOWN && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID){float px,py;toOutput(e.button.x,e.button.y,px,py);if(!pointerAt(px,py,true))wingTap(px,py);}
       if(e.type==SDL_MOUSEMOTION && pointerDown && pointerFinger<0 && (e.motion.state&SDL_BUTTON_LMASK) && e.motion.which!=SDL_TOUCH_MOUSEID){float px,py;toOutput(e.motion.x,e.motion.y,px,py);pointerAt(px,py,false);}
       if(e.type==SDL_MOUSEBUTTONUP && e.button.button==SDL_BUTTON_LEFT && e.button.which!=SDL_TOUCH_MOUSEID && pointerFinger<0)pointerDown=false;
       auto fingerAt=[&](float nx,float ny,float& px,float& py){
         if(pd_ds_point){pd_ds_point(nx,ny,&px,&py);return;}
         int ow=1,oh=1;SDL_GetRendererOutputSize(renderer,&ow,&oh);px=nx*ow;py=ny*oh;
       };
-      if(e.type==SDL_FINGERDOWN && !pointerDown){float px,py;fingerAt(e.tfinger.x,e.tfinger.y,px,py);pointerAt(px,py,true);if(pointerDown)pointerFinger=e.tfinger.fingerId;else wingTap(px,py);}
+      if(e.type==SDL_FINGERDOWN && !pointerDown){float px,py;fingerAt(e.tfinger.x,e.tfinger.y,px,py);bool took=pointerAt(px,py,true);if(pointerDown)pointerFinger=e.tfinger.fingerId;else if(!took)wingTap(px,py);}
       if(e.type==SDL_FINGERMOTION && pointerDown && e.tfinger.fingerId==pointerFinger){float px,py;fingerAt(e.tfinger.x,e.tfinger.y,px,py);pointerAt(px,py,false);}
       if(e.type==SDL_FINGERUP && e.tfinger.fingerId==pointerFinger){pointerDown=false;pointerFinger=-1;}
       if(!pointerDown)pointerFinger=-1;
@@ -863,6 +880,8 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
       wingAction=-1;blocked|=keys&4095u;nds->setButtons(0);nds->setTouch(0,0,false);
     }
     blocked &= keys;
+    // B puts a popped out touch screen back, and stays out of the game until it's let go.
+    if(popTarget && (pressed&(1u<<1)) && !showCompanion && !paused){popTarget=false;pointerDown=false;blocked|=keys&4095u;pressed&=~(1u<<1);}
     // SELECT + R2 / L2 step DS LAYOUT forward / back (the app's R2 hotkey); SELECT is then kept from the game.
     if((keys&(1u<<2)) && (pressed&((1u<<12)|(1u<<13))) && !showCompanion && !paused){
       prefs.layout=(prefs.layout+((pressed&(1u<<13))?1:DSL_COUNT-1))%DSL_COUNT;
@@ -1141,6 +1160,18 @@ extern "C" int pd_ds_run(const char* rom,const char* root,int limit,const char* 
           wideShown=true;
         }
         nds->wideWindow(wx,wy,int(ww),int(wh));
+      }
+      // TOUCH IN WING's pop out (above): the touch screen grows from its wing card to as large as fits, over the
+      // dimmed game, as ONE SCREEN floats it in. EXPAND's room (above) is the wing layout's either way.
+      wingCard=touchCard.shown() && !view.bottom && !paused?touchCard:DsBox{};
+      if(!wingCard.shown() || showCompanion){popTarget=false;popAnim=0;}
+      popAnim=std::clamp(popAnim+(popTarget?1.0f:-1.0f)/7,0.0f,1.0f);
+      if(popAnim>0){
+        const DsBox from=place.touch,big=ds_fit(ow/16,oh/16,ow-ow/8,oh-oh/8,256,192,false);
+        const float k=popAnim*popAnim*(3-2*popAnim);
+        auto mix=[k](int a,int b){return a+int(std::lround((b-a)*k));};
+        place.touch={mix(from.x,big.x),mix(from.y,big.y),mix(from.w,big.w),mix(from.h,big.h)};
+        place.touchFloats=true;touchCard={};
       }
       DsPieceLayout lay;
       if(place.pieces){int sc=ds_pieces_detect(*pieceGame,nds->framebuffer(1));if(sc>=0)lay=ds_pieces_arrange(*pieceGame,sc,place.wing);}

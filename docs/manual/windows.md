@@ -779,8 +779,12 @@ the same way as the companion views (`TOUCH IN WING`, `WINGS` and
   with the top screen's bottom, on a card of its own titled `TOUCH SCREEN`,
   and the companion fills the other: your party down that wing, and the
   right wing's map and facts above the touch screen. `DS WING SIDE` puts the touch screen on the `LEFT` or the
-  `RIGHT` (the default). A window too narrow for that gets `PICTURE IN
-  PICTURE`.
+  `RIGHT` (the default). Tap or click that card and the touch screen grows
+  over the game, as large as fits, while the game keeps running under it. Tap
+  it there as you would on the DS; tap anywhere outside it, or press B, and it
+  goes back into its wing. Neither of those two taps reaches the game. A
+  window too narrow for the wings gets `PICTURE IN PICTURE`; a large screen
+  such as 2560 x 1600 now keeps them.
 - **`STACKED`**: the top screen over the touch screen, like the DS itself.
 - **`SIDE BY SIDE`**: the two screens next to each other. In a window taller
   than it is wide they go `STACKED`.

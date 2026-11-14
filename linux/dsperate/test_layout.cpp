@@ -59,6 +59,9 @@ int main(){
   assert(wingLeft.touch.x==0 && wingLeft.panel[0].x==1600);
   assert(ds_place(DSL_WING,1280,720,false,false).top.w==768);   // 3x
   assert(ds_place(DSL_WING,1280,800,false,false).top.w==768);   // 4x leaves no wing: 3x
+  // OneXPlayer / Legion Go size: 8x and 7x leave no wings, 6x does (it once fell back to PICTURE IN PICTURE).
+  assert(ds_place(DSL_WING,2560,1600,false,false).used==DSL_WING && ds_place(DSL_WING,2560,1600,false,false).top.w==1536);
+  assert(ds_place(DSL_WING,1920,1200,false,false).used==DSL_WING);
   // WINGS: the top screen alone in the middle, panels in both wings, the touch screen floating in when wanted.
   auto wings=ds_place(DSL_WINGS,1920,1080,false,false);
   assert(wings.used==DSL_WINGS && wings.top.w==1280 && !wings.touch.shown() && wings.panel[0].shown() && wings.panel[1].shown());

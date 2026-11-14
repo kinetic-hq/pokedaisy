@@ -179,7 +179,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   a UTF-8 manifest and safe save / state writes on Windows.
 - **Nintendo DS on melonDS** in the desktop host, with `DS LAYOUT` (six ways to place the two screens) and touch by
   mouse, finger or controller. `TOUCH WINDOW` (an experiment) puts the touch screen in a second window, for a
-  second monitor or a two-screen handheld.
+  second monitor or a two-screen handheld. In `TOUCH IN WING` a tap on the wing's touch screen pops it out large
+  over the game; a tap outside or B puts it back. `TOUCH IN WING` and `WINGS` keep their wings on 2560 x 1600
+  screens.
 - **COMPANION VIEW** on the desktop host: `BATTLE WINGS`, `WINDOW`, `SIDE PANEL`, `WINGS`, `GLASS DRAWER` and
   `STEP BACK`.
 - **Controllers**: hot plugging, several at once (a handheld's own controls and an Xbox pad together).
