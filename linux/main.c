@@ -360,11 +360,15 @@ static const int HOTKEY_ROW_ORDER[PD_HOTKEY_BUTTONS] = {PD_HOTKEY_L2, PD_HOTKEY_
 enum {
   HA_USUAL, HA_MENU, HA_COMPANION, HA_FF, HA_SAVE_STATE, HA_LOAD_STATE, HA_SCREENSHOT, HA_FULLSCREEN,
   HA_DS_LAYOUT_NEXT, HA_DS_LAYOUT_BACK, HA_SWAP_SCREENS, HA_ZOOM_IN, HA_ZOOM_OUT, HA_REWIND,
+  // GB / GBA games only (as the companion's STATES and SPEED have them; a DS game ignores them):
+  HA_UNDO_SAVE, HA_UNDO_LOAD, HA_SLOT_NEXT, HA_SLOT_PREV, HA_FF_HOLD, HA_SPEED_CYCLE, HA_SOFT_RESET, HA_RESTART, HA_MUTE,
 };
 // The app's HOTKEYS words (Hotkeys.kt's Action titles) where it has the same action.
 static const char *const HOTKEY_ACTIONS[PD_HOTKEY_ACTIONS] = {
     "USUAL USE",  "GAME MENU",  "COMPANION", "FF TOGGLE",      "SAVE STATE",   "LOAD STATE", "SCREENSHOT",
-    "FULLSCREEN", "DS LAYOUT", "DS LAYOUT BACK", "SWAP SCREENS", "ZOOM IN",    "ZOOM OUT",   "REWIND HOLD"};
+    "FULLSCREEN", "DS LAYOUT", "DS LAYOUT BACK", "SWAP SCREENS", "ZOOM IN",    "ZOOM OUT",   "REWIND HOLD",
+    "UNDO SAVE",  "UNDO LOAD", "SLOT NEXT",      "SLOT PREV",    "FF HOLD",    "SPEED CYCLE", "SOFT RESET",
+    "RESTART",    "MUTE"};
 static unsigned hostActions;  // HA_* bits pressed since the game loop last looked
 static bool screenshotWanted; // the next present writes DATA/screenshots/...
 static int gameTouch; // GAME TOUCH, enum pd_game_touch
@@ -386,6 +390,7 @@ static void controls_load(void) {
 /* REWIND HOLD: held, not pressed - the HOTKEYS button (or trigger, or stick) bound to it, or R on a keyboard while
  * REWIND is on. Any button bound to it keeps the ring running, as the setting does. */
 static bool rewindHeld, rewindKey;
+static bool ffHoldHeld; // FF HOLD: fast-forward for as long as its button is held
 static bool rewind_hotkey(void) {
   for (int i = 0; i < PD_HOTKEY_BUTTONS; i++)
     if (hotkeyMap[i] == HA_REWIND)
@@ -705,6 +710,10 @@ static bool hotkey_event(const SDL_Event *e) {
       continue;
     if (hotkeyMap[i] == HA_REWIND) {
       rewindHeld = e->type == SDL_CONTROLLERBUTTONDOWN;
+      return true;
+    }
+    if (hotkeyMap[i] == HA_FF_HOLD) {
+      ffHoldHeld = e->type == SDL_CONTROLLERBUTTONDOWN;
       return true;
     }
     if (e->type == SDL_CONTROLLERBUTTONDOWN) {
@@ -1224,8 +1233,8 @@ static void stick_hotkeys(void) {
     int action = hotkeyMap[slots[i]];
     if (!action)
       continue;
-    if (action == HA_REWIND) { // held as long as the trigger or stick is
-      rewindHeld = (held & bit) != 0;
+    if (action == HA_REWIND || action == HA_FF_HOLD) { // held as long as the trigger or stick is
+      (action == HA_REWIND ? &rewindHeld : &ffHoldHeld)[0] = (held & bit) != 0;
       hotkeyMask |= bit;
       continue;
     }
@@ -4479,7 +4488,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     pd_ds_present = timed_present;
     pd_ds_point = pd_host_point;
     pd_ds_game_touch_off = gameTouch == PD_GAME_TOUCH_OFF;
-    rewindHeld = rewindKey = false;
+    rewindHeld = rewindKey = ffHoldHeld = false;
     pd_ds_rewind_held = ds_rewind_held;
     {
       char cfg[1100];
@@ -4881,12 +4890,50 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
       ff = !ff;
       notice(ff ? "Fast-forward on" : "Fast-forward off");
     }
+    // The companion's STATES, SPEED and GAME MENU rows on a button.
+    if (host_action(HA_UNDO_SAVE))
+      notice(undo_save() ? "Save undone: the slot is as it was" : "Nothing to undo");
+    if (host_action(HA_UNDO_LOAD))
+      notice(undo_load(c) ? "Load undone" : "Nothing to undo");
+    {
+      int step = host_action(HA_SLOT_NEXT) ? 1 : host_action(HA_SLOT_PREV) ? -1 : 0;
+      if (step) {
+        host.slotSelected = ((host.slotSelected + step) % PD_STATE_SLOTS + PD_STATE_SLOTS) % PD_STATE_SLOTS;
+        slot_path(ss, sizeof ss, root, name, host.slotSelected);
+        static char slotText[32];
+        snprintf(slotText, sizeof slotText, "State slot %d%s", host.slotSelected,
+                 pocket_exists(ss) ? "" : " (empty)");
+        notice(slotText);
+      }
+    }
+    if (host_action(HA_SPEED_CYCLE)) {
+      settings.gameSpeed = (settings.gameSpeed + 1) % PD_GAME_SPEED_COUNT;
+      settings_put(&settings, config);
+      static char speedText[32];
+      snprintf(speedText, sizeof speedText, "Game speed %s", PD_GAME_SPEEDS[settings.gameSpeed]);
+      notice(speedText);
+    }
+    if (host_action(HA_MUTE)) {
+      settings.gameMuted = !settings.gameMuted;
+      settings_put(&settings, config);
+      notice(settings.gameMuted ? "Game muted" : "Game sound on");
+    }
+    if (host_action(HA_SOFT_RESET)) { // the game's own reset: A + B + SELECT + START held a moment
+      gameKeys = (1u << A) | (1u << B) | (1u << SELECT) | (1u << START);
+      gameKeyFrames = 12;
+      notice("Soft reset");
+    }
+    if (host_action(HA_RESTART)) {
+      c->reset(c);
+      ra_reset();
+      notice("Game restarted");
+    }
     hostActions &= ~((1u << HA_DS_LAYOUT_NEXT) | (1u << HA_DS_LAYOUT_BACK) | (1u << HA_SWAP_SCREENS)); // DS only
     if (hkFired & (1u << HK_SAVE))
       notice(user_state(c, ss, true) ? "State saved" : "State save failed");
     if (hkFired & (1u << HK_LOAD))
       notice(!pocket_exists(ss) ? "No state saved yet" : user_state(c, ss, false) ? "State loaded" : "State load failed");
-    bool ffHeld = hkOn & (1u << HK_FF), rewinding = ((hkOn & (1u << HK_REWIND)) || rewindHeld || rewindKey) && rewindOn;
+    bool ffHeld = (hkOn & (1u << HK_FF)) || ffHoldHeld, rewinding = ((hkOn & (1u << HK_REWIND)) || rewindHeld || rewindKey) && rewindOn;
     // R3 (its usual use): a tap switches between WINGS and BATTLE WINGS (from any other view: WINGS), a hold opens
     // every view to pick from (A or a tap picks, B leaves it as it was). The view's name shows either way.
     static uint32_t r3Since;
