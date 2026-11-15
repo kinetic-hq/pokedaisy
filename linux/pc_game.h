@@ -102,8 +102,19 @@ struct pc_state {
   int pad;               // enum pc_pad_mode
   unsigned char padVk[PC_PAD_BUTTONS];  // PC_PAD_KEYS: the key (a Windows key code) the game ties to each button
   char padRole[PC_PAD_BUTTONS][24];     // what the game does with each button ("CONFIRM", "BACK/MENU"), else ""
+  bool padOurs;                         // PC_PAD_KEYS from pc_pad_mkxpz: mkxp-z's own keys, not the game's choice
 };
 bool pc_state_parse(const char *json, struct pc_state *out);
+/* An mkxp-z game: mkxp-z reads only the first controller Windows lists (SDL's joystick 0), which on a handheld can be
+ * another device than its own pad, so the game then never sees the pad. PokeDaisy hides every controller from the
+ * game's player (pc_pad_env's HIDE) and presses mkxp-z's own keys for the buttons instead (PC_PAD_KEYS), unless the
+ * companion already said which keys the game reads (a game that asks Windows for the keyboard itself). */
+void pc_pad_mkxpz(struct pc_state *s);
+/* A 32-bit player (Bushido's mkxp-z) has 2 GB to work in unless its file says it can use more: a big window on a
+ * handheld's graphics driver leaves too little, and the game stops as it loads its battle animations ("failed to
+ * allocate memory"). PokeDaisy's copy of the player (pc_prepare) is marked LARGE_ADDRESS_AWARE, 4 GB on 64-bit Windows.
+ * 1 when marked now, 0 when there was nothing to do (64-bit, or marked already), -1 when it isn't a player. */
+int pc_large_address(const char *path);
 /* The controller's buttons as PokeDaisy reads them (BUTTON LAYOUT already applied: A is the confirming one), and the
  * game's button each one is (enum pc_pad_button), or -1: what PokeDaisy presses in PC_PAD_KEYS, and what mkxp-z's own
  * reading does in PC_PAD_NATIVE (A C, B B, X A, Y X, the shoulders L and R, R3 Z). With keys, START is the game's
@@ -197,8 +208,10 @@ bool pc_compose(void *self, int ow, int oh, uint32_t *out);
 /* BUTTON LAYOUT for the game's own player (an SDL one: mkxp-z, the player older games borrow): every pad read by
  * the buttons' places, as PokeDaisy reads them (SDL would otherwise swap a Nintendo-labelled pad's), and with
  * NINTENDO, MAPPINGS (SDL mapping lines with the face buttons swapped, pc_swap_face) so the right button confirms.
- * Set in PokeDaisy's environment just before the game starts, which the game's player inherits. */
-void pc_pad_env(const char *mappings);
+ * Set in PokeDaisy's environment just before the game starts, which the game's player inherits. HIDE (an mkxp-z
+ * game, pc_pad_mkxpz): no controller at all for the game's player, PokeDaisy presses its keys instead; pc_pad_env(NULL,
+ * false) after the start takes that away from PokeDaisy's own environment again. */
+void pc_pad_env(const char *mappings, bool hide);
 /* One SDL mapping line with A and B, X and Y swapped (the NINTENDO layout), a bus-and-IDs GUID's CRC part zeroed so
  * any SDL version matches it (SDL's own XInput GUID kept as it is). False when it isn't a mapping line or OUT is too
  * small. */

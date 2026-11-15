@@ -55,6 +55,10 @@ static void test_mkxp(void) {
   assert(strstr(out, "\"defScreenW\": 1600") && !strstr(out, "640"));
   assert(strstr(out, "\"preloadScript\": [\"own.rb\", \"D:/data/pc/companion.rb\"]"));
   assert(!strstr(out, "// the game's own"));
+  // F1's key binding window stays shut, whatever the game's file says.
+  assert(strstr(out, "\"enableSettings\": false"));
+  n = pc_mkxp_json("{\"enableSettings\": true}", &o, out, sizeof out);
+  assert(n > 0 && strstr(out, "\"enableSettings\": false") && !strstr(out, "\"enableSettings\": true"));
   // No file of the game's own, and a second preload.
   o.extraPreload = "C:/t.rb";
   n = pc_mkxp_json(NULL, &o, out, sizeof out);
@@ -181,9 +185,53 @@ static void test_pad(void) {
   assert(n == 3 && !strcmp(h[2].button, "X") && !strcmp(h[2].label, "MENU"));
   // Not said yet: no hints.
   assert(pc_state_parse("{\"v\":1}", &s) && s.pad == PC_PAD_UNKNOWN && !pc_pad_hints(&s, true, h, 9));
+  // On mkxp-z, which sees no controller: its own keys pressed (ENTER confirms, ESC goes back), from the start.
+  pc_pad_mkxpz(&s);
+  assert(s.pad == PC_PAD_KEYS && s.padOurs && s.padVk[PC_PAD_C] == 0x0D && s.padVk[PC_PAD_B] == 0x1B);
+  pc_pad_keys(&s, (1u << PC_IN_A) | (1u << PC_IN_UP), down);
+  assert(down[0x0D] && down[0x26] && !down[0x1B]);
+  pc_pad_keys(&s, 1u << PC_IN_START, down); // the menu: Essentials' own (B) when the game names none
+  assert(down[0x1B]);
+  assert(pc_state_parse("{\"pad\":\"native\",\"pad_roles\":\"C:CONFIRM,B:BACK,A:MENU\"}", &s));
+  pc_pad_mkxpz(&s);
+  assert(s.pad == PC_PAD_KEYS && pc_pad_target(&s, PC_IN_START) == PC_PAD_A);
+  pc_pad_keys(&s, 1u << PC_IN_START, down);
+  assert(down[0x10] && !down[0x1B]);
+  n = pc_pad_hints(&s, true, h, 9); // the game's own buttons named, never mkxp-z's keys
+  assert(n == 4 && !strcmp(h[0].label, "CONFIRM") && !strcmp(h[2].label, "MENU") && !strcmp(h[3].button, "START"));
+  for (int i = 0; i < n; i++)
+    assert(!strstr(h[i].label, "KEY"));
+  // A game on mkxp-z that asks Windows for the keyboard itself: the keys the companion read stay.
+  assert(pc_state_parse("{\"pad\":\"keys\",\"pad_keys\":\"C:67,B:88\"}", &s));
+  pc_pad_mkxpz(&s);
+  assert(!s.padOurs && s.padVk[PC_PAD_C] == 67 && s.padVk[PC_PAD_B] == 88);
+}
+
+static void test_large_address(void) {
+  unsigned char exe[256] = {'M', 'Z'};
+  exe[0x3C] = 0x80;
+  exe[0x80] = 'P', exe[0x81] = 'E';
+  exe[0x84] = 0x4C, exe[0x85] = 0x01; // i386
+  exe[0x96] = 0x02;                   // EXECUTABLE_IMAGE
+  const char *path = "test_large_address.exe";
+  FILE *f = fopen(path, "wb");
+  assert(f && fwrite(exe, 1, sizeof exe, f) == sizeof exe && !fclose(f));
+  assert(pc_large_address(path) == 1 && pc_large_address(path) == 0);
+  f = fopen(path, "rb");
+  assert(f && fread(exe, 1, sizeof exe, f) == sizeof exe && !fclose(f));
+  assert(exe[0x96] == 0x22 && exe[0x84] == 0x4C);
+  exe[0x84] = 0x64, exe[0x85] = 0x86, exe[0x96] = 0x02; // x64: left alone
+  f = fopen(path, "wb");
+  assert(f && fwrite(exe, 1, sizeof exe, f) == sizeof exe && !fclose(f));
+  assert(pc_large_address(path) == 0);
+  f = fopen(path, "wb");
+  assert(f && fwrite("not a player", 1, 12, f) == 12 && !fclose(f));
+  assert(pc_large_address(path) == -1 && pc_large_address("no such file.exe") == -1);
+  remove(path);
 }
 
 int main(void) {
+  test_large_address();
   test_pad();
   test_swap_face();
   test_undouble();

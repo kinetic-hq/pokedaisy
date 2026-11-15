@@ -4087,11 +4087,13 @@ static void pc_play(const char *path) {
     zoom = 0;
   pc_commands(cmdPath, ff, instant, zoom);
   // BUTTON LAYOUT reaches the game's own player here and nowhere else: by the buttons' places, and with NINTENDO
-  // every pad's face buttons swapped (the right one confirms), the generic XInput pad's too.
+  // every pad's face buttons swapped (the right one confirms), the generic XInput pad's too. An mkxp-z game sees no
+  // controller at all: PokeDaisy presses its keys instead (pc_pad_mkxpz), the layout already applied.
+  bool mkxpzPad = info.player == PC_PLAYER_MKXPZ;
+  static char maps[4096];
   {
-    static char maps[4096];
     maps[0] = 0;
-    if (buttonLayout != PD_LAYOUT_XBOX) {
+    if (buttonLayout != PD_LAYOUT_XBOX && !mkxpzPad) {
       char line[1024];
       size_t at = 0;
       for (int i = 0; i <= padCount; i++) {
@@ -4108,9 +4110,11 @@ static void pc_play(const char *path) {
           SDL_free(m);
       }
     }
-    pc_pad_env(maps);
+    pc_pad_env(maps, mkxpzPad);
   }
-  if (!pc_start(&info, dir, jsonPath, cmdPath)) {
+  bool begun = pc_start(&info, dir, jsonPath, cmdPath);
+  pc_pad_env(maps, false); // PokeDaisy's own SDL keeps seeing its controllers
+  if (!begun) {
     appError = 1;
     notice("Couldn't start the game");
     if (!wasFull)
@@ -4123,6 +4127,8 @@ static void pc_play(const char *path) {
     pc_wings_types(true);
   static struct pc_state state;
   memset(&state, 0, sizeof state);
+  if (mkxpzPad)
+    pc_pad_mkxpz(&state);
   long long jsonStamp = -1;
   uint32_t start = SDL_GetTicks(), lastPlace = 0, chordSince = 0, closeAsked = 0;
   bool placed = false, focused = false, closing = false, shotTaken = false;
@@ -4274,10 +4280,10 @@ static void pc_play(const char *path) {
           focused = true;
       }
     }
-    // THE CONTROLLER in a game that reads only the keyboard (the companion says PC_PAD_KEYS): the game's own keys
-    // pressed for the buttons held (BUTTON LAYOUT already applied), while its window has the foreground. GUIDE, L3,
-    // LT and RT stay PokeDaisy's. POCKET_PC_PAD_SCRIPT (checks): "ms:mask,..." holds those buttons (1 << enum
-    // pc_pad_in) from that time on, in place of the controller.
+    // THE CONTROLLER in a game that reads only the keyboard (the companion says PC_PAD_KEYS) or on mkxp-z (which
+    // sees no controller, pc_pad_mkxpz): the game's own keys pressed for the buttons held (BUTTON LAYOUT already
+    // applied), while its window has the foreground. GUIDE, L3, LT and RT stay PokeDaisy's. POCKET_PC_PAD_SCRIPT
+    // (checks): "ms:mask,..." holds those buttons (1 << enum pc_pad_in) from that time on, in place of the controller.
     if (state.pad == PC_PAD_KEYS) {
       static const int from[PC_INS] = {A, B, X, Y, L, R, R3, SELECT, START, UP, DOWN, LEFT, RIGHT};
       unsigned in = 0;
@@ -4306,6 +4312,8 @@ static void pc_play(const char *path) {
       static struct pc_state next;
       if (text && pc_state_parse(text, &next)) {
         state = next;
+        if (mkxpzPad)
+          pc_pad_mkxpz(&state);
         // A game drawing at another shape than 4:3: the picture follows it.
         if (!pcWide && state.screenW > 0 && state.screenH > 0 && state.screenW * baseH != state.screenH * baseW) {
           baseW = state.screenW;

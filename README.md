@@ -588,6 +588,12 @@ Every change, one line each (a pull request that changes what the fork adds upda
   stand-ins for their helper DLLs; a game on its own player is drawn whole, full screen, through `SHADER` and `COLORS`.
   A game that lists another language before English starts in English (its language choice and a new
   adventure's options start there), without changing its files.
+- **The controller in mkxp-z fan games** (Indigo, Fire Ash, Floral Tempest, Reborn, Tectonic, ...) goes through
+  PokeDaisy: the game's player reads only the first controller Windows lists, which on some handhelds isn't the
+  built in one (stuck on Indigo's CONTROLS screen, or `A` and `B` swapped), so the player sees no controller and
+  PokeDaisy presses its keys for your buttons, by `BUTTON LAYOUT`. `START` opens the game's menu there too. The
+  player's `F1` key binding window, which needs a mouse, can't open, and a 32-bit player (Bushido's) may use 4 GB, so
+  it no longer runs out of memory as it starts on a big screen.
 
 </details>
 
