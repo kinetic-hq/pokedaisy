@@ -173,11 +173,13 @@ Press `X`, right click or hold a finger on a game for its options:
   `PARTLY` and `PLAY ONLY`, what's missing.
 - **`CHOOSE BOX ART`** shows every cover for the game as a grid, so you can pick
   the one you like. The pictures in its box art folder come first (marked
-  `IN FOLDER`: its box art now, then the alternates), then the cover from
+  `IN FOLDER`: the one the list shows now, marked `Its box art now`, then the
+  others), then the cover from
   libretro and the base game's box, then every cover SteamGridDB has for the
   game (with your key), loaded as you scroll. Each tile says where the cover
-  comes from and its size. Press `A`, click or tap one to use it: an alternate
-  swaps names with the box art, and any other cover is saved as the new box art.
+  comes from and its size. Press `A`, click or tap one to use it: a picture
+  from the folder becomes the one the list shows, and its files keep their names;
+  any other cover is saved as the new box art.
   Your pick stays, and `SYNC BOX ART` never replaces it. Along the top bar:
   - `SEARCH AGAIN` (or `Y`): type another name, then pick the right game from
     SteamGridDB's list to see its covers.

@@ -494,6 +494,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
   ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
   UNFAVORITE in a game's X options (DATA/favorites.txt).
+- Desktop: CHOOSE BOX ART marks only the picture in use as "Its box art now"; any other picture in the game's
+  folder can be picked (the pick is kept in DATA for that ART STYLE, the folder's files aren't renamed)
 - Desktop: a PC fan game's INFO shows its own program in PROGRAM (it showed the borrowed player's name inside the
   game's folder, a file that isn't there), plus RUNS ON for the other game's player it plays on
 - Desktop: SAVE BACKUPS (SETTINGS > LIBRARY) sets how many backups each game's save keeps: 1, 3, 5, 10 (the old

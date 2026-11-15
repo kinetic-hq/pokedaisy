@@ -102,6 +102,7 @@ enum { BOXART_PICK_LOADING, BOXART_PICK_DONE, BOXART_PICK_NO_KEY };
 struct boxart_pick_item {
   int source, w, h;
   int local;          // BOXART_PICK_LOCAL: 0 the game's box art, n its alternate n
+  bool current;       // BOXART_PICK_LOCAL: the picture the list draws now (ART STYLE's)
   bool ready, failed; // its thumbnail is there / couldn't be fetched
 };
 void boxart_pick_open(const struct boxart_game *g);
