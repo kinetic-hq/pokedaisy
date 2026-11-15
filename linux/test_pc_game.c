@@ -59,6 +59,11 @@ static void test_mkxp(void) {
   assert(strstr(out, "\"enableSettings\": false"));
   n = pc_mkxp_json("{\"enableSettings\": true}", &o, out, sizeof out);
   assert(n > 0 && strstr(out, "\"enableSettings\": false") && !strstr(out, "\"enableSettings\": true"));
+  // Neither vsync nor syncToRefreshrate, whatever the game's file says (they stalled Indigo at 7 frames a second).
+  n = pc_mkxp_json("{\"vsync\": true, \"syncToRefreshrate\": true, \"fixedFramerate\": 60}", &o, out, sizeof out);
+  assert(n > 0 && strstr(out, "\"vsync\": false") && strstr(out, "\"syncToRefreshrate\": false"));
+  assert(!strstr(out, "\"vsync\": true") && !strstr(out, "\"syncToRefreshrate\": true"));
+  assert(strstr(out, "\"fixedFramerate\": 60"));
   // No file of the game's own, and a second preload.
   o.extraPreload = "C:/t.rb";
   n = pc_mkxp_json(NULL, &o, out, sizeof out);

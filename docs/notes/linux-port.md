@@ -96,3 +96,8 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
 - **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
   it a big window on a handheld's driver left too little of 2 GB and `load_data` of the battle animations failed with
   NoMemoryError.
+- **mkxp-z vsync**: the shadow mkxp.json forces `vsync` and `syncToRefreshrate` false. With them on (Indigo, Eon
+  Guardians) the player's window over PokeDaisy's stalled at about 7 fps (264 to 577 ms frames) and a 60 ms key press
+  was mostly missed; off, Indigo holds its own 40 fps and Eon Guardians 60. In keys mode (`PC_PAD_KEYS`) the loop
+  runs every 8 ms and each press stays down at least 60 ms (`downUntil` in main.c), so a tap between two of
+  PokeDaisy's polls or two of the game's frames still lands.

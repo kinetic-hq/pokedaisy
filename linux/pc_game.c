@@ -365,7 +365,7 @@ static void put_path(struct out *o, const char *path) {
 static const char *const OVERRIDDEN[] = {"gameFolder", "defScreenW", "defScreenH", "winResizable", "fullscreen",
                                          "fixedAspectRatio", "smoothScaling", "integerScalingActive",
                                          "integerScalingLastMile", "printFPS", "preloadScript", "rgssVersion",
-                                         "enableSettings"};
+                                         "enableSettings", "vsync", "syncToRefreshrate"};
 
 int pc_mkxp_json(const char *text, const struct pc_mkxp_overrides *o, char *buf, size_t size) {
   struct out out = {buf, size, 0, false};
@@ -427,6 +427,9 @@ int pc_mkxp_json(const char *text, const struct pc_mkxp_overrides *o, char *buf,
   // F1's key binding window off: it needs a mouse and a keyboard, so a controller alone can't close it, and keys
   // bound anew there would no longer be the ones PokeDaisy presses for the controller (pc_pad_mkxpz).
   put(&out, "  \"enableSettings\": false,\n");
+  // The game's own frame timer paces it: waiting on the screen's refresh as well stalls a window that sits over
+  // PokeDaisy's (Indigo fell to 7 frames a second with vsync and syncToRefreshrate on, 40 with them off).
+  put(&out, "  \"vsync\": false,\n  \"syncToRefreshrate\": false,\n");
   put(&out, "  \"printFPS\": false,\n  \"preloadScript\": [");
   // The stand-ins first, the game's own next (a string or a list), then the companion.
   bool any = false;

@@ -67,6 +67,10 @@ caught, the zoom and the speed, and what's wild where you're standing.
 
 A `PLAY ONLY` game is as tall as the screen, with nothing beside it.
 
+A game runs at its own speed, whatever its `mkxp.json` says about waiting for the
+screen: PokeDaisy turns that waiting off, since it slowed some games (Indigo, Eon
+Guardians) to a crawl in the window over PokeDaisy's.
+
 ## The wings
 
 The left wing is your party: each one's name, types, level and HP. The right
