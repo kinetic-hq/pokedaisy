@@ -587,6 +587,10 @@ two swap, so no button is ever left out by accident. `RESET CONTROLLER` and
 every menu; a DS game keeps its own buttons. While you haven't changed a side,
 the controller follows `BUTTON LAYOUT` as before.
 
+`TURBO A` and `TURBO B`, at the end of each list, press A or B over and over
+(about 15 times a second) for as long as you hold them: good for mashing
+through text. They aren't on any button until you give them one here.
+
 In `HOTKEYS`, the triggers and sticks come first (`L2 / LT`, `R2 / RT`, `L3`,
 `R3`), then each extra button your controller may have: `GUIDE / HOME`, `SHARE`
 and the four back `PADDLE` buttons. Out of the box LT zooms out, RT zooms in

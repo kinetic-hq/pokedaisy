@@ -161,6 +161,8 @@ enum {
   FN1,
   FN2,
   R3, // COMPANION VIEW: a tap = WINGS <-> BATTLE WINGS, a hold = the views to pick from
+  TURBO_A, // TURBO A / B (GAME BUTTONS, on no button at first): A or B pressed over and over while held
+  TURBO_B,
   NKEYS
 };
 static SDL_GameController *controller; // the first open pad (any open pad plays: pads[])
@@ -445,10 +447,19 @@ static void key(int k, bool down) {
 }
 /* GAME BUTTONS (remap.h): each button's key and controller button. The defaults are keyboard() and controller_button()
  * (so BUTTON LAYOUT), DATA/controls.ini holds what the player changed. They drive the GB / GBA game and every menu. */
-#define REMAP_COUNT 17
-static const int REMAP_BUTTONS[REMAP_COUNT] = {A, B, X, Y, L, R, L2, R2, SELECT, START, UP, DOWN, LEFT, RIGHT, MENU, L3, R3};
-static const char *const REMAP_NAMES[REMAP_COUNT] = {"A",  "B",     "X",  "Y",    "L",     "R",    "L2",   "R2", "SELECT",
-                                                     "START", "UP", "DOWN", "LEFT", "RIGHT", "MENU", "L3", "R3"};
+#define REMAP_COUNT 19
+static const int REMAP_BUTTONS[REMAP_COUNT] = {A,  B,    X,    Y,     L,    R,  L2, R2,      SELECT, START,
+                                               UP, DOWN, LEFT, RIGHT, MENU, L3, R3, TURBO_A, TURBO_B};
+static const char *const REMAP_NAMES[REMAP_COUNT] = {"A",    "B",     "X",    "Y",  "L",  "R",       "L2",
+                                                     "R2",   "SELECT", "START", "UP", "DOWN", "LEFT", "RIGHT",
+                                                     "MENU", "L3",    "R3",    "TURBO A", "TURBO B"};
+/* TURBO A / B: while held, A or B goes down two refreshes and up two (about 15 presses a second), as the game
+ * sees it; TICK counts refreshes. */
+static uint32_t turbo_keys(unsigned tick) {
+  if (!((tick >> 1) & 1))
+    return 0;
+  return ((held >> TURBO_A) & 1 ? 1u << A : 0) | ((held >> TURBO_B) & 1 ? 1u << B : 0);
+}
 static struct remap remap;
 static void remap_defaults(struct remap *r, bool keys, bool pad) {
   static const SDL_Keycode KEYS[] = {SDLK_z,    SDLK_x,    SDLK_BACKSPACE, SDLK_RETURN, SDLK_RIGHT, SDLK_LEFT,
@@ -5416,7 +5427,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           SDL_ClearQueuedAudio(audio);
       }
       muted = rewinding || clipOn || (racing && songState == FFM_COMING) || (racing && !settings.ffAudio);
-      uint32_t playerKeys = (quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023;
+      static unsigned turboTick;
+      uint32_t playerKeys = (quickOpen || hudFocus) ? 0 : (held & ~hotkeyMask & 1023) | turbo_keys(turboTick++);
       // AUTO-RUN: B flipped while walking on the player's own field (holding it walks), as on the 3DS and Android -
       // never in a script, a battle, a menu or on a bike (the Acro Bike's wheelie is B).
       if (settings.autoRun && gameKeyFrames <= 0 && (playerKeys & 0xF0) && !(playerKeys & 1) &&
@@ -5460,7 +5472,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         c->runFrame(c);
         ra_frame();
         if (gameKeyFrames > 0 && --gameKeyFrames == 0)
-          c->setKeys(c, (quickOpen || hudFocus) ? 0 : held & ~hotkeyMask & 1023);
+          c->setKeys(c, (quickOpen || hudFocus) ? 0 : (held & ~hotkeyMask & 1023) | turbo_keys(turboTick));
         if (c->platform(c) == mPLATFORM_GBA)
           pk_rest_note(c);
         if (shinyOk && settings.shinyOdds > 0 && shiny_tick(&shinyRoller, SHINY_ODDS[settings.shinyOdds], c))

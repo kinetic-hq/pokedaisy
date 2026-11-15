@@ -555,10 +555,19 @@ static void test_remap_keys(void) {
   // Z went to the button that had P (none): it presses nothing now.
   e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_z;assert(SDL_PushEvent(&e)==1);events();assert(!held && !pressed);
   e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);events();
+  // TURBO A on T: held, A goes down two refreshes in four (B the same for TURBO B); let go, nothing.
+  remap_set_key(&remap,TURBO_A,SDLK_t);
+  e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_t;assert(SDL_PushEvent(&e)==1);events();
+  assert(held&(1u<<TURBO_A));
+  assert(turbo_keys(0)==0 && turbo_keys(1)==0 && turbo_keys(2)==(1u<<A) && turbo_keys(3)==(1u<<A) && turbo_keys(4)==0);
+  e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);events();assert(turbo_keys(2)==0);
+  held=1u<<TURBO_B;assert(turbo_keys(6)==(1u<<B));
+  held=pressed=0;
   remap_defaults(&remap,true,true);
-  e.type=SDL_KEYDOWN;assert(SDL_PushEvent(&e)==1);events();assert(down(A));
+  assert(remap.key[TURBO_A]==REMAP_NONE && remap.pad[TURBO_B]==REMAP_NONE); // on no button until the player picks one
+  e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_z;assert(SDL_PushEvent(&e)==1);events();assert(down(A));
   e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);events();held=pressed=0;
-  puts("PASS GAME BUTTONS: a rebound key presses its button");
+  puts("PASS GAME BUTTONS: a rebound key presses its button, TURBO A / B");
 }
 int main(int argc,char** argv) {
   test_remap_keys();
