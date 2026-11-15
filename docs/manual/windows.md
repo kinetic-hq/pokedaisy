@@ -202,6 +202,11 @@ Press `X`, right click or hold a finger on a game for its options:
 - **`HIDE`** keeps the game out of the list (see above); on a hidden game it
   reads `INCLUDE` and puts it back. **`HIDE FOLDER`** does the same for every
   game in its folder (`INCLUDE FOLDER` on a hidden one).
+- **`ADD TO DESKTOP`** puts a shortcut on your desktop that starts PokeDaisy
+  straight into this game, with the game's box art as its icon (a PC fan game
+  with no box art gets its own program's icon). On Linux it is a `.desktop`
+  file in your desktop folder. A file of that name already on your desktop is
+  never replaced. A game started this way still counts as recently played.
 - **`RENAME`** gives the game a name of your own. It opens with the name the
   game has now and the cursor at its end, so you can fix one word and keep the
   rest. Type on a real keyboard (the arrow keys, `HOME` and `END` move the

@@ -85,6 +85,9 @@ bool boxart_finding(void);
 bool boxart_set_custom(const char *stem, const char *source, char *err, size_t errSize);
 bool boxart_clear_custom(const char *stem);
 bool boxart_has_custom(const char *stem);
+/* ADD TO DESKTOP's icon: the art shown for STEM fitted into SIZE x SIZE RGBA pixels (OUT), centred, the rest clear;
+ * false when it has none. */
+bool boxart_icon(const char *stem, int size, unsigned char *out);
 /* The art as a texture (cached; NULL while there is none). */
 SDL_Texture *boxart_texture(SDL_Renderer *r, const char *stem, int *w, int *h);
 void boxart_textures_free(void);

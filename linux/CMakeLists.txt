@@ -49,7 +49,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS pc_rgss_standins.
 # .zip / .7z ROMs (rom_archive.c): zlib and minizip, and the LZMA SDK's 7z reader, from mGBA's own third-party tree.
 # zlib's symbols get a z_ prefix (Z_PREFIX), so they never meet a zlib something else links.
 set(PD_MGBA_3RD ../third_party/mgba/src/third-party)
-set(PD_ZLIB_SRC adler32.c crc32.c inflate.c inffast.c inftrees.c zutil.c)
+set(PD_ZLIB_SRC adler32.c crc32.c inflate.c inffast.c inftrees.c zutil.c compress.c deflate.c trees.c)
 list(TRANSFORM PD_ZLIB_SRC PREPEND ${PD_MGBA_3RD}/zlib/)
 set(PD_LZMA_SRC 7zAlloc.c 7zArcIn.c 7zBuf.c 7zBuf2.c 7zCrc.c 7zCrcOpt.c 7zDec.c CpuArch.c Delta.c LzmaDec.c Lzma2Dec.c Bra.c
   Bra86.c BraIA64.c Bcj2.c Ppmd7.c Ppmd7Dec.c 7zFile.c 7zStream.c)
@@ -59,7 +59,7 @@ add_library(pd_archive STATIC ${PD_ZLIB_SRC} ${PD_MGBA_3RD}/zlib/contrib/minizip
 target_include_directories(pd_archive PUBLIC ${PD_MGBA_3RD}/zlib ${PD_MGBA_3RD}/zlib/contrib/minizip ${PD_MGBA_3RD}/lzma)
 target_compile_definitions(pd_archive PUBLIC Z_PREFIX NOCRYPT NOUNCRYPT _7ZIP_PPMD_SUPPPORT PRIVATE _LARGEFILE64_SOURCE)
 target_compile_options(pd_archive PRIVATE -w)
-add_library(pd_linux_common STATIC rom_archive.c pc_game.c pc_wings.c bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c library_view.c ra.c screen_filter.c link_play.c presets.c legality.c stat_tools.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
+add_library(pd_linux_common STATIC rom_archive.c shortcut.c pc_game.c pc_wings.c bps.c ff_music.c shiny_odds.c host_io.c pocket_os.c wild.c fly.c field_items.c hud.c quick_menu.c view_layout.c updater.c http.c boxart.c save_edit.c game_grid.c game_support.c rom_list.c game_name.c library_view.c ra.c screen_filter.c link_play.c presets.c legality.c stat_tools.c shader.cpp ../third_party/xbrz/xbrz.cpp ${PD_CORE} ../3ds/desktop/pd_png.c ../app/src/main/cpp/pk_savevf.c
   ../app/src/main/cpp/pk_call.c ../app/src/main/cpp/pk_host.c ../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c
   ../app/src/main/cpp/pk_rewind.c ../app/src/main/cpp/pk_link.c)
 target_include_directories(pd_linux_common PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ../third_party/xbrz ../3ds/core ../third_party/mgba/include ${CMAKE_CURRENT_BINARY_DIR}/mgba/include ${SDL2_INCLUDE_DIR})
@@ -80,7 +80,7 @@ set_source_files_properties(../third_party/xbrz/xbrz.cpp PROPERTIES COMPILE_OPTI
 set_source_files_properties(../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c PROPERTIES COMPILE_OPTIONS -Wno-unused-parameter)
 target_link_libraries(pd_linux_common PUBLIC pd_archive pd_rcheevos mgba ${SDL2_LIBRARY} m Threads::Threads ${CMAKE_DL_LIBS})
 if(WIN32)
-  target_link_libraries(pd_linux_common PUBLIC winhttp) # updater.c's release check and download
+  target_link_libraries(pd_linux_common PUBLIC winhttp ole32 uuid shell32) # updater.c's release check and download; shortcut.c's .lnk
 endif()
 add_executable(pokedaisy-linux main.c)
 # The release's version (desktop-release.yml passes the tag's); a local build says "dev".
@@ -147,7 +147,8 @@ if(BUILD_TESTING)
   add_executable(linux-touch-test test_touch.c)
   add_executable(linux-pc-game-test test_pc_game.c)
   add_executable(linux-rom-archive-test test_rom_archive.c)
-  foreach(test linux-io-test linux-runtime-test linux-wild-test linux-view-test linux-updater-test linux-shader-test linux-rom-list-test linux-game-name-test linux-library-view-test linux-boxart-folder-test linux-backdrop-test linux-wide-camera-test linux-day-night-test linux-bps-test linux-bezel-test linux-moves-test linux-save-edit-test linux-rom-tweaks-test linux-ff-music-test linux-shiny-odds-test linux-nuzlocke-test linux-screen-filter-test linux-link-play-test linux-presets-test linux-touch-test linux-stretch-test linux-pc-game-test linux-rom-archive-test)
+  add_executable(linux-shortcut-test test_shortcut.c)
+  foreach(test linux-io-test linux-runtime-test linux-wild-test linux-view-test linux-updater-test linux-shader-test linux-rom-list-test linux-game-name-test linux-library-view-test linux-boxart-folder-test linux-backdrop-test linux-wide-camera-test linux-day-night-test linux-bps-test linux-bezel-test linux-moves-test linux-save-edit-test linux-rom-tweaks-test linux-ff-music-test linux-shiny-odds-test linux-nuzlocke-test linux-screen-filter-test linux-link-play-test linux-presets-test linux-touch-test linux-stretch-test linux-pc-game-test linux-rom-archive-test linux-shortcut-test)
     target_compile_options(${test} PRIVATE -UNDEBUG -Wall -Wextra -Werror)
     target_link_libraries(${test} PRIVATE pd_linux_common)
     if(WIN32)
