@@ -85,3 +85,14 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
 **ART STYLE** (2026-11-14, `boxart.c`, `game_grid.c`, settings.ini `artstyle`, 0 TALL / 1 BOX): the art drawn for a style is `art_styled_path`: the box art when its shape suits the style or `<stem>.mainstyle` in DATA/boxart says it was picked under it, else the highest-numbered alternate of that shape (the newest pushed aside), else the box art. Only the player's picks (the picker, FROM URL / FILE, an alternate swap) write `.mainstyle`; a find clears it. TALL with a key: `tried()` is false until the game has tall art or a `.none-tall` mark, and `look()` asks SteamGridDB for 600x900 / 342x482 / 660x930 first, saving it as the box art (the old box becomes an alternate). The grid trims art within about 1/7 of the tile's shape to fill it, and blurs anything else. WIDE (920x430) was tried and dropped: hardly any of these games have it, so the tiles were mostly blur.
 
 - **Library art keys and covers**: box art is filed under the automatic display name (`rom_list.autoNames`), never a RENAME, so renames keep their art. A PC fan game's `Graphics/Titles` picture (`boxart_game.pcArt`) is never saved as art; `boxart_games` deletes a main art that is byte-identical to it unless a `.mainstyle` mark says the player picked it. A tile with no art draws a title card in `game_grid.c`.
+
+- **mkxp-z and the controller**: mkxp-z opens only SDL joystick 0 (`SDL_GameControllerOpen(0)` at start, hot plug only
+  for `which == 0`), so on a handheld whose first listed device isn't its pad the game never sees the pad, and its
+  own SDL's mapping can disagree with PokeDaisy's. PokeDaisy therefore hides every controller from an mkxp-z player
+  (`SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT=0xFFFF/0xFFFF`, set only around `CreateProcess`) and presses mkxp-z's
+  default keys (`pc_pad_mkxpz`: ENTER, ESC, SHIFT, A, S, D, Q, W, the arrows) through the PC_PAD_KEYS path. The
+  player's F1 settings window is forced off in the shadow mkxp.json. Keys only reach a game whose window is in front,
+  so a check on a desktop someone is using needs keys posted to the game's window instead.
+- **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
+  it a big window on a handheld's driver left too little of 2 GB and `load_data` of the battle animations failed with
+  NoMemoryError.

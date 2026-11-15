@@ -99,10 +99,10 @@ their own options menu; use that one.
 
 ## Controllers
 
-The controller goes to the game. Some older fan games only read the keyboard;
-for those, PokeDaisy presses the game's own keys for your controller's
-buttons, so the D-pad, the left stick, `A`, `B` and the rest work in every game
-with wings. Each button presses the key the game itself uses for it, and the
+The controller goes to the game through PokeDaisy: it presses the game's own
+keys for your controller's buttons, so the D-pad, the left stick, `A`, `B` and
+the rest work in every game with wings, whichever controller your handheld
+lists first. Each button presses the key the game itself uses for it, and the
 game never gets a button twice. `START` opens the game's menu, and `SELECT`
 uses your registered item in games that have one. The `GUIDE` button, `L3`,
 `LT` and `RT` stay PokeDaisy's. The keyboard works as the game sets it up.
@@ -115,8 +115,8 @@ the dex and the wild ones there instead.
 `BUTTON LAYOUT` in `SETTINGS` decides which face button confirms, the same as
 in your cartridge games: on `XBOX` (the first choice) the bottom button
 confirms and the right one goes back; on `NINTENDO` the right one confirms and
-the bottom one goes back. A game whose controls you changed in its own `F1`
-window keeps your changes.
+the bottom one goes back. The `F1` key binding window some games' players
+have stays shut, since only a mouse and a keyboard could close it.
 
 If you switch to another window and come back (`Alt` + `Tab`, the Windows key,
 your handheld's side app, sleep), the game goes back where it was, full screen

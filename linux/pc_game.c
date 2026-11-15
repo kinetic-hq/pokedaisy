@@ -364,7 +364,8 @@ static void put_path(struct out *o, const char *path) {
 
 static const char *const OVERRIDDEN[] = {"gameFolder", "defScreenW", "defScreenH", "winResizable", "fullscreen",
                                          "fixedAspectRatio", "smoothScaling", "integerScalingActive",
-                                         "integerScalingLastMile", "printFPS", "preloadScript", "rgssVersion"};
+                                         "integerScalingLastMile", "printFPS", "preloadScript", "rgssVersion",
+                                         "enableSettings"};
 
 int pc_mkxp_json(const char *text, const struct pc_mkxp_overrides *o, char *buf, size_t size) {
   struct out out = {buf, size, 0, false};
@@ -423,6 +424,9 @@ int pc_mkxp_json(const char *text, const struct pc_mkxp_overrides *o, char *buf,
       o->smooth ? 1 : 0, o->smooth ? "true" : "false", o->smooth ? "true" : "false");
   if (o->rgssVersion > 0)
     put(&out, "  \"rgssVersion\": %d,\n", o->rgssVersion);
+  // F1's key binding window off: it needs a mouse and a keyboard, so a controller alone can't close it, and keys
+  // bound anew there would no longer be the ones PokeDaisy presses for the controller (pc_pad_mkxpz).
+  put(&out, "  \"enableSettings\": false,\n");
   put(&out, "  \"printFPS\": false,\n  \"preloadScript\": [");
   // The stand-ins first, the game's own next (a string or a list), then the companion.
   bool any = false;
@@ -812,6 +816,18 @@ int pc_pad_target(const struct pc_state *s, int in) {
   return fixed[in];
 }
 
+void pc_pad_mkxpz(struct pc_state *s) {
+  if (s->pad == PC_PAD_KEYS && !s->padOurs)
+    return; // the game's own keys (the companion read them)
+  // mkxp-z's default keyboard: ENTER C, ESC B, SHIFT A, then A X, S Y, D Z, Q L, W R (by the key's place, so any
+  // keyboard layout). ENTER and ESC rather than SPACE and X: a name typed on the keyboard keeps its letters.
+  static const unsigned char vk[PC_PAD_BUTTONS] = {0x0D, 0x1B, 0x10, 'A', 'S', 'D', 'Q', 'W', 0,
+                                                   0x26, 0x28, 0x25, 0x27};
+  memcpy(s->padVk, vk, sizeof s->padVk);
+  s->pad = PC_PAD_KEYS;
+  s->padOurs = true;
+}
+
 void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]) {
   memset(down, 0, 256 * sizeof *down);
   if (s->pad != PC_PAD_KEYS)
@@ -857,7 +873,7 @@ int pc_pad_hints(const struct pc_state *s, bool xbox, struct pc_hint *out, int m
       continue;
     char label[24];
     snprintf(label, sizeof label, "%s", order[i] == PC_IN_START ? "MENU" : s->padRole[b]);
-    if (!label[0] && s->pad == PC_PAD_KEYS && s->padVk[b] && b != PC_PAD_C && b != PC_PAD_B) {
+    if (!label[0] && s->pad == PC_PAD_KEYS && !s->padOurs && s->padVk[b] && b != PC_PAD_C && b != PC_PAD_B) {
       char k[16];
       key_name(s->padVk[b], k, sizeof k);
       if (k[0])
@@ -1043,6 +1059,28 @@ static bool copy_if_changed(const char *from, const char *to) {
   return ok;
 }
 
+int pc_large_address(const char *path) {
+  FILE *f = fopen(path, "r+b");
+  if (!f)
+    return -1;
+  unsigned char h[512];
+  int r = 0;
+  size_t n = fread(h, 1, sizeof h, f);
+  long pe = n >= 0x40 && h[0] == 'M' && h[1] == 'Z'
+                ? (long)(h[0x3C] | h[0x3D] << 8 | h[0x3E] << 16 | (long)h[0x3F] << 24)
+                : -1;
+  static const unsigned char sig[4] = {'P', 'E', 0, 0};
+  if (pe < 0 || pe + 24 > (long)n || memcmp(h + pe, sig, 4))
+    r = -1;
+  else if ((h[pe + 4] | h[pe + 5] << 8) == 0x14C && !(h[pe + 22] & 0x20)) { // i386, not yet LARGE_ADDRESS_AWARE
+    unsigned char c = h[pe + 22] | 0x20;
+    r = !fseek(f, pe + 22, SEEK_SET) && fwrite(&c, 1, 1, f) == 1 ? 1 : -1;
+  }
+  if (fclose(f))
+    r = -1;
+  return r;
+}
+
 static bool write_text(const char *path, const char *text, size_t n) {
   char tmp[1500];
   snprintf(tmp, sizeof tmp, "%s.tmp", path);
@@ -1170,6 +1208,8 @@ bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o,
     snprintf(err, errSize, "Couldn't copy the game's player");
     return false;
   }
+  if (pc_large_address(to) > 0)
+    fprintf(stderr, "PC game: the 32-bit player may use 4 GB\n");
   struct dll_copy d = {playerDir, dir, true};
   pocket_list_dir(playerDir, dll_each, &d);
   if (!d.ok) {
@@ -1337,9 +1377,11 @@ bool pc_place(void *owner, int x, int y, int w, int h, bool focus) {
   return true;
 }
 
-void pc_pad_env(const char *mappings) {
+void pc_pad_env(const char *mappings, bool hide) {
   SetEnvironmentVariableA("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0");
   SetEnvironmentVariableA("SDL_GAMECONTROLLERCONFIG", mappings && *mappings ? mappings : NULL);
+  // Only a controller nobody has (vendor and product FFFF) may be read: SDL then lists no joystick at all.
+  SetEnvironmentVariableA("SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT", hide ? "0xFFFF/0xFFFF" : NULL);
 }
 
 bool pc_self_foreground(void *self) { return self && GetForegroundWindow() == (HWND)self; }
@@ -1586,7 +1628,7 @@ bool pc_capture_place(void *owner, bool focus) {
   (void)owner, (void)focus;
   return false;
 }
-void pc_pad_env(const char *mappings) { (void)mappings; }
+void pc_pad_env(const char *mappings, bool hide) { (void)mappings, (void)hide; }
 void pc_keys_send(const bool *down) { (void)down; }
 bool pc_self_foreground(void *self) {
   (void)self;
