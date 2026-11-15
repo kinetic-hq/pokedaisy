@@ -4286,10 +4286,15 @@ static void pc_play(const char *path) {
     // (checks): "ms:mask,..." holds those buttons (1 << enum pc_pad_in) from that time on, in place of the controller.
     if (state.pad == PC_PAD_KEYS) {
       static const int from[PC_INS] = {A, B, X, Y, L, R, R3, SELECT, START, UP, DOWN, LEFT, RIGHT};
+      // A tap shorter than one of the game's frames still reaches it: every press stays down at least 60 ms.
+      static uint32_t downUntil[PC_INS];
       unsigned in = 0;
-      for (int i = 0; i < PC_INS; i++)
-        if (held & (1u << from[i]))
+      for (int i = 0; i < PC_INS; i++) {
+        if (pressed & (1u << from[i]))
+          downUntil[i] = now + 60;
+        if ((held & (1u << from[i])) || (int32_t)(downUntil[i] - now) > 0)
           in |= 1u << i;
+      }
       if (padScript) {
         in = 0;
         for (const char *q = padScript; q && *q;) {
@@ -4441,7 +4446,8 @@ static void pc_play(const char *path) {
     if (checkDir)
       pc_check_request(checkDir, capture, wx, wy, ow, oh, gx, gy, gw, gh, lay.bar > 0, checkFrom, checkStride, checkW,
                        checkH);
-    SDL_Delay(capture ? 8 : 30);
+    // 8 ms while PokeDaisy presses the game's keys, so a button reaches it within a frame.
+    SDL_Delay(capture || state.pad == PC_PAD_KEYS ? 8 : 30);
   }
   pc_capture_free();
   free(half);

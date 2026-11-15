@@ -594,6 +594,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
   PokeDaisy presses its keys for your buttons, by `BUTTON LAYOUT`. `START` opens the game's menu there too. The
   player's `F1` key binding window, which needs a mouse, can't open, and a 32-bit player (Bushido's) may use 4 GB, so
   it no longer runs out of memory as it starts on a big screen.
+- **mkxp-z fan games run at their own speed**: PokeDaisy turns off the player's `vsync` and `syncToRefreshrate`
+  (Indigo and Eon Guardians turn them on), which stalled the game window over PokeDaisy's at about 7 frames a second
+  and lost most presses. A quick tap on the controller now reaches a game that reads only the keyboard too: each
+  press stays down at least 60 ms, and PokeDaisy checks the buttons every 8 ms while it presses the game's keys.
 
 </details>
 
