@@ -6772,6 +6772,7 @@ enum {
   ROW_RUMBLE,
   ROW_PC_HINTS,
   ROW_SAVER,
+  ROW_BACKUP_KEEP,
   ROW_SCREEN_LAYOUT,
   ROW_LIST_TOP,
   ROW_LIST_BOTTOM,
@@ -6899,6 +6900,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_FOLDERS, "GAME FOLDERS" PD_MENU_PAGE);
       ROW(ROW_PATCH, "PATCH A ROM" PD_MENU_PAGE);
       ROW(ROW_TRADE, "TRADE SAVES" PD_MENU_PAGE);
+      ROW(ROW_BACKUP_KEEP, "SAVE BACKUPS\tKEEP %d", st.backupKeep);
       ROW(ROW_LINK, "LINK PLAY" PD_MENU_PAGE);
       ROW(ROW_BOXART, "BOX ART DOWNLOAD	%s", st.boxartAuto ? "ON" : "OFF");
       ROW(ROW_ART_STYLE, "ART STYLE\t%s", ((const char *const[]){"TALL", "BOX"})[st.artStyle >= 0 && st.artStyle < BOXART_STYLES ? st.artStyle : 0]);
@@ -7139,6 +7141,25 @@ static int settings_page(bool *foldersChanged) {
       st.batterySaver = (st.batterySaver + 1) % PD_SAVER_COUNT;
       saverMode = st.batterySaver;
       break;
+    case ROW_BACKUP_KEEP: {
+      static char keeps[PD_BACKUP_KEEP_COUNT][24];
+      const char *rows[PD_BACKUP_KEEP_COUNT];
+      int at = 0;
+      for (int i = 0; i < PD_BACKUP_KEEP_COUNT; i++) {
+        snprintf(keeps[i], sizeof keeps[i], PD_BACKUP_KEEPS[i] == 10 ? "%d\tDEFAULT" : "%d", PD_BACKUP_KEEPS[i]);
+        rows[i] = keeps[i];
+        if (PD_BACKUP_KEEPS[i] == st.backupKeep)
+          at = i;
+      }
+      int k = menu_pick_hint("SAVE BACKUPS",
+                             "Copies kept of each game's save, one made as it starts. The oldest go first.",
+                             rows, PD_BACKUP_KEEP_COUNT, at);
+      if (k >= 0) {
+        st.backupKeep = PD_BACKUP_KEEPS[k];
+        pocket_backup_keep = st.backupKeep;
+      }
+      break;
+    }
     case ROW_PC_HINTS:
       st.hidePcHints = !st.hidePcHints;
       break;
@@ -11328,6 +11349,12 @@ int main(int argc, char **argv) {
   if (saveFile) {
     snprintf(backups, sizeof backups, "%s/backups", root);
     pocket_backup_dir = backups;
+  }
+  {
+    struct pd_settings st; // SAVE BACKUPS' count, before any game's start backs its save up
+    snprintf(path, sizeof path, "%s/settings.ini", root);
+    pd_settings_load(&st, path);
+    pocket_backup_keep = st.backupKeep;
   }
   const char *dirs[] = {"roms", "saves", "states"};
   for (int i = 0; i < 3; i++) {

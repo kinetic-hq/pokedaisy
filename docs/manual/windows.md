@@ -317,7 +317,9 @@ their save beside the game.
 Each time a game starts, its save is first copied to a `pokedaisy-backups`
 folder next to it (`DATA\saves\pokedaisy-backups` unless the save sits beside
 the game), and the newest ten
-different copies are kept. Save states go to `DATA\states`. A state is written
+different copies are kept. `SETTINGS` > `LIBRARY` > `SAVE BACKUPS` sets how
+many each game keeps: 1, 3, 5, 10, 20 or 50. A lower number takes effect the
+next time a game starts, and the oldest copies go then. Save states go to `DATA\states`. A state is written
 to a new file first and then put in place in one step, so a crash while saving a
 state never leaves half a file behind.
 
@@ -643,7 +645,7 @@ SWAP SCREENS jobs work only in DS games. Everything is kept in `DATA\settings.in
 The game list's `SETTINGS` (in the bar at its top, or `Y`) is in the app's groups: `SCREEN`
 (`COMPANION VIEW`, `DS LAYOUT`, `DS WING SIDE`, `TOUCH WINDOW`, `LAYOUT` and `DISPLAY OPTIONS`, which has
 `SHADER`, `COLORS`, `DIM COMPANION`, `FULLSCREEN`, `ORIENTATION` and
-`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `TRADE SAVES`, `LINK PLAY`, `BOX ART DOWNLOAD`,
+`GAME TOUCH`), `LIBRARY` (`GAME FOLDERS`, `PATCH A ROM`, `TRADE SAVES`, `SAVE BACKUPS`, `LINK PLAY`, `BOX ART DOWNLOAD`,
 `ART STYLE`, `STEAMGRIDDB KEY`, `BOX ART LOCATION`), `CONTROLS` (`GAME BUTTONS`,
 `HOTKEYS`) and `APP` (`CHECK FOR UPDATES`, `RUN SETUP`, `VERSION`). The companion's
 `SETTINGS` has the same rows (see "Where the settings are" below).

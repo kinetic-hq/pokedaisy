@@ -139,6 +139,7 @@ struct pd_settings {
     int gameSpeed;   // GAME SPEED: an index into PD_GAME_SPEEDS
     int sceneSpeed[PD_SCENE_COUNT]; // SCENE SPEEDS (BATTLE, TEXT, MENU, BIKE, SURF): an index into PD_SCENE_SPEEDS, 0 = SAME
     int gameVolume;  // GAME VOLUME: 20 ... 100
+    int backupKeep;  // SAVE BACKUPS: how many backups a save keeps, newest first (one of PD_BACKUP_KEEPS)
     bool gameMuted;  // MUTE GAME
     bool autoRun;    // AUTO-RUN: B held for the player while walking
     bool darkMode;   // DARK MODE (with darkAuto, the system's choice as last seen)
