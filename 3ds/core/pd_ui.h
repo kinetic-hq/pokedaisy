@@ -155,6 +155,7 @@ struct pd_settings {
     bool reduceMotion; // ... and REDUCE MOTION (no easing HP bars or sliding cards in the wings)
     bool boxartAuto;   // ... and BOX ART DOWNLOAD (the game list looks for box art by itself)
     int artStyle;      // ... and ART STYLE (the game list's tiles): 0 TALL (SteamGridDB's 2:3), 1 BOX
+    int librarySort;   // ... and the game list's SORT (library_view.h's LIBRARY_SORT_*: A-Z, Z-A, ADDED, PLAYED, CONSOLE)
     bool savesBeside;  // hosts with hasSavesBeside: SAVES BESIDE GAMES (on), an added folder's game saves next to it
     int fullscreen;    // hosts with hasFullscreen: FULLSCREEN, 1 / 0, -1 = not chosen yet (the host picks by screen size)
     int buttonLayout;  // hosts with hasButtonLayout: BUTTON LAYOUT, enum pd_button_layout

@@ -17,6 +17,7 @@
 #include "pd_map.h"
 #include "host_io.h"
 #include "rom_list.h"
+#include "library_view.h"
 #include "field_items.h"
 #include "ff_music.h"
 #include "shiny_odds.h"
@@ -3406,6 +3407,7 @@ static void settings_host_wide(struct pd_settings *dst, const struct pd_settings
   dst->savesBeside = src->savesBeside;
   dst->boxartAuto = src->boxartAuto;
   dst->artStyle = src->artStyle;
+  dst->librarySort = src->librarySort;
   dst->quickBtn = src->quickBtn;
   dst->companionBtn = src->companionBtn;
   dst->hudBtn = src->hudBtn;
@@ -7436,7 +7438,7 @@ static void grid_set_art(const char *stem, const char *source) {
   else
     notice(*err ? err : "Couldn't use that picture");
 }
-enum { GRID_BAR_SYNC, GRID_BAR_FOLDERS, GRID_BAR_SETTINGS, GRID_BAR_THEME };
+enum { GRID_BAR_SORT, GRID_BAR_SYNC, GRID_BAR_FOLDERS, GRID_BAR_SETTINGS, GRID_BAR_THEME };
 struct library {
   struct rom_list games;
   struct game_grid_item *items;
@@ -7445,9 +7447,60 @@ struct library {
   char (*versions)[48];
   struct game_grid grid;
   int count;
+  int sort; // SORT (library_view.h's LIBRARY_SORT_*), from settings.ini
 };
-/* The bar's buttons; the last is DARK MODE's switch, a moon while dark (GAME_GRID_ICON_MOON) and a sun while light. */
-static const char *LIBRARY_BAR[] = {"SYNC BOX ART", "GAME FOLDERS", "SETTINGS", GAME_GRID_ICON_MOON};
+/* The bar's buttons: SORT (its words say which), ...; the last is DARK MODE's switch, a moon while dark
+ * (GAME_GRID_ICON_MOON) and a sun while light. */
+static const char *LIBRARY_BAR[] = {"SORT: A-Z", "SYNC BOX ART", "GAME FOLDERS", "SETTINGS", GAME_GRID_ICON_MOON};
+/* SORT: the games put in LIB's order (their arrays moved together). ADDED is when the list first saw a game
+ * (DATA/added.txt; a game it hasn't seen yet gets its file's time, so the first look orders what's there already),
+ * PLAYED when PLAY last started it (DATA/played.txt). */
+static void library_order(struct rom_list *g, int sort) {
+  int n = g->count;
+  if (n < 2)
+    return;
+  struct library_entry *e = calloc((size_t)n, sizeof *e);
+  int *order = malloc((size_t)n * sizeof *order);
+  char **tmp = malloc((size_t)n * sizeof *tmp);
+  if (!e || !order || !tmp) {
+    free(e), free(order), free(tmp);
+    return;
+  }
+  struct library_stamps added, played;
+  library_stamps_load(&added, root, "added.txt");
+  library_stamps_load(&played, root, "played.txt");
+  bool newOnes = false;
+  for (int i = 0; i < n; i++) {
+    e[i].name = g->names[i];
+    e[i].system = pc_game_path(g->paths[i]) ? BOXART_PC : grid_system(g->labels[i]);
+    e[i].added = library_stamps_get(&added, g->labels[i]);
+    if (!e[i].added) {
+      long long t = pocket_file_time(g->paths[i]);
+      e[i].added = t ? t : (long long)time(NULL);
+      library_stamps_put(&added, g->labels[i], e[i].added);
+      newOnes = true;
+    }
+    e[i].played = library_stamps_get(&played, g->labels[i]);
+  }
+  if (newOnes && !menuFrames) // a headless check never writes DATA's lists
+    library_stamps_save(&added, root, "added.txt");
+  library_stamps_free(&added);
+  library_stamps_free(&played);
+  library_sort(order, n, e, sort);
+#define PERMUTE(arr)                                                                                                   \
+  do {                                                                                                                 \
+    for (int i_ = 0; i_ < n; i_++)                                                                                     \
+      tmp[i_] = (arr)[order[i_]];                                                                                      \
+    memcpy((arr), tmp, (size_t)n * sizeof *tmp);                                                                       \
+  } while (0)
+  PERMUTE(g->names);
+  PERMUTE(g->labels);
+  PERMUTE(g->paths);
+  if (g->autoNames)
+    PERMUTE(g->autoNames);
+#undef PERMUTE
+  free(e), free(order), free(tmp);
+}
 static void library_free(struct library *l) {
   for (int i = 0; i < l->count; i++)
     free(l->stems[i]);
@@ -7469,8 +7522,25 @@ static void library_load(struct library *l) {
   const bool listNds = false;
 #endif
   int keep = l->grid.selected, focus = l->grid.focus, scroll = l->grid.scrollY;
+  // The selected game stays selected (by its file) when the list's order changes.
+  char keepPath[1400] = "";
+  if (keep >= 0 && keep < l->games.count)
+    snprintf(keepPath, sizeof keepPath, "%s", l->games.paths[keep]);
   library_free(l);
   rom_list_load(&l->games, root, listNds);
+  {
+    char ini[1100];
+    snprintf(ini, sizeof ini, "%s/settings.ini", root);
+    struct pd_settings st;
+    pd_settings_load(&st, ini);
+    l->sort = st.librarySort >= 0 && st.librarySort < LIBRARY_SORTS ? st.librarySort : 0;
+  }
+  LIBRARY_BAR[GRID_BAR_SORT] = LIBRARY_SORT_BAR[l->sort];
+  library_order(&l->games, l->sort);
+  if (*keepPath)
+    for (int i = 0; i < l->games.count; i++)
+      if (!strcmp(l->games.paths[i], keepPath))
+        keep = i;
   int count = l->games.count;
   l->items = calloc((size_t)count + 1, sizeof *l->items);
   l->art = calloc((size_t)count + 1, sizeof *l->art);
@@ -7545,7 +7615,7 @@ static void library_load(struct library *l) {
   l->grid.scrollY = scroll;
   l->grid.title = "PokeDaisy"; // the platform stays in the window title and SETTINGS' HOST row
   l->grid.bar = LIBRARY_BAR;
-  l->grid.barCount = 4;
+  l->grid.barCount = 5;
   l->grid.hint = "A PLAY   X OPTIONS   Y SETTINGS   B QUIT";
   l->grid.emptyPath = ROMS_PATH;
   char path[1100];
@@ -10139,7 +10209,21 @@ static void library_screen(void) {
                       : "No box art found: a SteamGridDB key in SETTINGS finds more");
       }
     }
-    if (bar == GRID_BAR_SYNC && lib.count) {
+    if (bar == GRID_BAR_SORT) {
+      static const char *const rows[] = {"NAME A-Z", "NAME Z-A", "RECENTLY ADDED\tNEWEST FIRST",
+                                         "RECENTLY PLAYED\tLAST PLAYED FIRST", "CONSOLE\tGB, GBC, GBA, DS, PC"};
+      int pick = menu_pick("SORT", rows, LIBRARY_SORTS, lib.sort);
+      if (pick >= 0 && pick != lib.sort) {
+        char ini[1100];
+        snprintf(ini, sizeof ini, "%s/settings.ini", root);
+        struct pd_settings st;
+        pd_settings_load(&st, ini);
+        st.librarySort = pick;
+        pd_settings_save(&st, ini);
+        library_load(&lib);
+        grid->follow = true; // the selected game, wherever it went
+      }
+    } else if (bar == GRID_BAR_SYNC && lib.count) {
       static const char *const rows[] = {"MISSING ONLY\tGAMES WITH NO BOX ART YET",
                                          "ALL AGAIN\tEVERY GAME, YOUR OWN ART STAYS"};
       int pick = menu_pick("SYNC BOX ART", rows, 2, 0);
@@ -10181,6 +10265,8 @@ static void library_screen(void) {
       grid->selected = play;
       char rom[1400];
       snprintf(rom, sizeof rom, "%s", lib.games.paths[play]);
+      if (!menuFrames) // RECENTLY PLAYED (a headless check never writes DATA's lists)
+        library_stamp(root, "played.txt", lib.games.labels[play], (long long)time(NULL));
       run_game(rom, 0, NULL);
     }
     if (!running)

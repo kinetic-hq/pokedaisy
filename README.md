@@ -482,6 +482,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   shape by default (`TALL`), or the game's own box (`BOX`), always filled edge to edge with no black bars (art of
   another shape over a blurred copy of itself). With a SteamGridDB key, `TALL` looks for tall art first and keeps the
   box as an alternate; the BOX ART picker asks for the style's sizes, and a pick is kept per style.
+- **SORT** on the desktop host's game list: a `SORT` button in the top bar orders the games by name (A-Z / Z-A),
+  recently added (DATA/added.txt, first seen by the list; the file's time for games already there), recently played
+  (DATA/played.txt, written by PLAY) or console (GB, GBC, GBA, DS, PC). Remembered in settings.ini.
 - **RENAME edits in place** on the desktop host: it opens on the game's current name with a cursor at the end (LB / RB,
   a tap, or the keyboard's arrows, HOME and END move it; B / X delete before it, DELETE after it), `RESET NAME` goes
   back to the automatic name, and a renamed game keeps its box art (art stays filed under the automatic name).

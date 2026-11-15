@@ -1,0 +1,59 @@
+/* The game list's SORT (library_sort) and the times it sorts by (added.txt / played.txt). */
+#include "boxart.h"
+#include "library_view.h"
+#include "pocket_os.h"
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static const struct library_entry games[] = {
+    {"Pokemon Emerald", BOXART_GBA, 300, 0},
+    {"pokemon crystal", BOXART_GBC, 100, 900},
+    {"Pokemon Black", BOXART_NDS, 200, 500},
+    {"Pokemon Red", BOXART_GB, 0, 0},
+    {"Pokemon Fire Ash", BOXART_PC, 400, 0},
+};
+#define N (int)(sizeof games / sizeof games[0])
+
+static void check(int sort, const int *want) {
+  int order[N];
+  library_sort(order, N, games, sort);
+  for (int i = 0; i < N; i++)
+    if (order[i] != want[i]) {
+      fprintf(stderr, "sort %d: place %d is %d, want %d\n", sort, i, order[i], want[i]);
+      assert(0);
+    }
+}
+
+int main(void) {
+  check(LIBRARY_SORT_NAME, (const int[]){2, 1, 0, 4, 3});      // A-Z, case ignored
+  check(LIBRARY_SORT_NAME_DESC, (const int[]){3, 4, 0, 1, 2}); // Z-A
+  check(LIBRARY_SORT_ADDED, (const int[]){4, 0, 2, 1, 3});     // newest first, not known last
+  check(LIBRARY_SORT_PLAYED, (const int[]){1, 2, 0, 4, 3});    // last played first, the rest by name
+  check(LIBRARY_SORT_CONSOLE, (const int[]){3, 1, 0, 2, 4});   // GB, GBC, GBA, NDS, PC
+
+  char tmpl[] = "library-view-XXXXXX";
+  char *dir = pocket_mkdtemp(tmpl);
+  assert(dir);
+  struct library_stamps s;
+  library_stamps_load(&s, dir, "played.txt"); // no file yet: empty
+  assert(s.count == 0);
+  library_stamps_free(&s);
+  assert(library_stamp(dir, "played.txt", "Emerald.gba", 1000));
+  assert(library_stamp(dir, "played.txt", "sub/Crystal.gbc", 2000));
+  assert(library_stamp(dir, "played.txt", "Emerald.gba", 3000)); // replaced, not added twice
+  library_stamps_load(&s, dir, "played.txt");
+  assert(s.count == 2);
+  assert(library_stamps_get(&s, "Emerald.gba") == 3000);
+  assert(library_stamps_get(&s, "sub/Crystal.gbc") == 2000);
+  assert(library_stamps_get(&s, "Missing.gba") == 0);
+  library_stamps_free(&s);
+  char path[200];
+  snprintf(path, sizeof path, "%s/played.txt", dir);
+  assert(pocket_file_time(path) > 0);
+  pocket_remove(path);
+  pocket_rmdir(dir);
+  puts("library view ok");
+  return 0;
+}
