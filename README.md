@@ -494,6 +494,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
   ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
   UNFAVORITE in a game's X options (DATA/favorites.txt).
+- Desktop: HIDE FOLDER in a game's X options hides every game in its folder and the folders inside it (a folder line
+  in DATA/hidden.txt, so games added there later stay hidden too); INCLUDE FOLDER on any of them brings them back.
 - Desktop: games in a .zip or .7z are listed and played: the first .gba / .gbc / .gb / .nds inside is unpacked once
   into DATA/unpacked/<archive>/ (written again only when the archive's file changes, checked by its CRC; nothing
   there is ever deleted) and that copy is the game. zlib, minizip and the LZMA SDK's 7z reader come from mGBA's tree.

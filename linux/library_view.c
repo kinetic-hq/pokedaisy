@@ -38,6 +38,30 @@ bool library_matches(const char *text, const char *query) {
       return false;
   return true;
 }
+static bool sep(char c) { return c == '/' || c == '\\'; }
+const char *library_hidden_folder(const struct library_stamps *s, const char *path) {
+  for (int i = 0; i < s->count; i++) {
+    const char *k = s->files[i];
+    size_t n = strlen(k);
+    if (!n || !sep(k[n - 1]) || strlen(path) <= n)
+      continue;
+    size_t j = 0;
+    for (; j < n; j++) {
+      char a = k[j], b = path[j];
+      if (sep(a) && sep(b))
+        continue;
+      if (tolower((unsigned char)a) != tolower((unsigned char)b))
+        break;
+    }
+    if (j == n)
+      return k;
+  }
+  return NULL;
+}
+void library_folder_key(const char *folder, char *out, size_t size) {
+  size_t n = strlen(folder);
+  snprintf(out, size, "%s%s", folder, n && sep(folder[n - 1]) ? "" : "/");
+}
 bool library_in_collection(int collection, int system, bool hack, bool favorite, bool hidden) {
   if (hidden || collection == LIBRARY_HIDDEN)
     return hidden && collection == LIBRARY_HIDDEN;

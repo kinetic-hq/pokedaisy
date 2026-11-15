@@ -46,6 +46,23 @@ int main(void) {
   assert(!library_in_collection(LIBRARY_FAVORITES, BOXART_GBA, false, true, true));
   assert(library_in_collection(LIBRARY_HIDDEN, BOXART_GBA, false, false, true));
   assert(!library_in_collection(LIBRARY_HIDDEN, BOXART_GBA, false, false, false));
+  // HIDE FOLDER
+  {
+    struct library_stamps s = {0};
+    char key[64];
+    library_folder_key("D:\\roms\\old", key, sizeof key);
+    assert(!strcmp(key, "D:\\roms\\old/"));
+    library_folder_key("D:/roms/new/", key, sizeof key);
+    assert(!strcmp(key, "D:/roms/new/"));
+    library_stamps_put(&s, "D:\\roms\\old/", 5);
+    library_stamps_put(&s, "D:/roms/a.gba", 5);
+    assert(library_hidden_folder(&s, "D:/roms/old/x.gba"));
+    assert(library_hidden_folder(&s, "d:\\ROMS\\old\\deeper\\x.gba"));
+    assert(!library_hidden_folder(&s, "D:/roms/older/x.gba"));
+    assert(!library_hidden_folder(&s, "D:/roms/a.gba")); // a file's stamp is not a folder's
+    assert(!library_hidden_folder(&s, "D:/roms/old/"));
+    library_stamps_free(&s);
+  }
   // SEARCH
   assert(library_matches("Pok\xC3\xA9mon Fire Ash", ""));
   assert(library_matches("Pok\xC3\xA9mon Fire Ash", "fire"));

@@ -46,4 +46,10 @@ bool library_in_collection(int collection, int system, bool hack, bool favorite,
 /* SEARCH: every word of QUERY (split at spaces) is somewhere in TEXT, capitals not counting and an accented e
  * (Pok\xC3\xA9mon) the same as a plain one. An empty QUERY matches everything. */
 bool library_matches(const char *text, const char *query);
+
+/* HIDE FOLDER: hidden.txt holds a folder as its path with a separator at the end ("D:/roms/old/"). The one of S's that
+ * PATH is somewhere inside (either separator, capitals not counting), else NULL. */
+const char *library_hidden_folder(const struct library_stamps *s, const char *path);
+/* FOLDER as hidden.txt keeps it: a "/" at its end unless it has a separator there already. */
+void library_folder_key(const char *folder, char *out, size_t size);
 #endif

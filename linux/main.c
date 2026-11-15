@@ -7706,7 +7706,7 @@ static void library_pick(struct library *l) {
     bool hack;
     library_kind(all, i, &system, &hack);
     bool f = library_stamps_get(&fav, all->labels[i]) != 0;
-    bool h = library_stamps_get(&hid, all->paths[i]) != 0;
+    bool h = library_stamps_get(&hid, all->paths[i]) != 0 || library_hidden_folder(&hid, all->paths[i]);
     if (isFav)
       isFav[i] = f;
     if (isHid)
@@ -7779,6 +7779,10 @@ static void library_search_words(struct library *l) {
   l->grid.emptyTitle = l->grid.emptyText = NULL;
   if (!l->search[0] && !l->searchLive) {
     LIBRARY_BAR[GRID_BAR_SEARCH] = "SEARCH";
+    if (!l->games.count && l->all.count) { // every game hidden (HIDE, HIDE FOLDER)
+      l->grid.emptyTitle = "EVERY GAME IS HIDDEN";
+      l->grid.emptyText = "The HIDDEN tab has them: INCLUDE or INCLUDE FOLDER in a game's options brings it back.";
+    }
     return;
   }
   char up[sizeof l->search];
@@ -10497,15 +10501,43 @@ static bool library_info(struct library *l, int g) {
 }
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
   enum { OPT_PLAY, OPT_INFO, OPT_FAVORITE, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_LINK, OPT_SUPPORT,
-         OPT_HIDE };
+         OPT_HIDE, OPT_HIDE_FOLDER };
   (void)finding; // CHOOSE BOX ART no longer starts a search of its own
   const char *label = l->games.labels[g];
   char custom[256];
   bool hasName = game_custom_name(root, label, custom, sizeof custom);
-  const char *rows[14];
-  int ids[14], n = 0;
+  const char *rows[16];
+  int ids[16], n = 0;
   bool starred = l->favorite && l->favorite[g];
-  bool hiddenNow = l->hidden && l->hidden[g];
+  // Hidden by itself (HIDE) and / or by its folder (HIDE FOLDER): each has its own INCLUDE.
+  char folder[1400], folderKey[1500], folderRow[200], hiddenKey[1500] = "";
+  const char *leaf;
+  info_split(l->games.paths[g], folder, sizeof folder, &leaf);
+  library_folder_key(folder, folderKey, sizeof folderKey);
+  bool fileHidden, folderHidden;
+  {
+    struct library_stamps hid;
+    library_stamps_load(&hid, root, "hidden.txt");
+    fileHidden = library_stamps_get(&hid, l->games.paths[g]) != 0;
+    const char *k = library_hidden_folder(&hid, l->games.paths[g]);
+    folderHidden = k != NULL;
+    if (k)
+      snprintf(hiddenKey, sizeof hiddenKey, "%s", k);
+    library_stamps_free(&hid);
+  }
+  bool hiddenNow = fileHidden || folderHidden;
+  {
+    char shown[1500];
+    snprintf(shown, sizeof shown, "%s", folderHidden ? hiddenKey : folderKey);
+    size_t sl = strlen(shown);
+    if (sl)
+      shown[sl - 1] = 0; // no separator at the end
+    const char *last = shown;
+    for (const char *s = shown; *s; s++)
+      if (*s == '/' || *s == '\\')
+        last = s + 1;
+    snprintf(folderRow, sizeof folderRow, "%s\t%.60s", folderHidden ? "INCLUDE FOLDER" : "HIDE FOLDER", last);
+  }
   char supportDetail[96], supportRow[140];
   int support = game_support_get(g, supportDetail, sizeof supportDetail);
 #define OPT(id, text)                                                                                                  \
@@ -10531,7 +10563,9 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     snprintf(supportRow, sizeof supportRow, "COMPANION\t%s", game_support_word(support));
     OPT(OPT_SUPPORT, supportRow);
   }
-  OPT(OPT_HIDE, hiddenNow ? "INCLUDE\tBACK IN THE LIST" : "HIDE\tKEEP IT OUT OF THE LIST");
+  if (fileHidden || !hiddenNow)
+    OPT(OPT_HIDE, fileHidden ? "INCLUDE\tBACK IN THE LIST" : "HIDE\tKEEP IT OUT OF THE LIST");
+  OPT(OPT_HIDE_FOLDER, folderRow);
 #undef OPT
   int pick = menu_pick(l->games.names[g], rows, n, 0);
   int id = pick >= 0 ? ids[pick] : -1;
@@ -10542,9 +10576,19 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     if (library_info(l, g))
       *reload = true;
     break;
+  case OPT_HIDE_FOLDER:
+    // Every game in the folder (and the folders inside it) out of the list, or back in; no file is touched.
+    if (library_stamp(root, "hidden.txt", folderHidden ? hiddenKey : folderKey, folderHidden ? 0 : (long long)time(NULL))) {
+      notice(folderHidden ? "The folder's games are back in the list"
+                          : "Folder hidden: its games are in the HIDDEN tab, INCLUDE FOLDER brings them back");
+      *reload = true;
+    } else
+      notice("Couldn't save the hidden list");
+    break;
   case OPT_HIDE:
-    if (library_stamp(root, "hidden.txt", l->games.paths[g], hiddenNow ? 0 : (long long)time(NULL))) {
-      notice(hiddenNow ? "Back in the list" : "Hidden: the HIDDEN tab has it, INCLUDE brings it back");
+    if (library_stamp(root, "hidden.txt", l->games.paths[g], fileHidden ? 0 : (long long)time(NULL))) {
+      notice(fileHidden ? (folderHidden ? "Its folder is still hidden: INCLUDE FOLDER brings it back" : "Back in the list")
+                        : "Hidden: the HIDDEN tab has it, INCLUDE brings it back");
       *reload = true;
     } else
       notice("Couldn't save the hidden list");
