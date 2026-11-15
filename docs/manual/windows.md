@@ -577,6 +577,16 @@ Nintendo style controller or a handheld with the A on the right. If you set up a
 earlier version, it keeps the layout you had. The companion's `SETTINGS` has the same
 `BUTTON LAYOUT` row.
 
+Under it, `GAME BUTTONS` lists each of the game's buttons twice: under
+`CONTROLLER` with the controller button that presses it, and under `KEYBOARD`
+with its key. Pick a row, then press the button or key you want for it within six
+seconds (nothing pressed, nothing changes). If another button had that one, the
+two swap, so no button is ever left out by accident. `RESET CONTROLLER` and
+`RESET KEYBOARD` put each side back the way it came. Your choices are kept in
+`DATA\controls.ini`. They work in Game Boy Advance and Game Boy games and in
+every menu; a DS game keeps its own buttons. While you haven't changed a side,
+the controller follows `BUTTON LAYOUT` as before.
+
 In `HOTKEYS`, the triggers and sticks come first (`L2 / LT`, `R2 / RT`, `L3`,
 `R3`), then each extra button your controller may have: `GUIDE / HOME`, `SHARE`
 and the four back `PADDLE` buttons. Out of the box LT zooms out, RT zooms in
