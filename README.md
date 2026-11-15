@@ -494,6 +494,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
   ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
   UNFAVORITE in a game's X options (DATA/favorites.txt).
+- Desktop: INFO in a game's X options shows its names, console, kind, version, support, file, folder, size, save,
+  added and last played dates, and COPIES: the other files that are the same game, each with its size and folder,
+  with KEEP THIS ONE / HIDE THIS ONE / INCLUDE THIS ONE. HIDE keeps a file out of the list (DATA/hidden.txt, by
+  path; nothing is deleted) and puts it in a HIDDEN tab, where INCLUDE brings it back.
 - **SORT** on the desktop host's game list: a `SORT` button in the top bar orders the games by name (A-Z / Z-A),
   recently added (DATA/added.txt, first seen by the list; the file's time for games already there), recently played
   (DATA/played.txt, written by PLAY) or console (GB, GBC, GBA, DS, PC). Remembered in settings.ini.

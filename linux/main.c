@@ -7447,6 +7447,7 @@ struct library {
   char tabText[LIBRARY_COLLECTIONS][32];
   const char *tabPtrs[LIBRARY_COLLECTIONS];
   bool *favorite; // games[i] is starred (FAVORITE in its options)
+  bool *hidden;   // games[i] is on the ignore list (HIDE; shown in the HIDDEN tab only)
   struct game_grid_item *items;
   struct boxart_game *art;
   char **stems;
@@ -7515,8 +7516,10 @@ static void library_free(struct library *l) {
   free(l->art);
   free(l->versions);
   free(l->favorite);
+  free(l->hidden);
   rom_list_free(&l->games);
   l->favorite = NULL;
+  l->hidden = NULL;
   l->stems = NULL;
   l->items = NULL;
   l->art = NULL;
@@ -7533,22 +7536,28 @@ static void library_kind(const struct rom_list *all, int i, int *system, bool *h
  * counts; a tab left empty (the last favourite unstarred) goes back to ALL. */
 static void library_pick(struct library *l) {
   const struct rom_list *all = &l->all;
-  struct library_stamps fav;
+  struct library_stamps fav, hid;
   library_stamps_load(&fav, root, "favorites.txt");
+  library_stamps_load(&hid, root, "hidden.txt"); // by the file's whole path: one copy of a game hidden, not the rest
   int counts[LIBRARY_COLLECTIONS] = {0};
   bool *isFav = calloc((size_t)all->count + 1, sizeof *isFav);
+  bool *isHid = calloc((size_t)all->count + 1, sizeof *isHid);
   for (int i = 0; i < all->count; i++) {
     int system;
     bool hack;
     library_kind(all, i, &system, &hack);
     bool f = library_stamps_get(&fav, all->labels[i]) != 0;
+    bool h = library_stamps_get(&hid, all->paths[i]) != 0;
     if (isFav)
       isFav[i] = f;
+    if (isHid)
+      isHid[i] = h;
     for (int c = 0; c < LIBRARY_COLLECTIONS; c++)
-      if (library_in_collection(c, system, hack, f))
+      if (library_in_collection(c, system, hack, f, h))
         counts[c]++;
   }
   library_stamps_free(&fav);
+  library_stamps_free(&hid);
   if (l->collection < 0 || l->collection >= LIBRARY_COLLECTIONS || !counts[l->collection])
     l->collection = LIBRARY_ALL;
   l->tabCount = 0;
@@ -7570,18 +7579,20 @@ static void library_pick(struct library *l) {
   g->names = calloc((size_t)n + 1, sizeof *g->names);
   g->autoNames = calloc((size_t)n + 1, sizeof *g->autoNames);
   l->favorite = calloc((size_t)n + 1, sizeof *l->favorite);
+  l->hidden = calloc((size_t)n + 1, sizeof *l->hidden);
   g->count = 0;
   g->cap = n;
-  if (!g->paths || !g->labels || !g->names || !g->autoNames || !l->favorite) {
+  if (!g->paths || !g->labels || !g->names || !g->autoNames || !l->favorite || !l->hidden) {
     free(isFav);
+    free(isHid);
     return;
   }
   for (int i = 0; i < all->count && g->count < n; i++) {
     int system;
     bool hack;
     library_kind(all, i, &system, &hack);
-    bool f = isFav && isFav[i];
-    if (!library_in_collection(l->collection, system, hack, f))
+    bool f = isFav && isFav[i], h = isHid && isHid[i];
+    if (!library_in_collection(l->collection, system, hack, f, h))
       continue;
     char *path = strdup(all->paths[i]), *name = strdup(all->names[i]);
     char *autoName = all->autoNames && all->autoNames[i] ? strdup(all->autoNames[i]) : NULL;
@@ -7595,8 +7606,10 @@ static void library_pick(struct library *l) {
     g->names[k] = name;
     g->autoNames[k] = autoName;
     l->favorite[k] = f;
+    l->hidden[k] = h;
   }
   free(isFav);
+  free(isHid);
 }
 static void library_show(struct library *l);
 /* The list read again from the folders (and SORT applied), then shown. */
@@ -10093,15 +10106,192 @@ static void link_setup(const char *firstRom, const char *firstName) {
   }
 }
 /* A game's options. Returns the game to play, else -1; *reload when the list changed; *finding when a search started. */
+/* INFO's dates: "2026-11-14 18:05", or WHEN_NOT. */
+static void info_date(long long t, const char *whenNot, char *out, size_t size) {
+  if (t <= 0) {
+    snprintf(out, size, "%s", whenNot);
+    return;
+  }
+  time_t tt = (time_t)t;
+  struct tm tm;
+  pocket_localtime(&tt, &tm);
+  strftime(out, size, "%Y-%m-%d %H:%M", &tm);
+}
+static void info_size(long long b, char *out, size_t size) {
+  if (b < 0)
+    snprintf(out, size, "-");
+  else if (b >= 1024 * 1024)
+    snprintf(out, size, "%.1f MB", (double)b / (1024.0 * 1024.0));
+  else
+    snprintf(out, size, "%.1f KB", (double)b / 1024.0);
+}
+/* The folder part of PATH and its file (or game folder) name. */
+static void info_split(const char *path, char *dir, size_t dirSize, const char **file) {
+  const char *f = path;
+  for (const char *s = path; *s; s++)
+    if (*s == '/' || *s == '\\')
+      f = s + 1;
+  *file = f;
+  snprintf(dir, dirSize, "%.*s", f > path ? (int)(f - path - 1) : 0, path);
+}
+/* COPIES: the other files in the list that are the same game (the same made-up name, the same console). */
+static int library_copies(const struct library *l, int g, int *out, int max) {
+  int n = 0, system;
+  bool hack;
+  library_kind(&l->games, g, &system, &hack);
+  const char *key = l->games.autoNames && l->games.autoNames[g] ? l->games.autoNames[g] : l->games.names[g];
+  for (int i = 0; i < l->all.count && n < max; i++) {
+    if (!strcmp(l->all.paths[i], l->games.paths[g]))
+      continue;
+    int s;
+    bool h;
+    library_kind(&l->all, i, &s, &h);
+    const char *k = l->all.autoNames && l->all.autoNames[i] ? l->all.autoNames[i] : l->all.names[i];
+    if (s == system && !strcasecmp(k, key))
+      out[n++] = i;
+  }
+  return n;
+}
+/* A copy picked in COPIES: which one the list keeps. True when the hidden list changed. */
+static bool library_copy_pick(struct library *l, int g, int copy) {
+  char dir[1400];
+  const char *file;
+  info_split(l->all.paths[copy], dir, sizeof dir, &file);
+  struct library_stamps hid;
+  library_stamps_load(&hid, root, "hidden.txt");
+  bool copyHidden = library_stamps_get(&hid, l->all.paths[copy]) != 0;
+  library_stamps_free(&hid);
+  static const char *const rows[] = {"KEEP THIS ONE\tHIDE THE OTHER COPIES", "HIDE THIS ONE",
+                                     "INCLUDE THIS ONE\tBACK IN THE LIST"};
+  const char *shown[2];
+  int ids[2], n = 0;
+  shown[n] = rows[0], ids[n++] = 0;
+  shown[n] = copyHidden ? rows[2] : rows[1], ids[n++] = copyHidden ? 2 : 1;
+  char hint[1500];
+  snprintf(hint, sizeof hint, "%s", l->all.paths[copy]);
+  int pick = menu_pick_hint(file, hint, shown, n, 0);
+  if (pick < 0)
+    return false;
+  long long now = (long long)time(NULL);
+  bool ok = true;
+  if (ids[pick] == 0) { // this one in, the game's other copies (the one INFO is about too) out
+    int others[32];
+    int k = library_copies(l, g, others, 32);
+    ok = library_stamp(root, "hidden.txt", l->all.paths[copy], 0) &&
+         library_stamp(root, "hidden.txt", l->games.paths[g], now);
+    for (int i = 0; i < k && ok; i++)
+      if (others[i] != copy)
+        ok = library_stamp(root, "hidden.txt", l->all.paths[others[i]], now);
+  } else
+    ok = library_stamp(root, "hidden.txt", l->all.paths[copy], ids[pick] == 1 ? now : 0);
+  notice(ok ? "Done: the HIDDEN tab has what's hidden" : "Couldn't save the hidden list");
+  return ok;
+}
+/* INFO: what the game is and where its files are; COPIES when the list has it more than once. A row picked shows
+ * whole. True when HIDE / INCLUDE changed something (the list loads again). */
+static bool library_info(struct library *l, int g) {
+  const char *path = l->games.paths[g];
+  bool pc = pc_game_path(path);
+  int system;
+  bool hack;
+  library_kind(&l->games, g, &system, &hack);
+  static const char *const SYSTEMS[] = {"GBA", "GBC", "GB", "NDS", "PC"};
+  char dir[1400], save[1100], added[32], played[32], size[32], copiesRow[64];
+  const char *file;
+  info_split(path, dir, sizeof dir, &file);
+  struct library_stamps a, p;
+  library_stamps_load(&a, root, "added.txt");
+  library_stamps_load(&p, root, "played.txt");
+  info_date(library_stamps_get(&a, l->games.labels[g]), "-", added, sizeof added);
+  info_date(library_stamps_get(&p, l->games.labels[g]), "NEVER", played, sizeof played);
+  library_stamps_free(&a);
+  library_stamps_free(&p);
+  info_size(pc ? -1 : pocket_file_size(path), size, sizeof size);
+  save[0] = 0;
+  if (!pc)
+    editor_save_path(path, save, sizeof save);
+  int copies[32];
+  int nCopies = library_copies(l, g, copies, 32);
+  char supportDetail[96];
+  int support = game_support_get(g, supportDetail, sizeof supportDetail);
+  const char *auto_ = l->games.autoNames && l->games.autoNames[g] ? l->games.autoNames[g] : NULL;
+  enum { I_NAME, I_AUTO, I_SYSTEM, I_KIND, I_VERSION, I_SUPPORT, I_FILE, I_FOLDER, I_SIZE, I_SAVE, I_ADDED, I_PLAYED,
+         I_COPIES };
+  static char text[13][1600];
+  const char *rows[13];
+  int ids[13], n = 0;
+#define ROW(id, ...)                                                                                                   \
+  do {                                                                                                                 \
+    snprintf(text[n], sizeof text[n], __VA_ARGS__);                                                                    \
+    rows[n] = text[n];                                                                                                 \
+    ids[n++] = id;                                                                                                     \
+  } while (0)
+  ROW(I_NAME, "NAME\t%s", l->games.names[g]);
+  if (auto_)
+    ROW(I_AUTO, "AUTOMATIC NAME\t%s", auto_);
+  ROW(I_SYSTEM, "CONSOLE\t%s", SYSTEMS[system >= 0 && system <= BOXART_PC ? system : 0]);
+  ROW(I_KIND, "KIND\t%s", pc ? "FAN GAME" : hack ? "ROM HACK" : "ORIGINAL");
+  if (l->versions && l->versions[g][0])
+    ROW(I_VERSION, "VERSION\t%s", l->versions[g]);
+  if (game_support_word(support))
+    ROW(I_SUPPORT, "COMPANION\t%s", game_support_word(support));
+  ROW(I_FILE, "%s\t%s", pc ? "GAME FOLDER" : "FILE", file);
+  ROW(I_FOLDER, "FOLDER\t%s", dir);
+  if (!pc)
+    ROW(I_SIZE, "SIZE\t%s", size);
+  if (*save)
+    ROW(I_SAVE, "SAVE\t%s%s", save, pocket_exists(save) ? "" : " (NOT MADE YET)");
+  ROW(I_ADDED, "ADDED\t%s", added);
+  ROW(I_PLAYED, "LAST PLAYED\t%s", played);
+  if (nCopies) {
+    snprintf(copiesRow, sizeof copiesRow, "%d MORE", nCopies);
+    ROW(I_COPIES, "COPIES\t%s", copiesRow);
+  }
+#undef ROW
+  int sel = 0;
+  for (;;) {
+    int pick = menu_pick_hint(l->games.names[g], path, rows, n, sel);
+    if (pick < 0)
+      return false;
+    sel = pick;
+    if (ids[pick] == I_COPIES) {
+      // Every other file that is this game: its name and folder; one picked says which the list keeps.
+      static char copyText[32][1500];
+      const char *copyRows[32];
+      for (int i = 0; i < nCopies; i++) {
+        char d[1400];
+        const char *f;
+        info_split(l->all.paths[copies[i]], d, sizeof d, &f);
+        char sz[32];
+        info_size(pocket_is_dir(l->all.paths[copies[i]]) ? -1 : pocket_file_size(l->all.paths[copies[i]]), sz,
+                  sizeof sz);
+        snprintf(copyText[i], sizeof copyText[i], "%s\t%s  %s", f, sz, d);
+        copyRows[i] = copyText[i];
+      }
+      int c = menu_pick_hint("COPIES OF THIS GAME", "Pick a copy to keep it, hide it or bring it back.", copyRows,
+                             nCopies, 0);
+      if (c >= 0 && library_copy_pick(l, g, copies[c]))
+        return true;
+      continue;
+    }
+    // The row whole: its label and what follows it.
+    const char *tab = strchr(rows[pick], '\t');
+    char label[64];
+    snprintf(label, sizeof label, "%.*s", tab ? (int)(tab - rows[pick]) : 0, rows[pick]);
+    editor_say(label, tab ? tab + 1 : rows[pick]);
+  }
+}
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
-  enum { OPT_PLAY, OPT_FAVORITE, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_LINK, OPT_SUPPORT };
+  enum { OPT_PLAY, OPT_INFO, OPT_FAVORITE, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_LINK, OPT_SUPPORT,
+         OPT_HIDE };
   (void)finding; // CHOOSE BOX ART no longer starts a search of its own
   const char *label = l->games.labels[g];
   char custom[256];
   bool hasName = game_custom_name(root, label, custom, sizeof custom);
-  const char *rows[12];
-  int ids[12], n = 0;
+  const char *rows[14];
+  int ids[14], n = 0;
   bool starred = l->favorite && l->favorite[g];
+  bool hiddenNow = l->hidden && l->hidden[g];
   char supportDetail[96], supportRow[140];
   int support = game_support_get(g, supportDetail, sizeof supportDetail);
 #define OPT(id, text)                                                                                                  \
@@ -10110,7 +10300,9 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     ids[n++] = id;                                                                                                     \
   } while (0)
   OPT(OPT_PLAY, "PLAY");
-  OPT(OPT_FAVORITE, starred ? "UNFAVORITE\tIN FAVORITES" : "FAVORITE\tADD TO FAVORITES");
+  OPT(OPT_INFO, "INFO\tITS FILE, FOLDER, COPIES");
+  if (!hiddenNow)
+    OPT(OPT_FAVORITE, starred ? "UNFAVORITE\tIN FAVORITES" : "FAVORITE\tADD TO FAVORITES");
   OPT(OPT_ART, "CHOOSE BOX ART");
   OPT(OPT_RENAME, "RENAME");
   if (hasName)
@@ -10125,12 +10317,24 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     snprintf(supportRow, sizeof supportRow, "COMPANION\t%s", game_support_word(support));
     OPT(OPT_SUPPORT, supportRow);
   }
+  OPT(OPT_HIDE, hiddenNow ? "INCLUDE\tBACK IN THE LIST" : "HIDE\tKEEP IT OUT OF THE LIST");
 #undef OPT
   int pick = menu_pick(l->games.names[g], rows, n, 0);
   int id = pick >= 0 ? ids[pick] : -1;
   switch (id) {
   case OPT_PLAY:
     return g;
+  case OPT_INFO:
+    if (library_info(l, g))
+      *reload = true;
+    break;
+  case OPT_HIDE:
+    if (library_stamp(root, "hidden.txt", l->games.paths[g], hiddenNow ? 0 : (long long)time(NULL))) {
+      notice(hiddenNow ? "Back in the list" : "Hidden: the HIDDEN tab has it, INCLUDE brings it back");
+      *reload = true;
+    } else
+      notice("Couldn't save the hidden list");
+    break;
   case OPT_FAVORITE:
     if (library_stamp(root, "favorites.txt", label, starred ? 0 : (long long)time(NULL))) {
       notice(starred ? "Taken out of FAVORITES" : "Added to FAVORITES");
