@@ -17,6 +17,7 @@
 #include "pd_map.h"
 #include "host_io.h"
 #include "rom_list.h"
+#include "shortcut.h"
 #include "library_view.h"
 #include "field_items.h"
 #include "ff_music.h"
@@ -10501,7 +10502,7 @@ static bool library_info(struct library *l, int g) {
 }
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
   enum { OPT_PLAY, OPT_INFO, OPT_FAVORITE, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_LINK, OPT_SUPPORT,
-         OPT_HIDE, OPT_HIDE_FOLDER };
+         OPT_HIDE, OPT_HIDE_FOLDER, OPT_SHORTCUT };
   (void)finding; // CHOOSE BOX ART no longer starts a search of its own
   const char *label = l->games.labels[g];
   char custom[256];
@@ -10566,6 +10567,7 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   if (fileHidden || !hiddenNow)
     OPT(OPT_HIDE, fileHidden ? "INCLUDE\tBACK IN THE LIST" : "HIDE\tKEEP IT OUT OF THE LIST");
   OPT(OPT_HIDE_FOLDER, folderRow);
+  OPT(OPT_SHORTCUT, "ADD TO DESKTOP\tA SHORTCUT THAT STARTS IT");
 #undef OPT
   int pick = menu_pick(l->games.names[g], rows, n, 0);
   int id = pick >= 0 ? ids[pick] : -1;
@@ -10576,6 +10578,22 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     if (library_info(l, g))
       *reload = true;
     break;
+  case OPT_SHORTCUT: {
+    // A shortcut on the desktop that starts PokeDaisy straight into this game, its box art as the icon.
+    enum { ICON = 256 };
+    unsigned char *icon = malloc((size_t)ICON * ICON * 4);
+    bool art = icon && boxart_icon(l->stems[g], ICON, icon);
+    char made[1600], program[1400];
+    if (!info_pc_exe(l->games.paths[g], program, sizeof program)) // a PC game with no art wears its program's icon
+      program[0] = 0;
+    int r = shortcut_create(root, l->games.paths[g], l->games.names[g], art ? icon : NULL, ICON, program, made,
+                            sizeof made);
+    free(icon);
+    notice(r == SHORTCUT_MADE ? "On your desktop: double-click it to play"
+           : r == SHORTCUT_THERE ? "Your desktop has a file of that name already"
+                                 : "Couldn't make the shortcut");
+    break;
+  }
   case OPT_HIDE_FOLDER:
     // Every game in the folder (and the folders inside it) out of the list, or back in; no file is touched.
     if (library_stamp(root, "hidden.txt", folderHidden ? hiddenKey : folderKey, folderHidden ? 0 : (long long)time(NULL))) {
@@ -10946,6 +10964,23 @@ static void library_screen(void) {
   rom_list_free(&lib.all);
 }
 
+/* RECENTLY PLAYED for a game started by its path: its name in the list (played.txt is kept by that), when it's there. */
+static void played_from_outside(const char *rom) {
+  struct rom_list l = {0};
+  rom_list_load(&l, root, true);
+  for (int i = 0; i < l.count; i++) {
+    const char *a = l.paths[i], *b = rom;
+    for (; *a && *b; a++, b++)
+      if (!((*a == '/' || *a == '\\') && (*b == '/' || *b == '\\')) &&
+          tolower((unsigned char)*a) != tolower((unsigned char)*b))
+        break;
+    if (!*a && !*b) {
+      library_stamp(root, "played.txt", l.labels[i], (long long)time(NULL));
+      break;
+    }
+  }
+  rom_list_free(&l);
+}
 int main(int argc, char **argv) {
   pd_settings_expand_default = true; // ASPECT EXPAND unless the player picked another (pd_settings.h)
   pd_settings_dark_default = true;   // DARK MODE on unless the player turned it off
@@ -11125,8 +11160,11 @@ int main(int argc, char **argv) {
         s++;
     }
     link_run(n, roms, frames, shot);
-  } else if (rom)
+  } else if (rom) {
+    if (!frames) // a game started from its desktop shortcut (or a frontend) counts as RECENTLY PLAYED too
+      played_from_outside(rom);
     run_game(rom, frames, shot);
+  }
   else {
     // The landing page: the games in DATA/roms and the GAME FOLDERS (rom_list.c) as a grid of box art.
     menuFrames = frames;

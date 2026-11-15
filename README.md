@@ -494,6 +494,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
   ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
   UNFAVORITE in a game's X options (DATA/favorites.txt).
+- Desktop: ADD TO DESKTOP in a game's X options makes a desktop shortcut (Windows .lnk, Linux .desktop) that runs
+  PokeDaisy with --data and the game's path, its icon the box art fitted to 256x256 (kept in DATA/shortcuts; a PC fan
+  game with no art takes its .exe's icon). An existing file of that name is never replaced. A game started by its path
+  is stamped in played.txt like one started from the list.
 - Desktop: HIDE FOLDER in a game's X options hides every game in its folder and the folders inside it (a folder line
   in DATA/hidden.txt, so games added there later stay hidden too); INCLUDE FOLDER on any of them brings them back.
 - Desktop: games in a .zip or .7z are listed and played: the first .gba / .gbc / .gb / .nds inside is unpacked once

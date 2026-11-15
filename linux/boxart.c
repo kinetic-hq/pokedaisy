@@ -1767,14 +1767,48 @@ static struct {
 } cache[CACHE];
 static uint32_t useTick;
 
+static bool art_path(const char *stem, char *path, size_t size) {
+  if (!art_styled_path(stem, boxart_style(), path, size, NULL)) {
+    path_of(path, size, stem, "custom");
+    if (!pocket_exists(path))
+      path_of(path, size, stem, "img");
+  }
+  return pocket_exists(path);
+}
+bool boxart_icon(const char *stem, int size, unsigned char *out) {
+  char path[1500];
+  int iw, ih, n;
+  unsigned char *px = art_path(stem, path, sizeof path) ? stbi_load(path, &iw, &ih, &n, 4) : NULL;
+  if (!px)
+    return false;
+  memset(out, 0, (size_t)size * size * 4);
+  int ow = iw >= ih ? size : (int)((long long)iw * size / ih), oh = iw >= ih ? (int)((long long)ih * size / iw) : size;
+  if (ow < 1)
+    ow = 1;
+  if (oh < 1)
+    oh = 1;
+  int ox = (size - ow) / 2, oy = (size - oh) / 2;
+  for (int y = 0; y < oh; y++)
+    for (int x = 0; x < ow; x++) { // each pixel the average of the source pixels it covers
+      int x0 = x * iw / ow, x1 = (x + 1) * iw / ow, y0 = y * ih / oh, y1 = (y + 1) * ih / oh;
+      if (x1 <= x0)
+        x1 = x0 + 1;
+      if (y1 <= y0)
+        y1 = y0 + 1;
+      unsigned sum[4] = {0}, count = 0;
+      for (int sy = y0; sy < y1 && sy < ih; sy++)
+        for (int sx = x0; sx < x1 && sx < iw; sx++, count++)
+          for (int c = 0; c < 4; c++)
+            sum[c] += px[((size_t)sy * iw + sx) * 4 + c];
+      for (int c = 0; c < 4 && count; c++)
+        out[((size_t)(oy + y) * size + ox + x) * 4 + c] = (unsigned char)(sum[c] / count);
+    }
+  stbi_image_free(px);
+  return true;
+}
 static SDL_Texture *load(SDL_Renderer *r, const char *stem, int *w, int *h) {
   char path[1500];
-  if (!art_styled_path(stem, boxart_style(), path, sizeof path, NULL)) {
-    path_of(path, sizeof path, stem, "custom");
-    if (!pocket_exists(path))
-      path_of(path, sizeof path, stem, "img");
-  }
-  if (!pocket_exists(path))
+  if (!art_path(stem, path, sizeof path))
     return NULL;
   int iw, ih, n;
   unsigned char *px = stbi_load(path, &iw, &ih, &n, 4);
