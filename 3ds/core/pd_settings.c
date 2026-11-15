@@ -230,6 +230,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
             if (int_in(value, 0, 2, &r) && r != 1) s->wingRoom = r;
         } else if (!strcmp(key, "wingroom2")) int_in(value, 0, 3, &s->wingRoom);
         else if (!strcmp(key, "artstyle")) int_in(value, 0, 1, &s->artStyle);
+        else if (!strcmp(key, "sort")) int_in(value, 0, 4, &s->librarySort);
         else if (!strcmp(key, "stretch")) {
             int on;
             if (int_in(value, 0, 1, &on)) s->stretch = on;
@@ -329,8 +330,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "battleinfo=%d\nbattleview=%d\n", s->battleInfo ? 1 : 0, s->battleViewInfo ? 1 : 0);
     fprintf(f, "battlefocus=%d\nlookaround=%d\ndaynight=%d\n", s->battleFocus ? 1 : 0, s->lookAround ? 1 : 0,
             s->dayNight ? 1 : 0);
-    fprintf(f, "fullscreen=%d\nreducemotion=%d\nboxart=%d\nartstyle=%d\n", s->fullscreen, s->reduceMotion ? 1 : 0,
-            s->boxartAuto ? 1 : 0, s->artStyle);
+    fprintf(f, "fullscreen=%d\nreducemotion=%d\nboxart=%d\nartstyle=%d\nsort=%d\n", s->fullscreen,
+            s->reduceMotion ? 1 : 0, s->boxartAuto ? 1 : 0, s->artStyle, s->librarySort);
     fprintf(f, "buttons=%d\nhotkeys=", s->buttonLayout);
     for (int i = 0; i < PD_HOTKEY_BUTTONS; i++) fprintf(f, i ? ",%d" : "%d", s->hotkeys[i]);
     fprintf(f, "\norientation=%d\ngametouch=%d\nbackground=%d\nbrightness=%d\n", s->orientation, s->gameTouch,

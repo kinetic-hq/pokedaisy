@@ -63,14 +63,30 @@ and how much of the companion it gets:
 
 Move with
 the D-pad, the mouse or a finger; `A` or a tap plays, the mouse wheel or a drag
-scrolls, and `Y` opens `SETTINGS`. `SYNC BOX ART`, `GAME FOLDERS` and `SETTINGS`
-sit in the bar along the top: press UP from the first row to reach them. The
+scrolls, and `Y` opens `SETTINGS`. `SORT`, `SYNC BOX ART`, `GAME FOLDERS` and
+`SETTINGS` sit in the bar along the top: press UP from the first row to reach
+them. The
 small button at the bar's right end switches between light and dark: a moon
 while it's dark, a sun while it's light. It's the same switch as `DARK MODE` in
 `SETTINGS`, and your choice stays through restarts and updates. PokeDaisy starts
 dark until you pick light. The
 bar's left end shows the PokeDaisy daisy and name; the window's title and
 `SETTINGS` > `HOST` still say whether it's the Windows or the Linux build.
+
+`SORT` puts the list in another order, and its button says which one you
+picked:
+
+- **`NAME A-Z`** and **`NAME Z-A`**: by the name the list shows.
+- **`RECENTLY ADDED`**: the games you added last come first. A game counts as
+  added when the list first sees it; games that were already there are ordered
+  by when their files arrived.
+- **`RECENTLY PLAYED`**: the game you played last comes first, then the ones
+  you haven't played yet, by name.
+- **`CONSOLE`**: Game Boy, then Game Boy Color, Game Boy Advance, DS and the PC
+  fan games, each by name.
+
+Your choice stays through restarts and updates, and the game you had selected
+stays selected.
 
 Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 `BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
