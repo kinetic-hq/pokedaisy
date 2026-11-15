@@ -96,6 +96,14 @@ to go to the tab before or after, or tap or click one. To add a game to
 `FAVORITES`, press `X` on it and pick `FAVORITE`; `UNFAVORITE` takes it out.
 Favorites are kept in `DATA\favorites.txt`.
 
+To find a game, press `START` or pick `SEARCH` on the bar, type a word or two
+of its name and pick `DONE`. Only the games with every word you typed in their
+name (or their file's name) stay, in every tab, and the button shows what you
+searched for. Capitals don't matter, and a plain e finds an accented one too. On a
+keyboard you can also press `/` or `CTRL` + `F` and just type: the list narrows
+with each letter, `ENTER` keeps the search and `ESC` clears it. `B` clears a
+search, so the whole list comes back before `B` quits.
+
 To keep a game out of the list without touching its file, press `X` on it and
 pick `HIDE`. It moves to the `HIDDEN` tab, and nowhere else. Pick it there,
 press `X` and pick `INCLUDE` to put it back. Hiding goes by the file, so when

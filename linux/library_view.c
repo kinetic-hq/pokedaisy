@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include <strings.h>
 
@@ -15,6 +16,28 @@ const char *const LIBRARY_SORT_BAR[LIBRARY_SORTS] = {"SORT: A-Z", "SORT: Z-A", "
 const char *const LIBRARY_COLLECTION_NAMES[LIBRARY_COLLECTIONS] = {
     "ALL", "GBA", "GBC", "GB", "NDS", "PC", "ROM HACKS", "ORIGINALS", "FAVORITES", "HIDDEN"};
 
+/* TEXT folded for SEARCH: ASCII lowered, the é / É (C3 A9 / C3 89) an e. */
+static void fold(const char *s, char *out, size_t size) {
+  size_t n = 0;
+  for (; *s && n + 1 < size; s++) {
+    unsigned char c = (unsigned char)*s;
+    if (c == 0xC3 && ((unsigned char)s[1] == 0xA9 || (unsigned char)s[1] == 0x89)) {
+      out[n++] = 'e';
+      s++;
+    } else
+      out[n++] = (char)(c < 0x80 ? tolower(c) : c);
+  }
+  out[n] = 0;
+}
+bool library_matches(const char *text, const char *query) {
+  char t[512], q[128];
+  fold(text ? text : "", t, sizeof t);
+  fold(query ? query : "", q, sizeof q);
+  for (char *w = strtok(q, " "); w; w = strtok(NULL, " "))
+    if (!strstr(t, w))
+      return false;
+  return true;
+}
 bool library_in_collection(int collection, int system, bool hack, bool favorite, bool hidden) {
   if (hidden || collection == LIBRARY_HIDDEN)
     return hidden && collection == LIBRARY_HIDDEN;
