@@ -26,7 +26,8 @@ enum pc_player {
 struct pc_game_info {
   char dir[1024];   // the game's folder (the one with Game.ini)
   char title[128];  // Game.ini's Title, else the folder's name
-  char exe[260];    // the player's file name, in dir
+  char exe[260];    // the player's file name, in dir (in playerDir when that's set)
+  char ownExe[260]; // the game's own program in dir (what its folder starts), whichever player PLAY uses
   char version[48]; // "v19.5.1" where it's known, else ""
   int player;       // enum pc_player
   int rgss;         // 1 XP, 3 VX Ace, 0 unknown

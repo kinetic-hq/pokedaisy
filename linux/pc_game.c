@@ -245,10 +245,12 @@ bool pc_game_info(const char *dir, struct pc_game_info *out) {
   if (s.bigExe[0] && s.bigSize >= 4L * 1024 * 1024 && (s.rubyDll || exists_in(dir, "mkxp.json") || s.bigSize >= 8L * 1024 * 1024)) {
     out->player = PC_PLAYER_MKXPZ;
     snprintf(out->exe, sizeof out->exe, "%s", s.bigExe);
+    snprintf(out->ownExe, sizeof out->ownExe, "%s", out->exe);
     out->companion = out->rgss == 1 || out->rgss == 0;
   } else if (s.namedExe[0] || s.bigExe[0]) {
     out->player = PC_PLAYER_RGSS;
     snprintf(out->exe, sizeof out->exe, "%s", s.bigExe[0] ? s.bigExe : s.namedExe);
+    snprintf(out->ownExe, sizeof out->ownExe, "%s", out->exe);
     // An XP game: a Ruby 1.8 mkxp-z player beside it, in the same folder of games, plays it with the wings.
     if (out->rgss == 1)
       borrow_player(dir, out);
