@@ -3,7 +3,7 @@ title: PC fan games
 summary: Play PC fan games made with RPG Maker inside PokeDaisy on Windows, full screen, with your party and the battle in the wings.
 section: start
 order: 92
-keywords: [pc, fan game, button layout, alt tab, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
+keywords: [pc, fan game, button layout, alt tab, control hints, keyboard, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
 ---
 
 On Windows, PokeDaisy plays PC fan games made with RPG Maker (most of them are
@@ -100,9 +100,17 @@ their own options menu; use that one.
 ## Controllers
 
 The controller goes to the game. Some older fan games only read the keyboard;
-PokeDaisy passes your controller's buttons to those as well, so the D-pad, `A`,
-`B` and the rest work in every game with wings. The keyboard works as the game
-sets it up.
+for those, PokeDaisy presses the game's own keys for your controller's
+buttons, so the D-pad, the left stick, `A`, `B` and the rest work in every game
+with wings. Each button presses the key the game itself uses for it, and the
+game never gets a button twice. `START` opens the game's menu, and `SELECT`
+uses your registered item in games that have one. The `GUIDE` button, `L3`,
+`LT` and `RT` stay PokeDaisy's. The keyboard works as the game sets it up.
+
+The bar under the picture shows your controller's buttons and what each one
+does in the game you're playing: confirm, back, the menu, running, and the
+game's other keys. Turn `CONTROL HINTS` off in `SETTINGS`, `CONTROLS` to show
+the dex and the wild ones there instead.
 
 `BUTTON LAYOUT` in `SETTINGS` decides which face button confirms, the same as
 in your cartridge games: on `XBOX` (the first choice) the bottom button

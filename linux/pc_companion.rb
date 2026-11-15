@@ -40,7 +40,7 @@ module PokeDaisyCompanion
       nil
     end
 
-    attr_accessor :battle, :ff, :instantText, :fighting, :nativeInput
+    attr_accessor :battle, :ff, :instantText, :fighting
 
     def now
       Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -66,7 +66,7 @@ module PokeDaisyCompanion
       hook_battle unless @hooked
       hook_text unless @textHooked
       hook_zoom unless @zoomHooked
-      hook_keys unless @keysHooked
+      pad_setup unless @padDone
       read_commands if CMD && t - (@cmdAt || 0) >= 0.25 && (@cmdAt = t)
       apply_zoom
       interval = @slow > 3 ? 2.0 : 0.5
@@ -125,36 +125,83 @@ module PokeDaisyCompanion
       true
     end
 
-    # THE CONTROLLER in older Essentials games: they replace the player's Input with one that asks Windows for the
-    # keyboard's keys (GetAsyncKeyState), so a controller does nothing. The player's own Input (kept aside before
-    # the game's scripts ran) still reads the controller: a key the game asks about is down when the button the
-    # game ties to that key is down on the controller.
-    def hook_keys
-      @keysHooked = true
-      return unless Input.respond_to?(:getstate) && Input.respond_to?(:buttonToKey)
-      return unless Input.respond_to?(:pokedaisy_native_press)
-      map = {}
-      NATIVE_BUTTONS.each do |name, nb|
-        next unless Input.const_defined?(name)
-        keys = (Input.buttonToKey(Input.const_get(name)) rescue nil) || []
-        keys.each { |vk| (map[vk] ||= []) << nb }
+    # THE CONTROLLER. A game on mkxp-z's own Input reads the controller itself (PAD native). Older Essentials games
+    # replace that Input with one that asks Windows for the keyboard's keys (GetAsyncKeyState), so a controller does
+    # nothing there (PAD keys): PokeDaisy presses the game's own keys for the controller's buttons, the first key the
+    # game ties to each of its buttons (PAD_KEYS). Either way PAD_ROLES says what the game does with its buttons (its
+    # map scene and its player read for the menu, run and the registered item keys), for the controls under the
+    # picture.
+    PAD_BUTTONS = %w[C B A X Y Z L R F5 UP DOWN LEFT RIGHT]
+
+    def pad_setup
+      @padDone = true
+      win32 = Input.respond_to?(:getstate) && Input.respond_to?(:buttonToKey)
+      @padMode = win32 ? 'keys' : 'native'
+      if win32
+        keys = []
+        PAD_BUTTONS.each do |b|
+          next unless Input.const_defined?(b)
+          vk = ((Input.buttonToKey(Input.const_get(b)) rescue nil) || [])[0]
+          keys << "#{b}:#{vk}" if vk.is_a?(Integer) && vk > 0 && vk < 256
+        end
+        @padKeys = keys.join(',')
       end
-      return if map.empty?
-      @vkMap = map
-      chain(class << Input; self; end, :getstate) do |obj, args, orig|
-        orig.call(*args) || PokeDaisyCompanion.pad_down?(args[0])
-      end
-      @nativeInput = true
-    rescue Exception
-      nil
+      @padRoles = pad_roles
+    rescue Exception => e
+      note(:pad, e)
     end
 
-    def pad_down?(vk)
-      list = @vkMap && @vkMap[vk]
-      return false unless list
-      list.any? { |b| Input.pokedaisy_native_press(b) }
-    rescue Exception
-      false
+    # The game's scripts' text: its script list, and the folders some games load theirs from.
+    def script_texts
+      list = []
+      ($RGSS_SCRIPTS || []).each do |x|
+        t = (Zlib::Inflate.inflate(x[2]) rescue nil)
+        list << t if t
+      end
+      (Dir['Scripts/**/*.rb'] + Dir['Data/Scripts/**/*.rb'] + Dir['Plugins/**/*.rb'])[0, 3000].each do |f|
+        t = (File.open(f, 'rb') { |io| io.read } rescue nil)
+        list << t if t
+      end
+      list
+    end
+
+    def pad_roles
+      letter = {}
+      %w[C B A X Y Z L R F5].each do |b|
+        v = (Input.const_get(b) rescue nil)
+        letter[v] ||= b if v.is_a?(Integer)
+      end
+      found = {}
+      script_texts.each do |t|
+        lines = t.split("\n")
+        lines.each_with_index do |l, i|
+          if !found['MENU'] && l =~ /menu_calling\s*=\s*true|pbCallMenu\b|call_menu\b/
+            near = lines[[i - 3, 0].max..i].join(' ')
+            found['MENU'] = $1 if near =~ /.*Input\.trigger\?\(\s*Input::(\w+)/
+          end
+          if !found['ITEMS'] && l =~ /pbUseKeyItem\b|ready_menu|PokemonReadyMenu|keyItemCalling|key_item_calling/
+            near = lines[[i - 3, 0].max..i].join(' ')
+            found['ITEMS'] = $1 if near =~ /.*Input\.trigger\?\(\s*Input::(\w+)/
+          end
+          if !found['RUN'] && l =~ /def\s+(pbCanRun\?|can_run\?)\s*$/
+            body = (lines[i + 1, 12] || []).join(' ')
+            found['RUN'] = $1 if body =~ /Input\.press\?\(\s*Input::(\w+)/
+          end
+        end
+        break if found.size == 3
+      end
+      roles = { 'C' => ['CONFIRM'], 'B' => ['BACK'] }
+      %w[MENU RUN ITEMS].each do |r|
+        v = found[r] && (Input.const_get(found[r]) rescue nil)
+        b = letter[v]
+        (roles[b] ||= []) << r if b
+      end
+      out = []
+      %w[C B A X Y Z L R F5].each { |b| out << "#{b}:#{roles[b].join('/')}" if roles[b] }
+      out.join(',')
+    rescue Exception => e
+      note(:roles, e)
+      'C:CONFIRM,B:BACK'
     end
 
     # INSTANT TEXT: the game's message windows show a whole line at once (Essentials' letter by letter off).
@@ -662,6 +709,11 @@ module PokeDaisyCompanion
       end
       h['screen_w'] = safe(:gw, 0) { Graphics.width }
       h['screen_h'] = safe(:gh, 0) { Graphics.height }
+      if @padMode
+        h['pad'] = @padMode
+        h['pad_keys'] = @padKeys if @padKeys
+        h['pad_roles'] = @padRoles if @padRoles
+      end
       if $game_map
         id = safe(:mapid, 0) { $game_map.map_id }
         h['map_id'] = id
@@ -696,21 +748,6 @@ end
 
 # Every frame passes through Graphics.update: the companion looks in every tenth one. FAST FORWARD skips the
 # frame waits of all but every Nth frame.
-# The player's own Input, kept aside before a game's scripts can replace it (see hook_keys), with the numbers of
-# its buttons.
-module Input
-  class << self
-    alias_method :pokedaisy_native_press, :press? if method_defined?(:press?) && !method_defined?(:pokedaisy_native_press)
-    alias_method :pokedaisy_native_update, :update if method_defined?(:update) && !method_defined?(:pokedaisy_native_update)
-  end
-end
-module PokeDaisyCompanion
-  NATIVE_BUTTONS = {}
-  [:DOWN, :LEFT, :RIGHT, :UP, :A, :B, :C, :X, :Y, :Z, :L, :R].each do |n|
-    NATIVE_BUTTONS[n] = Input.const_get(n) if Input.const_defined?(n)
-  end
-end
-
 # ENGLISH FIRST: some games list another language before English in their LANGUAGES setting (a Spanish game with an
 # English translation), so a first start picks that one, or the game never asks. A new options object (a first
 # start, no save yet) starts on English, and the game's language chooser starts on English, when the game has an
@@ -823,11 +860,9 @@ module Graphics
       n = PokeDaisyCompanion.ff
       if n > 1 && respond_to?(:frame_count) && frame_count % n != 0 && respond_to?(:frame_count=)
         self.frame_count += 1
-        Input.pokedaisy_native_update if PokeDaisyCompanion.nativeInput
         PokeDaisyCompanion.tick
         return
       end
-      Input.pokedaisy_native_update if PokeDaisyCompanion.nativeInput
       pokedaisy_update(*args)
       PokeDaisyCompanion.tick
     end

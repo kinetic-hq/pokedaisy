@@ -141,7 +141,50 @@ static void test_swap_face(void) {
   assert(!pc_swap_face("030012345e0400008e02000000007200,X,a:b0", out, 30));
 }
 
+static void test_pad(void) {
+  struct pc_state s;
+  // An older game on its own keyboard Input: its keys, the run and menu buttons read from its scripts.
+  assert(pc_state_parse("{\"v\":1,\"pad\":\"keys\",\"pad_keys\":\"C:67,B:88,A:90,X:65,Y:83,Z:68,L:81,R:87,F5:116,"
+                        "UP:38,DOWN:40,LEFT:37,RIGHT:39\",\"pad_roles\":\"C:CONFIRM,B:BACK/MENU,A:RUN,F5:ITEMS\"}",
+                        &s));
+  assert(s.pad == PC_PAD_KEYS && s.padVk[PC_PAD_C] == 67 && s.padVk[PC_PAD_F5] == 116 && s.padVk[PC_PAD_RIGHT] == 39);
+  assert(!strcmp(s.padRole[PC_PAD_B], "BACK/MENU") && !strcmp(s.padRole[PC_PAD_A], "RUN") && !s.padRole[PC_PAD_X][0]);
+  assert(pc_pad_target(&s, PC_IN_A) == PC_PAD_C && pc_pad_target(&s, PC_IN_X) == PC_PAD_A);
+  assert(pc_pad_target(&s, PC_IN_START) == PC_PAD_B && pc_pad_target(&s, PC_IN_SELECT) == PC_PAD_F5);
+  bool down[256];
+  pc_pad_keys(&s, (1u << PC_IN_A) | (1u << PC_IN_LEFT), down);
+  assert(down[67] && down[37] && !down[88]);
+  int held = 0;
+  for (int i = 0; i < 256; i++)
+    held += down[i];
+  assert(held == 2);
+  pc_pad_keys(&s, (1u << PC_IN_SELECT) | (1u << PC_IN_START), down); // GAME MENU's chord: neither
+  assert(!down[116] && !down[88]);
+  struct pc_hint h[9];
+  int n = pc_pad_hints(&s, true, h, 9);
+  assert(n == 9);
+  assert(!strcmp(h[0].button, "A") && !strcmp(h[0].label, "CONFIRM"));
+  assert(!strcmp(h[1].button, "B") && !strcmp(h[1].label, "BACK/MENU"));
+  assert(!strcmp(h[2].button, "X") && !strcmp(h[2].label, "RUN"));
+  assert(!strcmp(h[3].button, "Y") && !strcmp(h[3].label, "A KEY"));
+  assert(!strcmp(h[4].button, "START") && !strcmp(h[4].label, "MENU"));
+  assert(!strcmp(h[5].button, "SELECT") && !strcmp(h[5].label, "ITEMS"));
+  assert(!strcmp(h[6].button, "LB") && !strcmp(h[6].label, "Q KEY"));
+  n = pc_pad_hints(&s, false, h, 9);
+  assert(!strcmp(h[6].button, "L") && !strcmp(h[7].button, "R"));
+  // A game reading the pad itself: nothing pressed, its own buttons named.
+  assert(pc_state_parse("{\"pad\":\"native\",\"pad_roles\":\"C:CONFIRM,B:BACK,A:MENU\"}", &s));
+  assert(s.pad == PC_PAD_NATIVE);
+  pc_pad_keys(&s, 1u << PC_IN_A, down);
+  assert(!down[67] && pc_pad_target(&s, PC_IN_START) == -1);
+  n = pc_pad_hints(&s, true, h, 9);
+  assert(n == 3 && !strcmp(h[2].button, "X") && !strcmp(h[2].label, "MENU"));
+  // Not said yet: no hints.
+  assert(pc_state_parse("{\"v\":1}", &s) && s.pad == PC_PAD_UNKNOWN && !pc_pad_hints(&s, true, h, 9));
+}
+
 int main(void) {
+  test_pad();
   test_swap_face();
   test_undouble();
   test_layout();

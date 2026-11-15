@@ -705,8 +705,48 @@ static bool team_key(struct jr *r, const char *k, void *user) {
     return s->foeAlive = (int)jr_number(r), true;
   return false;
 }
+static const char *const PAD_NAMES[PC_PAD_BUTTONS] = {"C", "B", "A", "X", "Y", "Z", "L", "R", "F5",
+                                                       "UP", "DOWN", "LEFT", "RIGHT"};
+static int pad_button(const char *name, size_t n) {
+  for (int i = 0; i < PC_PAD_BUTTONS; i++)
+    if (strlen(PAD_NAMES[i]) == n && !memcmp(PAD_NAMES[i], name, n))
+      return i;
+  return -1;
+}
+/* "C:67,B:88" (pad_keys) or "C:CONFIRM,B:BACK/MENU" (pad_roles), into S. */
+static void pad_list(const char *text, struct pc_state *s, bool roles) {
+  for (const char *p = text; *p;) {
+    const char *end = strchr(p, ','), *colon = strchr(p, ':');
+    if (!end)
+      end = p + strlen(p);
+    if (colon && colon < end) {
+      int b = pad_button(p, (size_t)(colon - p));
+      if (b >= 0 && roles) {
+        size_t n = (size_t)(end - colon - 1);
+        if (n >= sizeof s->padRole[b])
+          n = sizeof s->padRole[b] - 1;
+        memcpy(s->padRole[b], colon + 1, n);
+        s->padRole[b][n] = 0;
+      } else if (b >= 0) {
+        int vk = atoi(colon + 1);
+        s->padVk[b] = vk > 0 && vk < 256 ? (unsigned char)vk : 0;
+      }
+    }
+    p = *end ? end + 1 : end;
+  }
+}
 static bool state_key(struct jr *r, const char *k, void *user) {
   struct pc_state *s = user;
+  if (!strcmp(k, "pad") || !strcmp(k, "pad_keys") || !strcmp(k, "pad_roles")) {
+    char text[400];
+    if (!jr_string(r, text, sizeof text))
+      return false;
+    if (!strcmp(k, "pad"))
+      s->pad = !strcmp(text, "keys") ? PC_PAD_KEYS : !strcmp(text, "native") ? PC_PAD_NATIVE : PC_PAD_UNKNOWN;
+    else
+      pad_list(text, s, !strcmp(k, "pad_roles"));
+    return true;
+  }
   if (!strcmp(k, "player"))
     return jr_string(r, s->player, sizeof s->player);
   if (!strcmp(k, "map"))
@@ -750,6 +790,85 @@ bool pc_state_parse(const char *json, struct pc_state *out) {
   struct jr r = {json, json + strlen(json)};
   out->valid = jr_object(&r, state_key, out);
   return out->valid;
+}
+
+int pc_pad_target(const struct pc_state *s, int in) {
+  static const int fixed[PC_INS] = {PC_PAD_C,  PC_PAD_B, PC_PAD_A,  PC_PAD_X,    PC_PAD_L,    PC_PAD_R,    PC_PAD_Z,
+                                    -1,        -1,       PC_PAD_UP, PC_PAD_DOWN, PC_PAD_LEFT, PC_PAD_RIGHT};
+  if (in < 0 || in >= PC_INS)
+    return -1;
+  if (in == PC_IN_SELECT || in == PC_IN_START) {
+    if (s->pad != PC_PAD_KEYS)
+      return -1;
+    if (in == PC_IN_SELECT)
+      return s->padVk[PC_PAD_F5] ? PC_PAD_F5 : s->padVk[PC_PAD_Y] ? PC_PAD_Y : -1;
+    for (int b = 0; b < PC_PAD_F5; b++) // the game's menu button, else B (Essentials' own)
+      if (strstr(s->padRole[b], "MENU"))
+        return b;
+    return PC_PAD_B;
+  }
+  return fixed[in];
+}
+
+void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]) {
+  memset(down, 0, 256 * sizeof *down);
+  if (s->pad != PC_PAD_KEYS)
+    return;
+  unsigned chord = (1u << PC_IN_SELECT) | (1u << PC_IN_START);
+  if ((held & chord) == chord)
+    held &= ~chord;
+  for (int in = 0; in < PC_INS; in++) {
+    int b = held & (1u << in) ? pc_pad_target(s, in) : -1;
+    if (b >= 0 && s->padVk[b])
+      down[s->padVk[b]] = true;
+  }
+}
+
+/* A key's name as a keyboard prints it ("S", "F5", "SHIFT"), else "". */
+static void key_name(int vk, char *out, size_t size) {
+  static const struct {
+    int vk;
+    const char *name;
+  } named[] = {{0x08, "BACKSPACE"}, {0x09, "TAB"},     {0x0D, "ENTER"}, {0x10, "SHIFT"}, {0x11, "CTRL"},
+               {0x12, "ALT"},       {0x1B, "ESC"},     {0x20, "SPACE"}, {0x21, "PG UP"}, {0x22, "PG DN"},
+               {0x23, "END"},       {0x24, "HOME"},    {0x2D, "INS"},   {0x2E, "DEL"}};
+  out[0] = 0;
+  if ((vk >= '0' && vk <= '9') || (vk >= 'A' && vk <= 'Z'))
+    snprintf(out, size, "%c", vk);
+  else if (vk >= 0x70 && vk <= 0x7B)
+    snprintf(out, size, "F%d", vk - 0x6F);
+  else
+    for (size_t i = 0; i < sizeof named / sizeof named[0]; i++)
+      if (named[i].vk == vk)
+        snprintf(out, size, "%s", named[i].name);
+}
+
+int pc_pad_hints(const struct pc_state *s, bool xbox, struct pc_hint *out, int max) {
+  static const int order[] = {PC_IN_A, PC_IN_B, PC_IN_X, PC_IN_Y, PC_IN_START, PC_IN_SELECT, PC_IN_L, PC_IN_R, PC_IN_R3};
+  static const char *const names[] = {"A", "B", "X", "Y", "START", "SELECT", "LB", "RB", "R3"};
+  int n = 0;
+  if (s->pad == PC_PAD_UNKNOWN)
+    return 0;
+  for (size_t i = 0; i < sizeof order / sizeof order[0] && n < max; i++) {
+    int b = pc_pad_target(s, order[i]);
+    if (b < 0)
+      continue;
+    char label[24];
+    snprintf(label, sizeof label, "%s", order[i] == PC_IN_START ? "MENU" : s->padRole[b]);
+    if (!label[0] && s->pad == PC_PAD_KEYS && s->padVk[b] && b != PC_PAD_C && b != PC_PAD_B) {
+      char k[16];
+      key_name(s->padVk[b], k, sizeof k);
+      if (k[0])
+        snprintf(label, sizeof label, "%s KEY", k);
+    }
+    if (!label[0])
+      continue;
+    snprintf(out[n].button, sizeof out[n].button, "%s",
+             !xbox && order[i] == PC_IN_L ? "L" : !xbox && order[i] == PC_IN_R ? "R" : names[i]);
+    snprintf(out[n].label, sizeof out[n].label, "%s", label);
+    n++;
+  }
+  return n;
 }
 
 int pc_type_index(const char *id) {
@@ -1223,6 +1342,41 @@ void pc_pad_env(const char *mappings) {
 
 bool pc_self_foreground(void *self) { return self && GetForegroundWindow() == (HWND)self; }
 
+static bool keysDown[256];
+void pc_keys_send(const bool *down) {
+  HWND fg = GetForegroundWindow();
+  DWORD pid = 0;
+  if (fg)
+    GetWindowThreadProcessId(fg, &pid);
+  bool ours = started && pid && pid == proc.dwProcessId;
+  INPUT in[32];
+  int n = 0;
+  for (int vk = 1; vk < 256; vk++) {
+    bool want = ours && down && down[vk];
+    if (want == keysDown[vk])
+      continue;
+    UINT scan = MapVirtualKeyW((UINT)vk, MAPVK_VK_TO_VSC);
+    keysDown[vk] = want;
+    if (getenv("POCKET_PC_DEBUG"))
+      fprintf(stderr, "PC game: key %02X %s%s\n", vk, want ? "down" : "up", ours ? "" : " (the game isn't in front)");
+    if (!scan)
+      continue;
+    // The keys with an E0 prefix (the arrows, PAGE UP and the like): without it they'd be the number pad's.
+    bool ext = (vk >= VK_PRIOR && vk <= VK_DOWN) || vk == VK_INSERT || vk == VK_DELETE || vk == VK_RCONTROL ||
+               vk == VK_RMENU || vk == VK_DIVIDE;
+    memset(&in[n], 0, sizeof in[n]);
+    in[n].type = INPUT_KEYBOARD;
+    in[n].ki.wScan = (WORD)scan;
+    in[n].ki.dwFlags = KEYEVENTF_SCANCODE | (ext ? KEYEVENTF_EXTENDEDKEY : 0) | (want ? 0 : KEYEVENTF_KEYUP);
+    if (++n == (int)(sizeof in / sizeof in[0])) {
+      SendInput((UINT)n, in, sizeof in[0]);
+      n = 0;
+    }
+  }
+  if (n)
+    SendInput((UINT)n, in, sizeof in[0]);
+}
+
 static bool find_window(void) {
   if (gameWindow && IsWindow(gameWindow))
     return true;
@@ -1431,6 +1585,7 @@ bool pc_capture_place(void *owner, bool focus) {
   return false;
 }
 void pc_pad_env(const char *mappings) { (void)mappings; }
+void pc_keys_send(const bool *down) { (void)down; }
 bool pc_self_foreground(void *self) {
   (void)self;
   return false;

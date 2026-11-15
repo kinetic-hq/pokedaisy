@@ -149,10 +149,11 @@ static void test_replace(void) {
   set.levelCap = true;
   set.resumeGames = false;
   set.rumble = true;
+  set.hidePcHints = true;
   set.batterySaver = PD_SAVER_OFF;
   assert(pd_settings_save(&set, ini));
   pd_settings_defaults(&back);
-  assert(pd_settings_load(&back, ini) && back.ffSpeed == 400 && back.levelCap && !back.resumeGames && back.rumble &&
+  assert(pd_settings_load(&back, ini) && back.ffSpeed == 400 && back.levelCap && !back.resumeGames && back.rumble && back.hidePcHints &&
          back.batterySaver == PD_SAVER_OFF);
   // GAME SPEED is kept in percent; an older file's speed= index (1x, 1.5x, 2x, 3x, 4x, 0.5x, 0.25x) still reads.
   set.gameSpeed = pd_game_speed_index(115);

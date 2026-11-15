@@ -119,6 +119,7 @@ struct pd_settings {
     bool tradeEvolutions; // TRADE EVOS: a Pokémon that evolves by trading gets EVOLVE on its summary
     int shinyOdds;        // SHINY ODDS: an index into PD_SHINY_LABELS, 0 = NORMAL
     int batterySaver; // BATTERY SAVER: enum pd_battery_saver
+    bool hidePcHints; // CONTROL HINTS off: no controls in the bar under a PC game's picture
     bool rumble;      // RUMBLE: the controller buzzes as a battle starts, harder for a shiny foe, and for rumble carts
     bool resumeGames; // RESUME GAMES: a state on leaving a game, offered back (CONTINUE) at its next start
     bool levelCap;   // LEVEL CAP: party levels past the next boss's top level show orange (a Nuzlocke's rule)
