@@ -136,11 +136,16 @@ Press `X`, right click or hold a finger on a game for its options:
 
   Without a SteamGridDB key the grid shows the libretro covers only, and says
   where to add a key.
-- **`RENAME`** gives the game a name of your own, typed on a real keyboard or
-  picked key by key with a controller (`B` or `X` deletes, `Y` is a space,
-  `START` is done). The same keys work wherever you type, such as a search or a
-  number in `EDIT SAVE`. `USE THE FILE'S NAME` takes it back. Names are kept in `DATA\names.txt`;
-  the files themselves are never renamed.
+- **`RENAME`** gives the game a name of your own. It opens with the name the
+  game has now and the cursor at its end, so you can fix one word and keep the
+  rest. Type on a real keyboard (the arrow keys, `HOME` and `END` move the
+  cursor) or pick key by key with a controller: `B` or `X` deletes the letter
+  before the cursor, `Y` is a space, `LB` and `RB` move the cursor, and `START`
+  is done. You can also tap where the cursor should go. The same keys work
+  wherever you type, such as a search or a number in `EDIT SAVE`.
+  `RESET NAME` goes back to the name the list gave it. A new name keeps the
+  game's box art, saves, play time and picks. Names are kept in
+  `DATA\names.txt`; the files themselves are never renamed.
 - **`EDIT SAVE`** changes the game's save file: see "Editing a save" below.
 - **`TRADE SAVES`** (GBA games) moves Pokemon between this game's save and
   another's: see "Trading between saves" below.

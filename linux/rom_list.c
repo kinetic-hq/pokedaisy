@@ -211,31 +211,38 @@ void rom_list_load(struct rom_list *l, const char *root, bool nds) {
   int n = rom_folders_read(root, folders, POCKET_FOLDERS_MAX);
   for (int i = 0; i < n; i++)
     rom_list_scan(l, folders[i], nds);
-  // RENAME: the player's own names (DATA/names.txt) over the made-up ones.
+  // RENAME: the player's own names (DATA/names.txt) over the made-up ones, which are kept: the art is filed by them.
+  l->autoNames = l->count ? calloc((size_t)l->count, sizeof *l->autoNames) : NULL;
   for (int i = 0; i < l->count; i++) {
     char own[256];
     if (game_custom_name(root, l->labels[i], own, sizeof own)) {
       char *copy = strdup(own);
       if (copy) {
-        free(l->names[i]);
+        if (l->autoNames)
+          l->autoNames[i] = l->names[i];
+        else
+          free(l->names[i]);
         l->names[i] = copy;
       }
     }
   }
-  // Sorted as triples (name, label, path), so the arrays keep in step.
-  char **pairs = malloc(3 * (size_t)l->count * sizeof *pairs);
+  // Sorted as quads (name, label, path, made-up name), so the arrays keep in step.
+  char **pairs = malloc(4 * (size_t)l->count * sizeof *pairs);
   if (!pairs)
     return;
   for (int i = 0; i < l->count; i++) {
-    pairs[3 * i] = l->names[i];
-    pairs[3 * i + 1] = l->labels[i];
-    pairs[3 * i + 2] = l->paths[i];
+    pairs[4 * i] = l->names[i];
+    pairs[4 * i + 1] = l->labels[i];
+    pairs[4 * i + 2] = l->paths[i];
+    pairs[4 * i + 3] = l->autoNames ? l->autoNames[i] : NULL;
   }
-  qsort(pairs, l->count, 3 * sizeof *pairs, by_label);
+  qsort(pairs, l->count, 4 * sizeof *pairs, by_label);
   for (int i = 0; i < l->count; i++) {
-    l->names[i] = pairs[3 * i];
-    l->labels[i] = pairs[3 * i + 1];
-    l->paths[i] = pairs[3 * i + 2];
+    l->names[i] = pairs[4 * i];
+    l->labels[i] = pairs[4 * i + 1];
+    l->paths[i] = pairs[4 * i + 2];
+    if (l->autoNames)
+      l->autoNames[i] = pairs[4 * i + 3];
   }
   free(pairs);
 }
@@ -244,7 +251,10 @@ void rom_list_free(struct rom_list *l) {
   for (int i = 0; i < l->count; i++) {
     free(l->paths[i]);
     free(l->names[i]);
+    if (l->autoNames)
+      free(l->autoNames[i]);
   }
+  free(l->autoNames);
   free(l->paths);
   free(l->labels);
   free(l->names);
