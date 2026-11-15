@@ -497,6 +497,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - Desktop: GAME BUTTONS (SETTINGS > CONTROLS) rebinds each game button on the controller and on the keyboard, one by one
   (press the new one; a button that had it swaps), with RESET CONTROLLER / RESET KEYBOARD. Kept in DATA/controls.ini;
   GB / GBA games and the menus (a DS game keeps its own). A side never changed still follows BUTTON LAYOUT.
+- Desktop: TURBO A and TURBO B in GAME BUTTONS (on no button until given one): held, A or B is pressed two refreshes in
+  four (about 15 a second) in GB / GBA games.
 - Desktop: ADD TO DESKTOP in a game's X options makes a desktop shortcut (Windows .lnk, Linux .desktop) that runs
   PokeDaisy with --data and the game's path, its icon the box art fitted to 256x256 (kept in DATA/shortcuts; a PC fan
   game with no art takes its .exe's icon). An existing file of that name is never replaced. A game started by its path
