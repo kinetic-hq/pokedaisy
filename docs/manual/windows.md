@@ -603,7 +603,19 @@ off, R3 is the DS layout and `GUIDE / HOME` opens the quick menu. Give LT or RT
 the screens. Pick one and choose
 `GAME MENU`, `COMPANION`, `FF TOGGLE`, `SAVE STATE`, `LOAD STATE`,
 `SCREENSHOT`, `FULLSCREEN`, `DS LAYOUT`, `DS LAYOUT BACK`, `SWAP SCREENS`,
-`ZOOM IN`, `ZOOM OUT` or `REWIND HOLD`, or `USUAL USE` to give it back.
+`ZOOM IN`, `ZOOM OUT`, `REWIND HOLD`, `UNDO SAVE`, `UNDO LOAD`, `SLOT NEXT`,
+`SLOT PREV`, `FF HOLD`, `SPEED CYCLE`, `SOFT RESET`, `RESTART` or `MUTE`, or
+`USUAL USE` to give it back.
+
+The last nine work in Game Boy Advance and Game Boy games. `UNDO SAVE` and
+`UNDO LOAD` take back your last state save or load, as in the companion's
+`STATES`. `SLOT NEXT` and `SLOT PREV` pick the state slot that save and load
+use, and say which one and whether it's empty. `FF HOLD` fast forwards for as
+long as you hold it. `SPEED CYCLE` steps through `GAME SPEED`. `SOFT RESET`
+presses A, B, `SELECT` and `START` together for a moment, the game's own
+reset; `RESTART` starts the game over from its power on. `MUTE` turns the
+game's sound off and on (`MUTE GAME`). Your save file is never touched by any
+of them.
 
 `REWIND` (in `FF / SPEED`) keeps the last 20 seconds or so. While you hold the
 button you gave `REWIND HOLD` (or R on a keyboard, with `REWIND` on), the game

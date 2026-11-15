@@ -569,7 +569,15 @@ static void test_remap_keys(void) {
   e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);events();held=pressed=0;
   puts("PASS GAME BUTTONS: a rebound key presses its button, TURBO A / B");
 }
+// HOTKEYS: every action has its name on the pick list (a missing one would leave a hole at the end).
+static void test_hotkey_names(void) {
+  for(int i=0;i<PD_HOTKEY_ACTIONS;i++)assert(HOTKEY_ACTIONS[i] && *HOTKEY_ACTIONS[i]);
+  assert(!strcmp(HOTKEY_ACTIONS[HA_MUTE],"MUTE") && !strcmp(HOTKEY_ACTIONS[HA_UNDO_SAVE],"UNDO SAVE"));
+  assert(HA_MUTE==PD_HOTKEY_ACTIONS-1 && HA_MUTE<32); // hostActions is a bit each
+  puts("PASS HOTKEYS: every action named");
+}
 int main(int argc,char** argv) {
+  test_hotkey_names();
   test_remap_keys();
   test_modal_focus();
   test_wide_window();

@@ -497,6 +497,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - Desktop: GAME BUTTONS (SETTINGS > CONTROLS) rebinds each game button on the controller and on the keyboard, one by one
   (press the new one; a button that had it swaps), with RESET CONTROLLER / RESET KEYBOARD. Kept in DATA/controls.ini;
   GB / GBA games and the menus (a DS game keeps its own). A side never changed still follows BUTTON LAYOUT.
+- Desktop: HOTKEYS gains UNDO SAVE, UNDO LOAD, SLOT NEXT, SLOT PREV, FF HOLD (held), SPEED CYCLE (GAME SPEED's steps),
+  SOFT RESET (A+B+SELECT+START for 12 frames), RESTART (a power-on reset) and MUTE, for GB / GBA games.
 - Desktop: TURBO A and TURBO B in GAME BUTTONS (on no button until given one): held, A or B is pressed two refreshes in
   four (about 15 a second) in GB / GBA games.
 - Desktop: ADD TO DESKTOP in a game's X options makes a desktop shortcut (Windows .lnk, Linux .desktop) that runs
