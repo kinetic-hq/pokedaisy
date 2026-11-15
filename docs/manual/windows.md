@@ -179,9 +179,11 @@ Press `X`, right click or hold a finger on a game for its options:
 - **`INFO`** shows what the list knows about the game: its name (and the
   automatic name under one of your own), console, kind, version, companion
   support, its file and folder, its size, where its save is (or will be), when
-  it was added and last played. Pick a row to read it whole. When the list has
+  it was added and last played. For a PC fan game it shows the game's folder
+  and the program in it that `PLAY` starts, both as whole paths. Pick a row to read it whole. When the list has
   the game more than once, `COPIES` lists the other files with their size and
-  folder, so you can see which is which. Pick one and choose `KEEP THIS ONE` to
+  folder (for a PC fan game, each copy's folder and program), so you can see
+  which is which. Pick one and choose `KEEP THIS ONE` to
   hide every other copy, `HIDE THIS ONE`, or `INCLUDE THIS ONE` for a copy
   that is hidden.
 - **`FAVORITE`** adds the game to the `FAVORITES` tab (`UNFAVORITE` takes it
