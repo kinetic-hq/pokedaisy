@@ -194,7 +194,8 @@ Press `X`, right click or hold a finger on a game for its options:
   automatic name under one of your own), console, kind, version, companion
   support, its file and folder, its size, where its save is (or will be), when
   it was added and last played. For a PC fan game it shows the game's folder
-  and the program in it that `PLAY` starts, both as whole paths. Pick a row to read it whole. When the list has
+  and its own program (`PROGRAM`), both as whole paths. An older fan game that
+  plays on another game's player shows that player too (`RUNS ON`). Pick a row to read it whole. When the list has
   the game more than once, `COPIES` lists the other files with their size and
   folder (for a PC fan game, each copy's folder and program), so you can see
   which is which. Pick one and choose `KEEP THIS ONE` to

@@ -10611,9 +10611,19 @@ static void info_split(const char *path, char *dir, size_t dirSize, const char *
 static bool info_pc_exe(const char *path, char *out, size_t size) {
   struct pc_game_info info;
   *out = 0;
-  if (!pc_game_path(path) || !pc_game_info(path, &info) || !info.exe[0])
+  if (!pc_game_path(path) || !pc_game_info(path, &info) || !info.ownExe[0])
     return false;
-  snprintf(out, size, "%s%s%s", info.dir, strchr(info.dir, '/') || !strchr(info.dir, '\\') ? "/" : "\\", info.exe);
+  snprintf(out, size, "%s%s%s", info.dir, strchr(info.dir, '/') || !strchr(info.dir, '\\') ? "/" : "\\", info.ownExe);
+  return true;
+}
+/* ... and the player PLAY starts it with when that's another game's (an XP game on a borrowed mkxp-z), whole. */
+static bool info_pc_player(const char *path, char *out, size_t size) {
+  struct pc_game_info info;
+  *out = 0;
+  if (!pc_game_path(path) || !pc_game_info(path, &info) || !info.playerDir[0] || !info.exe[0])
+    return false;
+  snprintf(out, size, "%s%s%s", info.playerDir,
+           strchr(info.playerDir, '/') || !strchr(info.playerDir, '\\') ? "/" : "\\", info.exe);
   return true;
 }
 /* What tells a copy apart: a ROM's whole path, a PC game's program (its .exe's whole path). */
@@ -10683,10 +10693,11 @@ static bool library_info(struct library *l, int g) {
   bool hack;
   library_kind(&l->games, g, &system, &hack);
   static const char *const SYSTEMS[] = {"GBA", "GBC", "GB", "NDS", "PC"};
-  char dir[1400], save[1100], added[32], played[32], size[32], copiesRow[64], exe[1400], where[1400];
+  char dir[1400], save[1100], added[32], played[32], size[32], copiesRow[64], exe[1400], where[1400], player[1400];
   const char *file;
   info_split(path, dir, sizeof dir, &file);
   bool hasExe = pc && info_pc_exe(path, exe, sizeof exe);
+  bool hasPlayer = pc && info_pc_player(path, player, sizeof player);
   info_where(path, where, sizeof where);
   struct library_stamps a, p;
   library_stamps_load(&a, root, "added.txt");
@@ -10704,11 +10715,11 @@ static bool library_info(struct library *l, int g) {
   char supportDetail[96];
   int support = game_support_get(g, supportDetail, sizeof supportDetail);
   const char *auto_ = l->games.autoNames && l->games.autoNames[g] ? l->games.autoNames[g] : NULL;
-  enum { I_NAME, I_AUTO, I_SYSTEM, I_KIND, I_VERSION, I_SUPPORT, I_FILE, I_FOLDER, I_EXE, I_SIZE, I_SAVE, I_ADDED,
-         I_PLAYED, I_COPIES };
-  static char text[14][1600];
-  const char *rows[14];
-  int ids[14], n = 0;
+  enum { I_NAME, I_AUTO, I_SYSTEM, I_KIND, I_VERSION, I_SUPPORT, I_FILE, I_FOLDER, I_EXE, I_PLAYER, I_SIZE, I_SAVE,
+         I_ADDED, I_PLAYED, I_COPIES };
+  static char text[15][1600];
+  const char *rows[15];
+  int ids[15], n = 0;
 #define ROW(id, ...)                                                                                                   \
   do {                                                                                                                 \
     snprintf(text[n], sizeof text[n], __VA_ARGS__);                                                                    \
@@ -10728,6 +10739,8 @@ static bool library_info(struct library *l, int g) {
     ROW(I_FOLDER, "GAME FOLDER\t%s", path);
     if (hasExe)
       ROW(I_EXE, "PROGRAM\t%s", exe);
+    if (hasPlayer) // an XP game played on another game's player: which one
+      ROW(I_PLAYER, "RUNS ON\t%s", player);
   } else {
     ROW(I_FILE, "FILE\t%s", file);
     ROW(I_FOLDER, "FOLDER\t%s", dir);
