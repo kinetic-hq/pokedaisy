@@ -401,11 +401,34 @@ static int main_style(const char *stem) {
   SDL_RWclose(f);
   return got == 1 && c >= '0' && c < '0' + BOXART_STYLES ? c - '0' : -1;
 }
-/* The picture the list draws for STYLE: the box art if it suits (or was picked under it), else the newest alternate of
- * that shape, else the box art. *shaped: the one chosen has the style's shape. */
+/* A picture in the game's folder picked in the picker for one ART STYLE: its file name, kept in DATA (the game's
+ * folder is never renamed for it). Gone when the file is, or when a cover from elsewhere is picked under that style. */
+static const char *const PIN_KINDS[] = {"pin-tall", "pin-box"};
+static void art_pin_set(const char *stem, int style, const char *file) {
+  char path[1400];
+  path_of(path, sizeof path, stem, PIN_KINDS[style == BOXART_STYLE_BOX]);
+  if (file)
+    write_file(path, file, strlen(file));
+  else
+    pocket_remove(path);
+}
+static bool art_pin_get(const char *stem, int style, char *out, size_t size) {
+  char path[1400];
+  path_of(path, sizeof path, stem, PIN_KINDS[style == BOXART_STYLE_BOX]);
+  SDL_RWops *f = SDL_RWFromFile(path, "rb");
+  if (!f)
+    return false;
+  size_t got = SDL_RWread(f, out, 1, size - 1);
+  SDL_RWclose(f);
+  out[got] = 0;
+  return got > 0;
+}
+/* The picture the list draws for STYLE: the one picked for it (a pin), else the box art if it suits (or was picked
+ * under it), else the newest alternate of that shape, else the box art. *shaped: the one chosen has the style's
+ * shape. */
 static bool art_styled_path(const char *stem, int style, char *out, size_t size, bool *shaped) {
   struct art_game g;
-  char home[1100], path[1500];
+  char home[1100], path[1500], pin[300];
   if (shaped)
     *shaped = false;
   if (!art_game_of(stem, &g) || !art_home(&g, home, sizeof home))
@@ -414,6 +437,15 @@ static bool art_styled_path(const char *stem, int style, char *out, size_t size,
   if (!f)
     return false;
   int n = art_files(home, g.name, f, 64), main = -1, best = -1;
+  if (art_pin_get(stem, style, pin, sizeof pin))
+    for (int i = 0; i < n; i++)
+      if (!strcmp(f[i].name, pin)) {
+        snprintf(out, size, "%s/%s", home, f[i].name);
+        if (shaped)
+          *shaped = true;
+        free(f);
+        return true;
+      }
   for (int i = 0; i < n; i++) {
     snprintf(path, sizeof path, "%s/%s", home, f[i].name);
     bool fits = file_shape(path) == style;
@@ -1249,9 +1281,9 @@ bool boxart_has_custom(const char *stem) {
 #define PICK_ENTRIES 20
 
 struct pick_cand {
-  char url[512], thumb[512];
+  char url[512], thumb[512]; // BOXART_PICK_LOCAL: url is the picture's file name in the game's art folder
   int source, w, h, local;
-  bool ready, failed;
+  bool ready, failed, current;
 };
 static SDL_Thread *pickThread;
 static SDL_atomic_t pickQuit;
@@ -1450,6 +1482,9 @@ static int pick_work(void *unused) {
       char home[1100];
       static struct art_file files[64];
       int nf = art_game_of(g.stem, &ag) && art_home(&ag, home, sizeof home) ? art_files(home, ag.name, files, 64) : 0;
+      char drawn[1500] = ""; // the one the list draws now: "Its box art now"; the rest can be picked
+      if (nf && !art_styled_path(g.stem, boxart_style(), drawn, sizeof drawn, NULL))
+        drawn[0] = 0;
       for (int i = 0; i < nf; i++) {
         char path[1500];
         size_t flen = 0;
@@ -1459,8 +1494,9 @@ static int pick_work(void *unused) {
         if (data && serial == pickSerial && pickCount < PICK_MAX) {
           int fw = 0, fh = 0;
           image_size((unsigned char *)data, flen, &fw, &fh);
-          pick_add(BOXART_PICK_LOCAL, "", "", fw, fh, data, flen);
+          pick_add(BOXART_PICK_LOCAL, files[i].name, "", fw, fh, data, flen);
           pick[pickCount - 1].local = files[i].num;
+          pick[pickCount - 1].current = !strcmp(path, drawn);
         }
         SDL_UnlockMutex(lock);
         free(data);
@@ -1661,6 +1697,7 @@ bool boxart_pick_item(int i, struct boxart_pick_item *out) {
     out->h = pick[i].h;
     out->ready = pick[i].ready;
     out->local = pick[i].local;
+    out->current = pick[i].current;
     out->failed = pick[i].failed;
   }
   SDL_UnlockMutex(lock);
@@ -1695,15 +1732,13 @@ bool boxart_pick_choose(const char *stem, int i, char *err, size_t errSize) {
   }
   char path[1400];
   if (c.source == BOXART_PICK_LOCAL) {
-    // One of the game's own pictures: an alternate swaps names with its box art.
-    if (c.local == 0) {
+    // One of the game's own pictures: pinned for this ART STYLE, in DATA. The files stay as they are.
+    if (c.current) {
       snprintf(err, errSize, "That's its box art already");
       return false;
     }
-    if (!boxart_art_use(stem, c.local)) {
-      snprintf(err, errSize, "Couldn't swap the pictures");
-      return false;
-    }
+    art_pin_set(stem, boxart_style(), c.url);
+    SDL_AtomicAdd(&generation, 1);
     return true;
   }
   char *img = NULL;
@@ -1725,8 +1760,10 @@ bool boxart_pick_choose(const char *stem, int i, char *err, size_t errSize) {
     ok = false;
   else if (art_game_of(stem, &g)) { // into the game's art folder: the box art it had becomes an alternate
     ok = art_save_main(stem, img, len);
-    if (ok)
+    if (ok) {
       main_style_mark(stem); // picked under this ART STYLE: its art there, whatever its shape
+      art_pin_set(stem, boxart_style(), NULL); // ... in place of a picture of the folder picked before
+    }
   }
   else {
     path_of(path, sizeof path, stem, "custom");

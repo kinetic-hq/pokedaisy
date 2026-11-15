@@ -10135,7 +10135,8 @@ static bool boxart_picker(struct library *l, int g) {
         static const char *const SOURCE[] = {"STEAMGRIDDB", "LIBRETRO", "BASE GAME", "IN FOLDER"};
         static const uint32_t SOURCE_COLOR[] = {0x3A6EA5, 0x2E9E6A, 0xB7791F, 0x8E44AD};
         if (it.source == BOXART_PICK_LOCAL)
-          snprintf(labels[n], sizeof labels[n], it.local ? "Alternate %d" : "Its box art now", it.local);
+          snprintf(labels[n], sizeof labels[n], it.current ? "Its box art now" : it.local ? "Alternate %d" : "In its folder",
+                   it.local);
         else
           snprintf(labels[n], sizeof labels[n], "%s", it.source == BOXART_PICK_BASE      ? "The base game's box"
                                                       : it.source == BOXART_PICK_LIBRETRO ? "libretro's cover"
@@ -10208,8 +10209,11 @@ static bool boxart_picker(struct library *l, int g) {
       gridOverlay = &grid;
       menu_frame();
       char err[120];
+      struct boxart_pick_item chosen = {0};
+      bool fromFolder = boxart_pick_item(itemOf[use], &chosen) && chosen.source == BOXART_PICK_LOCAL;
       if (boxart_pick_choose(stem, itemOf[use], err, sizeof err)) {
-        notice("Box art set: the one it had is now an alternate");
+        notice(fromFolder ? "Box art set: the pictures in its folder stay as they are"
+                          : "Box art set: the one it had is now an alternate");
         changed = done = true;
       } else
         notice(err);
