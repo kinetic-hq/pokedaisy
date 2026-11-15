@@ -9,6 +9,7 @@
 #include "pd_canvas.h"
 
 #define GAME_GRID_ART_MAX 128
+#define GAME_GRID_TABS_MAX 16
 
 enum { GAME_GRID_TILES, GAME_GRID_BAR };
 /* A bar entry drawn as an icon instead of words: DARK MODE's switch (a moon while dark, a sun while light). */
@@ -45,14 +46,20 @@ struct game_grid {
   const char *emptyPath; // where games go, shown while there are none
   bool follow;           // keep the selected tile in view on the next draw
   int artStyle;          // ART STYLE (boxart.h's BOXART_STYLE_*): the art's shape, TALL 2:3 or BOX square
+  // COLLECTIONS: a row of tabs under the bar ("ALL 28", "GBA 12"...), drawn with two or more; the shoulders' names
+  // (tabKeys[0] / [1], "LB" / "RB") at its ends. A tab tapped: tappedTab (else -1), read and cleared by the host.
+  const char *const *tabs;
+  int tabCount, tabSelected, tappedTab;
+  const char *tabKeys[2];
   // Worked out by game_grid_draw:
   int columns, tileW, tileH, artH, gap, gridTop, gridBottom, drawnW, drawnH;
   struct game_grid_art art[GAME_GRID_ART_MAX];
   int artCount;
   int barX[8], barW[8], barY, barH;
+  int tabX[GAME_GRID_TABS_MAX], tabW[GAME_GRID_TABS_MAX], tabY, tabH;
   // Touch:
   bool touching, dragged;
-  int touchX, touchY, lastY, pressedTile, pressedBar;
+  int touchX, touchY, lastY, pressedTile, pressedBar, pressedTab;
 };
 
 void game_grid_init(struct game_grid *g, const struct game_grid_item *items, int count);

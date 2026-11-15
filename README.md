@@ -482,6 +482,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   shape by default (`TALL`), or the game's own box (`BOX`), always filled edge to edge with no black bars (art of
   another shape over a blurred copy of itself). With a SteamGridDB key, `TALL` looks for tall art first and keeps the
   box as an alternate; the BOX ART picker asks for the style's sizes, and a pick is kept per style.
+- **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
+  ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
+  UNFAVORITE in a game's X options (DATA/favorites.txt).
 - **SORT** on the desktop host's game list: a `SORT` button in the top bar orders the games by name (A-Z / Z-A),
   recently added (DATA/added.txt, first seen by the list; the file's time for games already there), recently played
   (DATA/played.txt, written by PLAY) or console (GB, GBC, GBA, DS, PC). Remembered in settings.ini.
