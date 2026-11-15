@@ -482,6 +482,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   shape by default (`TALL`), or the game's own box (`BOX`), always filled edge to edge with no black bars (art of
   another shape over a blurred copy of itself). With a SteamGridDB key, `TALL` looks for tall art first and keeps the
   box as an alternate; the BOX ART picker asks for the style's sizes, and a pick is kept per style.
+- **The game list's bar** keeps its buttons whole: when they leave no room (a big window at a large UI SIZE), the
+  PokeDaisy name steps aside and only the daisy shows.
 - **Title cards** on the desktop host's game list: a game with no art shows its name on a card in its console's colour,
   and a PC fan game's own title screen (mostly "PRESS ENTER") is never its cover; a cover older versions saved from
   it (byte for byte the game's title picture, never one you picked) is cleared so SteamGridDB can look again. A long
