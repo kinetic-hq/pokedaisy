@@ -494,6 +494,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
   ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
   UNFAVORITE in a game's X options (DATA/favorites.txt).
+- Desktop: every library tile is laid out alike (name in two lines at most, cut with "..."; system and kind on one
+  row; version left and FULL / PARTLY / PLAY ONLY right on the last row), so the tags line up across a row
 - Desktop: CHOOSE BOX ART marks only the picture in use as "Its box art now"; any other picture in the game's
   folder can be picked (the pick is kept in DATA for that ART STYLE, the folder's files aren't renamed)
 - Desktop: a PC fan game's INFO shows its own program in PROGRAM (it showed the borrowed player's name inside the

@@ -51,9 +51,11 @@ picks the tiles' shape: `TALL` (the default) is SteamGridDB's tall 600 x 900
 art, and `BOX` is the shape of the game's own box. Art of the tile's shape fills
 it edge to edge. Art of another shape is shown whole over a blurred, darker copy
 of itself, so there's never a black bar. Each game
-shows its name (on up to three lines when it is long), the system (`GBA`, `GBC`,
-`GB` or `NDS`), `ORIGINAL` or `ROMHACK`, its version when the file name has one,
-and how much of the companion it gets:
+shows its name (on up to two lines, cut with "..." when it is longer), the
+system (`GBA`, `GBC`, `GB` or `NDS`) and `ORIGINAL` or `ROMHACK` on one row, then
+its version when the file name has one at the left of the last row and how much
+of the companion it gets at the right. Every tile has these in the same places,
+so they line up across a row:
 
 - **`FULL`**: every companion tab, including the `DEX`, the `GUIDE` and the
   foe's team in `BATTLE`.
