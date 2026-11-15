@@ -755,6 +755,9 @@ with B. A DS game's companion keeps its own `SETTINGS` (the gear tab), which has
 in as a share of the closest step. Tap it to pick a step from a list instead of
 pressing LT or RT until you reach it.
 
+`WILD ENCOUNTERS`, `AUTO-RUN` and `RUN INDOORS` work in every Game Boy Advance
+game whose quick menu has them, and read `N/A` in the others.
+
 ## Shaders and colours
 
 These rows in the companion's `SETTINGS` change how the game looks:

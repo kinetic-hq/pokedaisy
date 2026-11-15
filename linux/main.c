@@ -4704,6 +4704,10 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
                               .batteryPct = -1, .layouts = companion_layouts(), .layoutCount = POCKET_VIEWS};
   snprintf(host.values[0], 40, POCKET_HOST_NAME);
   host.hasStates = true; // STATES: slot 0 (the old one state file) is picked to begin with
+  // WILD ENCOUNTERS, AUTO-RUN and RUN INDOORS: the rows work where the quick menu's do (the game's own wild switch,
+  // the field read), N/A elsewhere.
+  host.wildSupported = wildSwitch != 0;
+  host.fieldSupported = fieldKnown;
   // INSTANT TEXT and REUSABLE TMS: found in the ROM's own code, GBA games only (as on Android).
   struct pd_tweak_patch textPatch = {0}, tmPatch = {0};
   bool textOn = false, tmsOn = false;
@@ -5435,6 +5439,8 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           buttonLayout = settings.buttonLayout;
           orientation_set(settings.orientation);
           gameTouch = settings.gameTouch;
+          if (wildSwitch) // WILD ENCOUNTERS, as the quick menu's
+            pk_field_wild(wildSwitch, settings.wildOff);
           settings_put(&settings, config);
           break;
         default:
