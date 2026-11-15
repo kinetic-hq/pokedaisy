@@ -11,7 +11,8 @@
 struct rom_list {
   char **paths;  // full paths, for opening
   char **labels; // the file names
-  char **names;  // the games' names, as the list shows them (game_display_name)
+  char **names;  // the games' names, as the list shows them (game_display_name, or RENAME's)
+  char **autoNames; // the made-up name under a RENAME (NULL: not renamed). Box art is filed by it, so a rename keeps it
   int count, cap;
 };
 

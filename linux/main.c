@@ -626,6 +626,8 @@ static float wingClickX, wingClickY;
 static bool textEntry;   // RENAME's keyboard is up: the keyboard types instead of pressing buttons
 static char textTyped[64];
 static int textBackspaces;
+static int textCursorMove, textDeletes; // the keyboard's LEFT / RIGHT (one each) and DELETE, while typing
+static bool textHome, textEnd;
 static bool textEnter, textEscape;
 static bool window_to_canvas(int mx, int my, int *x, int *y);
 static void canvas_at(SDL_Rect at, int w, int h) {
@@ -909,11 +911,21 @@ static void events(void) {
     }
     if (textEntry && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {
       SDL_Keycode k = e.key.keysym.sym;
-      bool arrow = k == SDLK_UP || k == SDLK_DOWN || k == SDLK_LEFT || k == SDLK_RIGHT;
+      bool arrow = k == SDLK_UP || k == SDLK_DOWN; // LEFT / RIGHT move the cursor in what's typed
       if (!arrow) {
         if (e.type == SDL_KEYDOWN) {
           if (k == SDLK_BACKSPACE)
             textBackspaces++;
+          else if (k == SDLK_LEFT)
+            textCursorMove--;
+          else if (k == SDLK_RIGHT)
+            textCursorMove++;
+          else if (k == SDLK_HOME)
+            textHome = true;
+          else if (k == SDLK_END)
+            textEnd = true;
+          else if (k == SDLK_DELETE)
+            textDeletes++;
           else if (k == SDLK_RETURN || k == SDLK_KP_ENTER)
             textEnter = true;
           else if (k == SDLK_ESCAPE)
@@ -7120,38 +7132,69 @@ static bool update_prompt(void) {
   }
   return true;
 }
+/* UTF-8 steps in S: the start of the character before AT, and of the one after it. */
+static size_t text_prev(const char *s, size_t at) {
+  while (at && ((unsigned char)s[--at] & 0xC0) == 0x80) {
+  }
+  return at;
+}
+static size_t text_next(const char *s, size_t at) {
+  if (!s[at])
+    return at;
+  at++;
+  while (s[at] && ((unsigned char)s[at] & 0xC0) == 0x80)
+    at++;
+  return at;
+}
 /* RENAME's keyboard: the D-pad walks the keys and A presses one, a tap presses one, and a real keyboard just types.
- * B deletes (with nothing left, leaves), Y is a space, START is DONE. True with the name in BUF. */
+ * B deletes (with nothing left, leaves), Y is a space, START is DONE. What's there is edited in place: a cursor (at the
+ * end to start with) that LB / RB, a tap in the field, or the keyboard's arrows, HOME and END move; keys go in there and
+ * B / X / BACKSPACE take the letter before it (DELETE the one after). True with the name in BUF. */
 static bool text_entry(const char *title, char *buf, size_t size) {
   static const char *const ROWS[] = {"1234567890", "QWERTYUIOP", "ASDFGHJKL'", "ZXCVBNM-.&"};
   static const char *const WIDE[] = {"aA", "SPACE", "DEL", "DONE"};
   enum { COLS = 10, ROW_N = 4 };
   int row = 1, col = 0, pressedKey = -1;
   bool lower = false, done = false, ok = false;
+  size_t cur = strlen(buf); // the cursor: a byte offset at a character's start
+  int fieldX = 0, fieldY = 0, fieldW = 0, fieldTx = 0;
   held = 0;
   textEntry = true;
   textTyped[0] = 0;
-  textBackspaces = 0;
+  textBackspaces = textCursorMove = textDeletes = 0;
+  textHome = textEnd = false;
   textEnter = textEscape = false;
   SDL_StartTextInput();
   int keyX[ROW_N + 1][COLS], keyW[ROW_N + 1][COLS], keyY[ROW_N + 1], keyH = 0;
   memset(keyX, 0, sizeof keyX);
   memset(keyW, 0, sizeof keyW);
   memset(keyY, 0, sizeof keyY);
+// The character before / after the cursor (UTF-8: a whole one), and text put in at the cursor.
+#define PREV(at) text_prev(buf, at)
+#define NEXT(at) text_next(buf, at)
 #define DEL_ONE()                                                                                                      \
   do {                                                                                                                 \
-    size_t n_ = strlen(buf);                                                                                           \
-    while (n_ && ((unsigned char)buf[n_ - 1] & 0xC0) == 0x80)                                                          \
-      n_--;                                                                                                            \
-    if (n_)                                                                                                            \
-      n_--;                                                                                                            \
-    buf[n_] = 0;                                                                                                       \
+    if (cur) {                                                                                                         \
+      size_t p_ = PREV(cur);                                                                                           \
+      memmove(buf + p_, buf + cur, strlen(buf + cur) + 1);                                                             \
+      cur = p_;                                                                                                        \
+    }                                                                                                                  \
+  } while (0)
+#define DEL_AFTER()                                                                                                    \
+  do {                                                                                                                 \
+    if (buf[cur]) {                                                                                                    \
+      size_t q_ = NEXT(cur);                                                                                           \
+      memmove(buf + cur, buf + q_, strlen(buf + q_) + 1);                                                              \
+    }                                                                                                                  \
   } while (0)
 #define ADD(str)                                                                                                       \
   do {                                                                                                                 \
     size_t n_ = strlen(buf), a_ = strlen(str);                                                                         \
-    if (n_ + a_ < size && n_ + a_ < 60)                                                                                \
-      memcpy(buf + n_, str, a_ + 1);                                                                                   \
+    if (n_ + a_ < size && n_ + a_ < 60) {                                                                              \
+      memmove(buf + cur + a_, buf + cur, n_ - cur + 1);                                                                \
+      memcpy(buf + cur, str, a_);                                                                                      \
+      cur += a_;                                                                                                       \
+    }                                                                                                                  \
   } while (0)
   while (running && !done) {
     events();
@@ -7164,6 +7207,21 @@ static bool text_entry(const char *title, char *buf, size_t size) {
     }
     for (; textBackspaces > 0; textBackspaces--)
       DEL_ONE();
+    for (; textDeletes > 0; textDeletes--)
+      DEL_AFTER();
+    for (; textCursorMove < 0; textCursorMove++)
+      cur = PREV(cur);
+    for (; textCursorMove > 0; textCursorMove--)
+      cur = NEXT(cur);
+    if (textHome)
+      cur = 0;
+    if (textEnd)
+      cur = strlen(buf);
+    textHome = textEnd = false;
+    if (down(L)) // the shoulders move the cursor (the D-pad walks the keys)
+      cur = PREV(cur);
+    if (down(R))
+      cur = NEXT(cur);
     if (textEnter)
       done = ok = true;
     if (textEscape || down(MENU))
@@ -7198,6 +7256,25 @@ static bool text_entry(const char *title, char *buf, size_t size) {
         done = true;
     }
     for (int i = 0; i < tapCount; i++) {
+      // A tap in the field puts the cursor at the nearest gap between letters.
+      if (!taps[i].down && fieldW && taps[i].y >= fieldY && taps[i].y < fieldY + 24 && taps[i].x >= fieldX &&
+          taps[i].x < fieldX + fieldW && !textMask) {
+        size_t best = 0;
+        int bestD = 1 << 30;
+        for (size_t at = 0;; at = NEXT(at)) {
+          char part[64];
+          snprintf(part, sizeof part, "%.*s", (int)at, buf);
+          int d = fieldTx + pd_text_width(part) - taps[i].x;
+          if (d < 0)
+            d = -d;
+          if (d < bestD)
+            bestD = d, best = at;
+          if (!buf[at])
+            break;
+        }
+        cur = best;
+        continue;
+      }
       int hit = -1;
       for (int r = 0; r <= ROW_N && hit < 0; r++)
         for (int c2 = 0; c2 < (r == ROW_N ? 4 : COLS); c2++)
@@ -7252,12 +7329,22 @@ static bool text_entry(const char *title, char *buf, size_t size) {
       shown[m] = 0;
       field = shown;
     }
-    int tw = pd_text_width(field);
-    int tx = 16 + (tw > canvas.w - 40 ? canvas.w - 40 - tw : 0);
+    // The cursor's place: the width of what's before it (in stars for a password). A long name scrolls so it shows.
+    char before[64];
+    if (textMask) {
+      size_t m = 0;
+      for (size_t q = 0; q < cur && m + 1 < sizeof before; q = NEXT(q))
+        before[m++] = '*';
+      before[m] = 0;
+    } else
+      snprintf(before, sizeof before, "%.*s", (int)cur, buf);
+    int tw = pd_text_width(field), cw = pd_text_width(before), room = canvas.w - 40;
+    int tx = 16 + (tw > room ? (cw > room ? room - cw : 0) : 0);
+    fieldX = 12, fieldY = fy, fieldW = canvas.w - 24, fieldTx = tx;
     pd_clip(&canvas, 12, fy, canvas.w - 24, 24);
     pd_text(&canvas, tx, fy + 2, field, text, PD_NO_SHADOW);
-    if ((SDL_GetTicks() / 500) % 2)
-      pd_fill(&canvas, tx + tw + 1, fy + 5, 1, 14, ring);
+    if ((SDL_GetTicks() / 500) % 2 || cur < strlen(buf)) // steady while it's inside the name, so it can be found
+      pd_fill(&canvas, tx + cw + (cur ? 1 : 0), fy + 5, 1, 14, ring);
     pd_unclip(&canvas);
     int gap = 3, top = fy + 32, bottom = canvas.h - 18;
     keyH = (bottom - top - gap * ROW_N) / (ROW_N + 1);
@@ -7287,13 +7374,18 @@ static bool text_entry(const char *title, char *buf, size_t size) {
                 PD_NO_SHADOW);
       }
     }
-    pd_text_fit(&canvas, 10, canvas.h - 18, canvas.w - 20, "A KEY   B/X DELETE   Y SPACE   START DONE   OR JUST TYPE",
-                muted, PD_NO_SHADOW);
+    char keysHint[120];
+    snprintf(keysHint, sizeof keysHint, "A KEY   B/X DELETE   Y SPACE   %s MOVE   START DONE   OR JUST TYPE",
+             buttonLayout == PD_LAYOUT_XBOX ? "LB/RB" : "L/R");
+    pd_text_fit(&canvas, 10, canvas.h - 18, canvas.w - 20, keysHint, muted, PD_NO_SHADOW);
     if (menu_frame())
       break;
   }
 #undef DEL_ONE
+#undef DEL_AFTER
 #undef ADD
+#undef PREV
+#undef NEXT
   SDL_StopTextInput();
   textEntry = false;
   held = 0;
@@ -7389,7 +7481,9 @@ static void library_load(struct library *l) {
   for (int i = 0; i < count; i++) {
     const char *label = l->games.labels[i];
     grid_stem(label, l->art[i].stem, sizeof l->art[i].stem);
-    snprintf(l->art[i].title, sizeof l->art[i].title, "%s", l->games.names[i]);
+    // Filed by the made-up name, so a RENAME (or RESET NAME) keeps the game's art.
+    const char *artName = l->games.autoNames && l->games.autoNames[i] ? l->games.autoNames[i] : l->games.names[i];
+    snprintf(l->art[i].title, sizeof l->art[i].title, "%s", artName);
     bool pc = pc_game_path(l->games.paths[i]);
     l->art[i].system = pc ? BOXART_PC : grid_system(label);
     // The ROM's folder: BOX ART LOCATION's BESIDE GAMES keeps its art in a "boxart" folder there.
@@ -9325,8 +9419,7 @@ static void trade_saves(const char *firstRom, const char *firstName) {
 enum { PICK_BAR_SEARCH, PICK_BAR_SHAPE, PICK_BAR_URL, PICK_BAR_FILE };
 static bool boxart_picker(struct library *l, int g) {
   const char *stem = l->stems[g];
-  struct boxart_game game = l->art[g];
-  snprintf(game.title, sizeof game.title, "%s", l->games.names[g]);
+  struct boxart_game game = l->art[g]; // its title is the made-up name the art is filed by
   boxart_pick_open(&game);
   static struct game_grid grid;
   static struct game_grid_item items[400];
@@ -9845,7 +9938,7 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   OPT(OPT_ART, "CHOOSE BOX ART");
   OPT(OPT_RENAME, "RENAME");
   if (hasName)
-    OPT(OPT_RESET, "USE THE FILE'S NAME");
+    OPT(OPT_RESET, "RESET NAME");
   if (!pc_game_path(l->games.paths[g])) // a PC game's save is the game's own business
     OPT(OPT_EDIT, "EDIT SAVE");
   if (trade_is_gba(l->games.paths[g])) {
