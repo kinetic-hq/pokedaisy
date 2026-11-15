@@ -167,6 +167,7 @@ static void backup_name(const char *name, void *user) {
     b->names[b->count++] = strdup(name);
 }
 const char *pocket_backup_dir;
+int pocket_backup_keep = POCKET_BACKUP_KEEP;
 bool pocket_save_backup(const char *savePath, time_t now) {
   size_t size;
   unsigned char *save = read_all(savePath, &size);
@@ -224,7 +225,8 @@ bool pocket_save_backup(const char *savePath, time_t now) {
       pocket_remove(tmp);
   }
   /* The new copy is the newest; drop what's past the newest KEEP. */
-  for (int i = write && ok ? POCKET_BACKUP_KEEP - 1 : POCKET_BACKUP_KEEP; i < count; i++) {
+  int keep = pocket_backup_keep > 0 ? pocket_backup_keep : 1;
+  for (int i = write && ok ? keep - 1 : keep; i < count; i++) {
     if (i >= 0) {
       snprintf(path, sizeof path, "%s/%s", dir, names[i]);
       pocket_remove(path);

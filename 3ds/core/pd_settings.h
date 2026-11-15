@@ -17,6 +17,9 @@ extern bool pd_settings_dark_default;
 extern int (*pd_settings_system_dark)(void);
 // With AUTO on, darkMode takes the system's choice; true when that changed it.
 bool pd_settings_follow_system(struct pd_settings* s);
+// SAVE BACKUPS' choices (Android's KEEP PER GAME); 10 to begin with.
+#define PD_BACKUP_KEEP_COUNT 6
+extern const int PD_BACKUP_KEEPS[PD_BACKUP_KEEP_COUNT];
 void pd_settings_defaults(struct pd_settings* s);
 // Missing file = defaults (and false).
 bool pd_settings_load(struct pd_settings* s, const char* path);

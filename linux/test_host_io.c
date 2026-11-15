@@ -115,6 +115,11 @@ static void test_backups(void) {
     assert(pocket_save_backup(save, t++));
     assert(backups(dir) == (i < POCKET_BACKUP_KEEP ? i : POCKET_BACKUP_KEEP));
   }
+  // SAVE BACKUPS set lower: the next backup drops all but the newest that many.
+  pocket_backup_keep = 3;
+  write_save(save, 20, 0);
+  assert(pocket_save_backup(save, t++) && backups(dir) == 3);
+  pocket_backup_keep = POCKET_BACKUP_KEEP;
   char path[700];
   snprintf(path, sizeof path, "%s/" POCKET_BACKUP_DIR, dir);
   assert(pocket_list_dir(path, check_backup, dir));
@@ -153,10 +158,12 @@ static void test_replace(void) {
   set.rumble = true;
   set.hidePcHints = true;
   set.batterySaver = PD_SAVER_OFF;
+  assert(set.backupKeep == 10);
+  set.backupKeep = 20;
   assert(pd_settings_save(&set, ini));
   pd_settings_defaults(&back);
   assert(pd_settings_load(&back, ini) && back.ffSpeed == 400 && back.levelCap && !back.resumeGames && back.rumble && back.hidePcHints &&
-         back.batterySaver == PD_SAVER_OFF);
+         back.batterySaver == PD_SAVER_OFF && back.backupKeep == 20);
   // DARK MODE AUTO: kept, and the system's choice wins over the file's dark=; a host that can't tell has no AUTO.
   set.darkAuto = true;
   set.darkMode = false;

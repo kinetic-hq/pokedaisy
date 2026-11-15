@@ -19,5 +19,7 @@ struct VFile *pocket_save_wrap(struct VFile *inner,
 #define POCKET_BACKUP_KEEP 10
 /* plorpOS: where the copies go instead of beside the save; NULL = beside it. */
 extern const char *pocket_backup_dir;
+/* SAVE BACKUPS: how many a save keeps (POCKET_BACKUP_KEEP to begin with; at least 1). */
+extern int pocket_backup_keep;
 bool pocket_save_backup(const char *savePath, time_t now);
 #endif

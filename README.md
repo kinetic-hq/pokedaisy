@@ -494,6 +494,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
   ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
   UNFAVORITE in a game's X options (DATA/favorites.txt).
+- Desktop: SAVE BACKUPS (SETTINGS > LIBRARY) sets how many backups each game's save keeps: 1, 3, 5, 10 (the old
+  fixed count, still the default), 20 or 50
 - Desktop: the companion's WILD ENCOUNTERS, AUTO-RUN and RUN INDOORS rows work wherever the quick menu's do (they
   read N/A on the desktop before)
 - Desktop: DARK MODE gains AUTO (OFF, ON, AUTO in the companion's SETTINGS): it follows the system's light or dark

@@ -11,6 +11,7 @@ const char* const pd_filter_names[PD_FILTERS] = {"OFF", "LCD", "LCD PAPER", "SCA
 const char* const pd_grid_names[PD_GRIDS] = {"SOFT", "MEDIUM", "STRONG"};
 bool pd_settings_expand_default = false;
 bool pd_settings_dark_default = false;
+const int PD_BACKUP_KEEPS[PD_BACKUP_KEEP_COUNT] = {1, 3, 5, 10, 20, 50};
 int (*pd_settings_system_dark)(void) = NULL;
 
 bool pd_settings_follow_system(struct pd_settings* s) {
@@ -63,6 +64,7 @@ void pd_settings_defaults(struct pd_settings* s) {
     s->battleFocus = false;
     s->gameSpeed = 0;
     s->gameVolume = 100;
+    s->backupKeep = 10;
     s->gameMuted = false;
     s->autoRun = false;
     s->darkMode = pd_settings_dark_default;
@@ -225,6 +227,12 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         else if (!strcmp(key, "bikespeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_BIKE]);
         else if (!strcmp(key, "surfspeed")) int_in(value, 0, PD_SCENE_SPEED_COUNT - 1, &s->sceneSpeed[PD_SCENE_SURF]);
         else if (!strcmp(key, "volume")) int_in(value, 20, 100, &s->gameVolume);
+        else if (!strcmp(key, "backupkeep")) {
+            int v;
+            if (int_in(value, 1, 50, &v))
+                for (int i = 0; i < PD_BACKUP_KEEP_COUNT; i++)
+                    if (PD_BACKUP_KEEPS[i] == v) s->backupKeep = v;
+        }
         else if (!strcmp(key, "shader")) int_in(value, 0, PD_SHADERS - 1, &s->shader);
         else if (!strcmp(key, "colors")) int_in(value, 0, PD_COLORS - 1, &s->colors);
         else if (!strcmp(key, "fullscreen")) int_in(value, -1, 1, &s->fullscreen);
@@ -334,6 +342,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "levelcap=%d\nresume=%d\nrumble=%d\nbatterysaver=%d\n", s->levelCap ? 1 : 0, s->resumeGames ? 1 : 0,
             s->rumble ? 1 : 0, s->batterySaver);
     fprintf(f, "nopchints=%d\n", s->hidePcHints ? 1 : 0);
+    fprintf(f, "backupkeep=%d\n", s->backupKeep);
     fprintf(f, "dark=%d\ndarkauto=%d\ntheme=%d\nffnormal=%d\ncheats=%d\n", s->darkMode, s->darkAuto, s->theme, s->ffNormal,
             s->cheats);
     fprintf(f, "gamespeed=%d\nvolume=%d\nnohints=%d\nonetap=%d\nmute=%d\nautorun=%d\nperf=%d\n", PD_GAME_SPEED_PCT[s->gameSpeed],
