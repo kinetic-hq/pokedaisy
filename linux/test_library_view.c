@@ -46,6 +46,14 @@ int main(void) {
   assert(!library_in_collection(LIBRARY_FAVORITES, BOXART_GBA, false, true, true));
   assert(library_in_collection(LIBRARY_HIDDEN, BOXART_GBA, false, false, true));
   assert(!library_in_collection(LIBRARY_HIDDEN, BOXART_GBA, false, false, false));
+  // SEARCH
+  assert(library_matches("Pok\xC3\xA9mon Fire Ash", ""));
+  assert(library_matches("Pok\xC3\xA9mon Fire Ash", "fire"));
+  assert(library_matches("Pok\xC3\xA9mon Fire Ash", "ASH  fi"));
+  assert(library_matches("Pok\xC3\xA9mon Fire Ash", "pokemon"));
+  assert(library_matches("POK\xC3\x89MON Fire Ash", "pok\xC3\xA9"));
+  assert(!library_matches("Pok\xC3\xA9mon Fire Ash", "fire red"));
+  assert(!library_matches(NULL, "a"));
 
   char tmpl[] = "library-view-XXXXXX";
   char *dir = pocket_mkdtemp(tmpl);

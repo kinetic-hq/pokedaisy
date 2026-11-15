@@ -427,7 +427,12 @@ void game_grid_draw(struct game_grid *g, struct pd_canvas *c) {
   for (int i = 0; i < g->count; i++)
     draw_tile(g, c, i, &p);
   pd_unclip(c);
-  if (!g->count) {
+  if (!g->count && g->emptyTitle) {
+    int y = g->gridTop + 30;
+    pd_heading(c, PAD * 2, y, g->emptyTitle, p.text, PD_NO_SHADOW);
+    if (g->emptyText)
+      pd_text_wrap(c, PAD * 2, y + 22, c->w - PAD * 4, 16, 3, g->emptyText, p.muted, PD_NO_SHADOW);
+  } else if (!g->count) {
     int y = g->gridTop + 30;
     pd_heading(c, PAD * 2, y, "NO GAMES YET", p.text, PD_NO_SHADOW);
     pd_text_wrap(c, PAD * 2, y + 22, c->w - PAD * 4, 16, 3,

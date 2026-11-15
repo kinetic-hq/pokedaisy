@@ -42,4 +42,8 @@ enum { LIBRARY_ALL, LIBRARY_GBA, LIBRARY_GBC, LIBRARY_GB, LIBRARY_NDS, LIBRARY_P
 extern const char *const LIBRARY_COLLECTION_NAMES[LIBRARY_COLLECTIONS];
 /* SYSTEM is boxart.h's enum boxart_system. A HIDDEN game (HIDE in its options, DATA/hidden.txt) is in HIDDEN only. */
 bool library_in_collection(int collection, int system, bool hack, bool favorite, bool hidden);
+
+/* SEARCH: every word of QUERY (split at spaces) is somewhere in TEXT, capitals not counting and an accented e
+ * (Pok\xC3\xA9mon) the same as a plain one. An empty QUERY matches everything. */
+bool library_matches(const char *text, const char *query);
 #endif

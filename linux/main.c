@@ -626,6 +626,7 @@ static bool wingClicked; // a click / touch this frame, in the renderer's pixels
 static float wingClickX, wingClickY;
 static bool textEntry;   // RENAME's keyboard is up: the keyboard types instead of pressing buttons
 static char textTyped[64];
+static bool searchKey; // "/" or CTRL+F in the game list: SEARCH by typing
 static int textBackspaces;
 static int textCursorMove, textDeletes; // the keyboard's LEFT / RIGHT (one each) and DELETE, while typing
 static bool textHome, textEnd;
@@ -935,6 +936,9 @@ static void events(void) {
         continue; // typing, not buttons
       }
     }
+    if (e.type == SDL_KEYDOWN && !e.key.repeat &&
+        (e.key.keysym.sym == SDLK_SLASH || (e.key.keysym.sym == SDLK_f && (e.key.keysym.mod & KMOD_CTRL))))
+      searchKey = true;
     if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
       if (!e.key.repeat)
         key(keyboard(e.key.keysym.sym), e.type == SDL_KEYDOWN);
@@ -5590,8 +5594,26 @@ static void menu_script(void) {
     return;
   last = menuTicks;
   char c = *menuKeys++;
+  // Typing: "/" starts the list's SEARCH, lower case letters and "_" (a space) are typed, "<" is BACKSPACE, ">" ENTER.
+  if (c == '/') {
+    searchKey = true;
+    return;
+  }
+  if (textEntry && ((c >= 'a' && c <= 'z') || c == '_')) {
+    size_t n = strlen(textTyped);
+    if (n + 1 < sizeof textTyped)
+      textTyped[n] = c == '_' ? ' ' : c, textTyped[n + 1] = 0;
+    return;
+  }
+  if (textEntry && (c == '<' || c == '>')) {
+    if (c == '<')
+      textBackspaces++;
+    else
+      textEnter = true;
+    return;
+  }
   int k = c == 'A' ? A : c == 'B' ? B : c == 'U' ? UP : c == 'D' ? DOWN : c == 'L' ? LEFT : c == 'R' ? RIGHT
-          : c == 'X' ? X : c == 'Y' ? Y : c == '[' ? L : c == ']' ? R : -1;
+          : c == 'X' ? X : c == 'Y' ? Y : c == '[' ? L : c == ']' ? R : c == 'S' ? START : -1;
   if (k >= 0)
     pressed |= 1u << k;
 }
@@ -7438,7 +7460,7 @@ static void grid_set_art(const char *stem, const char *source) {
   else
     notice(*err ? err : "Couldn't use that picture");
 }
-enum { GRID_BAR_SORT, GRID_BAR_SYNC, GRID_BAR_FOLDERS, GRID_BAR_SETTINGS, GRID_BAR_THEME };
+enum { GRID_BAR_SEARCH, GRID_BAR_SORT, GRID_BAR_SYNC, GRID_BAR_FOLDERS, GRID_BAR_SETTINGS, GRID_BAR_THEME };
 struct library {
   struct rom_list all;   // every game, in SORT's order
   struct rom_list games; // the ones COLLECTIONS' tab shows (copies of ALL's)
@@ -7455,10 +7477,14 @@ struct library {
   struct game_grid grid;
   int count;
   int sort; // SORT (library_view.h's LIBRARY_SORT_*), from settings.ini
+  char search[64]; // SEARCH: only the games with these words in their names ("" every game)
+  bool searchLive; // typing on a real keyboard goes into SEARCH as it comes ("/" or CTRL+F)
+  char searchBar[40], searchHint[120], searchEmpty[160];
 };
 /* The bar's buttons: SORT (its words say which), ...; the last is DARK MODE's switch, a moon while dark
  * (GAME_GRID_ICON_MOON) and a sun while light. */
-static const char *LIBRARY_BAR[] = {"SORT: A-Z", "SYNC BOX ART", "GAME FOLDERS", "SETTINGS", GAME_GRID_ICON_MOON};
+static const char *LIBRARY_BAR[] = {"SEARCH", "SORT: A-Z", "SYNC BOX ART", "GAME FOLDERS", "SETTINGS",
+                                    GAME_GRID_ICON_MOON};
 /* SORT: the games put in LIB's order (their arrays moved together). ADDED is when the list first saw a game
  * (DATA/added.txt; a game it hasn't seen yet gets its file's time, so the first look orders what's there already),
  * PLAYED when PLAY last started it (DATA/played.txt). */
@@ -7534,6 +7560,16 @@ static void library_kind(const struct rom_list *all, int i, int *system, bool *h
 }
 /* The tab's games out of ALL (copies, in ALL's order), the tabs worth showing (ALL, then each with a game), with their
  * counts; a tab left empty (the last favourite unstarred) goes back to ALL. */
+/* SEARCH: game I of ALL by its name, the name the list gave it and its file's name. */
+static bool library_found(const struct library *l, int i) {
+  if (!l->search[0])
+    return true;
+  const struct rom_list *all = &l->all;
+  char text[1024];
+  snprintf(text, sizeof text, "%s %s %s", all->names[i], all->autoNames && all->autoNames[i] ? all->autoNames[i] : "",
+           all->labels[i]);
+  return library_matches(text, l->search);
+}
 static void library_pick(struct library *l) {
   const struct rom_list *all = &l->all;
   struct library_stamps fav, hid;
@@ -7552,6 +7588,8 @@ static void library_pick(struct library *l) {
       isFav[i] = f;
     if (isHid)
       isHid[i] = h;
+    if (!library_found(l, i)) // SEARCH: in no tab's count
+      continue;
     for (int c = 0; c < LIBRARY_COLLECTIONS; c++)
       if (library_in_collection(c, system, hack, f, h))
         counts[c]++;
@@ -7592,7 +7630,7 @@ static void library_pick(struct library *l) {
     bool hack;
     library_kind(all, i, &system, &hack);
     bool f = isFav && isFav[i], h = isHid && isHid[i];
-    if (!library_in_collection(l->collection, system, hack, f, h))
+    if (!library_found(l, i) || !library_in_collection(l->collection, system, hack, f, h))
       continue;
     char *path = strdup(all->paths[i]), *name = strdup(all->names[i]);
     char *autoName = all->autoNames && all->autoNames[i] ? strdup(all->autoNames[i]) : NULL;
@@ -7612,6 +7650,33 @@ static void library_pick(struct library *l) {
   free(isHid);
 }
 static void library_show(struct library *l);
+/* SEARCH's words: on its bar button ("SEARCH: FIRE"), in the hint while typing or while it narrows the list, and what
+ * an empty list says. */
+static void library_search_words(struct library *l) {
+  l->grid.emptyTitle = l->grid.emptyText = NULL;
+  if (!l->search[0] && !l->searchLive) {
+    LIBRARY_BAR[GRID_BAR_SEARCH] = "SEARCH";
+    return;
+  }
+  char up[sizeof l->search];
+  size_t n = 0;
+  for (const char *s = l->search; *s && n + 1 < sizeof up; s++)
+    up[n++] = (char)((unsigned char)*s < 0x80 ? toupper((unsigned char)*s) : *s);
+  up[n] = 0;
+  snprintf(l->searchBar, sizeof l->searchBar, "SEARCH: %.18s%s", up, strlen(up) > 18 ? "..." : "");
+  LIBRARY_BAR[GRID_BAR_SEARCH] = l->search[0] ? l->searchBar : "SEARCH";
+  if (l->searchLive)
+    snprintf(l->searchHint, sizeof l->searchHint, "SEARCH: %s_   ENTER DONE   ESC CLEAR", l->search);
+  else
+    snprintf(l->searchHint, sizeof l->searchHint, "A PLAY   X OPTIONS   START SEARCH   B CLEAR THE SEARCH");
+  l->grid.hint = l->searchHint;
+  if (l->search[0]) {
+    snprintf(l->searchEmpty, sizeof l->searchEmpty, "No game here has \"%s\" in its name. %s", l->search,
+             l->searchLive ? "ESC clears the search." : "B clears the search.");
+    l->grid.emptyTitle = "NO GAME FOUND";
+    l->grid.emptyText = l->searchEmpty;
+  }
+}
 /* The list read again from the folders (and SORT applied), then shown. */
 static void library_load(struct library *l) {
 #ifdef POCKET_DS
@@ -7729,12 +7794,13 @@ static void library_show(struct library *l) {
   l->grid.tabKeys[1] = buttonLayout == PD_LAYOUT_XBOX ? "RB" : "R";
   l->grid.title = "PokeDaisy"; // the platform stays in the window title and SETTINGS' HOST row
   l->grid.bar = LIBRARY_BAR;
-  l->grid.barCount = 5;
+  l->grid.barCount = 6;
   l->grid.hint = l->tabCount > 1 ? (buttonLayout == PD_LAYOUT_XBOX
-                                         ? "A PLAY   X OPTIONS   Y SETTINGS   LB/RB COLLECTION   B QUIT"
-                                         : "A PLAY   X OPTIONS   Y SETTINGS   L/R COLLECTION   B QUIT")
-                                  : "A PLAY   X OPTIONS   Y SETTINGS   B QUIT";
+                                         ? "A PLAY   X OPTIONS   Y SETTINGS   START SEARCH   LB/RB COLLECTION   B QUIT"
+                                         : "A PLAY   X OPTIONS   Y SETTINGS   START SEARCH   L/R COLLECTION   B QUIT")
+                                  : "A PLAY   X OPTIONS   Y SETTINGS   START SEARCH   B QUIT";
   l->grid.emptyPath = ROMS_PATH;
+  library_search_words(l);
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
   struct pd_settings st;
@@ -10420,6 +10486,66 @@ static void library_screen(void) {
         break;
       continue;
     }
+    // SEARCH by typing: "/" or CTRL+F, then letters as they come, ENTER keeps them, ESC clears them.
+    if (searchKey && !lib.searchLive) {
+      searchKey = false;
+      lib.searchLive = true;
+      textEntry = true;
+      textTyped[0] = 0;
+      textBackspaces = textCursorMove = textDeletes = 0;
+      textHome = textEnd = textEnter = textEscape = false;
+      SDL_StartTextInput();
+      library_search_words(&lib);
+    }
+    searchKey = false;
+    if (lib.searchLive) {
+      bool changed = false, stop = false;
+      if (*textTyped) {
+        size_t have = strlen(lib.search);
+        // the "/" that started it comes as text too
+        const char *add = !have && textTyped[0] == '/' ? textTyped + 1 : textTyped;
+        changed = *add != 0;
+        snprintf(lib.search + have, sizeof lib.search - have, "%s", add);
+        textTyped[0] = 0;
+      }
+      for (; textBackspaces > 0; textBackspaces--) {
+        size_t at = strlen(lib.search);
+        while (at && ((unsigned char)lib.search[at - 1] & 0xC0) == 0x80)
+          at--;
+        if (at)
+          at--;
+        if (at != strlen(lib.search))
+          changed = true;
+        lib.search[at] = 0;
+      }
+      textCursorMove = textDeletes = 0;
+      textHome = textEnd = false;
+      if (textEscape || down(B)) {
+        changed = changed || lib.search[0];
+        lib.search[0] = 0;
+        stop = true;
+      }
+      if (textEnter || down(A) || down(START))
+        stop = true;
+      if (stop) {
+        lib.searchLive = textEntry = false;
+        textEnter = textEscape = false;
+        SDL_StopTextInput();
+        pressed = 0; // the key that ended it does nothing else
+      }
+      if (changed || stop) {
+        grid->selected = 0;
+        grid->scrollY = 0;
+        library_show(&lib);
+        grid->focus = GAME_GRID_TILES;
+      }
+    }
+    if (lib.search[0] && down(B)) { // B clears a SEARCH before it quits
+      lib.search[0] = 0;
+      library_show(&lib);
+      grid->follow = true;
+      pressed = 0;
+    }
     if (down(B) || down(MENU))
       break;
     int play = -1, bar = -1, options = -1;
@@ -10441,6 +10567,8 @@ static void library_screen(void) {
       options = grid->selected;
     if (down(Y))
       bar = GRID_BAR_SETTINGS;
+    if (down(START))
+      bar = GRID_BAR_SEARCH;
     // COLLECTIONS: LB / RB step through the tabs (round), a tap picks one.
     int tab = -1;
     if (lib.tabCount > 1 && (down(L) || down(R)))
@@ -10540,7 +10668,18 @@ static void library_screen(void) {
                       : "No box art found: a SteamGridDB key in SETTINGS finds more");
       }
     }
-    if (bar == GRID_BAR_SORT) {
+    if (bar == GRID_BAR_SEARCH) {
+      // The on-screen keyboard (a pad, a tap); a real keyboard types in it too. Nothing typed: every game again.
+      char words[sizeof lib.search];
+      snprintf(words, sizeof words, "%s", lib.search);
+      if (text_entry("SEARCH", words, sizeof words)) {
+        snprintf(lib.search, sizeof lib.search, "%s", words);
+        grid->selected = 0;
+        grid->scrollY = 0;
+        library_show(&lib);
+        grid->focus = GAME_GRID_TILES;
+      }
+    } else if (bar == GRID_BAR_SORT) {
       static const char *const rows[] = {"NAME A-Z", "NAME Z-A", "RECENTLY ADDED\tNEWEST FIRST",
                                          "RECENTLY PLAYED\tLAST PLAYED FIRST", "CONSOLE\tGB, GBC, GBA, DS, PC"};
       int pick = menu_pick("SORT", rows, LIBRARY_SORTS, lib.sort);

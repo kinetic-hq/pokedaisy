@@ -44,6 +44,7 @@ struct game_grid {
   const char *title;     // the bar's name
   const char *hint;      // the line along the bottom (NULL: none)
   const char *emptyPath; // where games go, shown while there are none
+  const char *emptyTitle, *emptyText; // set: what an empty list says instead (a SEARCH with no game)
   bool follow;           // keep the selected tile in view on the next draw
   int artStyle;          // ART STYLE (boxart.h's BOXART_STYLE_*): the art's shape, TALL 2:3 or BOX square
   // COLLECTIONS: a row of tabs under the bar ("ALL 28", "GBA 12"...), drawn with two or more; the shoulders' names
