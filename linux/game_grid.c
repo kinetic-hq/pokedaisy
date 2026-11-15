@@ -13,7 +13,7 @@
 #define TARGET_TILE 92 // tiles are about this wide (the system and ROMHACK / ORIGINAL side by side); the columns follow
 #define TAG_H 12
 #define LINE_H 12 // a line of a tile's name
-#define NAME_LINES 2 // room kept for the name (a third line takes the version's)
+#define NAME_LINES 2 // the name's lines, the last cut to fit
 #define RING 0xFF8A1Eu // the app's focus ring (AppColors.focusRing)
 
 struct palette {
@@ -200,55 +200,51 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
     pd_fill(c, ax, ay + ah - bannerH, aw, bannerH, 0xD9822B);
     pd_text_fit(c, ax + 3, ay + ah - bannerH - 1, aw - 6, name, 0xFFFFFF, PD_NO_SHADOW);
   }
-  int ty = ay + ah + 3;
+  // Every tile alike, whatever its name: the name in two lines at most (the last cut to fit), then the system and
+  // the kind on one row, then the last row: the version at its left, the support tag at its right. Each at the same
+  // height on every tile.
+  int nameY = ay + ah + 3, pillY = nameY + NAME_LINES * LINE_H + 3, lastY = pillY + TAG_H + 2;
   int starts[3], ends[3];
   bool version = it->version && *it->version;
-  // One word each, the same length, never shortened; a PC game is a fan game. Too narrow for the system and the kind
-  // side by side, the kind leads the next line: then that line is taken, and the name keeps to two (a third ran off
-  // the tile's foot).
   const char *kind = sys == BOXART_PC ? "FAN GAME" : it->hack ? "ROMHACK" : "ORIGINAL";
   uint32_t kindColor = sys == BOXART_PC ? 0x7A55B8 : it->hack ? 0xD9822B : 0x2E9E6A;
-  bool kindLater = !it->tag && x + 4 + pd_text_width(sn) + 6 + 3 + pd_text_width(kind) + 6 > x + g->tileW - 4;
-  int lines = wrap_name(name, g->tileW - 8, version || kindLater ? NAME_LINES : NAME_LINES + 1, starts, ends);
+  int lines = wrap_name(name, g->tileW - 8, NAME_LINES + 1, starts, ends);
+  if (lines > NAME_LINES) { // three lines' worth: the first as it is, the rest on the second, cut with "..."
+    ends[1] = ends[2];
+    lines = NAME_LINES;
+  }
   for (int l = 0; l < lines; l++) {
     char line[256];
     snprintf(line, sizeof line, "%.*s", ends[l] - starts[l], name + starts[l]);
-    pd_text_fit(c, x + 4, ty - 3 + l * LINE_H, g->tileW - 8, line, p->text, PD_NO_SHADOW);
+    pd_text_fit(c, x + 4, nameY - 3 + l * LINE_H, g->tileW - 8, line, p->text, PD_NO_SHADOW);
   }
-  ty += NAME_LINES * LINE_H + 3;
-  if (lines > NAME_LINES) // the third line sits where the tags were; they move down a line (no version here)
-    ty += LINE_H;
-  if (it->tag) { // the picker's tile: its source, and its size on the version's line
-    tag(c, x + 4, ty, it->tag, it->tagColor);
-    ty += TAG_H + 2;
+  if (it->tag) { // the picker's tile: its source, and its size on the last row
+    tag(c, x + 4, pillY, it->tag, it->tagColor);
     if (version)
-      pd_text_fit(c, x + 4, ty - 4, g->tileW - 8, it->version, p->muted, PD_NO_SHADOW);
+      pd_text_fit(c, x + 4, lastY - 3, g->tileW - 8, it->version, p->muted, PD_NO_SHADOW);
     return;
   }
+  // Too narrow for the system and the kind side by side (one word each, never shortened): the kind leads the last row.
+  bool kindLater = x + 4 + pd_text_width(sn) + 6 + 3 + pd_text_width(kind) + 6 > x + g->tileW - 4;
   int tx = x + 4;
-  tx += tag(c, tx, ty, sn, sc) + 3;
+  tx += tag(c, tx, pillY, sn, sc) + 3;
   if (!kindLater)
-    tag(c, tx, ty, kind, kindColor);
-  // How well the companion supports it, at the right of the version's line: FULL, PARTLY or PLAY ONLY. With the kind
-  // moved down a line, the support tag takes the system's line instead (never over the kind).
+    tag(c, tx, pillY, kind, kindColor);
+  // How well the companion supports it: FULL, PARTLY or PLAY ONLY, at the last row's right.
   static const char *const SUPPORT[] = {NULL, "FULL", "PARTLY", "PLAY ONLY"};
   static const uint32_t SUPPORT_COLORS[] = {0, 0x1F8F9E, 0xB7791F, 0x5B6270};
-  int right = x + g->tileW - 4;
+  int left = x + 4, right = x + g->tileW - 4;
+  if (kindLater)
+    left += tag(c, left, lastY, kind, kindColor) + 3;
   if (it->support > 0 && it->support <= 3) {
     int w = pd_text_width(SUPPORT[it->support]) + 6;
-    if (kindLater && right - w >= tx)
-      tag(c, right - w, ty, SUPPORT[it->support], SUPPORT_COLORS[it->support]);
-    else if (!kindLater && right - w >= x + 4) {
-      tag(c, right - w, ty + TAG_H + 1, SUPPORT[it->support], SUPPORT_COLORS[it->support]);
+    if (right - w >= left) {
+      tag(c, right - w, lastY, SUPPORT[it->support], SUPPORT_COLORS[it->support]);
       right -= w + 4;
     }
   }
-  ty += TAG_H + 2;
-  int left = x + 4;
-  if (kindLater)
-    left += tag(c, left, ty - 1, kind, kindColor) + 3;
   if (version && right - left > 12)
-    pd_text_fit(c, left, ty - 4, right - left, it->version, p->muted, PD_NO_SHADOW);
+    pd_text_fit(c, left, lastY - 3, right - left, it->version, p->muted, PD_NO_SHADOW);
 }
 
 /* The app's daisy (its launcher icon, app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png), redrawn 16 x 16 for the
