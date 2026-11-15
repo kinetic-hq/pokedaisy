@@ -11,6 +11,10 @@
  * POKEMON says the cart is one (its header); the games' own casing (FireRed, HeartGold, ...), else each word
  * capitalised. UTF-8. */
 void game_display_name(const char *file, bool pokemon, char *out, size_t size);
+/* A PC fan game's own title (Game.ini's) as the list shows it, the way a ROM's name is: "Pokémon" first and spelled
+ * the games' way, whatever the title had ("Fire Ash", "POKEMON DESOLATION", "Pokemon: Eon Guardians" -> "Pokémon
+ * Fire Ash", "Pokémon Desolation", "Pokémon Eon Guardians"), no version, each word capitalised. */
+void game_pc_display_name(const char *title, char *out, size_t size);
 /* The cart at PATH is a Pokémon game, by its header: a GBA game code, a Game Boy title, a DS game code. */
 bool game_header_is_pokemon(const char *path);
 /* The grid's version line from FILE: "(Rev 1)" as "Rev 1", else the first version word ("v4.5.3", "1.2.6" as
