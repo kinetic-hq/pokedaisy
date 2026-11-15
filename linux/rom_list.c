@@ -69,8 +69,8 @@ static void add(struct rom_list *l, const char *folder, const char *name) {
   l->labels[l->count] = path + strlen(folder) + 1;
   char shown[256];
   struct pc_game_info pc;
-  if (pocket_is_dir(path) && pc_game_info(path, &pc)) // a PC game: the name it gives itself
-    snprintf(shown, sizeof shown, "%s", pc.title);
+  if (pocket_is_dir(path) && pc_game_info(path, &pc)) // a PC game: the name it gives itself, written as a ROM's is
+    game_pc_display_name(pc.title, shown, sizeof shown);
   else
     game_display_name(l->labels[l->count], game_header_is_pokemon(path), shown, sizeof shown);
   size_t len = strlen(shown) + 1;

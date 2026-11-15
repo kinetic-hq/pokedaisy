@@ -16,7 +16,22 @@ static void check(const char *file, bool pokemon, const char *want) {
   }
 }
 
+static void check_pc(const char *title, const char *want) {
+  char out[256];
+  game_pc_display_name(title, out, sizeof out);
+  if (strcmp(out, want)) {
+    fprintf(stderr, "PC %s -> \"%s\", want \"%s\"\n", title, out, want);
+    assert(0);
+  }
+}
+
 int main(void) {
+  // PC fan games: "Pokémon" first, however the game wrote its title.
+  check_pc("Fire Ash", "Pok" E "mon Fire Ash");
+  check_pc("Pokemon Africanvs", "Pok" E "mon Africanvs");
+  check_pc("POKEMON DESOLATION", "Pok" E "mon Desolation");
+  check_pc("Pokemon: Eon Guardians", "Pok" E "mon Eon Guardians");
+  check_pc("Pok" E "mon Insurgence 1.2.7", "Pok" E "mon Insurgence");
   check("pokemon firered.gba", false, "Pok" E "mon FireRed");
   check("pokemon - ash gray.gba", false, "Pok" E "mon Ash Gray");
   check("Pokemon - FireRed Version (USA, Europe) (Rev 1).gba", false, "Pok" E "mon FireRed");

@@ -337,3 +337,22 @@ bool game_custom_name_set(const char *root, const char *file, const char *name) 
     pocket_remove(tmp);
   return ok;
 }
+
+void game_pc_display_name(const char *title, char *out, size_t size) {
+  // Made into a file name game_display_name reads: a colon is a " - " between words, and an extension of its own (so a
+  // dot in the title, a version's, isn't taken for one).
+  char file[300];
+  size_t n = 0;
+  for (const char *p = title; *p && n + 4 < sizeof file - 4; p++) {
+    if (*p == ':') {
+      file[n++] = ' ';
+      file[n++] = '-';
+      file[n++] = ' ';
+    } else
+      file[n++] = *p;
+  }
+  snprintf(file + n, sizeof file - n, ".pc");
+  game_display_name(file, true, out, size);
+  if (!*out)
+    snprintf(out, size, "%s", title);
+}

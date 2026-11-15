@@ -475,6 +475,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   with a backup first; a second copy of a game plays `<save> (link 2)`.
 - **EDIT SAVE's COPY WHAT?**: `PRESETS` and `PASTE SET` first ask what to take from a set: all of it, `STATS ONLY`
   (nature, IVs, EVs) or any mix of nature, IVs, EVs, moves, held item and ability, so a Pokemon can keep its moves.
+- **PC fan games' names** read like the rest of the list: "Pokémon" first and spelled the games' way, whatever the game's
+  own title had ("Fire Ash", "Pokemon Africanvs" and "POKEMON DESOLATION" become "Pokémon Fire Ash", "Pokémon Africanvs"
+  and "Pokémon Desolation"); a RENAME still wins.
 - **ART STYLE** on the desktop host (`SETTINGS` > `LIBRARY`): the game list's tiles are SteamGridDB's tall 600 x 900
   shape by default (`TALL`), or the game's own box (`BOX`), always filled edge to edge with no black bars (art of
   another shape over a blurred copy of itself). With a SteamGridDB key, `TALL` looks for tall art first and keeps the

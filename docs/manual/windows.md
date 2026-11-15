@@ -165,7 +165,10 @@ line, if you'd rather write it yourself.
 
 PC fan games made with RPG Maker are found in the same folders, up to three
 folders down (so `D:\Emulation\roms` finds `D:\Emulation\roms\rpg\<game>`).
-[PC fan games](pc-fan-games.md) says how they play.
+[PC fan games](pc-fan-games.md) says how they play. Their names are written the
+same way as your other games': Pokemon first, then the title the game gives
+itself, so the list reads the same whichever way the game spelled it. A name you
+give a game with `RENAME` always wins.
 
 ## Updates
 
