@@ -494,6 +494,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
   ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
   UNFAVORITE in a game's X options (DATA/favorites.txt).
+- Desktop: games in a .zip or .7z are listed and played: the first .gba / .gbc / .gb / .nds inside is unpacked once
+  into DATA/unpacked/<archive>/ (written again only when the archive's file changes, checked by its CRC; nothing
+  there is ever deleted) and that copy is the game. zlib, minizip and the LZMA SDK's 7z reader come from mGBA's tree.
 - Desktop: SEARCH on the game list's bar (or START) narrows every tab to the games with the words typed in their
   name or file name, with the on-screen keyboard on a pad; on a keyboard "/" or CTRL+F filters as you type (ENTER
   keeps, ESC clears). B clears a search before it quits.

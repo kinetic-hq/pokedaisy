@@ -96,6 +96,14 @@ to go to the tab before or after, or tap or click one. To add a game to
 `FAVORITES`, press `X` on it and pick `FAVORITE`; `UNFAVORITE` takes it out.
 Favorites are kept in `DATA\favorites.txt`.
 
+Games kept in a `.zip` or `.7z` are listed too: the game inside (the first
+`.gba`, `.gbc`, `.gb` or `.nds` file) is unpacked once into `DATA\unpacked`,
+and that copy is the one you play. The archive itself is never changed. Its
+save goes where a save for that game's file name would go. When the archive
+holds a new version of the game, the copy is unpacked again the next time the
+list loads; anything else in that folder, such as a save beside a DS game,
+stays. Each unpacked game takes as much room as the game itself.
+
 To find a game, press `START` or pick `SEARCH` on the bar, type a word or two
 of its name and pick `DONE`. Only the games with every word you typed in their
 name (or their file's name) stay, in every tab, and the button shows what you

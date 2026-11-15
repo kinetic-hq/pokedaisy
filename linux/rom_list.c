@@ -9,6 +9,7 @@
 #include "game_name.h"
 #include "pc_game.h"
 #include "pocket_os.h"
+#include "rom_archive.h"
 
 bool rom_list_playable(const char *name, bool nds) {
   const char *ext = strrchr(name, '.');
@@ -83,6 +84,9 @@ static void add(struct rom_list *l, const char *folder, const char *name) {
   l->count++;
 }
 
+/* .zip / .7z: where their games are unpacked (DATA/unpacked/<archive's name>/), set by rom_list_load. */
+static char unpackRoot[1100];
+
 struct scan {
   struct rom_list *list;
   const char *folder;
@@ -94,6 +98,17 @@ static void each(const char *name, void *user) {
   if (rom_list_playable(name, s->nds)) {
     if (s->roms)
       add(s->list, s->folder, name);
+    return;
+  }
+  // A game in a .zip or .7z: its unpacked copy is the one listed (and played; its save is the copy's).
+  if (rom_archive_is(name) && name[0] != '.') {
+    if (s->roms && *unpackRoot) {
+      char archive[1400], dir[1400], rom[1600];
+      snprintf(archive, sizeof archive, "%s/%s", s->folder, name);
+      snprintf(dir, sizeof dir, "%s/%s", unpackRoot, name);
+      if (pocket_mkdir(unpackRoot) && rom_archive_unpack(archive, dir, s->nds, rom, sizeof rom))
+        add(s->list, dir, rom + strlen(dir) + 1);
+    }
     return;
   }
   // Not a game: a folder one level down, or nothing (a file can't be listed). Hidden ones (.stfolder, .stversions:
@@ -204,6 +219,7 @@ bool rom_in_added_folder(const char *root, const char *rom) {
 }
 
 void rom_list_load(struct rom_list *l, const char *root, bool nds) {
+  snprintf(unpackRoot, sizeof unpackRoot, "%s/unpacked", root);
   char path[1100];
   snprintf(path, sizeof path, "%s/roms", root);
   rom_list_scan(l, path, nds);
