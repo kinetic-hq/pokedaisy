@@ -38,8 +38,8 @@ bool library_stamp(const char *root, const char *name, const char *file, long lo
 /* COLLECTIONS: the game list's tabs, in their order. A game is in ALL, its console's, ROM HACKS or ORIGINALS (not a
  * PC fan game: PC), and FAVORITES when starred. */
 enum { LIBRARY_ALL, LIBRARY_GBA, LIBRARY_GBC, LIBRARY_GB, LIBRARY_NDS, LIBRARY_PC, LIBRARY_HACKS, LIBRARY_ORIGINALS,
-       LIBRARY_FAVORITES, LIBRARY_COLLECTIONS };
+       LIBRARY_FAVORITES, LIBRARY_HIDDEN, LIBRARY_COLLECTIONS };
 extern const char *const LIBRARY_COLLECTION_NAMES[LIBRARY_COLLECTIONS];
-/* SYSTEM is boxart.h's enum boxart_system. */
-bool library_in_collection(int collection, int system, bool hack, bool favorite);
+/* SYSTEM is boxart.h's enum boxart_system. A HIDDEN game (HIDE in its options, DATA/hidden.txt) is in HIDDEN only. */
+bool library_in_collection(int collection, int system, bool hack, bool favorite, bool hidden);
 #endif

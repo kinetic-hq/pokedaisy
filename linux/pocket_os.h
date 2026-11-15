@@ -33,6 +33,8 @@ bool pocket_is_dir(const char *path);
 /* When PATH came to be where it is, in seconds since 1970 (Windows: its creation time, which a copy sets; elsewhere
  * its last change); 0 when it can't be read. */
 long long pocket_file_time(const char *path);
+/* PATH's size in bytes, -1 when it can't be read. */
+long long pocket_file_size(const char *path);
 /* The places a folder browser starts from: each drive's root ("C:\\") on Windows, "/" and HOME elsewhere. Calls
  * EACH for each. */
 void pocket_roots(void (*each)(const char *path, void *user), void *user);

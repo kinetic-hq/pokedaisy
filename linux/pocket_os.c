@@ -97,6 +97,13 @@ long long pocket_file_time(const char *path) {
   unsigned long long t = ((unsigned long long)d.ftCreationTime.dwHighDateTime << 32) | d.ftCreationTime.dwLowDateTime;
   return t > 116444736000000000ULL ? (long long)((t - 116444736000000000ULL) / 10000000ULL) : 0;
 }
+long long pocket_file_size(const char *path) {
+  wchar_t *w = wide(path);
+  WIN32_FILE_ATTRIBUTE_DATA d;
+  BOOL ok = w && GetFileAttributesExW(w, GetFileExInfoStandard, &d);
+  free(w);
+  return ok ? (long long)(((unsigned long long)d.nFileSizeHigh << 32) | d.nFileSizeLow) : -1;
+}
 bool pocket_readable(const char *path) {
   wchar_t *w = wide(path);
   HANDLE h = w ? CreateFileW(w, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -195,6 +202,10 @@ bool pocket_exists(const char *path) {
 long long pocket_file_time(const char *path) {
   struct stat s;
   return stat(path, &s) == 0 ? (long long)s.st_mtime : 0;
+}
+long long pocket_file_size(const char *path) {
+  struct stat s;
+  return stat(path, &s) == 0 ? (long long)s.st_size : -1;
 }
 bool pocket_readable(const char *path) {
   return access(path, R_OK) == 0;

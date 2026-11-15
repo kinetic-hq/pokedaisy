@@ -33,15 +33,19 @@ int main(void) {
   check(LIBRARY_SORT_PLAYED, (const int[]){1, 2, 0, 4, 3});    // last played first, the rest by name
   check(LIBRARY_SORT_CONSOLE, (const int[]){3, 1, 0, 2, 4});   // GB, GBC, GBA, NDS, PC
 
-  assert(library_in_collection(LIBRARY_ALL, BOXART_PC, false, false));
-  assert(library_in_collection(LIBRARY_GBC, BOXART_GBC, true, false));
-  assert(!library_in_collection(LIBRARY_GBA, BOXART_GBC, true, false));
-  assert(library_in_collection(LIBRARY_HACKS, BOXART_GBA, true, false));
-  assert(!library_in_collection(LIBRARY_HACKS, BOXART_PC, true, false)); // a fan game is PC's, not a ROM hack
-  assert(!library_in_collection(LIBRARY_ORIGINALS, BOXART_PC, false, false));
-  assert(library_in_collection(LIBRARY_ORIGINALS, BOXART_NDS, false, false));
-  assert(library_in_collection(LIBRARY_FAVORITES, BOXART_GB, false, true));
-  assert(!library_in_collection(LIBRARY_FAVORITES, BOXART_GB, false, false));
+  assert(library_in_collection(LIBRARY_ALL, BOXART_PC, false, false, false));
+  assert(library_in_collection(LIBRARY_GBC, BOXART_GBC, true, false, false));
+  assert(!library_in_collection(LIBRARY_GBA, BOXART_GBC, true, false, false));
+  assert(library_in_collection(LIBRARY_HACKS, BOXART_GBA, true, false, false));
+  assert(!library_in_collection(LIBRARY_HACKS, BOXART_PC, true, false, false)); // a fan game is PC's, not a ROM hack
+  assert(!library_in_collection(LIBRARY_ORIGINALS, BOXART_PC, false, false, false));
+  assert(library_in_collection(LIBRARY_ORIGINALS, BOXART_NDS, false, false, false));
+  assert(library_in_collection(LIBRARY_FAVORITES, BOXART_GB, false, true, false));
+  assert(!library_in_collection(LIBRARY_FAVORITES, BOXART_GB, false, false, false));
+  assert(!library_in_collection(LIBRARY_ALL, BOXART_GBA, false, true, true)); // hidden: out of ALL and the rest
+  assert(!library_in_collection(LIBRARY_FAVORITES, BOXART_GBA, false, true, true));
+  assert(library_in_collection(LIBRARY_HIDDEN, BOXART_GBA, false, false, true));
+  assert(!library_in_collection(LIBRARY_HIDDEN, BOXART_GBA, false, false, false));
 
   char tmpl[] = "library-view-XXXXXX";
   char *dir = pocket_mkdtemp(tmpl);

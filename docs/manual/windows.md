@@ -89,12 +89,18 @@ Your choice stays through restarts and updates, and the game you had selected
 stays selected.
 
 A row of tabs under the bar splits the list into collections: `ALL`, then
-`GBA`, `GBC`, `GB`, `NDS`, `PC` (the PC fan games), `ROM HACKS`, `ORIGINALS`
-and `FAVORITES`. Each tab shows how many games it holds, and a tab with none
+`GBA`, `GBC`, `GB`, `NDS`, `PC` (the PC fan games), `ROM HACKS`, `ORIGINALS`,
+`FAVORITES` and `HIDDEN`. Each tab shows how many games it holds, and a tab with none
 is left out. Press `LB` or `RB` (`L` or `R` with the `NINTENDO` button layout)
 to go to the tab before or after, or tap or click one. To add a game to
 `FAVORITES`, press `X` on it and pick `FAVORITE`; `UNFAVORITE` takes it out.
 Favorites are kept in `DATA\favorites.txt`.
+
+To keep a game out of the list without touching its file, press `X` on it and
+pick `HIDE`. It moves to the `HIDDEN` tab, and nowhere else. Pick it there,
+press `X` and pick `INCLUDE` to put it back. Hiding goes by the file, so when
+you have the same game twice you can hide one copy and keep the other. The
+hidden files are listed in `DATA\hidden.txt`. Nothing is ever deleted or moved.
 
 Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 `BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
@@ -162,8 +168,18 @@ Press `X`, right click or hold a finger on a game for its options:
 
   Without a SteamGridDB key the grid shows the libretro covers only, and says
   where to add a key.
+- **`INFO`** shows what the list knows about the game: its name (and the
+  automatic name under one of your own), console, kind, version, companion
+  support, its file and folder, its size, where its save is (or will be), when
+  it was added and last played. Pick a row to read it whole. When the list has
+  the game more than once, `COPIES` lists the other files with their size and
+  folder, so you can see which is which. Pick one and choose `KEEP THIS ONE` to
+  hide every other copy, `HIDE THIS ONE`, or `INCLUDE THIS ONE` for a copy
+  that is hidden.
 - **`FAVORITE`** adds the game to the `FAVORITES` tab (`UNFAVORITE` takes it
   out again).
+- **`HIDE`** keeps the game out of the list (see above); on a hidden game it
+  reads `INCLUDE` and puts it back.
 - **`RENAME`** gives the game a name of your own. It opens with the name the
   game has now and the cursor at its end, so you can fix one word and keep the
   rest. Type on a real keyboard (the arrow keys, `HOME` and `END` move the

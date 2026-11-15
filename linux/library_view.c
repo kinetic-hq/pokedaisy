@@ -13,9 +13,11 @@ const char *const LIBRARY_SORT_BAR[LIBRARY_SORTS] = {"SORT: A-Z", "SORT: Z-A", "
                                                       "SORT: CONSOLE"};
 
 const char *const LIBRARY_COLLECTION_NAMES[LIBRARY_COLLECTIONS] = {
-    "ALL", "GBA", "GBC", "GB", "NDS", "PC", "ROM HACKS", "ORIGINALS", "FAVORITES"};
+    "ALL", "GBA", "GBC", "GB", "NDS", "PC", "ROM HACKS", "ORIGINALS", "FAVORITES", "HIDDEN"};
 
-bool library_in_collection(int collection, int system, bool hack, bool favorite) {
+bool library_in_collection(int collection, int system, bool hack, bool favorite, bool hidden) {
+  if (hidden || collection == LIBRARY_HIDDEN)
+    return hidden && collection == LIBRARY_HIDDEN;
   switch (collection) {
   case LIBRARY_ALL:
     return true;
