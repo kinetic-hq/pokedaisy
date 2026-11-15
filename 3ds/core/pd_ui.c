@@ -8,6 +8,7 @@
 #include "pd_dex.h"
 #include "pd_guide.h"
 #include "pd_party_art.h"
+#include "pd_settings.h"
 #include "pd_ui_internal.h"
 
 static void cycle_button(struct pd_settings* s, int row);
@@ -578,9 +579,23 @@ static void act(struct pd_ui* ui, int id) {
         ui->overlay = PD_OVERLAY_PICK_VOLUME;
     } else if (id == HIT_SETTING + SETTING_THEME) {
         ui->overlay = PD_OVERLAY_PICK_THEME;
-    } else if (id == HIT_SETTING + SETTING_DARK || id == HIT_SETTING + SETTING_FF_MODE || id == HIT_SETTING + SETTING_CHEATS) {
-        bool* flag = id == HIT_SETTING + SETTING_DARK ? &ui->settings->darkMode :
-            id == HIT_SETTING + SETTING_FF_MODE ? &ui->settings->ffNormal : &ui->settings->cheats;
+    } else if (id == HIT_SETTING + SETTING_DARK) {
+        // OFF, ON, then AUTO (the system's choice) where the host can tell it.
+        struct pd_settings* s = ui->settings;
+        if (s->darkAuto) {
+            s->darkAuto = false;
+            s->darkMode = false;
+        } else if (!s->darkMode) {
+            s->darkMode = true;
+        } else if (pd_settings_system_dark) {
+            s->darkAuto = true;
+            pd_settings_follow_system(s);
+        } else {
+            s->darkMode = false;
+        }
+        ui->action = PD_ACTION_SETTINGS_CHANGED;
+    } else if (id == HIT_SETTING + SETTING_FF_MODE || id == HIT_SETTING + SETTING_CHEATS) {
+        bool* flag = id == HIT_SETTING + SETTING_FF_MODE ? &ui->settings->ffNormal : &ui->settings->cheats;
         *flag = !*flag;
         ui->action = PD_ACTION_SETTINGS_CHANGED;
     } else if (id == HIT_SETTING + SETTING_RESTART) {

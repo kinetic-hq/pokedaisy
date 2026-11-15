@@ -13,6 +13,10 @@
 extern bool pd_settings_expand_default;
 // DARK MODE's default where the file doesn't say (the desktop host: on).
 extern bool pd_settings_dark_default;
+// DARK MODE AUTO: the host's look at the system's theme (1 dark, 0 light, -1 can't tell). NULL (the 3DS): no AUTO.
+extern int (*pd_settings_system_dark)(void);
+// With AUTO on, darkMode takes the system's choice; true when that changed it.
+bool pd_settings_follow_system(struct pd_settings* s);
 void pd_settings_defaults(struct pd_settings* s);
 // Missing file = defaults (and false).
 bool pd_settings_load(struct pd_settings* s, const char* path);

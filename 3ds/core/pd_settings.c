@@ -11,6 +11,15 @@ const char* const pd_filter_names[PD_FILTERS] = {"OFF", "LCD", "LCD PAPER", "SCA
 const char* const pd_grid_names[PD_GRIDS] = {"SOFT", "MEDIUM", "STRONG"};
 bool pd_settings_expand_default = false;
 bool pd_settings_dark_default = false;
+int (*pd_settings_system_dark)(void) = NULL;
+
+bool pd_settings_follow_system(struct pd_settings* s) {
+    if (!s->darkAuto || !pd_settings_system_dark) return false;
+    int dark = pd_settings_system_dark();
+    if (dark < 0 || (dark != 0) == s->darkMode) return false;
+    s->darkMode = dark != 0;
+    return true;
+}
 
 void pd_settings_defaults(struct pd_settings* s) {
     // Everything not set below starts at 0 / off (SHINY ODDS NORMAL, SCENE SPEEDS SAME, INSTANT TEXT, REUSABLE TMS, DAY
@@ -157,6 +166,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
         }
         else if (!strcmp(key, "guide")) int_in(value, 0, 0x7FFFFFFF, &s->guideNotice);
         else if (!strcmp(key, "dark")) s->darkMode = atoi(value) != 0;
+        else if (!strcmp(key, "darkauto")) s->darkAuto = atoi(value) != 0;
         else if (!strcmp(key, "ffnormal")) s->ffNormal = atoi(value) != 0;
         else if (!strcmp(key, "cheats")) s->cheats = atoi(value) != 0;
         else if (!strcmp(key, "theme")) int_in(value, 0, 99, &s->theme);
@@ -295,6 +305,8 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
     s->lcdFilter = s->filter == PD_FILTER_SUBPIXEL;
     // An ORIGINAL the player never picked is the old default: the desktop's EXPAND replaces it.
     if (pd_settings_expand_default && !s->aspectPicked && s->aspect == PD_ASPECT_ORIGINAL) s->aspect = PD_ASPECT_EXPAND;
+    if (!pd_settings_system_dark) s->darkAuto = false; // no AUTO here: the file's last darkMode stands
+    pd_settings_follow_system(s);
     return true;
 }
 
@@ -322,7 +334,8 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "levelcap=%d\nresume=%d\nrumble=%d\nbatterysaver=%d\n", s->levelCap ? 1 : 0, s->resumeGames ? 1 : 0,
             s->rumble ? 1 : 0, s->batterySaver);
     fprintf(f, "nopchints=%d\n", s->hidePcHints ? 1 : 0);
-    fprintf(f, "dark=%d\ntheme=%d\nffnormal=%d\ncheats=%d\n", s->darkMode, s->theme, s->ffNormal, s->cheats);
+    fprintf(f, "dark=%d\ndarkauto=%d\ntheme=%d\nffnormal=%d\ncheats=%d\n", s->darkMode, s->darkAuto, s->theme, s->ffNormal,
+            s->cheats);
     fprintf(f, "gamespeed=%d\nvolume=%d\nnohints=%d\nonetap=%d\nmute=%d\nautorun=%d\nperf=%d\n", PD_GAME_SPEED_PCT[s->gameSpeed],
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);
     fprintf(f, "updatecheck=%d\nshader=%d\ncolors=%d\ndim=%d\nsavesbeside=%d\n", s->updateCheck ? 1 : 0, s->shader,

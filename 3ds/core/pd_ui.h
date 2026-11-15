@@ -141,7 +141,8 @@ struct pd_settings {
     int gameVolume;  // GAME VOLUME: 20 ... 100
     bool gameMuted;  // MUTE GAME
     bool autoRun;    // AUTO-RUN: B held for the player while walking
-    bool darkMode;   // DARK MODE
+    bool darkMode;   // DARK MODE (with darkAuto, the system's choice as last seen)
+    bool darkAuto;   // DARK MODE AUTO: darkMode follows the system (a host with pd_settings_system_dark)
     bool ffNormal;   // FF MODE: NORMAL; off = SMART, 1x while the game waits for the player
     bool cheats;     // CHEATS: the game's file's codes on
     int theme;       // THEME: a pd_themes[] id
