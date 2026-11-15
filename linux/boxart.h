@@ -25,7 +25,8 @@ struct boxart_game {
   int baseSystem;
   bool hack;       // a ROM hack: the base game's box is the last resort, with a banner
   char dir[1024];  // the ROM's folder: BESIDE GAMES keeps its art in dir/boxart
-  char pcArt[1024]; // a PC fan game's own title picture: its box art when no search finds one ("" none)
+  char pcArt[1024]; // a PC fan game's own title picture ("" none). Never its box art (a "PRESS ENTER" screen): the
+                    // tile shows a title card instead, and a copy 1.50 and older saved as the box art is cleared
 };
 
 /* BOX ART LOCATION (DATA/boxart-location.txt). */

@@ -799,21 +799,7 @@ static bool look(const struct boxart_game *g) {
     img = libretro_named(g->base, g->baseSystem, &len);
   if (!img)
     img = from_steamgriddb(g, key, &len, style, false);
-  if (!img && g->pcArt[0]) { // a PC fan game nobody has art for: its own title picture
-    FILE *f = fopen(g->pcArt, "rb");
-    if (f) {
-      fseek(f, 0, SEEK_END);
-      long n = ftell(f);
-      rewind(f);
-      img = n > 0 && n <= (long)MAX_IMAGE ? malloc((size_t)n) : NULL;
-      if (img && fread(img, 1, (size_t)n, f) != (size_t)n) {
-        free(img);
-        img = NULL;
-      }
-      len = img ? (size_t)n : 0;
-      fclose(f);
-    }
-  }
+  // A PC fan game nobody has art for keeps none: the list draws a title card (its name), never its title screen.
   path_of(had, sizeof had, g->stem, "img");
   path_of(path, sizeof path, g->stem, "base");
   bool ownArt = pocket_exists(had) && !pocket_exists(path); // art of its own from before: never swapped for the base
@@ -1128,6 +1114,27 @@ void boxart_games(const struct boxart_game *games, int count) {
     free(img);
     if (moved)
       write_file(mark, "", 0);
+  }
+  // 1.50 and older used a PC fan game's own title picture as its box art when no search found any: mostly a "PRESS
+  // ENTER" screen. A box art that is that very picture, byte for byte, and wasn't picked by the player, goes (the
+  // game's own file stays, so nothing is lost); the tile shows a title card, and a SteamGridDB key looks again.
+  for (int i = 0; i < count; i++) {
+    if (games[i].system != BOXART_PC || !games[i].pcArt[0] || main_style(games[i].stem) >= 0)
+      continue;
+    char main[1400];
+    if (!art_main_path(games[i].stem, main, sizeof main))
+      continue;
+    size_t a = 0, b = 0;
+    char *mine = read_image(main, &a), *title = read_image(games[i].pcArt, &b);
+    bool same = mine && title && a == b && !memcmp(mine, title, a);
+    free(mine);
+    free(title);
+    if (same && pocket_remove(main)) {
+      char mark[1400];
+      path_of(mark, sizeof mark, games[i].stem, "none"); // looked for again
+      pocket_remove(mark);
+      SDL_AtomicAdd(&generation, 1);
+    }
   }
 }
 
