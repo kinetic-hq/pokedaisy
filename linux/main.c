@@ -10323,6 +10323,20 @@ static void info_split(const char *path, char *dir, size_t dirSize, const char *
   *file = f;
   snprintf(dir, dirSize, "%.*s", f > path ? (int)(f - path - 1) : 0, path);
 }
+/* A PC game's program: the whole path of the .exe its folder starts with (OUT ""; false when it isn't one). */
+static bool info_pc_exe(const char *path, char *out, size_t size) {
+  struct pc_game_info info;
+  *out = 0;
+  if (!pc_game_path(path) || !pc_game_info(path, &info) || !info.exe[0])
+    return false;
+  snprintf(out, size, "%s%s%s", info.dir, strchr(info.dir, '/') || !strchr(info.dir, '\\') ? "/" : "\\", info.exe);
+  return true;
+}
+/* What tells a copy apart: a ROM's whole path, a PC game's program (its .exe's whole path). */
+static void info_where(const char *path, char *out, size_t size) {
+  if (!info_pc_exe(path, out, size))
+    snprintf(out, size, "%s", path);
+}
 /* COPIES: the other files in the list that are the same game (the same made-up name, the same console). */
 static int library_copies(const struct library *l, int g, int *out, int max) {
   int n = 0, system;
@@ -10357,7 +10371,7 @@ static bool library_copy_pick(struct library *l, int g, int copy) {
   shown[n] = rows[0], ids[n++] = 0;
   shown[n] = copyHidden ? rows[2] : rows[1], ids[n++] = copyHidden ? 2 : 1;
   char hint[1500];
-  snprintf(hint, sizeof hint, "%s", l->all.paths[copy]);
+  info_where(l->all.paths[copy], hint, sizeof hint);
   int pick = menu_pick_hint(file, hint, shown, n, 0);
   if (pick < 0)
     return false;
@@ -10385,9 +10399,11 @@ static bool library_info(struct library *l, int g) {
   bool hack;
   library_kind(&l->games, g, &system, &hack);
   static const char *const SYSTEMS[] = {"GBA", "GBC", "GB", "NDS", "PC"};
-  char dir[1400], save[1100], added[32], played[32], size[32], copiesRow[64];
+  char dir[1400], save[1100], added[32], played[32], size[32], copiesRow[64], exe[1400], where[1400];
   const char *file;
   info_split(path, dir, sizeof dir, &file);
+  bool hasExe = pc && info_pc_exe(path, exe, sizeof exe);
+  info_where(path, where, sizeof where);
   struct library_stamps a, p;
   library_stamps_load(&a, root, "added.txt");
   library_stamps_load(&p, root, "played.txt");
@@ -10404,11 +10420,11 @@ static bool library_info(struct library *l, int g) {
   char supportDetail[96];
   int support = game_support_get(g, supportDetail, sizeof supportDetail);
   const char *auto_ = l->games.autoNames && l->games.autoNames[g] ? l->games.autoNames[g] : NULL;
-  enum { I_NAME, I_AUTO, I_SYSTEM, I_KIND, I_VERSION, I_SUPPORT, I_FILE, I_FOLDER, I_SIZE, I_SAVE, I_ADDED, I_PLAYED,
-         I_COPIES };
-  static char text[13][1600];
-  const char *rows[13];
-  int ids[13], n = 0;
+  enum { I_NAME, I_AUTO, I_SYSTEM, I_KIND, I_VERSION, I_SUPPORT, I_FILE, I_FOLDER, I_EXE, I_SIZE, I_SAVE, I_ADDED,
+         I_PLAYED, I_COPIES };
+  static char text[14][1600];
+  const char *rows[14];
+  int ids[14], n = 0;
 #define ROW(id, ...)                                                                                                   \
   do {                                                                                                                 \
     snprintf(text[n], sizeof text[n], __VA_ARGS__);                                                                    \
@@ -10424,8 +10440,14 @@ static bool library_info(struct library *l, int g) {
     ROW(I_VERSION, "VERSION\t%s", l->versions[g]);
   if (game_support_word(support))
     ROW(I_SUPPORT, "COMPANION\t%s", game_support_word(support));
-  ROW(I_FILE, "%s\t%s", pc ? "GAME FOLDER" : "FILE", file);
-  ROW(I_FOLDER, "FOLDER\t%s", dir);
+  if (pc) { // the game's own folder, whole, and the program in it that PLAY starts
+    ROW(I_FOLDER, "GAME FOLDER\t%s", path);
+    if (hasExe)
+      ROW(I_EXE, "PROGRAM\t%s", exe);
+  } else {
+    ROW(I_FILE, "FILE\t%s", file);
+    ROW(I_FOLDER, "FOLDER\t%s", dir);
+  }
   if (!pc)
     ROW(I_SIZE, "SIZE\t%s", size);
   if (*save)
@@ -10439,7 +10461,7 @@ static bool library_info(struct library *l, int g) {
 #undef ROW
   int sel = 0;
   for (;;) {
-    int pick = menu_pick_hint(l->games.names[g], path, rows, n, sel);
+    int pick = menu_pick_hint(l->games.names[g], where, rows, n, sel);
     if (pick < 0)
       return false;
     sel = pick;
@@ -10451,10 +10473,13 @@ static bool library_info(struct library *l, int g) {
         char d[1400];
         const char *f;
         info_split(l->all.paths[copies[i]], d, sizeof d, &f);
-        char sz[32];
-        info_size(pocket_is_dir(l->all.paths[copies[i]]) ? -1 : pocket_file_size(l->all.paths[copies[i]]), sz,
-                  sizeof sz);
-        snprintf(copyText[i], sizeof copyText[i], "%s\t%s  %s", f, sz, d);
+        char sz[32], prog[1400];
+        if (info_pc_exe(l->all.paths[copies[i]], prog, sizeof prog)) // a PC game: its folder's name, its program
+          snprintf(copyText[i], sizeof copyText[i], "%s\t%s", f, prog);
+        else {
+          info_size(pocket_file_size(l->all.paths[copies[i]]), sz, sizeof sz);
+          snprintf(copyText[i], sizeof copyText[i], "%s\t%s  %s", f, sz, d);
+        }
         copyRows[i] = copyText[i];
       }
       int c = menu_pick_hint("COPIES OF THIS GAME", "Pick a copy to keep it, hide it or bring it back.", copyRows,
