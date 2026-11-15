@@ -4882,6 +4882,11 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
         notice(zoomText);
       }
     }
+    // ZOOM's pick-list in the companion's SETTINGS: the steps this screen has, as percents.
+    host.zoomCount = wideSupported ? (wideLevelCount < PD_ZOOM_MAX ? wideLevelCount : PD_ZOOM_MAX) : 0;
+    host.zoomLevel = wideCam.level;
+    for (int i = 0; i < host.zoomCount; i++)
+      host.zoomPercent[i] = zoom_percent(i);
     if (host_action(HA_SAVE_STATE))
       hkFired |= 1u << HK_SAVE;
     if (host_action(HA_LOAD_STATE))
@@ -5384,6 +5389,13 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
           // The picked slot is where SAVE / LOAD and their hotkeys go from now on.
           host.slotSelected = ui.actionSlot;
           slot_path(ss, sizeof ss, root, name, host.slotSelected);
+          break;
+        case PD_ACTION_ZOOM_LEVEL: // ZOOM's pick-list: that step, as ZOOM IN / OUT would reach it
+          if (ui.actionZoom >= 0 && ui.actionZoom < wideLevelCount) {
+            if (wideCam.level != ui.actionZoom)
+              zoomChangedAt = SDL_GetTicks();
+            wideCam.level = ui.actionZoom;
+          }
           break;
         case PD_ACTION_RESTART_GAME:
           c->reset(c);

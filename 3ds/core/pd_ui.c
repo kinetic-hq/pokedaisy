@@ -522,6 +522,13 @@ static void act(struct pd_ui* ui, int id) {
                 ui->settings->aspectPicked = true;
             }
             if (ui->overlay == PD_OVERLAY_PICK_SPEED) ui->settings->gameSpeed = i;
+            if (ui->overlay == PD_OVERLAY_PICK_ZOOM) { // the host's zoom, not a setting
+                if (i < ui->zoomCount) {
+                    ui->actionZoom = i;
+                    close_overlay(ui, PD_ACTION_ZOOM_LEVEL);
+                } else close_overlay(ui, PD_ACTION_NONE);
+                return;
+            }
             if (ui->overlay == PD_OVERLAY_PICK_SHINY && i < PD_SHINY_CHOICES) ui->settings->shinyOdds = i;
             if (ui->overlay == PD_OVERLAY_PICK_SCENE && i < PD_SCENE_SPEED_COUNT) ui->settings->sceneSpeed[ui->sceneRow] = i;
             if (ui->overlay == PD_OVERLAY_PICK_VOLUME) ui->settings->gameVolume = (i + 1) * 20;
@@ -565,6 +572,8 @@ static void act(struct pd_ui* ui, int id) {
         ui->overlay = PD_OVERLAY_PICK_SCENE;
     } else if (id == HIT_SETTING + SETTING_GAME_SPEED) {
         ui->overlay = PD_OVERLAY_PICK_SPEED;
+    } else if (id == HIT_SETTING + SETTING_ZOOM) {
+        ui->overlay = PD_OVERLAY_PICK_ZOOM;
     } else if (id == HIT_SETTING + SETTING_VOLUME) {
         ui->overlay = PD_OVERLAY_PICK_VOLUME;
     } else if (id == HIT_SETTING + SETTING_THEME) {

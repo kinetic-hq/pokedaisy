@@ -94,6 +94,19 @@ static void muted_row(struct pd_canvas* c, int x, int* y, int w, const char* lab
     *y += ROW_H;
 }
 
+/* ZOOM under ASPECT (off ORIGINAL): the host's zoom step as a percent, its pick-list on a tap. The steps are kept in
+ * UI for the pick-list. */
+static void zoom_row(struct pd_ui* ui, struct pd_canvas* c, int x, int* y, int w, const struct pd_host_info* host,
+                     const struct pd_settings* st) {
+    ui->zoomCount = host->zoomCount < PD_ZOOM_MAX ? host->zoomCount : PD_ZOOM_MAX;
+    ui->zoomLevel = host->zoomLevel >= 0 && host->zoomLevel < ui->zoomCount ? host->zoomLevel : 0;
+    for (int i = 0; i < ui->zoomCount; i++) ui->zoomPercent[i] = host->zoomPercent[i];
+    if (st->aspect == PD_ASPECT_ORIGINAL || ui->zoomCount < 2) return;
+    char value[8];
+    snprintf(value, sizeof value, "%d%%", ui->zoomPercent[ui->zoomLevel]);
+    setting(ui, c, x, y, w, SETTING_ZOOM, "ZOOM", value);
+}
+
 static void group(struct pd_canvas* c, int x, int* y, const char* title) {
     *y += 3;
     // Gen 1's value colour is the rows' black: its titles are a black band (groupTitleFill).
@@ -253,6 +266,7 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     if (host->hasExpand) {
         if (host->expandGame) {
             setting(ui, c, ix, &y, iw, SETTING_ASPECT, "ASPECT", pd_aspect_name(st->aspect));
+            zoom_row(ui, c, ix, &y, iw, host, st);
             if (st->aspect == PD_ASPECT_ZOOM_OUT)
                 setting(ui, c, ix, &y, iw, SETTING_AUTO_ZOOM, "AUTO ZOOM IN", on_off(st->autoZoom));
             if (host->hasLookAround && st->aspect != PD_ASPECT_ORIGINAL)
@@ -487,6 +501,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
     if (host && host->hasExpand) {
         if (host->expandGame) {
             setting(ui, c, ix, &y, iw, SETTING_ASPECT, "ASPECT", pd_aspect_name(st->aspect));
+            zoom_row(ui, c, ix, &y, iw, host, st);
             // Two values: flips in place (the app's rule for pick-lists is more than two). Only
             // ZOOM OUT has anything to step back from.
             if (st->aspect == PD_ASPECT_ZOOM_OUT)
@@ -753,6 +768,17 @@ void ui_overlay(struct pd_ui* ui, struct pd_canvas* c) {
     case PD_OVERLAY_PICK_SPEED:
         pick_list(ui, c, "GAME SPEED", PD_GAME_SPEEDS, PD_GAME_SPEED_COUNT, ui->settings->gameSpeed);
         break;
+    case PD_OVERLAY_PICK_ZOOM: {
+        static char text[PD_ZOOM_MAX][8];
+        static const char* names[PD_ZOOM_MAX];
+        int n = ui->zoomCount < PD_ZOOM_MAX ? ui->zoomCount : PD_ZOOM_MAX;
+        for (int i = 0; i < n; i++) {
+            snprintf(text[i], sizeof text[i], "%d%%", ui->zoomPercent[i]);
+            names[i] = text[i];
+        }
+        pick_list(ui, c, "ZOOM", names, n, ui->zoomLevel);
+        break;
+    }
     case PD_OVERLAY_NUZ_PICK:
     case PD_OVERLAY_NUZ_CONFIRM:
         ui_nuzlocke_overlay(ui, c);
