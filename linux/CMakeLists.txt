@@ -80,7 +80,7 @@ set_source_files_properties(../third_party/xbrz/xbrz.cpp PROPERTIES COMPILE_OPTI
 set_source_files_properties(../app/src/main/cpp/pk_wide.c ../app/src/main/cpp/pk_wide_gb.c PROPERTIES COMPILE_OPTIONS -Wno-unused-parameter)
 target_link_libraries(pd_linux_common PUBLIC pd_archive pd_rcheevos mgba ${SDL2_LIBRARY} m Threads::Threads ${CMAKE_DL_LIBS})
 if(WIN32)
-  target_link_libraries(pd_linux_common PUBLIC winhttp ole32 uuid shell32) # updater.c's release check and download; shortcut.c's .lnk
+  target_link_libraries(pd_linux_common PUBLIC winhttp ole32 uuid shell32 advapi32) # updater.c's release check and download; shortcut.c's .lnk
 endif()
 add_executable(pokedaisy-linux main.c)
 # The release's version (desktop-release.yml passes the tag's); a local build says "dev".

@@ -69,7 +69,10 @@ them. The
 small button at the bar's right end switches between light and dark: a moon
 while it's dark, a sun while it's light. It's the same switch as `DARK MODE` in
 `SETTINGS`, and your choice stays through restarts and updates. PokeDaisy starts
-dark until you pick light. The
+dark until you pick light. In a game's companion, `DARK MODE` steps through
+`OFF`, `ON` and `AUTO`; on `AUTO` PokeDaisy follows your system's light or dark
+choice and changes with it within a few seconds. Pressing the moon or sun turns
+`AUTO` off. The
 bar's left end shows the PokeDaisy daisy and name (the name steps aside when the buttons need the room); the window's title and
 `SETTINGS` > `HOST` still say whether it's the Windows or the Linux build.
 

@@ -124,6 +124,8 @@ static void test_backups(void) {
 }
 /* State writes go to NAME.tmp, then over NAME in one step, also where NAME
  * exists already (Windows' rename() refuses that; MoveFileEx doesn't). */
+static int system_is_dark(void) { return 1; }
+
 static void test_replace(void) {
   char dir[500], a[600], b[600];
   snprintf(dir, sizeof dir, "%s/pd-linux-replace-XXXXXX", pocket_temp_root());
@@ -155,6 +157,15 @@ static void test_replace(void) {
   pd_settings_defaults(&back);
   assert(pd_settings_load(&back, ini) && back.ffSpeed == 400 && back.levelCap && !back.resumeGames && back.rumble && back.hidePcHints &&
          back.batterySaver == PD_SAVER_OFF);
+  // DARK MODE AUTO: kept, and the system's choice wins over the file's dark=; a host that can't tell has no AUTO.
+  set.darkAuto = true;
+  set.darkMode = false;
+  assert(pd_settings_save(&set, ini));
+  pd_settings_system_dark = system_is_dark;
+  assert(pd_settings_load(&back, ini) && back.darkAuto && back.darkMode);
+  pd_settings_system_dark = NULL;
+  assert(pd_settings_load(&back, ini) && !back.darkAuto && !back.darkMode);
+  set.darkAuto = false;
   // GAME SPEED is kept in percent; an older file's speed= index (1x, 1.5x, 2x, 3x, 4x, 0.5x, 0.25x) still reads.
   set.gameSpeed = pd_game_speed_index(115);
   assert(set.gameSpeed > 0 && pd_settings_save(&set, ini));

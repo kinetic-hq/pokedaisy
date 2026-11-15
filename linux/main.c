@@ -4843,6 +4843,7 @@ static void run_game(const char *path, int maxFrames, const char *shot) {
     pocket_shader_brightness(settings.brightness);
     // DARK MODE and THEME: the core's look follows them (the wings, the strips, the HUD, the companion).
     static int lookKey = -1;
+    pd_settings_follow_system(&settings); // DARK MODE AUTO: the system's theme, looked at every few seconds
     int lookNow = (settings.darkMode ? 1 : 0) | settings.theme << 1;
     if (lookNow != lookKey) {
       lookKey = lookNow;
@@ -11170,6 +11171,7 @@ static void library_screen(void) {
       struct pd_settings st;
       pd_settings_load(&st, ini);
       st.darkMode = !st.darkMode;
+      st.darkAuto = false; // a pick of its own ends AUTO
       pd_settings_save(&st, ini);
       pd_look_apply(NULL, &st);
       LIBRARY_BAR[GRID_BAR_THEME] = st.darkMode ? GAME_GRID_ICON_MOON : GAME_GRID_ICON_SUN;
@@ -11232,9 +11234,40 @@ static void played_from_outside(const char *rom) {
   }
   rom_list_free(&l);
 }
+/* DARK MODE AUTO: the system's light or dark choice (1 dark, 0 light, -1 can't tell), looked at no more than every
+ * few seconds. Windows: the apps' theme in the registry. Linux: GNOME's color-scheme, else GTK_THEME's ":dark". */
+static int system_dark(void) {
+  static int last = -1;
+  static Uint32 seen;
+  static bool once;
+  Uint32 now = SDL_GetTicks();
+#ifdef _WIN32
+  if (once && now - seen < 2000) return last;
+  DWORD light = 1, size = sizeof light;
+  last = RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                      L"AppsUseLightTheme", RRF_RT_REG_DWORD, NULL, &light, &size) == ERROR_SUCCESS
+             ? light == 0
+             : -1;
+#else
+  if (once && now - seen < 10000) return last;
+  last = -1;
+  FILE *p = popen("gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null", "r");
+  if (p) {
+    char line[64] = "";
+    if (fgets(line, sizeof line, p)) last = strstr(line, "dark") ? 1 : strstr(line, "'") ? 0 : -1;
+    pclose(p);
+  }
+  const char *gtk = getenv("GTK_THEME");
+  if (last < 0 && gtk) last = strstr(gtk, ":dark") || strstr(gtk, "-dark") ? 1 : 0;
+#endif
+  seen = now;
+  once = true;
+  return last;
+}
 int main(int argc, char **argv) {
   pd_settings_expand_default = true; // ASPECT EXPAND unless the player picked another (pd_settings.h)
   pd_settings_dark_default = true;   // DARK MODE on unless the player turned it off
+  pd_settings_system_dark = system_dark; // ... and AUTO follows the system's
   const char *rom = NULL, *shot = NULL;
   int frames = 0;
 #ifdef POCKET_DS

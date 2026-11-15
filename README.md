@@ -494,6 +494,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **COLLECTIONS** on the desktop host's game list: a row of tabs under the bar (ALL, GBA, GBC, GB, NDS, PC, ROM HACKS,
   ORIGINALS, FAVORITES, each with its count, empty ones hidden), switched with LB / RB or a tap; FAVORITE /
   UNFAVORITE in a game's X options (DATA/favorites.txt).
+- Desktop: DARK MODE gains AUTO (OFF, ON, AUTO in the companion's SETTINGS): it follows the system's light or dark
+  theme (Windows' app theme, GNOME's color scheme) and changes with it; the library's moon or sun ends AUTO
 - Desktop: ZOOM under ASPECT in the companion's SETTINGS shows the zoom step (a share of the closest) and picks one
   from a list
 - Desktop: GAME BUTTONS (SETTINGS > CONTROLS) rebinds each game button on the controller and on the keyboard, one by one

@@ -283,7 +283,7 @@ static void full_rows(struct pd_ui* ui, struct pd_canvas* c, const struct pd_gam
     for (int i = 0; i < pd_theme_count; i++)
         if (pd_themes[i].id == st->theme) themeName = pd_themes[i].label;
     setting(ui, c, ix, &y, iw, SETTING_THEME, "THEME", themeName);
-    setting(ui, c, ix, &y, iw, SETTING_DARK, "DARK MODE", on_off(st->darkMode));
+    setting(ui, c, ix, &y, iw, SETTING_DARK, "DARK MODE", st->darkAuto ? "AUTO" : on_off(st->darkMode));
     if (host->hasPerf) setting(ui, c, ix, &y, iw, SETTING_PERF, "FPS / CPU", on_off(st->showPerf));
 
     group(c, ix, &y, "COMPANION");
@@ -554,7 +554,7 @@ void ui_settings_tab(struct pd_ui* ui, struct pd_canvas* c, const struct pd_game
         if (host->hasHud) setting(ui, c, ix, &y, iw, SETTING_HUD_BTN, "HUD CURSOR BUTTON", NAMES[st->hudBtn]);
     }
     if (full) {
-        setting(ui, c, ix, &y, iw, SETTING_DARK, "DARK MODE", st->darkMode ? "ON" : "OFF");
+        setting(ui, c, ix, &y, iw, SETTING_DARK, "DARK MODE", st->darkAuto ? "AUTO" : st->darkMode ? "ON" : "OFF");
         const char* themeName = pd_themes[0].label;
         for (int i = 0; i < pd_theme_count; i++)
             if (pd_themes[i].id == st->theme) themeName = pd_themes[i].label;
