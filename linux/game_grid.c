@@ -326,7 +326,6 @@ static void draw_bar(struct game_grid *g, struct pd_canvas *c, const struct pale
   pd_fill(c, 0, 0, c->w, BAR_H, p->bar);
   pd_fill(c, 0, BAR_H, c->w, 1, p->barEdge);
   int titleX = PAD + draw_logo(c, PAD, (BAR_H - 16) / 2) + 5;
-  pd_heading(c, titleX, 5, g->title ? g->title : "", RING, PD_NO_SHADOW);
   g->barY = 4;
   g->barH = BAR_H - 8;
   int right = c->w - PAD;
@@ -345,6 +344,15 @@ static void draw_bar(struct game_grid *g, struct pd_canvas *c, const struct pale
     g->barX[i] = x;
     g->barW[i] = w;
     right = x - 6;
+  }
+  // The name after the buttons, in the room they leave (a narrow window or a big UI SIZE: left out, never under them).
+  pd_clip(c, 0, 0, 0, 0); // its width: drawn nowhere
+  int titleW = pd_heading(c, 0, 0, g->title ? g->title : "", RING, PD_NO_SHADOW);
+  pd_unclip(c);
+  if (titleX + titleW <= right) { // whole or not at all
+    pd_clip(c, titleX, 0, right - titleX, BAR_H);
+    pd_heading(c, titleX, 5, g->title ? g->title : "", RING, PD_NO_SHADOW);
+    pd_unclip(c);
   }
 }
 
