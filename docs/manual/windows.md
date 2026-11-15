@@ -117,6 +117,9 @@ pick `HIDE`. It moves to the `HIDDEN` tab, and nowhere else. Pick it there,
 press `X` and pick `INCLUDE` to put it back. Hiding goes by the file, so when
 you have the same game twice you can hide one copy and keep the other. The
 hidden files are listed in `DATA\hidden.txt`. Nothing is ever deleted or moved.
+`HIDE FOLDER` hides every game in the folder the game is in, and in the folders
+inside it, games added there later included. On any of them, `INCLUDE FOLDER`
+puts the whole folder back.
 
 Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 `BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
@@ -197,7 +200,8 @@ Press `X`, right click or hold a finger on a game for its options:
 - **`FAVORITE`** adds the game to the `FAVORITES` tab (`UNFAVORITE` takes it
   out again).
 - **`HIDE`** keeps the game out of the list (see above); on a hidden game it
-  reads `INCLUDE` and puts it back.
+  reads `INCLUDE` and puts it back. **`HIDE FOLDER`** does the same for every
+  game in its folder (`INCLUDE FOLDER` on a hidden one).
 - **`RENAME`** gives the game a name of your own. It opens with the name the
   game has now and the cursor at its end, so you can fix one word and keep the
   rest. Type on a real keyboard (the arrow keys, `HOME` and `END` move the
