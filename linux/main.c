@@ -17,6 +17,7 @@
 #include "pd_map.h"
 #include "host_io.h"
 #include "rom_list.h"
+#include "remap.h"
 #include "shortcut.h"
 #include "library_view.h"
 #include "field_items.h"
@@ -367,6 +368,7 @@ static bool screenshotWanted; // the next present writes DATA/screenshots/...
 static int gameTouch; // GAME TOUCH, enum pd_game_touch
 static void orientation_set(int o);
 static int saverMode = PD_SAVER_AUTO; // BATTERY SAVER, kept by controls_load and the game loop
+static void remap_reload(void);
 static void controls_load(void) {
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
@@ -377,6 +379,7 @@ static void controls_load(void) {
   gameTouch = st.gameTouch;
   orientation_set(st.orientation);
   saverMode = st.batterySaver;
+  remap_reload();
 }
 /* REWIND HOLD: held, not pressed - the HOTKEYS button (or trigger, or stick) bound to it, or R on a keyboard while
  * REWIND is on. Any button bound to it keeps the ring running, as the setting does. */
@@ -440,6 +443,108 @@ static void key(int k, bool down) {
   } else
     held &= ~bit;
 }
+/* GAME BUTTONS (remap.h): each button's key and controller button. The defaults are keyboard() and controller_button()
+ * (so BUTTON LAYOUT), DATA/controls.ini holds what the player changed. They drive the GB / GBA game and every menu. */
+#define REMAP_COUNT 17
+static const int REMAP_BUTTONS[REMAP_COUNT] = {A, B, X, Y, L, R, L2, R2, SELECT, START, UP, DOWN, LEFT, RIGHT, MENU, L3, R3};
+static const char *const REMAP_NAMES[REMAP_COUNT] = {"A",  "B",     "X",  "Y",    "L",     "R",    "L2",   "R2", "SELECT",
+                                                     "START", "UP", "DOWN", "LEFT", "RIGHT", "MENU", "L3", "R3"};
+static struct remap remap;
+static void remap_defaults(struct remap *r, bool keys, bool pad) {
+  static const SDL_Keycode KEYS[] = {SDLK_z,    SDLK_x,    SDLK_BACKSPACE, SDLK_RETURN, SDLK_RIGHT, SDLK_LEFT,
+                                     SDLK_UP,   SDLK_DOWN, SDLK_e,         SDLK_q,      SDLK_TAB,   SDLK_f,
+                                     SDLK_1,    SDLK_2,    SDLK_ESCAPE,    SDLK_v,      SDLK_k};
+  for (int i = 0; i < REMAP_MAX; i++) {
+    if (keys)
+      r->key[i] = REMAP_NONE;
+    if (pad)
+      r->pad[i] = REMAP_NONE;
+  }
+  if (keys) {
+    for (size_t i = 0; i < sizeof KEYS / sizeof *KEYS; i++) {
+      int b = keyboard(KEYS[i]);
+      if (b >= 0 && b < REMAP_MAX)
+        r->key[b] = KEYS[i];
+    }
+    r->keyOwn = false;
+  }
+  if (pad) {
+    for (int sb = 0; sb < SDL_CONTROLLER_BUTTON_MAX; sb++) {
+      int b = controller_button(sb);
+      if (b >= 0 && b < REMAP_MAX && r->pad[b] == REMAP_NONE)
+        r->pad[b] = sb;
+    }
+    r->pad[L2] = REMAP_PAD_LT;
+    r->pad[R2] = REMAP_PAD_RT;
+    r->padOwn = false;
+  }
+}
+static void remap_reload(void) {
+  remap_defaults(&remap, true, true);
+  remap_load(&remap, root, REMAP_BUTTONS, REMAP_NAMES, REMAP_COUNT);
+}
+/* A side the player never changed goes straight through keyboard() / controller_button(), as before GAME BUTTONS. */
+static void key_from_keyboard(SDL_Keycode k, bool down) {
+  if (!remap.keyOwn) {
+    key(keyboard(k), down);
+    return;
+  }
+  int b[4], n = remap_from_key(&remap, (int)k, b, 4);
+  for (int i = 0; i < n; i++)
+    key(b[i], down);
+}
+static void key_from_pad(int button, bool down) {
+  if (!remap.padOwn) {
+    key(button == REMAP_PAD_LT ? L2 : button == REMAP_PAD_RT ? R2 : controller_button(button), down);
+    return;
+  }
+  int b[4], n = remap_from_pad(&remap, button, b, 4);
+  for (int i = 0; i < n; i++)
+    key(b[i], down);
+}
+/* A controller button's name on GAME BUTTONS: the face buttons by BUTTON LAYOUT's letters. */
+static const char *pad_button_name(int b) {
+  bool xbox = buttonLayout == PD_LAYOUT_XBOX;
+  switch (b) {
+  case SDL_CONTROLLER_BUTTON_A: return xbox ? "A (BOTTOM)" : "B (BOTTOM)";
+  case SDL_CONTROLLER_BUTTON_B: return xbox ? "B (RIGHT)" : "A (RIGHT)";
+  case SDL_CONTROLLER_BUTTON_X: return xbox ? "X (LEFT)" : "Y (LEFT)";
+  case SDL_CONTROLLER_BUTTON_Y: return xbox ? "Y (TOP)" : "X (TOP)";
+  case SDL_CONTROLLER_BUTTON_BACK: return "SELECT / VIEW";
+  case SDL_CONTROLLER_BUTTON_GUIDE: return "GUIDE / HOME";
+  case SDL_CONTROLLER_BUTTON_START: return "START / MENU";
+  case SDL_CONTROLLER_BUTTON_LEFTSTICK: return "L3";
+  case SDL_CONTROLLER_BUTTON_RIGHTSTICK: return "R3";
+  case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: return "L / LB";
+  case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return "R / RB";
+  case SDL_CONTROLLER_BUTTON_DPAD_UP: return "D-PAD UP";
+  case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return "D-PAD DOWN";
+  case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return "D-PAD LEFT";
+  case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return "D-PAD RIGHT";
+  case SDL_CONTROLLER_BUTTON_MISC1: return "SHARE";
+  case SDL_CONTROLLER_BUTTON_PADDLE1: return "PADDLE 1";
+  case SDL_CONTROLLER_BUTTON_PADDLE2: return "PADDLE 2";
+  case SDL_CONTROLLER_BUTTON_PADDLE3: return "PADDLE 3";
+  case SDL_CONTROLLER_BUTTON_PADDLE4: return "PADDLE 4";
+  case SDL_CONTROLLER_BUTTON_TOUCHPAD: return "TOUCHPAD";
+  case REMAP_PAD_LT: return "L2 / LT";
+  case REMAP_PAD_RT: return "R2 / RT";
+  case REMAP_NONE: return "NONE";
+  default: return "?";
+  }
+}
+static const char *key_name(int k) {
+  static char name[40];
+  if (k == REMAP_NONE)
+    return "NONE";
+  snprintf(name, sizeof name, "%s", SDL_GetKeyName((SDL_Keycode)k));
+  for (char *p = name; *p; p++)
+    *p = (char)toupper((unsigned char)*p);
+  return *name ? name : "?";
+}
+/* GAME BUTTONS' wait for the key or button to use: events() hands the next one here instead of to the game. */
+enum { CAPTURE_OFF, CAPTURE_KEY, CAPTURE_PAD };
+static int captureWant = CAPTURE_OFF, captured = REMAP_NONE;
 /* Controllers come and go (a USB or Bluetooth pad, a handheld whose built-in
  * one shows up late): SDL reports the ones it has a mapping for as game
  * controllers (its own database, DATA/gamecontrollerdb.txt, or
@@ -888,6 +993,21 @@ static void events(void) {
       tapHeld = false;
     if (fullscreen_event(&e))
       continue;
+    if (captureWant == CAPTURE_KEY && e.type == SDL_KEYDOWN && !e.key.repeat) {
+      captured = (int)e.key.keysym.sym;
+      continue;
+    }
+    if (captureWant == CAPTURE_PAD && e.type == SDL_CONTROLLERBUTTONDOWN) {
+      captured = e.cbutton.button;
+      continue;
+    }
+    if (captureWant == CAPTURE_PAD && e.type == SDL_CONTROLLERAXISMOTION && e.caxis.value > 16000 &&
+        (e.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT || e.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT)) {
+      captured = e.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT ? REMAP_PAD_LT : REMAP_PAD_RT;
+      continue;
+    }
+    if (captureWant != CAPTURE_OFF && (e.type == SDL_KEYDOWN || e.type == SDL_CONTROLLERBUTTONDOWN))
+      continue; // the other kind while waiting: ignored
     if (e.type == SDL_AUDIODEVICEREMOVED && !e.adevice.iscapture && audio &&
         e.adevice.which == audio)
       audioLost = true;
@@ -942,17 +1062,17 @@ static void events(void) {
       searchKey = true;
     if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
       if (!e.key.repeat)
-        key(keyboard(e.key.keysym.sym), e.type == SDL_KEYDOWN);
+        key_from_keyboard(e.key.keysym.sym, e.type == SDL_KEYDOWN);
       if (e.key.keysym.sym == SDLK_r)
         rewindKey = e.type == SDL_KEYDOWN;
     }
     if (hotkey_event(&e))
       continue;
     if(e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_CONTROLLERBUTTONUP)
-      key(controller_button(e.cbutton.button),e.type == SDL_CONTROLLERBUTTONDOWN);
+      key_from_pad(e.cbutton.button, e.type == SDL_CONTROLLERBUTTONDOWN);
     if(e.type == SDL_CONTROLLERAXISMOTION) {
-      if(e.caxis.axis==SDL_CONTROLLER_AXIS_TRIGGERLEFT)key(L2,e.caxis.value>16000);
-      if(e.caxis.axis==SDL_CONTROLLER_AXIS_TRIGGERRIGHT)key(R2,e.caxis.value>16000);
+      if(e.caxis.axis==SDL_CONTROLLER_AXIS_TRIGGERLEFT)key_from_pad(REMAP_PAD_LT,e.caxis.value>16000);
+      if(e.caxis.axis==SDL_CONTROLLER_AXIS_TRIGGERRIGHT)key_from_pad(REMAP_PAD_RT,e.caxis.value>16000);
       if(e.caxis.axis==SDL_CONTROLLER_AXIS_LEFTX) {key(LEFT,e.caxis.value < -16000);key(RIGHT,e.caxis.value > 16000);
         key(SLEFT,e.caxis.value < -16000);key(SRIGHT,e.caxis.value > 16000);}
       if(e.caxis.axis==SDL_CONTROLLER_AXIS_LEFTY) {key(UP,e.caxis.value < -16000);key(DOWN,e.caxis.value > 16000);
@@ -6587,7 +6707,11 @@ enum {
   ROW_FILTER,
   ROW_GRID,
   ROW_BEZEL_SLOT0 = 80,
+  ROW_PAD_RESET,
+  ROW_KEY_RESET,
   ROW_HOTKEY0 = 100,
+  ROW_PADBIND0 = 120,
+  ROW_KEYBIND0 = 150,
   ROW_LIST_ITEM0 = 200
 };
 static bool text_entry(const char *title, char *buf, size_t size);
@@ -6616,6 +6740,35 @@ static void ra_sign_in(void) {
     snprintf(line, sizeof line, "Couldn't sign in: %s", *ra_login_error() ? ra_login_error() : "no answer");
     notice(line);
   }
+}
+/* GAME BUTTONS: waits up to 6 s for the next key (PAD: controller button or trigger) and hands it back, REMAP_NONE
+ * when none came. POCKET_BIND=<key name> stands in for a key in a headless check. */
+static int bind_wait(const char *button, bool pad) {
+  char title[64], line[96];
+  snprintf(title, sizeof title, "%s", button);
+  snprintf(line, sizeof line, PD_MENU_MUTED "PRESS THE %s FOR %s", pad ? "CONTROLLER BUTTON" : "KEY", button);
+  const char *items[] = {line, PD_MENU_MUTED "NOTHING IN 6 SECONDS: NOTHING CHANGES"};
+  struct pd_menu m;
+  pd_menu_init(&m, title, items, 2);
+  captured = REMAP_NONE;
+  captureWant = pad ? CAPTURE_PAD : CAPTURE_KEY;
+  held = 0;
+  const char *fake = getenv("POCKET_BIND");
+  if (fake && !pad && SDL_GetKeyFromName(fake) != SDLK_UNKNOWN)
+    captured = (int)SDL_GetKeyFromName(fake);
+  Uint32 until = SDL_GetTicks() + 6000;
+  while (running && captured == REMAP_NONE && (Sint32)(until - SDL_GetTicks()) > 0) {
+    events();
+    if (captured != REMAP_NONE)
+      break;
+    companion_canvas();
+    pd_menu_draw(&m, &canvas);
+    if (menu_frame())
+      break;
+  }
+  captureWant = CAPTURE_OFF;
+  held = pressed = 0; // the key that was bound doesn't also press the row under it
+  return captured;
 }
 static int settings_page(bool *foldersChanged) {
   static const char *const ORIENTATIONS[PD_ORIENTATIONS] = {"LANDSCAPE", "PORTRAIT", "LANDSCAPE FLIPPED",
@@ -6646,9 +6799,9 @@ static int settings_page(bool *foldersChanged) {
 #else
     (void)dsCount;
 #endif
-    static char rows[PD_HOTKEY_BUTTONS + 48][96];
-    const char *items[PD_HOTKEY_BUTTONS + 48];
-    int ids[PD_HOTKEY_BUTTONS + 48], n = 0;
+    static char rows[PD_HOTKEY_BUTTONS + 2 * REMAP_COUNT + 48][96];
+    const char *items[PD_HOTKEY_BUTTONS + 2 * REMAP_COUNT + 48];
+    int ids[PD_HOTKEY_BUTTONS + 2 * REMAP_COUNT + 48], n = 0;
 #define ROW(id, ...)                                                                                                   \
   do {                                                                                                                 \
     snprintf(rows[n], sizeof rows[n], __VA_ARGS__);                                                                    \
@@ -6755,6 +6908,15 @@ static int settings_page(bool *foldersChanged) {
                                                                 : "WHAT DOESN'T FIT MAKES ROOM FOR THE REST");
     } else if (page == PAGE_SET_BUTTONS) {
       ROW(ROW_LAYOUT, "BUTTON LAYOUT\t%s", st.buttonLayout == PD_LAYOUT_XBOX ? "XBOX" : "NINTENDO");
+      ROW(0, PD_MENU_GROUP "CONTROLLER");
+      for (int i = 0; i < REMAP_COUNT; i++)
+        ROW(ROW_PADBIND0 + i, "%s\t%s", REMAP_NAMES[i], pad_button_name(remap.pad[REMAP_BUTTONS[i]]));
+      ROW(ROW_PAD_RESET, "RESET CONTROLLER\t%s", remap.padOwn ? "CHANGED" : "DEFAULT");
+      ROW(0, PD_MENU_GROUP "KEYBOARD");
+      for (int i = 0; i < REMAP_COUNT; i++)
+        ROW(ROW_KEYBIND0 + i, "%s\t%s", REMAP_NAMES[i], key_name(remap.key[REMAP_BUTTONS[i]]));
+      ROW(ROW_KEY_RESET, "RESET KEYBOARD\t%s", remap.keyOwn ? "CHANGED" : "DEFAULT");
+      ROW(0, PD_MENU_MUTED "GB AND GBA GAMES AND THE MENUS; A DS GAME KEEPS ITS OWN");
     } else {
       ROW(0, PD_MENU_GROUP "TRIGGERS AND STICKS");
       for (int r = 0; r < PD_HOTKEY_BUTTONS; r++) {
@@ -7199,7 +7361,25 @@ static int settings_page(bool *foldersChanged) {
         }
         break;
       }
-      if (id >= ROW_HOTKEY0 && id < ROW_HOTKEY0 + PD_HOTKEY_BUTTONS) {
+      if ((id >= ROW_PADBIND0 && id < ROW_PADBIND0 + REMAP_COUNT) ||
+          (id >= ROW_KEYBIND0 && id < ROW_KEYBIND0 + REMAP_COUNT)) {
+        bool pad = id < ROW_KEYBIND0;
+        int i = id - (pad ? ROW_PADBIND0 : ROW_KEYBIND0);
+        int got = bind_wait(REMAP_NAMES[i], pad);
+        if (got != REMAP_NONE) {
+          (pad ? remap_set_pad : remap_set_key)(&remap, REMAP_BUTTONS[i], got);
+          if (!remap_save(&remap, root, REMAP_BUTTONS, REMAP_NAMES, REMAP_COUNT))
+            notice("Couldn't save the buttons");
+        }
+        focusId = id;
+        save = false;
+      } else if (id == ROW_PAD_RESET || id == ROW_KEY_RESET) {
+        remap_defaults(&remap, id == ROW_KEY_RESET, id == ROW_PAD_RESET);
+        notice(remap_save(&remap, root, REMAP_BUTTONS, REMAP_NAMES, REMAP_COUNT) ? "Back to the default"
+                                                                                   : "Couldn't save the buttons");
+        focusId = id;
+        save = false;
+      } else if (id >= ROW_HOTKEY0 && id < ROW_HOTKEY0 + PD_HOTKEY_BUTTONS) {
         int b = id - ROW_HOTKEY0;
         int action = menu_pick(HOTKEY_BUTTON_NAMES[b], HOTKEY_ACTIONS, PD_HOTKEY_ACTIONS, st.hotkeys[b]);
         if (action < 0)

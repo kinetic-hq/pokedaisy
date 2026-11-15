@@ -542,7 +542,26 @@ static void test_modal_focus(void) {
   focusId=-1;focus_new_screen();
   puts("PASS modal focus stays above the scrim and D-pad skips tab chips");
 }
+// GAME BUTTONS: a key the player gave A presses A (and the old one no longer does); RESET puts keyboard() back.
+static void test_remap_keys(void) {
+  assert(!SDL_Init(SDL_INIT_EVENTS));
+  remap_defaults(&remap,true,true);
+  remap_set_key(&remap,A,SDLK_p);
+  assert(remap.keyOwn && remap.key[A]==SDLK_p);
+  held=pressed=0;
+  SDL_Event e;SDL_zero(e);e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_p;
+  assert(SDL_PushEvent(&e)==1);events();assert(down(A) && (held&(1u<<A)));
+  e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);events();assert(!(held&(1u<<A)));
+  // Z went to the button that had P (none): it presses nothing now.
+  e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_z;assert(SDL_PushEvent(&e)==1);events();assert(!held && !pressed);
+  e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);events();
+  remap_defaults(&remap,true,true);
+  e.type=SDL_KEYDOWN;assert(SDL_PushEvent(&e)==1);events();assert(down(A));
+  e.type=SDL_KEYUP;assert(SDL_PushEvent(&e)==1);events();held=pressed=0;
+  puts("PASS GAME BUTTONS: a rebound key presses its button");
+}
 int main(int argc,char** argv) {
+  test_remap_keys();
   test_modal_focus();
   test_wide_window();
   test_companion_size();
