@@ -128,7 +128,21 @@ static void test_undouble(void) {
   assert(x == 320 && y == 0);
 }
 
+static void test_swap_face(void) {
+  char out[400];
+  assert(pc_swap_face("030012345e0400008e02000000007200,Xbox 360 Controller,a:b0,b:b1,back:b6,x:b2,y:b3,"
+                      "leftx:a0,platform:Windows,",
+                      out, sizeof out));
+  assert(!strcmp(out, "030000005e0400008e02000000007200,Xbox 360 Controller,b:b0,a:b1,back:b6,y:b2,x:b3,leftx:a0,"
+                      "platform:Windows,"));
+  assert(!pc_swap_face("xinput,XInput Controller,a:b0", out, sizeof out)); // no GUID
+  assert(pc_swap_face("78696e70757401000000000000000000,XInput Controller,a:b0,b:b1,", out, sizeof out) &&
+         !strcmp(out, "78696e70757401000000000000000000,XInput Controller,b:b0,a:b1,"));
+  assert(!pc_swap_face("030012345e0400008e02000000007200,X,a:b0", out, 30));
+}
+
 int main(void) {
+  test_swap_face();
   test_undouble();
   test_layout();
   test_state();

@@ -3,7 +3,7 @@ title: PC fan games
 summary: Play PC fan games made with RPG Maker inside PokeDaisy on Windows, full screen, with your party and the battle in the wings.
 section: start
 order: 92
-keywords: [pc, fan game, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
+keywords: [pc, fan game, button layout, alt tab, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
 ---
 
 On Windows, PokeDaisy plays PC fan games made with RPG Maker (most of them are
@@ -104,6 +104,18 @@ PokeDaisy passes your controller's buttons to those as well, so the D-pad, `A`,
 `B` and the rest work in every game with wings. The keyboard works as the game
 sets it up.
 
+`BUTTON LAYOUT` in `SETTINGS` decides which face button confirms, the same as
+in your cartridge games: on `XBOX` (the first choice) the bottom button
+confirms and the right one goes back; on `NINTENDO` the right one confirms and
+the bottom one goes back. A game whose controls you changed in its own `F1`
+window keeps your changes.
+
+If you switch to another window and come back (`Alt` + `Tab`, the Windows key,
+your handheld's side app, sleep), the game goes back where it was, full screen
+with its wings, and gets the controller and keyboard back. If your screen's
+resolution changed meanwhile, the game and the wings are laid out for the new
+one.
+
 ## Languages
 
 Some fan games come in more than one language, and a few list another
@@ -142,7 +154,8 @@ tall as the screen, whole, through your `SHADER` and `COLORS`.
   The play time is kept for each game and goes on from where it was next time.
 
 Phoenix Rising reads an Xbox style controller (most handheld PCs' built in
-controls are one) by itself, so the D-pad and buttons go straight to the game. The game keeps
+controls are one) by itself, so the D-pad and buttons go straight to the game,
+by the buttons' places whatever `BUTTON LAYOUT` says. The game keeps
 the keyboard and the mouse too. If the game stops with a script error while it's
 starting, PokeDaisy starts it again for you.
 

@@ -159,6 +159,18 @@ bool pc_client_rect(int *x, int *y, int *w, int *h);
 /* PokeDaisy's window (SELF, OW x OH) as it looks with the game's window over it, into OUT (XRGB), whatever else is in
  * front of them on the desktop (for the screen check). */
 bool pc_compose(void *self, int ow, int oh, uint32_t *out);
+/* BUTTON LAYOUT for the game's own player (an SDL one: mkxp-z, the player older games borrow): every pad read by
+ * the buttons' places, as PokeDaisy reads them (SDL would otherwise swap a Nintendo-labelled pad's), and with
+ * NINTENDO, MAPPINGS (SDL mapping lines with the face buttons swapped, pc_swap_face) so the right button confirms.
+ * Set in PokeDaisy's environment just before the game starts, which the game's player inherits. */
+void pc_pad_env(const char *mappings);
+/* One SDL mapping line with A and B, X and Y swapped (the NINTENDO layout), a bus-and-IDs GUID's CRC part zeroed so
+ * any SDL version matches it (SDL's own XInput GUID kept as it is). False when it isn't a mapping line or OUT is too
+ * small. */
+bool pc_swap_face(const char *mapping, char *out, size_t size);
+/* PokeDaisy's own window (SELF) has the foreground: switched back to (Alt+Tab, the taskbar, a side app), so the
+ * game's window gets it again. */
+bool pc_self_foreground(void *self);
 /* Hides the game's window (PokeDaisy's menu is over it) or shows it again. */
 void pc_show(bool shown);
 /* Asks the game to close as its own close button would; force: ends it. */

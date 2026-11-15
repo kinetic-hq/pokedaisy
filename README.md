@@ -168,7 +168,7 @@ An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everythi
 | Screen | `SHARP` / `xBRZ`, `HANDHELD` / `OLED` colours, `BRIGHTNESS`, black backgrounds and bezel bars, full screen, `ORIENTATION` |
 | Controls | Hot plugged controllers (several at once), `NINTENDO` / `XBOX` layouts, hotkeys for paddles and extra buttons, touch and mouse, rumble |
 | Games and saves | A box art game grid, your own game folders with saves beside the games, ten state slots, resume, per-game settings, `EDIT SAVE` |
-| PC fan games | RPG Maker fan games (Reborn, Tectonic, Fire Ash, Insurgence, ...) played full screen on Windows with the wings beside them, `LT` / `RT` camera zoom, `WIDE VIEW` on the map, `L3` fast forward and instant text; Phoenix Rising (its own player) gets xBRZ from its real pixels, gliding zoom with right stick pan, and the clock and play time beside it |
+| PC fan games | RPG Maker fan games (Reborn, Tectonic, Fire Ash, Insurgence, ...) played full screen on Windows with the wings beside them, `LT` / `RT` camera zoom, `WIDE VIEW` on the map, `L3` fast forward and instant text, `BUTTON LAYOUT` deciding the confirm button, and the game put back (and given the controller again) after switching windows or a resolution change; Phoenix Rising (its own player) gets xBRZ from its real pixels, gliding zoom with right stick pan, and the clock and play time beside it |
 | Play | Level cap, low PP warning, battery saver |
 | Games | A [game compatibility](#game-compatibility) table comparing Android with Windows / Linux |
 

@@ -3904,6 +3904,30 @@ static void pc_play(const char *path) {
   if (capture && !getenv("POCKET_PC_ZOOM")) // the whole picture first (RT zooms in for this play only)
     zoom = 0;
   pc_commands(cmdPath, ff, instant, zoom);
+  // BUTTON LAYOUT reaches the game's own player here and nowhere else: by the buttons' places, and with NINTENDO
+  // every pad's face buttons swapped (the right one confirms), the generic XInput pad's too.
+  {
+    static char maps[4096];
+    maps[0] = 0;
+    if (buttonLayout != PD_LAYOUT_XBOX) {
+      char line[1024];
+      size_t at = 0;
+      for (int i = 0; i <= padCount; i++) {
+        char *m = i < padCount ? SDL_GameControllerMapping(pads[i]) : NULL;
+        const char *from = i < padCount ? m
+                                        : "78696e70757401000000000000000000,XInput Controller,a:b0,b:b1,back:b6,"
+                                          "dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b10,leftshoulder:b4,"
+                                          "leftstick:b8,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b9,"
+                                          "righttrigger:a5,rightx:a3,righty:a4,start:b7,x:b2,y:b3,";
+        if (from && pc_swap_face(from, line, sizeof line) && at + strlen(line) + 2 < sizeof maps) {
+          at += (size_t)snprintf(maps + at, sizeof maps - at, "%s\n", line);
+        }
+        if (m)
+          SDL_free(m);
+      }
+    }
+    pc_pad_env(maps);
+  }
   if (!pc_start(&info, dir, jsonPath, cmdPath)) {
     appError = 1;
     notice("Couldn't start the game");
@@ -4030,13 +4054,41 @@ static void pc_play(const char *path) {
       start = now;
       placed = focused = false;
     }
-    // The game's window kept where it belongs (the game resizes it when it starts, Alt+Enter, ...).
+    // The game's window kept where it belongs (the game resizes it when it starts, Alt+Enter, ...), and after a
+    // switch away and back (Alt+Tab, the Windows key, a side app, sleep): PokeDaisy full screen again, its size
+    // read anew (the screen's mode may have changed meanwhile), the room laid out for it, and the game's window
+    // given the keyboard and the controller again (PokeDaisy's own window has them after the switch).
     if (now - lastPlace > (capture ? 250u : 30u)) {
       lastPlace = now;
-      placed = capture ? pc_capture_place(self, placed && !focused)
-                       : pc_place(self, wx + gx, wy + gy, gw, gh, placed && !focused);
-      if (placed && !focused)
-        focused = true;
+      Uint32 flags = SDL_GetWindowFlags(window);
+      if (flags & SDL_WINDOW_MINIMIZED) {
+        placed = false; // the game's window is hidden with PokeDaisy's; placed again when it's back
+        focused = false;
+      } else {
+        if (!sized && (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP)
+          SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        int nw = ow, nh = oh, nx = wx, ny = wy;
+        SDL_GetWindowSize(window, &nw, &nh);
+        SDL_GetWindowPosition(window, &nx, &ny);
+        if (nw != ow || nh != oh || nx != wx || ny != wy) {
+          fprintf(stderr, "PC game: PokeDaisy's window is now %d,%d %dx%d (was %d,%d %dx%d)\n", nx, ny, nw, nh, wx, wy,
+                  ow, oh);
+          ow = nw, oh = nh, wx = nx, wy = ny;
+          if (SDL_GetRendererOutputSize(renderer, &rw, &rh) < 0)
+            rw = ow, rh = oh;
+          if (pcWide)
+            pc_wide_layout(ow, oh, room, &lay);
+          else
+            pc_layout_for(ow, oh, baseW, baseH, room, &lay);
+          gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
+          pcWindowW = gw, pcWindowH = gh;
+          pc_commands(cmdPath, ff, instant, zoom);
+        }
+        bool give = placed && (!focused || pc_self_foreground(self));
+        placed = capture ? pc_capture_place(self, give) : pc_place(self, wx + gx, wy + gy, gw, gh, give);
+        if (placed && !focused)
+          focused = true;
+      }
     }
     // The companion's news.
     struct stat sb;

@@ -783,6 +783,39 @@ unsigned pc_status_bits(const char *w) {
 
 /* ---------------------------------------------------------------- layout */
 
+bool pc_swap_face(const char *mapping, char *out, size_t size) {
+  if (!mapping || !out || size < 40)
+    return false;
+  const char *comma = strchr(mapping, ',');
+  if (!comma || comma - mapping != 32 || strchr(mapping, '\n'))
+    return false;
+  size_t n = 0;
+  for (const char *p = mapping; *p;) {
+    const char *end = strchr(p, ',');
+    size_t len = end ? (size_t)(end - p) : strlen(p);
+    char item[128];
+    if (len >= sizeof item)
+      return false;
+    memcpy(item, p, len);
+    item[len] = 0;
+    if (p == mapping && item[2] == '0' && item[3] == '0') // a bus-and-IDs GUID: its CRC part (bytes 2, 3) zeroed
+      memcpy(item + 4, "0000", 4);
+    else if (len > 2 && item[1] == ':' && strchr("abxy", item[0])) {
+      static const char from[] = "abxy", to[] = "bayx";
+      item[0] = to[strchr(from, item[0]) - from];
+    }
+    if (n + len + 2 > size)
+      return false;
+    memcpy(out + n, item, len);
+    n += len;
+    if (end)
+      out[n++] = ',';
+    out[n] = 0;
+    p = end ? end + 1 : p + len;
+  }
+  return true;
+}
+
 void pc_wide_layout(int ow, int oh, int room, struct pc_layout *out) {
   pc_layout_for(ow, oh, 512, 384, room, out);
   int wing = oh / 10 > 120 ? oh / 10 : 120;
@@ -1183,6 +1216,13 @@ bool pc_place(void *owner, int x, int y, int w, int h, bool focus) {
   return true;
 }
 
+void pc_pad_env(const char *mappings) {
+  SetEnvironmentVariableA("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0");
+  SetEnvironmentVariableA("SDL_GAMECONTROLLERCONFIG", mappings && *mappings ? mappings : NULL);
+}
+
+bool pc_self_foreground(void *self) { return self && GetForegroundWindow() == (HWND)self; }
+
 static bool find_window(void) {
   if (gameWindow && IsWindow(gameWindow))
     return true;
@@ -1388,6 +1428,11 @@ bool pc_place(void *owner, int x, int y, int w, int h, bool focus) {
 }
 bool pc_capture_place(void *owner, bool focus) {
   (void)owner, (void)focus;
+  return false;
+}
+void pc_pad_env(const char *mappings) { (void)mappings; }
+bool pc_self_foreground(void *self) {
+  (void)self;
   return false;
 }
 const uint32_t *pc_capture(int *w, int *h) {
