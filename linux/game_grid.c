@@ -156,18 +156,38 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
     pd_round_rect(c, x - 2, y - 2, g->tileW + 4, g->tileH + 4, 7, RING);
   pd_round_rect(c, x, y, g->tileW, g->tileH, 6, on ? RING : p->tileEdge);
   pd_round_rect(c, x + 1, y + 1, g->tileW - 2, g->tileH - 2, 5, on ? p->tileOn : p->tile);
-  // The art's well: the system's colour, darkened, with its name, until a picture covers it.
-  int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = g->artH;
-  int sys = it->system >= 0 && it->system <= BOXART_PC ? it->system : 0;
-  uint32_t sc = SYSTEM_COLORS[sys];
-  uint32_t well = pd_dark ? ((sc >> 2) & 0x3F3F3F) + 0x0A0A0A : (sc & 0xFEFEFE) / 2 + 0x7F7F7F;
-  pd_round_rect(c, ax, ay, aw, ah, 4, well);
-  const char *sn = SYSTEM_NAMES[sys];
-  pd_heading(c, ax + (aw - pd_text_width(sn)) / 2, ay + ah / 2 - 9, sn, pd_dark ? 0x9AA3B2 : 0xFFFFFF, PD_NO_SHADOW);
   // Every game here is a Pokémon game: the tile shows the rest of the name, which then fits.
   const char *name = it->name ? it->name : "";
   if (!strncmp(name, "Pok\xC3\xA9mon ", 9) && name[9])
     name += 9;
+  // The art's well, until a picture covers it: a title card. The system's colour, darkened, a lighter band across
+  // it, the game's name in the middle and the system's name at its foot.
+  int ax = x + 4, ay = y + 4, aw = g->tileW - 8, ah = g->artH;
+  int sys = it->system >= 0 && it->system <= BOXART_PC ? it->system : 0;
+  uint32_t sc = SYSTEM_COLORS[sys];
+  uint32_t well = pd_dark ? ((sc >> 2) & 0x3F3F3F) + 0x0A0A0A : (sc & 0xFEFEFE) / 2 + 0x7F7F7F;
+  uint32_t band = pd_dark ? ((sc >> 1) & 0x7F7F7F) : (sc & 0xFEFEFE) / 2 + 0x5F5F5F;
+  pd_round_rect(c, ax, ay, aw, ah, 4, well);
+  pd_fill(c, ax, ay + ah * 3 / 10, aw, ah * 4 / 10, band);
+  pd_fill(c, ax, ay + ah * 3 / 10, aw, 1, sc);
+  pd_fill(c, ax, ay + ah * 7 / 10 - 1, aw, 1, sc);
+  {
+    int cs[3], ce[3];
+    int n = wrap_name(name, aw - 10, 3, cs, ce);
+    int top = ay + ah / 2 - n * LINE_H / 2 - 3;
+    for (int l = 0; l < n; l++) {
+      char line[256];
+      snprintf(line, sizeof line, "%.*s", ce[l] - cs[l], name + cs[l]);
+      int lw = pd_text_width(line);
+      if (lw > aw - 6)
+        pd_text_fit(c, ax + 3, top + l * LINE_H, aw - 6, line, 0xFFFFFF, 0x202020);
+      else
+        pd_text(c, ax + (aw - lw) / 2, top + l * LINE_H, line, 0xFFFFFF, 0x202020);
+    }
+  }
+  const char *sn = SYSTEM_NAMES[sys];
+  const char *foot = sys == BOXART_PC ? "PC FAN GAME" : sn;
+  pd_text(c, ax + (aw - pd_text_width(foot)) / 2, ay + ah - 16, foot, pd_dark ? 0x9AA3B2 : 0xFFFFFF, PD_NO_SHADOW);
   // A hack shown with its base game's box: its name on a banner across the box's foot (the art stops above it).
   int bannerH = it->banner ? 15 : 0;
   if (g->artCount < GAME_GRID_ART_MAX) {
@@ -183,7 +203,13 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   int ty = ay + ah + 3;
   int starts[3], ends[3];
   bool version = it->version && *it->version;
-  int lines = wrap_name(name, g->tileW - 8, version ? NAME_LINES : NAME_LINES + 1, starts, ends);
+  // One word each, the same length, never shortened; a PC game is a fan game. Too narrow for the system and the kind
+  // side by side, the kind leads the next line: then that line is taken, and the name keeps to two (a third ran off
+  // the tile's foot).
+  const char *kind = sys == BOXART_PC ? "FAN GAME" : it->hack ? "ROMHACK" : "ORIGINAL";
+  uint32_t kindColor = sys == BOXART_PC ? 0x7A55B8 : it->hack ? 0xD9822B : 0x2E9E6A;
+  bool kindLater = !it->tag && x + 4 + pd_text_width(sn) + 6 + 3 + pd_text_width(kind) + 6 > x + g->tileW - 4;
+  int lines = wrap_name(name, g->tileW - 8, version || kindLater ? NAME_LINES : NAME_LINES + 1, starts, ends);
   for (int l = 0; l < lines; l++) {
     char line[256];
     snprintf(line, sizeof line, "%.*s", ends[l] - starts[l], name + starts[l]);
@@ -201,10 +227,6 @@ static void draw_tile(struct game_grid *g, struct pd_canvas *c, int i, const str
   }
   int tx = x + 4;
   tx += tag(c, tx, ty, sn, sc) + 3;
-  // One word each, the same length, never shortened; a PC game is a fan game.
-  const char *kind = sys == BOXART_PC ? "FAN GAME" : it->hack ? "ROMHACK" : "ORIGINAL";
-  uint32_t kindColor = sys == BOXART_PC ? 0x7A55B8 : it->hack ? 0xD9822B : 0x2E9E6A;
-  bool kindLater = tx + pd_text_width(kind) + 6 > x + g->tileW - 4; // too narrow: it leads the next line instead
   if (!kindLater)
     tag(c, tx, ty, kind, kindColor);
   // How well the companion supports it, at the right of the version's line: FULL, PARTLY or PLAY ONLY. With the kind

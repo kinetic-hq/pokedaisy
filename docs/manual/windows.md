@@ -110,7 +110,9 @@ box of a sequel or a spin off. Spaces and "and" don't count, so "Ash Gray" finds
 steamgriddb.com (Preferences, API), copy it, then pick `SETTINGS` > `LIBRARY` >
 `STEAMGRIDDB KEY` > `PASTE THE KEY FROM THE CLIPBOARD`. A ROM hack nobody has art
 for gets the box of the game it was made from, with the hack's name on an orange
-banner across the bottom.
+banner across the bottom. A game with no art at all, such as a PC fan game
+SteamGridDB doesn't have, shows a title card: its name on a tile in its
+console's colour. A fan game's own title screen is never used as its cover.
 
 The art you choose is kept as a plain picture you can see and change yourself.
 `SETTINGS` > `LIBRARY` > `BOX ART LOCATION` says where:
