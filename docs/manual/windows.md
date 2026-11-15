@@ -88,6 +88,14 @@ picked:
 Your choice stays through restarts and updates, and the game you had selected
 stays selected.
 
+A row of tabs under the bar splits the list into collections: `ALL`, then
+`GBA`, `GBC`, `GB`, `NDS`, `PC` (the PC fan games), `ROM HACKS`, `ORIGINALS`
+and `FAVORITES`. Each tab shows how many games it holds, and a tab with none
+is left out. Press `LB` or `RB` (`L` or `R` with the `NINTENDO` button layout)
+to go to the tab before or after, or tap or click one. To add a game to
+`FAVORITES`, press `X` on it and pick `FAVORITE`; `UNFAVORITE` takes it out.
+Favorites are kept in `DATA\favorites.txt`.
+
 Box art is looked for by itself in the background (`SETTINGS` > `LIBRARY` >
 `BOX ART DOWNLOAD`, on): first the libretro thumbnails, which have the original
 games, by the file's name and then by the game the file itself says it is (so a
@@ -152,6 +160,8 @@ Press `X`, right click or hold a finger on a game for its options:
 
   Without a SteamGridDB key the grid shows the libretro covers only, and says
   where to add a key.
+- **`FAVORITE`** adds the game to the `FAVORITES` tab (`UNFAVORITE` takes it
+  out again).
 - **`RENAME`** gives the game a name of your own. It opens with the name the
   game has now and the cursor at its end, so you can fix one word and keep the
   rest. Type on a real keyboard (the arrow keys, `HOME` and `END` move the

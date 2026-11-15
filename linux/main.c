@@ -7440,7 +7440,13 @@ static void grid_set_art(const char *stem, const char *source) {
 }
 enum { GRID_BAR_SORT, GRID_BAR_SYNC, GRID_BAR_FOLDERS, GRID_BAR_SETTINGS, GRID_BAR_THEME };
 struct library {
-  struct rom_list games;
+  struct rom_list all;   // every game, in SORT's order
+  struct rom_list games; // the ones COLLECTIONS' tab shows (copies of ALL's)
+  int collection;        // library_view.h's LIBRARY_ALL...: the tab picked
+  int tabIds[LIBRARY_COLLECTIONS], tabCount;
+  char tabText[LIBRARY_COLLECTIONS][32];
+  const char *tabPtrs[LIBRARY_COLLECTIONS];
+  bool *favorite; // games[i] is starred (FAVORITE in its options)
   struct game_grid_item *items;
   struct boxart_game *art;
   char **stems;
@@ -7508,26 +7514,100 @@ static void library_free(struct library *l) {
   free(l->items);
   free(l->art);
   free(l->versions);
+  free(l->favorite);
   rom_list_free(&l->games);
+  l->favorite = NULL;
   l->stems = NULL;
   l->items = NULL;
   l->art = NULL;
   l->versions = NULL;
   l->count = 0;
 }
+/* COLLECTIONS: game I of ALL's console (boxart.h's enum boxart_system) and whether it's a ROM hack. */
+static void library_kind(const struct rom_list *all, int i, int *system, bool *hack) {
+  bool pc = pc_game_path(all->paths[i]);
+  *system = pc ? BOXART_PC : grid_system(all->labels[i]);
+  *hack = !pc && !game_is_original(all->labels[i]);
+}
+/* The tab's games out of ALL (copies, in ALL's order), the tabs worth showing (ALL, then each with a game), with their
+ * counts; a tab left empty (the last favourite unstarred) goes back to ALL. */
+static void library_pick(struct library *l) {
+  const struct rom_list *all = &l->all;
+  struct library_stamps fav;
+  library_stamps_load(&fav, root, "favorites.txt");
+  int counts[LIBRARY_COLLECTIONS] = {0};
+  bool *isFav = calloc((size_t)all->count + 1, sizeof *isFav);
+  for (int i = 0; i < all->count; i++) {
+    int system;
+    bool hack;
+    library_kind(all, i, &system, &hack);
+    bool f = library_stamps_get(&fav, all->labels[i]) != 0;
+    if (isFav)
+      isFav[i] = f;
+    for (int c = 0; c < LIBRARY_COLLECTIONS; c++)
+      if (library_in_collection(c, system, hack, f))
+        counts[c]++;
+  }
+  library_stamps_free(&fav);
+  if (l->collection < 0 || l->collection >= LIBRARY_COLLECTIONS || !counts[l->collection])
+    l->collection = LIBRARY_ALL;
+  l->tabCount = 0;
+  int picked = 0;
+  for (int c = 0; c < LIBRARY_COLLECTIONS; c++)
+    if (c == LIBRARY_ALL || counts[c]) {
+      if (c == l->collection)
+        picked = l->tabCount;
+      snprintf(l->tabText[l->tabCount], sizeof l->tabText[0], "%s %d", LIBRARY_COLLECTION_NAMES[c], counts[c]);
+      l->tabPtrs[l->tabCount] = l->tabText[l->tabCount];
+      l->tabIds[l->tabCount++] = c;
+    }
+  l->grid.tabSelected = picked;
+  // The copies.
+  struct rom_list *g = &l->games;
+  int n = counts[l->collection];
+  g->paths = calloc((size_t)n + 1, sizeof *g->paths);
+  g->labels = calloc((size_t)n + 1, sizeof *g->labels);
+  g->names = calloc((size_t)n + 1, sizeof *g->names);
+  g->autoNames = calloc((size_t)n + 1, sizeof *g->autoNames);
+  l->favorite = calloc((size_t)n + 1, sizeof *l->favorite);
+  g->count = 0;
+  g->cap = n;
+  if (!g->paths || !g->labels || !g->names || !g->autoNames || !l->favorite) {
+    free(isFav);
+    return;
+  }
+  for (int i = 0; i < all->count && g->count < n; i++) {
+    int system;
+    bool hack;
+    library_kind(all, i, &system, &hack);
+    bool f = isFav && isFav[i];
+    if (!library_in_collection(l->collection, system, hack, f))
+      continue;
+    char *path = strdup(all->paths[i]), *name = strdup(all->names[i]);
+    char *autoName = all->autoNames && all->autoNames[i] ? strdup(all->autoNames[i]) : NULL;
+    if (!path || !name) {
+      free(path), free(name), free(autoName);
+      break;
+    }
+    int k = g->count++;
+    g->paths[k] = path;
+    g->labels[k] = path + (all->labels[i] - all->paths[i]);
+    g->names[k] = name;
+    g->autoNames[k] = autoName;
+    l->favorite[k] = f;
+  }
+  free(isFav);
+}
+static void library_show(struct library *l);
+/* The list read again from the folders (and SORT applied), then shown. */
 static void library_load(struct library *l) {
 #ifdef POCKET_DS
   const bool listNds = true;
 #else
   const bool listNds = false;
 #endif
-  int keep = l->grid.selected, focus = l->grid.focus, scroll = l->grid.scrollY;
-  // The selected game stays selected (by its file) when the list's order changes.
-  char keepPath[1400] = "";
-  if (keep >= 0 && keep < l->games.count)
-    snprintf(keepPath, sizeof keepPath, "%s", l->games.paths[keep]);
-  library_free(l);
-  rom_list_load(&l->games, root, listNds);
+  rom_list_free(&l->all);
+  rom_list_load(&l->all, root, listNds);
   {
     char ini[1100];
     snprintf(ini, sizeof ini, "%s/settings.ini", root);
@@ -7536,11 +7616,27 @@ static void library_load(struct library *l) {
     l->sort = st.librarySort >= 0 && st.librarySort < LIBRARY_SORTS ? st.librarySort : 0;
   }
   LIBRARY_BAR[GRID_BAR_SORT] = LIBRARY_SORT_BAR[l->sort];
-  library_order(&l->games, l->sort);
+  library_order(&l->all, l->sort);
+  library_show(l);
+}
+/* The picked tab's games as tiles (no new look in the folders: LB / RB are quick). */
+static void library_show(struct library *l) {
+  int keep = l->grid.selected, focus = l->grid.focus, scroll = l->grid.scrollY;
+  // The selected game stays selected (by its file) when the list's order or tab changes.
+  char keepPath[1400] = "";
+  if (keep >= 0 && keep < l->games.count)
+    snprintf(keepPath, sizeof keepPath, "%s", l->games.paths[keep]);
+  int tabSelected = l->grid.tabSelected;
+  library_free(l);
+  library_pick(l);
+  tabSelected = l->grid.tabSelected;
+  bool found = false;
   if (*keepPath)
-    for (int i = 0; i < l->games.count; i++)
+    for (int i = 0; i < l->games.count && !found; i++)
       if (!strcmp(l->games.paths[i], keepPath))
-        keep = i;
+        keep = i, found = true;
+  if (*keepPath && !found) // a tab without it: from its top
+    keep = 0, scroll = 0;
   int count = l->games.count;
   l->items = calloc((size_t)count + 1, sizeof *l->items);
   l->art = calloc((size_t)count + 1, sizeof *l->art);
@@ -7613,10 +7709,18 @@ static void library_load(struct library *l) {
   l->grid.selected = keep >= 0 && keep < count ? keep : 0;
   l->grid.focus = count ? focus : GAME_GRID_TILES;
   l->grid.scrollY = scroll;
+  l->grid.tabs = l->tabPtrs; // COLLECTIONS (shown with two or more)
+  l->grid.tabCount = l->tabCount;
+  l->grid.tabSelected = tabSelected;
+  l->grid.tabKeys[0] = buttonLayout == PD_LAYOUT_XBOX ? "LB" : "L";
+  l->grid.tabKeys[1] = buttonLayout == PD_LAYOUT_XBOX ? "RB" : "R";
   l->grid.title = "PokeDaisy"; // the platform stays in the window title and SETTINGS' HOST row
   l->grid.bar = LIBRARY_BAR;
   l->grid.barCount = 5;
-  l->grid.hint = "A PLAY   X OPTIONS   Y SETTINGS   B QUIT";
+  l->grid.hint = l->tabCount > 1 ? (buttonLayout == PD_LAYOUT_XBOX
+                                         ? "A PLAY   X OPTIONS   Y SETTINGS   LB/RB COLLECTION   B QUIT"
+                                         : "A PLAY   X OPTIONS   Y SETTINGS   L/R COLLECTION   B QUIT")
+                                  : "A PLAY   X OPTIONS   Y SETTINGS   B QUIT";
   l->grid.emptyPath = ROMS_PATH;
   char path[1100];
   snprintf(path, sizeof path, "%s/settings.ini", root);
@@ -9990,13 +10094,14 @@ static void link_setup(const char *firstRom, const char *firstName) {
 }
 /* A game's options. Returns the game to play, else -1; *reload when the list changed; *finding when a search started. */
 static int library_options(struct library *l, int g, bool *reload, bool *finding) {
-  enum { OPT_PLAY, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_LINK, OPT_SUPPORT };
+  enum { OPT_PLAY, OPT_FAVORITE, OPT_ART, OPT_RENAME, OPT_RESET, OPT_EDIT, OPT_TRADE, OPT_LINK, OPT_SUPPORT };
   (void)finding; // CHOOSE BOX ART no longer starts a search of its own
   const char *label = l->games.labels[g];
   char custom[256];
   bool hasName = game_custom_name(root, label, custom, sizeof custom);
-  const char *rows[10];
-  int ids[10], n = 0;
+  const char *rows[12];
+  int ids[12], n = 0;
+  bool starred = l->favorite && l->favorite[g];
   char supportDetail[96], supportRow[140];
   int support = game_support_get(g, supportDetail, sizeof supportDetail);
 #define OPT(id, text)                                                                                                  \
@@ -10005,6 +10110,7 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
     ids[n++] = id;                                                                                                     \
   } while (0)
   OPT(OPT_PLAY, "PLAY");
+  OPT(OPT_FAVORITE, starred ? "UNFAVORITE\tIN FAVORITES" : "FAVORITE\tADD TO FAVORITES");
   OPT(OPT_ART, "CHOOSE BOX ART");
   OPT(OPT_RENAME, "RENAME");
   if (hasName)
@@ -10025,6 +10131,13 @@ static int library_options(struct library *l, int g, bool *reload, bool *finding
   switch (id) {
   case OPT_PLAY:
     return g;
+  case OPT_FAVORITE:
+    if (library_stamp(root, "favorites.txt", label, starred ? 0 : (long long)time(NULL))) {
+      notice(starred ? "Taken out of FAVORITES" : "Added to FAVORITES");
+      *reload = true;
+    } else
+      notice("Couldn't save FAVORITES");
+    break;
   case OPT_SUPPORT: {
     char line[128];
     snprintf(line, sizeof line, "%s: %s", game_support_word(support), supportDetail);
@@ -10124,6 +10237,10 @@ static void library_screen(void) {
       options = grid->selected;
     if (down(Y))
       bar = GRID_BAR_SETTINGS;
+    // COLLECTIONS: LB / RB step through the tabs (round), a tap picks one.
+    int tab = -1;
+    if (lib.tabCount > 1 && (down(L) || down(R)))
+      tab = (grid->tabSelected + (down(R) ? 1 : -1) + lib.tabCount) % lib.tabCount;
     if (wheelSteps) {
       game_grid_scroll(grid, -wheelSteps * (grid->tileH + grid->gap) / 2);
       wheelSteps = 0;
@@ -10137,6 +10254,16 @@ static void library_screen(void) {
         bar = b;
     }
     tapCount = 0;
+    if (grid->tappedTab >= 0) {
+      tab = grid->tappedTab;
+      grid->tappedTab = -1;
+    }
+    if (tab >= 0 && tab < lib.tabCount && lib.tabIds[tab] != lib.collection) {
+      lib.collection = lib.tabIds[tab];
+      library_show(&lib);
+      grid->focus = lib.count ? GAME_GRID_TILES : grid->focus;
+      grid->follow = true;
+    }
     // A long press: the game's options.
     if (grid->touching && !wasTouching)
       touchAt = SDL_GetTicks();
@@ -10281,6 +10408,7 @@ static void library_screen(void) {
   boxart_textures_free();
   game_support_stop();
   library_free(&lib);
+  rom_list_free(&lib.all);
 }
 
 int main(int argc, char **argv) {

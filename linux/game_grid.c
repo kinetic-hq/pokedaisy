@@ -8,6 +8,7 @@
 
 #define PAD 8
 #define BAR_H 26
+#define TAB_H 20 // COLLECTIONS' row of tabs, under the bar
 #define HINT_H 16
 #define TARGET_TILE 92 // tiles are about this wide (the system and ROMHACK / ORIGINAL side by side); the columns follow
 #define TAG_H 12
@@ -31,7 +32,7 @@ void game_grid_init(struct game_grid *g, const struct game_grid_item *items, int
   memset(g, 0, sizeof *g);
   g->items = items;
   g->count = count;
-  g->pressedTile = g->pressedBar = -1;
+  g->pressedTile = g->pressedBar = g->pressedTab = g->tappedTab = -1;
   g->follow = true;
 }
 
@@ -47,7 +48,7 @@ static void layout(struct game_grid *g, int w, int h) {
   // The art's shape (ART STYLE): SteamGridDB's 600x900 grid, or a GBA or DS box (about square).
   g->artH = g->artStyle == BOXART_STYLE_TALL ? aw * 3 / 2 : aw;
   g->tileH = 4 + g->artH + 3 + NAME_LINES * LINE_H + 3 + TAG_H + 2 + 12 + 2;
-  g->gridTop = BAR_H + 6;
+  g->gridTop = BAR_H + 6 + (g->tabs && g->tabCount > 1 ? TAB_H : 0);
   g->gridBottom = h - (g->hint ? HINT_H : 0) - 2;
 }
 
@@ -325,6 +326,53 @@ static void draw_bar(struct game_grid *g, struct pd_canvas *c, const struct pale
   }
 }
 
+/* COLLECTIONS' tabs: a pill each, the picked one filled; "LB" before them and "RB" after. A row wider than the
+ * window slides so the picked tab shows. */
+static void draw_tabs(struct game_grid *g, struct pd_canvas *c, const struct palette *p) {
+  g->tabY = BAR_H + 4;
+  g->tabH = TAB_H - 4;
+  pd_fill(c, 0, BAR_H + 1, c->w, TAB_H + 1, p->page);
+  int n = g->tabCount < GAME_GRID_TABS_MAX ? g->tabCount : GAME_GRID_TABS_MAX;
+  int keyW0 = g->tabKeys[0] ? pd_text_width(g->tabKeys[0]) + 8 : 0;
+  int keyW1 = g->tabKeys[1] ? pd_text_width(g->tabKeys[1]) + 8 : 0;
+  int widths[GAME_GRID_TABS_MAX], total = 0, before = 0;
+  for (int i = 0; i < n; i++) {
+    widths[i] = pd_text_width(g->tabs[i]) + 14;
+    if (i < g->tabSelected)
+      before += widths[i] + 4;
+    total += widths[i] + 4;
+  }
+  int room = c->w - PAD * 2 - keyW0 - keyW1;
+  int shift = 0;
+  if (total > room) { // the picked tab's middle as near the middle as the row allows
+    int sel = g->tabSelected >= 0 && g->tabSelected < n ? widths[g->tabSelected] : 0;
+    shift = before + sel / 2 - room / 2;
+    if (shift > total - room)
+      shift = total - room;
+    if (shift < 0)
+      shift = 0;
+  }
+  int left = PAD + keyW0, x = left - shift;
+  pd_clip(c, left, g->tabY, room, g->tabH);
+  for (int i = 0; i < n; i++) {
+    bool on = i == g->tabSelected;
+    int w = widths[i];
+    pd_round_rect(c, x, g->tabY, w, g->tabH, 5, on ? RING : p->tileEdge);
+    pd_round_rect(c, x + 1, g->tabY + 1, w - 2, g->tabH - 2, 4, on ? RING : p->bar);
+    pd_text(c, x + 7, g->tabY - 2, g->tabs[i], on ? 0xFFFFFF : p->text, PD_NO_SHADOW);
+    g->tabX[i] = x < left ? left : x;
+    g->tabW[i] = (x + w > left + room ? left + room : x + w) - g->tabX[i];
+    x += w + 4;
+  }
+  pd_unclip(c);
+  if (g->tabKeys[0])
+    pd_text(c, PAD, g->tabY - 3, g->tabKeys[0], p->muted, PD_NO_SHADOW);
+  if (g->tabKeys[1]) {
+    int end = x - 4 < left + room ? x - 4 : left + room;
+    pd_text(c, end + 6, g->tabY - 3, g->tabKeys[1], p->muted, PD_NO_SHADOW);
+  }
+}
+
 void game_grid_draw(struct game_grid *g, struct pd_canvas *c) {
   struct palette p = colors();
   layout(g, c->w, c->h);
@@ -371,6 +419,8 @@ void game_grid_draw(struct game_grid *g, struct pd_canvas *c) {
     pd_round_rect(c, c->w - 4, y, 3, h, 1, p.muted);
   }
   draw_bar(g, c, &p);
+  if (g->tabs && g->tabCount > 1)
+    draw_tabs(g, c, &p);
   if (g->hint) {
     pd_fill(c, 0, c->h - HINT_H, c->w, HINT_H, p.bar);
     pd_text_fit(c, PAD, c->h - HINT_H - 2, c->w - PAD * 2, g->hint, p.muted, PD_NO_SHADOW);
@@ -429,6 +479,15 @@ int game_grid_tile_at(const struct game_grid *g, int x, int y) {
   return -1;
 }
 
+static int tab_at(const struct game_grid *g, int x, int y) {
+  if (!g->tabs || g->tabCount < 2 || y < g->tabY || y >= g->tabY + g->tabH)
+    return -1;
+  for (int i = 0; i < g->tabCount && i < GAME_GRID_TABS_MAX; i++)
+    if (g->tabW[i] > 0 && x >= g->tabX[i] && x < g->tabX[i] + g->tabW[i])
+      return i;
+  return -1;
+}
+
 static int bar_at(const struct game_grid *g, int x, int y) {
   if (y < 0 || y >= BAR_H)
     return -1;
@@ -447,6 +506,7 @@ int game_grid_touch(struct game_grid *g, int x, int y, bool down, int *bar) {
     g->touchY = g->lastY = y;
     g->pressedTile = game_grid_tile_at(g, x, y);
     g->pressedBar = bar_at(g, x, y);
+    g->pressedTab = tab_at(g, x, y);
     return -1;
   }
   if (down) {
@@ -462,6 +522,11 @@ int game_grid_touch(struct game_grid *g, int x, int y, bool down, int *bar) {
   g->touching = false;
   if (g->dragged)
     return -1;
+  int tb = tab_at(g, x, y);
+  if (tb >= 0 && tb == g->pressedTab) {
+    g->tappedTab = tb;
+    return -1;
+  }
   int b = bar_at(g, x, y);
   if (b >= 0 && b == g->pressedBar) {
     *bar = b;

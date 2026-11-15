@@ -33,6 +33,16 @@ int main(void) {
   check(LIBRARY_SORT_PLAYED, (const int[]){1, 2, 0, 4, 3});    // last played first, the rest by name
   check(LIBRARY_SORT_CONSOLE, (const int[]){3, 1, 0, 2, 4});   // GB, GBC, GBA, NDS, PC
 
+  assert(library_in_collection(LIBRARY_ALL, BOXART_PC, false, false));
+  assert(library_in_collection(LIBRARY_GBC, BOXART_GBC, true, false));
+  assert(!library_in_collection(LIBRARY_GBA, BOXART_GBC, true, false));
+  assert(library_in_collection(LIBRARY_HACKS, BOXART_GBA, true, false));
+  assert(!library_in_collection(LIBRARY_HACKS, BOXART_PC, true, false)); // a fan game is PC's, not a ROM hack
+  assert(!library_in_collection(LIBRARY_ORIGINALS, BOXART_PC, false, false));
+  assert(library_in_collection(LIBRARY_ORIGINALS, BOXART_NDS, false, false));
+  assert(library_in_collection(LIBRARY_FAVORITES, BOXART_GB, false, true));
+  assert(!library_in_collection(LIBRARY_FAVORITES, BOXART_GB, false, false));
+
   char tmpl[] = "library-view-XXXXXX";
   char *dir = pocket_mkdtemp(tmpl);
   assert(dir);
@@ -45,6 +55,11 @@ int main(void) {
   assert(library_stamp(dir, "played.txt", "Emerald.gba", 3000)); // replaced, not added twice
   library_stamps_load(&s, dir, "played.txt");
   assert(s.count == 2);
+  library_stamps_free(&s);
+  assert(library_stamp(dir, "played.txt", "Gone.gba", 5));
+  assert(library_stamp(dir, "played.txt", "Gone.gba", 0)); // 0 takes it off
+  library_stamps_load(&s, dir, "played.txt");
+  assert(s.count == 2 && library_stamps_get(&s, "Gone.gba") == 0);
   assert(library_stamps_get(&s, "Emerald.gba") == 3000);
   assert(library_stamps_get(&s, "sub/Crystal.gbc") == 2000);
   assert(library_stamps_get(&s, "Missing.gba") == 0);

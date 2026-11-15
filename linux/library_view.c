@@ -12,6 +12,34 @@
 const char *const LIBRARY_SORT_BAR[LIBRARY_SORTS] = {"SORT: A-Z", "SORT: Z-A", "SORT: ADDED", "SORT: PLAYED",
                                                       "SORT: CONSOLE"};
 
+const char *const LIBRARY_COLLECTION_NAMES[LIBRARY_COLLECTIONS] = {
+    "ALL", "GBA", "GBC", "GB", "NDS", "PC", "ROM HACKS", "ORIGINALS", "FAVORITES"};
+
+bool library_in_collection(int collection, int system, bool hack, bool favorite) {
+  switch (collection) {
+  case LIBRARY_ALL:
+    return true;
+  case LIBRARY_GBA:
+    return system == BOXART_GBA;
+  case LIBRARY_GBC:
+    return system == BOXART_GBC;
+  case LIBRARY_GB:
+    return system == BOXART_GB;
+  case LIBRARY_NDS:
+    return system == BOXART_NDS;
+  case LIBRARY_PC:
+    return system == BOXART_PC;
+  case LIBRARY_HACKS:
+    return system != BOXART_PC && hack;
+  case LIBRARY_ORIGINALS:
+    return system != BOXART_PC && !hack;
+  case LIBRARY_FAVORITES:
+    return favorite;
+  default:
+    return false;
+  }
+}
+
 static const struct library_entry *sortEntries;
 static int sortBy;
 // CONSOLE: in the order they came out, the PC fan games last.
@@ -119,6 +147,15 @@ void library_stamps_put(struct library_stamps *s, const char *file, long long va
   s->files[s->count] = copy;
   s->values[s->count++] = value;
 }
+void library_stamps_remove(struct library_stamps *s, const char *file) {
+  int i = find(s, file);
+  if (i < 0)
+    return;
+  free(s->files[i]);
+  s->count--;
+  memmove(s->files + i, s->files + i + 1, (size_t)(s->count - i) * sizeof *s->files);
+  memmove(s->values + i, s->values + i + 1, (size_t)(s->count - i) * sizeof *s->values);
+}
 bool library_stamps_save(const struct library_stamps *s, const char *root, const char *name) {
   char path[1100], tmp[1200];
   snprintf(path, sizeof path, "%s/%s", root, name);
@@ -147,7 +184,10 @@ void library_stamps_free(struct library_stamps *s) {
 bool library_stamp(const char *root, const char *name, const char *file, long long value) {
   struct library_stamps s;
   library_stamps_load(&s, root, name);
-  library_stamps_put(&s, file, value);
+  if (value)
+    library_stamps_put(&s, file, value);
+  else
+    library_stamps_remove(&s, file);
   bool ok = library_stamps_save(&s, root, name);
   library_stamps_free(&s);
   return ok;
