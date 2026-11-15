@@ -484,6 +484,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   box as an alternate; the BOX ART picker asks for the style's sizes, and a pick is kept per style.
 - **The game list's bar** keeps its buttons whole: when they leave no room (a big window at a large UI SIZE), the
   PokeDaisy name steps aside and only the daisy shows.
+- **Every spelling of Pokemon** in a file, folder or PC game's title becomes "Pokémon <Title>": any case, the é composed,
+  decomposed or garbled ("PokÃ©mon"), Poke'mon, a split "Poké mon", PKMN, "Pokemon-" / "_" / "." separators, a
+  leading "The" or a trailing ", Pokemon", "Ver." words, and never twice. Japanese "Pocket Monsters" carts keep that name.
 - **Title cards** on the desktop host's game list: a game with no art shows its name on a card in its console's colour,
   and a PC fan game's own title screen (mostly "PRESS ENTER") is never its cover; a cover older versions saved from
   it (byte for byte the game's title picture, never one you picked) is cleared so SteamGridDB can look again. A long

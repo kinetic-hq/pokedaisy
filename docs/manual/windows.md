@@ -200,8 +200,11 @@ PC fan games made with RPG Maker are found in the same folders, up to three
 folders down (so `D:\Emulation\roms` finds `D:\Emulation\roms\rpg\<game>`).
 [PC fan games](pc-fan-games.md) says how they play. Their names are written the
 same way as your other games': Pokemon first, then the title the game gives
-itself, so the list reads the same whichever way the game spelled it. A name you
-give a game with `RENAME` always wins.
+itself, so the list reads the same whichever way the game spelled it. That covers
+every spelling a file or folder might use: capitals or not, with or without the
+accent, `PKMN`, the word split in two, or the word at the end ("Fire Ash,
+Pokemon"). The word is never written twice, and Japanese `Pocket Monsters`
+carts keep that name. A name you give a game with `RENAME` always wins.
 
 ## Updates
 

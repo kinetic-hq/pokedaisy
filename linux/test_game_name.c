@@ -27,6 +27,55 @@ static void check_pc(const char *title, const char *want) {
 
 int main(void) {
   // PC fan games: "Pokémon" first, however the game wrote its title.
+  // Every way "Pokemon" gets written ends up "Pok\xC3\xA9mon <Title>", never twice.
+  static const struct {
+    const char *file;
+    bool pokemon;
+    const char *want;
+  } VARIANTS[] = {
+      {"Pokemon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pok" E "mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"POKEMON FIRE ASH.gba", false, "Pok" E "mon Fire Ash"},
+      {"pokemon fire ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pok" E "Mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"POK\xC3\x89MON Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Poke'mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Poke\xE2\x80\x99mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pok" E " mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Poke mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon- Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon-Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon_Fire_Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon - Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon:Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon.Fire.Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon   Fire    Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"PKMN Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pkmn Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"pkmn fire ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Poke\xCC\x81mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},          // e and a combining accent
+      {"Pok\xC3\x83\xC2\xA9mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},   // read as Latin-1
+      {"Pok\xE9mon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},                 // stored as Latin-1
+      {"The Pokemon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Fire Ash, Pokemon.gba", false, "Pok" E "mon Fire Ash"},
+      {"Fire Ash Pokemon.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon Fire Ash Version.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon Fire Ash Ver. 1.2.gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon Fire Ash (U) [!].gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon Fire Ash (USA) (Rev 1).gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon Fire Ash (V1.1).gba", false, "Pok" E "mon Fire Ash"},
+      {"Pokemon Pokemon Fire Ash.gba", false, "Pok" E "mon Fire Ash"},
+      {"Fire Ash.gba", true, "Pok" E "mon Fire Ash"},                              // a Pokemon cart by its header
+      {"Pocket Monsters Green (Japan).gb", true, "Pocket Monsters Green"},         // kept, tidied
+      {"POCKET MONSTERS - GOLD.gbc", true, "Pocket Monsters Gold"},
+      {"Dragonsden.gba", false, "Dragonsden"},                                       // not a Pokemon title by name
+      {"Monomyth.gba", false, "Monomyth"},
+      {"Pokemon's Day Out.gba", false, "Pokemon's Day Out"},                         // not the word on its own
+  };
+  for (size_t i = 0; i < sizeof VARIANTS / sizeof *VARIANTS; i++)
+    check(VARIANTS[i].file, VARIANTS[i].pokemon, VARIANTS[i].want);
+  check_pc("PKMN Fire Ash", "Pok" E "mon Fire Ash");
+  check_pc("The Pokemon Fire Ash", "Pok" E "mon Fire Ash");
   check_pc("Fire Ash", "Pok" E "mon Fire Ash");
   check_pc("Pokemon Africanvs", "Pok" E "mon Africanvs");
   check_pc("POKEMON DESOLATION", "Pok" E "mon Desolation");

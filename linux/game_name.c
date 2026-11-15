@@ -21,12 +21,44 @@ static const char *const OWN_CASE[] = {
 /* Small words left lower case inside a name ("Wishes of Tomorrow", "Sword and Shield"). */
 static const char *const SMALL[] = {"of", "and", "the", "a", "an", "in", "on", "to", "for", "or", "de", "du", "la"};
 
+/* Every way the word gets written, matched with ASCII letters in any case: plain, the é (é / É composed, e and a
+ * combining accent), an apostrophe (straight or curly), PKMN, the é read as Latin-1 ("PokÃ©mon") or stored as it. */
+static const char *const POKEMON_SPELLINGS[] = {
+    "pok\xC3\x83\xC2\xA9mon", "pok\xC3\x83\xC2\x89mon", "poke\xE2\x80\x99mon", "poke\xCC\x81mon",
+    "pok\xC3\xA9mon",         "pok\xC3\x89mon",         "poke'mon",               "pokemon",
+    "pok\xE9mon",              "pok\xC9mon",              "pkmn",
+};
+/* The bytes of a spelling W starts with, when what follows is the word's end or punctuation ("Pokemon-",
+ * "Pokemon:", "Pokemon,", "Pokemon's" is not one); else 0. */
+static size_t pokemon_prefix(const char *w) {
+  for (size_t i = 0; i < sizeof POKEMON_SPELLINGS / sizeof *POKEMON_SPELLINGS; i++) {
+    const char *s = POKEMON_SPELLINGS[i];
+    size_t n = strlen(s), k = 0;
+    for (; k < n && w[k]; k++) {
+      unsigned char a = (unsigned char)w[k], b = (unsigned char)s[k];
+      if (a == b || (a < 0x80 && tolower(a) == b))
+        continue;
+      break;
+    }
+    if (k == n && (!w[n] || strchr("-:,.!_", w[n])))
+      return n;
+  }
+  return 0;
+}
 static bool is_pokemon_word(const char *w) {
-  if (!strcasecmp(w, "pokemon"))
-    return true;
-  // "Pokémon" / "POKéMON" / "POKÉMON": "pok", an é (C3 A9) or É (C3 89), "mon".
-  return strlen(w) == 8 && !strncasecmp(w, "pok", 3) && (unsigned char)w[3] == 0xC3 &&
-         ((unsigned char)w[4] == 0xA9 || (unsigned char)w[4] == 0x89) && !strcasecmp(w + 5, "mon");
+  size_t n = pokemon_prefix(w);
+  if (!n)
+    return false;
+  for (w += n; *w; w++)
+    if (!strchr("-:,.!_", *w))
+      return false;
+  return true;
+}
+/* "Poke" / "Poké" / "POKÉ", the first half of a split "Poké mon". */
+static bool is_poke_half(const char *w) {
+  return !strcasecmp(w, "poke") || !strcasecmp(w, "pok\xC3\xA9") || !strcasecmp(w, "pok\xC3\x89") ||
+         (!strncasecmp(w, "pok", 3) && ((unsigned char)w[3] == 0xC3) &&
+          ((unsigned char)w[4] == 0xA9 || (unsigned char)w[4] == 0x89) && !w[5]);
 }
 
 /* "v1", "v1.2.3", "V2.0b", "1.0", "1.2.3": a version, dropped. */
@@ -123,28 +155,74 @@ void game_display_name(const char *file, bool pokemon, char *out, size_t size) {
       continue;
     if (c == '_')
       c = ' ';
+    // A dot between two words of letters is a gap ("Pokemon.Fire.Ash"); "R.O.W.E." and "1.2" keep theirs.
+    if (c == '.' && p - s >= 2 && isalpha((unsigned char)p[-1]) && isalpha((unsigned char)p[-2]) &&
+        isalpha((unsigned char)p[1]) && isalpha((unsigned char)p[2]))
+      c = ' ';
     if (c == '-' && (p == s || p[-1] == ' ' || p[1] == ' ' || !p[1]))
       c = '\x01'; // a break between parts: the next word starts one ("Zelda - The Minish Cap")
     clean[n++] = c;
   }
   clean[n] = 0;
   // Words.
+  char *raw[64];
+  bool rawStart[64];
+  int rawCount = 0;
+  for (char *tok = strtok(clean, " \t\x01"); tok && rawCount < 64; tok = strtok(NULL, " \t\x01")) {
+    rawStart[rawCount] = tok > clean + 1 && (tok[-2] == '\x01' || tok[-1] == '\x01');
+    raw[rawCount++] = tok;
+  }
   char *words[64];
   bool starts[64];
   int count = 0;
-  bool hadPokemon = false, start = true;
-  for (char *tok = strtok(clean, " \t\x01"); tok && count < 64; tok = strtok(NULL, " \t\x01")) {
-    if (tok > clean + 1 && (tok[-2] == '\x01' || tok[-1] == '\x01'))
+  bool hadPokemon = false, pocketMonsters = false, start = true;
+  for (int i = 0; i < rawCount; i++) {
+    char *tok = raw[i];
+    if (rawStart[i])
       start = true;
+    // "The Pokemon ...": the "The" goes with it.
+    if (!count && !hadPokemon && !strcasecmp(tok, "the") && i + 1 < rawCount && is_pokemon_word(raw[i + 1]))
+      continue;
+    // "Poké mon" written apart.
+    if (is_poke_half(tok) && i + 1 < rawCount && is_pokemon_word(raw[i + 1]) == false &&
+        !strncasecmp(raw[i + 1], "mon", 3) && (!raw[i + 1][3] || strchr("-:,.!", raw[i + 1][3]))) {
+      hadPokemon = true;
+      i++;
+      continue;
+    }
     if (is_pokemon_word(tok)) {
       hadPokemon = true;
       continue;
     }
+    // "Pokemon-Fire-Ash": the word first, the rest a word of its own.
+    size_t pre = pokemon_prefix(tok);
+    if (pre && tok[pre]) {
+      hadPokemon = true;
+      tok += pre;
+      while (*tok && strchr("-:,.!_", *tok))
+        tok++;
+      if (!*tok)
+        continue;
+    }
     if (is_version(tok))
+      continue;
+    // "Ver." / "Ver" before or after a version: the version's word.
+    if (count && (!strcasecmp(tok, "ver") || !strcasecmp(tok, "ver.")))
+      continue;
+    if (!strcasecmp(tok, "pocket") && i + 1 < rawCount && !strncasecmp(raw[i + 1], "monsters", 8))
+      pocketMonsters = true;
+    // A stray "," or ":" of its own.
+    if (!strcmp(tok, ",") || !strcmp(tok, ":") || !strcmp(tok, "-"))
       continue;
     starts[count] = start;
     start = false;
     words[count++] = tok;
+  }
+  // A trailing comma ("Fire Ash, Pokemon") goes.
+  for (int i = 0; i < count; i++) {
+    size_t l = strlen(words[i]);
+    if (l > 1 && words[i][l - 1] == ',' && (i == count - 1))
+      words[i][l - 1] = 0;
   }
   // English "Version" after the name goes ("FireRed Version", "Yellow Version Special Pikachu Edition"); one that
   // starts it ("Version Jaune") stays.
@@ -161,7 +239,8 @@ void game_display_name(const char *file, bool pokemon, char *out, size_t size) {
     words[count - 1][strlen(words[count - 1]) - 1] = 0;
   out[0] = 0;
   size_t used = 0;
-  if (hadPokemon || pokemon)
+  // "Pocket Monsters" (the Japanese carts' own name) stays as it is, without the word put in front as well.
+  if (hadPokemon || (pokemon && !pocketMonsters))
     used = (size_t)snprintf(out, size, "%s", count ? POKEMON " " : POKEMON);
   for (int i = 0; i < count && used + 1 < size; i++) {
     case_word(words[i], i == 0 || starts[i]);
