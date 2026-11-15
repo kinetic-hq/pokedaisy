@@ -696,7 +696,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `LOOK AROUND`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
 | `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `FILTER`, `GRID`, `DIM COMPANION`, `BACKGROUND`, `UI SIZE`, `WING ROOM`, `WING LOOK`, `STRETCH`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE INFO`, `BATTLE HINTS`, `BATTLE VIEW`, `ONE-TAP MOVES`, `FOE IVS`, `BATTLE FOCUS`, `TAB BAR` | |
-| `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `RUMBLE`; `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
+| `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `RUMBLE`; `CONTROL HINTS` (the controls under a PC fan game's picture, on at first); `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
 | `APP` | | `BATTERY SAVER`, `THIS GAME ONLY`, `RESUME GAMES`, `CHECK FOR UPDATES` |
 
 Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close

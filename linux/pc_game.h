@@ -60,6 +60,17 @@ int pc_mkxp_json(const char *text, const struct pc_mkxp_overrides *o, char *out,
 #define PC_PARTY_MAX 6
 #define PC_WILD_MAX 16
 #define PC_FOES_MAX 3
+/* The game's buttons (RPG Maker's Input letters, F5 and the arrows), as the companion names them in pad_keys and
+ * pad_roles. */
+enum pc_pad_button {
+  PC_PAD_C, PC_PAD_B, PC_PAD_A, PC_PAD_X, PC_PAD_Y, PC_PAD_Z, PC_PAD_L, PC_PAD_R, PC_PAD_F5,
+  PC_PAD_UP, PC_PAD_DOWN, PC_PAD_LEFT, PC_PAD_RIGHT, PC_PAD_BUTTONS
+};
+enum pc_pad_mode {
+  PC_PAD_UNKNOWN, // not said yet (or no companion)
+  PC_PAD_NATIVE,  // the game reads the controller itself (mkxp-z's own Input)
+  PC_PAD_KEYS,    // the game reads only the keyboard: PokeDaisy presses its keys for the controller's buttons
+};
 struct pc_mon {
   char species[40], name[40], item[40], status[4], icon[200], id[24];
   char types[2][12];
@@ -87,8 +98,31 @@ struct pc_state {
   int foeTeam, foeAlive; // a trainer's party size and those still standing (0 / 0: wild)
   int screenW, screenH;  // the size the game draws at (0: not known)
   int seen, caught;      // the dex's counts (-1... 0: not known)
+  int pad;               // enum pc_pad_mode
+  unsigned char padVk[PC_PAD_BUTTONS];  // PC_PAD_KEYS: the key (a Windows key code) the game ties to each button
+  char padRole[PC_PAD_BUTTONS][24];     // what the game does with each button ("CONFIRM", "BACK/MENU"), else ""
 };
 bool pc_state_parse(const char *json, struct pc_state *out);
+/* The controller's buttons as PokeDaisy reads them (BUTTON LAYOUT already applied: A is the confirming one), and the
+ * game's button each one is (enum pc_pad_button), or -1: what PokeDaisy presses in PC_PAD_KEYS, and what mkxp-z's own
+ * reading does in PC_PAD_NATIVE (A C, B B, X A, Y X, the shoulders L and R, R3 Z). With keys, START is the game's
+ * menu button and SELECT its registered item key (F5) where it has one, else Y. */
+enum pc_pad_in {
+  PC_IN_A, PC_IN_B, PC_IN_X, PC_IN_Y, PC_IN_L, PC_IN_R, PC_IN_R3, PC_IN_SELECT, PC_IN_START,
+  PC_IN_UP, PC_IN_DOWN, PC_IN_LEFT, PC_IN_RIGHT, PC_INS
+};
+int pc_pad_target(const struct pc_state *s, int in);
+/* PC_PAD_KEYS: the keys to hold down (DOWN[vk]) for the buttons held (HELD: 1 << enum pc_pad_in). SELECT and START
+ * together (GAME MENU's chord) press neither. */
+void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]);
+/* CONTROL HINTS: the buttons to show under the picture and what each does in this game, in the pad's order; the
+ * count. XBOX names the shoulders LB and RB. */
+struct pc_hint {
+  char button[8];
+  char label[24];
+};
+int pc_pad_hints(const struct pc_state *s, bool xbox, struct pc_hint *out, int max);
+
 /* A type's id ("FIRE", "Fire") as PokeDaisy's type number: the GBA's order with Fairy as 9 (pd_ds_types); -1 for one
  * the wings don't know (a fan game's own). */
 int pc_type_index(const char *id);
@@ -159,6 +193,22 @@ bool pc_client_rect(int *x, int *y, int *w, int *h);
 /* PokeDaisy's window (SELF, OW x OH) as it looks with the game's window over it, into OUT (XRGB), whatever else is in
  * front of them on the desktop (for the screen check). */
 bool pc_compose(void *self, int ow, int oh, uint32_t *out);
+/* BUTTON LAYOUT for the game's own player (an SDL one: mkxp-z, the player older games borrow): every pad read by
+ * the buttons' places, as PokeDaisy reads them (SDL would otherwise swap a Nintendo-labelled pad's), and with
+ * NINTENDO, MAPPINGS (SDL mapping lines with the face buttons swapped, pc_swap_face) so the right button confirms.
+ * Set in PokeDaisy's environment just before the game starts, which the game's player inherits. */
+void pc_pad_env(const char *mappings);
+/* One SDL mapping line with A and B, X and Y swapped (the NINTENDO layout), a bus-and-IDs GUID's CRC part zeroed so
+ * any SDL version matches it (SDL's own XInput GUID kept as it is). False when it isn't a mapping line or OUT is too
+ * small. */
+bool pc_swap_face(const char *mapping, char *out, size_t size);
+/* PokeDaisy's own window (SELF) has the foreground: switched back to (Alt+Tab, the taskbar, a side app), so the
+ * game's window gets it again. */
+bool pc_self_foreground(void *self);
+/* PC_PAD_KEYS: the game's keys pressed and let go so that the ones held are DOWN (NULL: none), by their scan codes
+ * (so a game asking Windows for the keys' state sees them), and only while the game's window has the foreground:
+ * switched away, every key is let go. */
+void pc_keys_send(const bool *down);
 /* Hides the game's window (PokeDaisy's menu is over it) or shows it again. */
 void pc_show(bool shown);
 /* Asks the game to close as its own close button would; force: ends it. */

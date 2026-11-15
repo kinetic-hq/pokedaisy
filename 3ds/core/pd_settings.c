@@ -284,7 +284,7 @@ bool pd_settings_load(struct pd_settings* s, const char* path) {
                     : !strcmp(key, "mute") ? &s->gameMuted
                     : !strcmp(key, "aspectpicked") ? &s->aspectPicked : !strcmp(key, "autorun") ? &s->autoRun : !strcmp(key, "updatecheck") ? &s->updateCheck
                     : !strcmp(key, "dim") ? &s->dimCompanion : !strcmp(key, "savesbeside") ? &s->savesBeside
-                    : !strcmp(key, "reducemotion") ? &s->reduceMotion : !strcmp(key, "levelcap") ? &s->levelCap : !strcmp(key, "instanttext") ? &s->instantText : !strcmp(key, "reusabletms") ? &s->reusableTms : !strcmp(key, "tradeevos") ? &s->tradeEvolutions : !strcmp(key, "resume") ? &s->resumeGames : !strcmp(key, "rumble") ? &s->rumble
+                    : !strcmp(key, "reducemotion") ? &s->reduceMotion : !strcmp(key, "levelcap") ? &s->levelCap : !strcmp(key, "instanttext") ? &s->instantText : !strcmp(key, "reusabletms") ? &s->reusableTms : !strcmp(key, "tradeevos") ? &s->tradeEvolutions : !strcmp(key, "resume") ? &s->resumeGames : !strcmp(key, "rumble") ? &s->rumble : !strcmp(key, "nopchints") ? &s->hidePcHints
                     : !strcmp(key, "boxart") ? &s->boxartAuto : NULL;
             if (b && int_in(value, 0, 1, &on)) *b = on;
         }
@@ -321,6 +321,7 @@ bool pd_settings_save(const struct pd_settings* s, const char* path) {
     fprintf(f, "quickbtn=%d\ncompanionbtn=%d\nhudbtn=%d\n", s->quickBtn, s->companionBtn, s->hudBtn);
     fprintf(f, "levelcap=%d\nresume=%d\nrumble=%d\nbatterysaver=%d\n", s->levelCap ? 1 : 0, s->resumeGames ? 1 : 0,
             s->rumble ? 1 : 0, s->batterySaver);
+    fprintf(f, "nopchints=%d\n", s->hidePcHints ? 1 : 0);
     fprintf(f, "dark=%d\ntheme=%d\nffnormal=%d\ncheats=%d\n", s->darkMode, s->theme, s->ffNormal, s->cheats);
     fprintf(f, "gamespeed=%d\nvolume=%d\nnohints=%d\nonetap=%d\nmute=%d\nautorun=%d\nperf=%d\n", PD_GAME_SPEED_PCT[s->gameSpeed],
             s->gameVolume, s->hideHints, s->oneTapMoves, s->gameMuted, s->autoRun, s->showPerf ? 1 : 0);

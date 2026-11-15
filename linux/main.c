@@ -3406,6 +3406,7 @@ static void settings_host_wide(struct pd_settings *dst, const struct pd_settings
   dst->updateCheck = src->updateCheck;
   dst->resumeGames = src->resumeGames;
   dst->rumble = src->rumble;
+  dst->hidePcHints = src->hidePcHints;
   dst->batterySaver = src->batterySaver;
   dst->fullscreen = src->fullscreen;
   dst->savesBeside = src->savesBeside;
@@ -3633,7 +3634,42 @@ static bool pcWide;
 /* The bars above and below the picture (WING ROOM leaves them room): the place, the clock and the battery, the
  * badges, play time and money on top; the dex, ZOOM and SPEED, and what's wild here below. */
 static SDL_Texture *pcBarTexture[2];
-static void pc_bar_draw(int which, SDL_Rect box, const struct pc_state *s, int scale, int zoom, int ff) {
+/* CONTROL HINTS: the controller's buttons (as BUTTON LAYOUT names them) and what each does in this game, a button
+ * drawn as the pad shows it (XBOX: A green, B red, X blue, Y yellow; the shoulders and START a dark pill), in the
+ * bar under the picture. False when there are none to show (the game hasn't said how it reads the pad yet). */
+static bool pc_hints_canvas(struct pd_canvas *c, const struct pc_state *s) {
+  struct pc_hint hint[9];
+  int n = pc_pad_hints(s, buttonLayout == PD_LAYOUT_XBOX, hint, 9);
+  if (!n)
+    return false;
+  int f = pd_title_box(c, 0, 0, c->w, c->h, PD_TITLE_FILL);
+  int room = c->w - 2 * (f + 6), y = pd_text_y(0, c->h), gap = 10;
+  int bw[9], total = 0, shown = 0;
+  for (int i = 0; i < n; i++) {
+    int glyph = strlen(hint[i].button) == 1 ? 11 : pd_text_width(hint[i].button) + 6;
+    bw[i] = glyph + 3 + pd_text_width(hint[i].label);
+    if (total + (shown ? gap : 0) + bw[i] > room)
+      break; // what doesn't fit is left off, from the end
+    total += (shown ? gap : 0) + bw[i];
+    shown++;
+  }
+  bool xbox = buttonLayout == PD_LAYOUT_XBOX;
+  int x = (c->w - total) / 2;
+  for (int i = 0; i < shown; i++) {
+    const char *b = hint[i].button;
+    bool face = strlen(b) == 1 && strchr("ABXY", b[0]);
+    uint32_t fill = 0x4A4A52;
+    if (face && xbox)
+      fill = b[0] == 'A' ? 0x3F9B35 : b[0] == 'B' ? 0xC8382F : b[0] == 'X' ? 0x2F6BC8 : 0xC99A1C;
+    int gw = face ? 11 : pd_text_width(b) + 6;
+    pd_round_rect(c, x, y + 2, gw, 11, face ? 5 : 3, fill);
+    pd_text(c, x + (gw - pd_text_width(b)) / 2 + (face ? 1 : 0), y, b, 0xFFFFFF, PD_NO_SHADOW);
+    pd_text(c, x + gw + 3, y, hint[i].label, PD_LABEL, PD_LABEL_SHADOW);
+    x += bw[i] + gap;
+  }
+  return true;
+}
+static void pc_bar_draw(int which, SDL_Rect box, const struct pc_state *s, int scale, int zoom, int ff, bool hints) {
   if (box.w < 64 || box.h < 12 || !s->valid)
     return;
   if (box.h / 12 < scale) // a bar at least 12 canvas pixels tall
@@ -3689,7 +3725,8 @@ static void pc_bar_draw(int which, SDL_Rect box, const struct pc_state *s, int s
   struct pocket_wing_look wl;
   pocket_wing_look_begin(background, &wl);
   pd_fill(&pc, 0, 0, w, h, panel_back());
-  pd_ui_strip(&pc, a, b, c);
+  if (!(which == 1 && hints && pc_hints_canvas(&pc, s)))
+    pd_ui_strip(&pc, a, b, c);
   pocket_wing_look_end(&wl);
   SDL_UpdateTexture(pcBarTexture[which], &(SDL_Rect){0, 0, w, h}, panelPixels, w * 4);
   SDL_Rect dst = {box.x + (box.w - w * scale) / 2, box.y + (box.h - h * scale) / 2, w * scale, h * scale};
@@ -3908,6 +3945,30 @@ static void pc_play(const char *path) {
   if (capture && !getenv("POCKET_PC_ZOOM")) // the whole picture first (RT zooms in for this play only)
     zoom = 0;
   pc_commands(cmdPath, ff, instant, zoom);
+  // BUTTON LAYOUT reaches the game's own player here and nowhere else: by the buttons' places, and with NINTENDO
+  // every pad's face buttons swapped (the right one confirms), the generic XInput pad's too.
+  {
+    static char maps[4096];
+    maps[0] = 0;
+    if (buttonLayout != PD_LAYOUT_XBOX) {
+      char line[1024];
+      size_t at = 0;
+      for (int i = 0; i <= padCount; i++) {
+        char *m = i < padCount ? SDL_GameControllerMapping(pads[i]) : NULL;
+        const char *from = i < padCount ? m
+                                        : "78696e70757401000000000000000000,XInput Controller,a:b0,b:b1,back:b6,"
+                                          "dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b10,leftshoulder:b4,"
+                                          "leftstick:b8,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b9,"
+                                          "righttrigger:a5,rightx:a3,righty:a4,start:b7,x:b2,y:b3,";
+        if (from && pc_swap_face(from, line, sizeof line) && at + strlen(line) + 2 < sizeof maps) {
+          at += (size_t)snprintf(maps + at, sizeof maps - at, "%s\n", line);
+        }
+        if (m)
+          SDL_free(m);
+      }
+    }
+    pc_pad_env(maps);
+  }
   if (!pc_start(&info, dir, jsonPath, cmdPath)) {
     appError = 1;
     notice("Couldn't start the game");
@@ -3943,6 +4004,7 @@ static void pc_play(const char *path) {
   long played = capture ? pc_played_read(playedPath) : 0;
   uint32_t playedTick = SDL_GetTicks();
   held = pressed = 0;
+  const char *padScript = getenv("POCKET_PC_PAD_SCRIPT");
   while (running && pc_running()) {
     events();
     uint32_t now = SDL_GetTicks();
@@ -3971,6 +4033,7 @@ static void pc_play(const char *path) {
     }
     if (menu && !closing) {
       chordSince = 0;
+      pc_keys_send(NULL);
       pc_show(false);
       pc_focus_self();
       static const char *const rows[] = {"BACK TO THE GAME", "CLOSE GAME", "FAST FORWARD", "INSTANT TEXT",
@@ -4034,13 +4097,66 @@ static void pc_play(const char *path) {
       start = now;
       placed = focused = false;
     }
-    // The game's window kept where it belongs (the game resizes it when it starts, Alt+Enter, ...).
+    // The game's window kept where it belongs (the game resizes it when it starts, Alt+Enter, ...), and after a
+    // switch away and back (Alt+Tab, the Windows key, a side app, sleep): PokeDaisy full screen again, its size
+    // read anew (the screen's mode may have changed meanwhile), the room laid out for it, and the game's window
+    // given the keyboard and the controller again (PokeDaisy's own window has them after the switch).
     if (now - lastPlace > (capture ? 250u : 30u)) {
       lastPlace = now;
-      placed = capture ? pc_capture_place(self, placed && !focused)
-                       : pc_place(self, wx + gx, wy + gy, gw, gh, placed && !focused);
-      if (placed && !focused)
-        focused = true;
+      Uint32 flags = SDL_GetWindowFlags(window);
+      if (flags & SDL_WINDOW_MINIMIZED) {
+        placed = false; // the game's window is hidden with PokeDaisy's; placed again when it's back
+        focused = false;
+      } else {
+        if (!sized && (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP)
+          SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        int nw = ow, nh = oh, nx = wx, ny = wy;
+        SDL_GetWindowSize(window, &nw, &nh);
+        SDL_GetWindowPosition(window, &nx, &ny);
+        if (nw != ow || nh != oh || nx != wx || ny != wy) {
+          fprintf(stderr, "PC game: PokeDaisy's window is now %d,%d %dx%d (was %d,%d %dx%d)\n", nx, ny, nw, nh, wx, wy,
+                  ow, oh);
+          ow = nw, oh = nh, wx = nx, wy = ny;
+          if (SDL_GetRendererOutputSize(renderer, &rw, &rh) < 0)
+            rw = ow, rh = oh;
+          if (pcWide)
+            pc_wide_layout(ow, oh, room, &lay);
+          else
+            pc_layout_for(ow, oh, baseW, baseH, room, &lay);
+          gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
+          pcWindowW = gw, pcWindowH = gh;
+          pc_commands(cmdPath, ff, instant, zoom);
+        }
+        bool give = placed && (!focused || pc_self_foreground(self));
+        placed = capture ? pc_capture_place(self, give) : pc_place(self, wx + gx, wy + gy, gw, gh, give);
+        if (placed && !focused)
+          focused = true;
+      }
+    }
+    // THE CONTROLLER in a game that reads only the keyboard (the companion says PC_PAD_KEYS): the game's own keys
+    // pressed for the buttons held (BUTTON LAYOUT already applied), while its window has the foreground. GUIDE, L3,
+    // LT and RT stay PokeDaisy's. POCKET_PC_PAD_SCRIPT (checks): "ms:mask,..." holds those buttons (1 << enum
+    // pc_pad_in) from that time on, in place of the controller.
+    if (state.pad == PC_PAD_KEYS) {
+      static const int from[PC_INS] = {A, B, X, Y, L, R, R3, SELECT, START, UP, DOWN, LEFT, RIGHT};
+      unsigned in = 0;
+      for (int i = 0; i < PC_INS; i++)
+        if (held & (1u << from[i]))
+          in |= 1u << i;
+      if (padScript) {
+        in = 0;
+        for (const char *q = padScript; q && *q;) {
+          unsigned long at = strtoul(q, (char **)&q, 10);
+          unsigned long mask = *q == ':' ? strtoul(q + 1, (char **)&q, 16) : 0;
+          if (now - start >= at)
+            in = (unsigned)mask;
+          q = strchr(q, ',');
+          q = q ? q + 1 : NULL;
+        }
+      }
+      bool down[256];
+      pc_pad_keys(&state, in, down);
+      pc_keys_send(down);
     }
     // The companion's news.
     struct stat sb;
@@ -4161,9 +4277,10 @@ static void pc_play(const char *path) {
       pc_wing_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, &state, info.dir, rh);
       int bs = (int)(gx * kx) / 120 < rh / 300 ? (int)(gx * kx) / 120 : rh / 300;
       if (lay.bar > 0) {
-        pc_bar_draw(0, (SDL_Rect){(int)(gx * kx), 0, (int)(gw * kx), (int)(gy * kx)}, &state, bs > 0 ? bs : 1, zoom, ff);
+        pc_bar_draw(0, (SDL_Rect){(int)(gx * kx), 0, (int)(gw * kx), (int)(gy * kx)}, &state, bs > 0 ? bs : 1, zoom, ff,
+                    false);
         pc_bar_draw(1, (SDL_Rect){(int)(gx * kx), (int)((gy + gh) * kx), (int)(gw * kx), rh - (int)((gy + gh) * kx)},
-                    &state, bs > 0 ? bs : 1, zoom, ff);
+                    &state, bs > 0 ? bs : 1, zoom, ff, !st.hidePcHints);
       }
     }
     SDL_RenderPresent(renderer);
@@ -4199,6 +4316,7 @@ static void pc_play(const char *path) {
     SDL_SetWindowBordered(window, SDL_TRUE);
   else if (!wasFull)
     SDL_SetWindowFullscreen(window, 0);
+  pc_keys_send(NULL); // the game's keys let go
   SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "0");
   pc_focus_self();
   held = pressed = 0;
@@ -6453,6 +6571,7 @@ enum {
   ROW_BEZEL_STYLE,
   ROW_BEZEL,
   ROW_RUMBLE,
+  ROW_PC_HINTS,
   ROW_SAVER,
   ROW_SCREEN_LAYOUT,
   ROW_LIST_TOP,
@@ -6564,6 +6683,7 @@ static int settings_page(bool *foldersChanged) {
       ROW(ROW_BUTTONS, "GAME BUTTONS" PD_MENU_PAGE);
       ROW(ROW_HOTKEYS, "HOTKEYS" PD_MENU_PAGE);
       ROW(ROW_RUMBLE, "RUMBLE\t%s", st.rumble ? "ON" : "OFF");
+      ROW(ROW_PC_HINTS, "CONTROL HINTS\t%s", st.hidePcHints ? "OFF" : "ON");
       ROW(0, PD_MENU_GROUP "APP");
       {
         static const char *const SAVER[PD_SAVER_COUNT] = {"AUTO", "ON", "OFF"};
@@ -6777,6 +6897,9 @@ static int settings_page(bool *foldersChanged) {
     case ROW_SAVER:
       st.batterySaver = (st.batterySaver + 1) % PD_SAVER_COUNT;
       saverMode = st.batterySaver;
+      break;
+    case ROW_PC_HINTS:
+      st.hidePcHints = !st.hidePcHints;
       break;
     case ROW_RUMBLE:
       st.rumble = !st.rumble;
