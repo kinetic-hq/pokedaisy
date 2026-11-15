@@ -247,6 +247,7 @@ enum pd_action {
     PD_ACTION_SETTINGS_CHANGED,
     PD_ACTION_STATE_SLOT, // STATES picked another slot: ui.actionSlot
     PD_ACTION_RESTART_GAME,
+    PD_ACTION_ZOOM_LEVEL, // ZOOM's pick-list: the step in ui.actionZoom
     PD_ACTION_ITEM_PICK, // USE / GIVE: who it can go to (ui.itemId, ui.itemGive) is wanted
     PD_ACTION_ITEM_APPLY, // ... and the pick: ui.itemSlot, ui.itemMove
     PD_ACTION_ITEM_TAKE, // TAKE from ui.summarySlot's Pokémon
@@ -270,6 +271,7 @@ struct pd_item_slot {
 
 // STATES: the slots, as the host keeps them. thumb: the game at a quarter of its size (120x80 RGB, 0xRRGGBB), or NULL.
 #define PD_STATE_SLOTS 10
+#define PD_ZOOM_MAX 8 // pd_host_info's zoom steps
 #define PD_STATE_THUMB_W 120
 #define PD_STATE_THUMB_H 80
 struct pd_state_slot {
@@ -288,6 +290,10 @@ struct pd_host_info {
     bool hideScreenMode; // Optional: host owns display scaling. Zero keeps the 3DS row.
     bool hasExpand;      // Optional: the host can EXPAND (ASPECT / AUTO ZOOM IN rows) ...
     bool expandGame;     // ... and does for this game (else ASPECT reads N/A)
+    // ... and its zoom steps (ZOOM's pick-list under ASPECT, off ORIGINAL): how many, the one in use, each as a percent
+    // of the closest. Fewer than two: no ZOOM row.
+    int zoomCount, zoomLevel;
+    int zoomPercent[PD_ZOOM_MAX];
     bool hasHud;         // Optional: the host draws the HUD over the game (its SETTINGS row)
     bool hasLookAround;  // Optional: the host's EXPAND follows the right stick (LOOK AROUND's row)
     bool hasCompanionView; // Optional: COMPANION VIEW's row (settings.companionView) ...
@@ -378,6 +384,7 @@ enum pd_overlay {
     PD_OVERLAY_LAYOUT,    // COMPANION VIEW's drawn picker (host->layouts)
     PD_OVERLAY_PICK_SCENE, // a SCENE SPEEDS row's pick-list (ui->sceneRow)
     PD_OVERLAY_PICK_SHINY, // SHINY ODDS' pick-list
+    PD_OVERLAY_PICK_ZOOM,  // ZOOM's pick-list (the host's zoom steps)
     PD_OVERLAY_NUZ_PICK,    // NUZLOCKE: an encounter's CAUGHT / MISSED / NOT USED (ui->nuzKey: its area)
     PD_OVERLAY_NUZ_CONFIRM, // NUZLOCKE: a Pokemon marked fainted or brought back, or NEW RUN (ui->nuzConfirm)
 };
@@ -638,6 +645,8 @@ struct pd_ui {
     struct pd_settings* settings;
     enum pd_action action;
     int actionSlot;
+    int actionZoom; // PD_ACTION_ZOOM_LEVEL's step
+    int zoomCount, zoomLevel, zoomPercent[PD_ZOOM_MAX]; // the host's zoom steps, kept from the last SETTINGS draw
 
     bool touching, dragging, touchScroll;
     int touchX0, touchY0, touchLastY;

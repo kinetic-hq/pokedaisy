@@ -738,7 +738,7 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 | `FF / SPEED` | `FF`, `FF SPEED`, `GAME SPEED`, `REWIND`, `SPEED OPTIONS` (`SCENE SPEEDS`, `FF MODE`, `FF MUSIC`) | |
 | `SOUND` | `GAME VOLUME`, `MUTE GAME` | |
 | `GAMEPLAY` | `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS`, `INSTANT TEXT`, `REUSABLE TMS`, `TRADE EVOS`, `SHINY ODDS`, `NUZLOCKE` | `LEVEL CAP` |
-| `SCREEN` | `ASPECT`, `AUTO ZOOM IN`, `LOOK AROUND`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
+| `SCREEN` | `ASPECT`, `ZOOM`, `AUTO ZOOM IN`, `LOOK AROUND`, `HUD`, `DISPLAY OPTIONS`, `COMPANION VIEW`, `THEME`, `DARK MODE`, `FPS / CPU` | `COMPANION VIEW` adds `BATTLE WINGS`, `WINGS`, `GLASS DRAWER` and `STEP BACK` |
 | `SCREEN` > `DISPLAY OPTIONS` | `SHADER`, `COLORS`, `FILTER`, `GRID`, `DIM COMPANION`, `BACKGROUND`, `UI SIZE`, `WING ROOM`, `WING LOOK`, `STRETCH`, `REDUCE MOTION` | `FULLSCREEN`, `ORIENTATION`, `GAME TOUCH` |
 | `COMPANION` | `BATTLE INFO`, `BATTLE HINTS`, `BATTLE VIEW`, `ONE-TAP MOVES`, `FOE IVS`, `BATTLE FOCUS`, `TAB BAR` | |
 | `CONTROLS` | `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` | `RUMBLE`; `CONTROL HINTS` (the controls under a PC fan game's picture, on at first); `GAME BUTTONS` > `BUTTON LAYOUT`; `HOTKEYS` sets which button opens the quick menu, the companion and the HUD cursor |
@@ -747,6 +747,10 @@ sense on a phone (touch controls, the second screen, sign ins) are left out.
 Under the list are `CLOSE GAME` and `RESTART GAME`. Pages open with A and close
 with B. A DS game's companion keeps its own `SETTINGS` (the gear tab), which has
 `DS LAYOUT`, `DS WING SIDE` and `TOUCH WINDOW`.
+
+`ZOOM`, under `ASPECT` when it isn't `ORIGINAL`, shows how far you're zoomed
+in as a share of the closest step. Tap it to pick a step from a list instead of
+pressing LT or RT until you reach it.
 
 ## Shaders and colours
 
