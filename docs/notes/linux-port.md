@@ -93,6 +93,17 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   default keys (`pc_pad_mkxpz`: ENTER, ESC, SHIFT, A, S, D, Q, W, the arrows) through the PC_PAD_KEYS path. The
   player's F1 settings window is forced off in the shadow mkxp.json. Keys only reach a game whose window is in front,
   so a check on a desktop someone is using needs keys posted to the game's window instead.
+- **PAD FEED** (2026-11-16): keys failed on a handheld (Indigo, "doesn't work with controllers") wherever the game's
+  window didn't get the foreground (Windows refuses `SetForegroundWindow` from behind; a desktop in use showed it:
+  stuck on Indigo's CONTROLS screen) or the player's own `keybindings.mkxp1` (in `%APPDATA%/<Game.ini Title>`, next to
+  the saves, so it can't be redirected) no longer ties ENTER / ESC to C / B. Now `pc_start` sets `POKEDAISY_PC_PAD`
+  (`<pc dir>/pad.txt`), the companion wraps `Input.update` (at `pad_setup`, after the game's scripts redefined it) and
+  answers `press?` / `trigger?` / `repeat?` / `release?` / `dir4` / `dir8` from the mask too, and says `pad_feed`;
+  from then main.c writes `m<mask>;` (`pc_pad_mask`, bits of `enum pc_pad_button`) on each change and presses no key.
+  `pc_input_ours` decides whether the pad belongs to the game: not after a switch to another program that came after
+  the game had the foreground. Checked with a ViGEm X360 pad (a test helper of its own, ViGEmBus's IOCTLs) and an
+  observer preload logging `Input.press?` per frame. Note that `SDL_GetPrefPath` ignores an `APPDATA` override, so a
+  check run makes `%APPDATA%/<title>` even with one (delete it if it stays empty).
 - **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
   it a big window on a handheld's driver left too little of 2 GB and `load_data` of the battle animations failed with
   NoMemoryError.

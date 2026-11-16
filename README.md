@@ -598,6 +598,11 @@ Every change, one line each (a pull request that changes what the fork adds upda
   (Indigo and Eon Guardians turn them on), which stalled the game window over PokeDaisy's at about 7 frames a second
   and lost most presses. A quick tap on the controller now reaches a game that reads only the keyboard too: each
   press stays down at least 60 ms, and PokeDaisy checks the buttons every 8 ms while it presses the game's keys.
+- **mkxp-z fan games get the controller handed straight to them** (Indigo first): PokeDaisy no longer presses keys
+  for your buttons there, it writes the buttons held to a small file the companion reads at each of the game's input
+  updates. Keys only landed while Windows kept the game's window in front and the player's own key bindings were
+  untouched, so on some handhelds the pad did nothing. If you switch to another program, the game stops getting the
+  controller until you come back. Games that read only the keyboard still get their keys.
 
 </details>
 

@@ -103,11 +103,13 @@ their own options menu; use that one.
 
 ## Controllers
 
-The controller goes to the game through PokeDaisy: it presses the game's own
-keys for your controller's buttons, so the D-pad, the left stick, `A`, `B` and
-the rest work in every game with wings, whichever controller your handheld
-lists first. Each button presses the key the game itself uses for it, and the
-game never gets a button twice. `START` opens the game's menu, and `SELECT`
+The controller goes to the game through PokeDaisy, so the D-pad, the left
+stick, `A`, `B` and the rest work in every game with wings, whichever
+controller your handheld lists first. In most games PokeDaisy hands your
+buttons straight to the game, so they work even when Windows keeps another
+window in front of the game or the game's own key settings were changed. In
+games that only read the keyboard, it presses the key the game itself uses for
+each button. Either way the game never gets a button twice. `START` opens the game's menu, and `SELECT`
 uses your registered item in games that have one. The `GUIDE` button, `L3`,
 `LT` and `RT` stay PokeDaisy's. The keyboard works as the game sets it up.
 

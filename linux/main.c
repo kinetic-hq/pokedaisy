@@ -4152,6 +4152,9 @@ static void pc_play(const char *path) {
   uint32_t playedTick = SDL_GetTicks();
   held = pressed = 0;
   const char *padScript = getenv("POCKET_PC_PAD_SCRIPT");
+  char padPath[1300];
+  snprintf(padPath, sizeof padPath, "%s/pad.txt", dir);
+  unsigned fedMask = 0;
   while (running && pc_running()) {
     events();
     uint32_t now = SDL_GetTicks();
@@ -4181,6 +4184,8 @@ static void pc_play(const char *path) {
     if (menu && !closing) {
       chordSince = 0;
       pc_keys_send(NULL);
+      if (fedMask && pc_pad_feed(padPath, 0))
+        fedMask = 0;
       pc_show(false);
       pc_focus_self();
       static const char *const rows[] = {"BACK TO THE GAME", "CLOSE GAME", "FAST FORWARD", "INSTANT TEXT",
@@ -4306,9 +4311,21 @@ static void pc_play(const char *path) {
           q = q ? q + 1 : NULL;
         }
       }
-      bool down[256];
-      pc_pad_keys(&state, in, down);
-      pc_keys_send(down);
+      if (state.padFeed) {
+        // PAD FEED: the companion reads the buttons itself (pc_pad_feed), no key pressed, so neither the foreground
+        // nor the player's own key bindings stand in the way. Until it says so, the keys above.
+        pc_keys_send(NULL);
+        unsigned mask = pc_input_ours(self) ? pc_pad_mask(&state, in) : 0;
+        if (mask != fedMask && pc_pad_feed(padPath, mask)) {
+          if (getenv("POCKET_PC_DEBUG"))
+            fprintf(stderr, "PC game: pad feed %03X\n", mask);
+          fedMask = mask;
+        }
+      } else {
+        bool down[256];
+        pc_pad_keys(&state, in, down);
+        pc_keys_send(down);
+      }
     }
     // The companion's news.
     struct stat sb;
