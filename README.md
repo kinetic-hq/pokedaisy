@@ -601,7 +601,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **mkxp-z fan games get the controller handed straight to them** (Indigo first): PokeDaisy no longer presses keys
   for your buttons there, it writes the buttons held to a small file the companion reads at each of the game's input
   updates. Keys only landed while Windows kept the game's window in front and the player's own key bindings were
-  untouched, so on some handhelds the pad did nothing. If you switch to another program, the game stops getting the
+  untouched, so on some handhelds the pad did nothing. The run button was SHIFT, which Windows can latch (Sticky Keys
+  after five quick presses, or a key-up lost while another window had the foreground), leaving the player running
+  all the time; no key is pressed now. If you switch to another program, the game stops getting the
   controller until you come back. Games that read only the keyboard still get their keys.
 
 </details>

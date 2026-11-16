@@ -101,7 +101,8 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   answers `press?` / `trigger?` / `repeat?` / `release?` / `dir4` / `dir8` from the mask too, and says `pad_feed`;
   from then main.c writes `m<mask>;` (`pc_pad_mask`, bits of `enum pc_pad_button`) on each change and presses no key.
   `pc_input_ours` decides whether the pad belongs to the game: not after a switch to another program that came after
-  the game had the foreground. Checked with a ViGEm X360 pad (a test helper of its own, ViGEmBus's IOCTLs) and an
+  the game had the foreground. The user also saw "everything is auto run": run is Input::A, pressed as SHIFT, which
+  Sticky Keys (five SHIFT presses) or a key-up sent while another window was in front leaves held. Checked with a ViGEm X360 pad (a test helper of its own, ViGEmBus's IOCTLs) and an
   observer preload logging `Input.press?` per frame. Note that `SDL_GetPrefPath` ignores an `APPDATA` override, so a
   check run makes `%APPDATA%/<title>` even with one (delete it if it stays empty).
 - **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
