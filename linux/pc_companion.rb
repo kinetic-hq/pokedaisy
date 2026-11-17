@@ -68,6 +68,7 @@ module PokeDaisyCompanion
       hook_text unless @textHooked
       hook_zoom unless @zoomHooked
       pad_setup unless @padDone
+      feed_check
       read_commands if CMD && t - (@cmdAt || 0) >= 0.25 && (@cmdAt = t)
       apply_zoom
       interval = @slow > 3 ? 2.0 : 0.5
@@ -163,46 +164,76 @@ module PokeDaisyCompanion
 
     def feed_setup
       return if @feedOn || !PAD || !File.exist?(PAD)
-      @feedBit = {}
-      PAD_BUTTONS.each_with_index do |b, i|
-        next unless Input.const_defined?(b)
-        v = Input.const_get(b)
-        @feedBit[v] = i
-        @feedBit[b.to_sym] = i
-      end
-      return if @feedBit.empty?
       @feedNow = @feedPrev = 0
       @feedHeld = Array.new(PAD_BUTTONS.size, 0)
-      # Ruby 1.8 too (XP games on a borrowed player): no singleton_class, no %i[], no File.binread.
-      (class << Input; self; end).class_eval do
-        alias_method :pokedaisy_feed_update, :update
-        def update(*a)
-          r = pokedaisy_feed_update(*a)
-          PokeDaisyCompanion.feed_read
-          r
-        end
-        [:press?, :trigger?, :repeat?, :release?].each do |m|
-          orig = :"pokedaisy_feed_#{m.to_s.delete('?')}"
-          next unless method_defined?(m)
-          alias_method orig, m
-          define_method(m) { |*a| PokeDaisyCompanion.feed?(m, a[0]) || send(orig, *a) }
-        end
-        [:dir4, :dir8].each do |m|
-          orig = :"pokedaisy_feed_#{m}"
-          next unless method_defined?(m)
-          alias_method orig, m
-          define_method(m) do |*a|
-            d = PokeDaisyCompanion.feed_dir(m == :dir8)
-            d == 0 ? send(orig, *a) : d
-          end
-        end
-      end
-      @feedOn = true
+      @feedMine = {}
+      @feedGen = 0
+      @feedOn = feed_wrap
     rescue Exception => e
       note(:feed, e)
     end
 
+    FEED_METHODS = [:update, :press?, :trigger?, :repeat?, :release?, :dir4, :dir8]
+
+    # Wraps each of Input's methods that isn't PokeDaisy's wrapper now. Run again every few frames (feed_check): a game
+    # whose scripts define Input afresh after its first screens (Awakening's own keyboard Input comes after its
+    # language choice) replaces the wrappers, and the controller stopped there. Its button numbers (Input::C...) may
+    # change with it, so they're read again too. Ruby 1.8 as well (XP games on a borrowed player): no singleton_class,
+    # no %i[], no File.binread.
+    def feed_wrap
+      bits = {}
+      PAD_BUTTONS.each_with_index do |b, i|
+        next unless Input.const_defined?(b)
+        bits[Input.const_get(b)] = i
+        bits[b.to_sym] = i
+      end
+      return false if bits.empty?
+      @feedBit = bits
+      sc = (class << Input; self; end)
+      changed = false
+      FEED_METHODS.each do |m|
+        next unless sc.method_defined?(m)
+        cur = sc.instance_method(m)
+        next if @feedMine[m] && @feedMine[m] == cur
+        @feedGen += 1
+        orig = :"pokedaisy_feed_#{@feedGen}"
+        sc.send(:alias_method, orig, m)
+        if m == :update
+          sc.send(:define_method, m) do |*a|
+            r = send(orig, *a)
+            PokeDaisyCompanion.feed_read
+            r
+          end
+        elsif m == :dir4 || m == :dir8
+          sc.send(:define_method, m) do |*a|
+            d = PokeDaisyCompanion.feed_dir(m == :dir8)
+            d == 0 ? send(orig, *a) : d
+          end
+        else
+          sc.send(:define_method, m) { |*a| PokeDaisyCompanion.feed?(m, a[0]) || send(orig, *a) }
+        end
+        @feedMine[m] = sc.instance_method(m)
+        changed = true
+      end
+      if changed && @feedGen > FEED_METHODS.size
+        @padDone = false # the game's Input changed: its mode, keys and roles are read again
+        note(:feedwrap, RuntimeError.new("Input redefined, wrapped again"))
+      end
+      true
+    end
+
+    def feed_check
+      feed_wrap if @feedOn
+    rescue Exception => e
+      note(:feedcheck, e)
+    end
+
     def feed_read
+      # Once a frame: a game's update that calls an earlier one (aliased) reaches two wrappers, and a second read would
+      # make this frame's press look held from the last one (trigger? false).
+      fc = (Graphics.frame_count rescue nil)
+      return if fc && fc == @feedFrame
+      @feedFrame = fc
       t = (File.open(PAD, 'rb') { |f| f.read } rescue nil)
       m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
       @feedPrev = @feedNow
