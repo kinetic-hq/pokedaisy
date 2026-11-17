@@ -4,6 +4,10 @@
 PADF = File.join(ENV['TEMP'] || '/tmp', 'pd_rewrap_pad.txt')
 File.open(PADF, 'wb') { |f| f.write("m0;\n") }
 ENV['POKEDAISY_PC_PAD'] = PADF
+RESTARTF = File.join(ENV['TEMP'] || '/tmp', 'pd_restart.txt')
+File.delete(RESTARTF) if File.exist?(RESTARTF)
+ENV['POKEDAISY_PC_RESTART'] = RESTARTF
+ENV['POKEDAISY_PC_EXE'] = 'Game.exe'
 module Graphics
   @fc = 0
   def self.frame_count; @fc; end
@@ -52,4 +56,20 @@ after = Input.trigger?(Input::C) && Input.press?(16)
 frame
 held = !Input.trigger?(Input::C) && Input.press?(Input::C)
 puts "redefined: before=#{before} after=#{after} held=#{held}"
-exit(ok && after && held ? 0 : 1)
+# A game whose loop runs Input.update more often than the frame count moves (Indigo): one press is one trigger?,
+# the cursor moves one row, not one for each update until the next frame.
+pad(0); frame
+pad(1 << 10) # DOWN (PAD_BUTTONS' 11th)
+triggers = 0
+3.times { Input.update; triggers += 1 if Input.trigger?(Input::DOWN) && Input.repeat?(Input::DOWN) }
+Graphics.tick
+3.times { Input.update; triggers += 1 if Input.trigger?(Input::DOWN) }
+once = triggers == 1 && Input.press?(Input::DOWN)
+pad(0); frame
+puts "one press, one trigger: #{once} (#{triggers})"
+# The game starting itself again (Indigo's VSync: Restart now?) is noted for PokeDaisy instead of run; anything else runs.
+started = system('start Game.exe') == true && File.exist?(RESTARTF)
+File.delete(RESTARTF) if File.exist?(RESTARTF)
+other = system('ruby -e "exit 0"') == true && !File.exist?(RESTARTF)
+puts "restart: #{started} other commands: #{other}"
+exit(ok && after && held && once && started && other ? 0 : 1)

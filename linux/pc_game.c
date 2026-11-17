@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #include "pocket_os.h"
 
@@ -857,13 +858,27 @@ void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]) {
 }
 
 bool pc_pad_feed(const char *path, unsigned mask) {
-  // Written in place, a few bytes: the companion takes only a whole "m<mask>;", so a read caught halfway keeps the
-  // buttons it had.
-  FILE *f = path ? fopen(path, "wb") : NULL;
-  if (!f)
+  // Kept open for the whole play and written in place, always the same 8 bytes ("m%05u;\n"), so nothing is cut short
+  // and a read caught halfway still takes only a whole "m<mask>;". Opened and closed for each press, the file was
+  // scanned by Windows' antivirus after every write and the game, opening it to read, waited for the scan: the game
+  // lagged after each button press.
+  static FILE *f;
+  static char at[1400];
+  if (!path || strcmp(path, at)) {
+    if (f)
+      fclose(f);
+    f = NULL;
+    at[0] = 0;
+    if (!path)
+      return true;
+    f = fopen(path, "wb");
+    if (!f)
+      return false;
+    snprintf(at, sizeof at, "%s", path);
+  }
+  if (!f || fseek(f, 0, SEEK_SET))
     return false;
-  bool ok = fprintf(f, "m%u;\n", mask) > 0;
-  return fclose(f) == 0 && ok;
+  return fprintf(f, "m%05u;\n", mask & 0xFFFFu) == 8 && fflush(f) == 0;
 }
 
 /* A key's name as a keyboard prints it ("S", "F5", "SHIFT"), else "". */
@@ -1272,6 +1287,19 @@ bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o,
   return true;
 }
 
+bool pc_restart_asked(const char *dir) {
+  char p[1400];
+  join(p, sizeof p, dir, "restart.txt");
+  struct stat sb;
+  if (stat(p, &sb))
+    return false;
+  remove(p);
+  // Only as the game closes to start again: a game that went on playing after it asked (the note left behind) is
+  // not started again when the player closes it later.
+  double age = difftime(time(NULL), sb.st_mtime);
+  return age >= -5 && age <= 60;
+}
+
 #ifdef _WIN32
 static PROCESS_INFORMATION proc;
 static HWND gameWindow;
@@ -1310,6 +1338,12 @@ bool pc_start(const struct pc_game_info *info, const char *dir, const char *json
   join(padFile, sizeof padFile, dir, "pad.txt");
   pc_pad_feed(padFile, 0);
   SetEnvironmentVariableA("POKEDAISY_PC_PAD", padFile);
+  // RESTART: the companion notes there a game starting its own exe again (pc_restart_asked), none yet.
+  char restartFile[1400];
+  join(restartFile, sizeof restartFile, dir, "restart.txt");
+  remove(restartFile);
+  SetEnvironmentVariableA("POKEDAISY_PC_RESTART", restartFile);
+  SetEnvironmentVariableA("POKEDAISY_PC_EXE", info->exe);
   wchar_t *wexe = wide(exe), *wdir = wide(from);
   if (!wexe || !wdir) {
     free(wexe);

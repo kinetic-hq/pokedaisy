@@ -232,9 +232,15 @@ static void test_pad(void) {
   FILE *f = fopen(feed, "rb");
   char got[16] = {0};
   assert(f && fread(got, 1, sizeof got - 1, f) > 0);
+  assert(!strcmp(got, "m00513;\n"));
+  // Written again in place, the reader's own handle (the companion keeps one) sees it without opening anew.
+  assert(pc_pad_feed(feed, 0));
+  memset(got, 0, sizeof got);
+  assert(!fseek(f, 0, SEEK_SET) && fread(got, 1, sizeof got - 1, f) == 8);
+  assert(!strcmp(got, "m00000;\n"));
   fclose(f);
+  assert(pc_pad_feed(NULL, 0)); // closed, so it can go
   remove(feed);
-  assert(!strcmp(got, "m513;\n"));
 }
 
 static void test_large_address(void) {
@@ -260,7 +266,19 @@ static void test_large_address(void) {
   remove(path);
 }
 
+/* RESTART: the companion's note is taken once, and only while it's fresh. */
+static void test_restart(void) {
+  const char *dir = ".";
+  remove("./restart.txt");
+  assert(!pc_restart_asked(dir));
+  FILE *f = fopen("./restart.txt", "wb");
+  assert(f && fputs("restart\n", f) >= 0 && !fclose(f));
+  assert(pc_restart_asked(dir));
+  assert(!pc_restart_asked(dir)); // taken away
+}
+
 int main(void) {
+  test_restart();
   test_large_address();
   test_pad();
   test_swap_face();
