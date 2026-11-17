@@ -122,6 +122,11 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   every `Input.update` until the count moved, and Indigo (its own 40 fps cap) runs more updates than that, so one
   D-pad press moved its menus two or three rows (seen in the user's video, 0.2 s, far under the repeat's 0.4 s).
   `feed_read` now reads at each outermost `Input.update` (`feed_depth` keeps chained wrappers to one read), as RGSS.
+- **Pad file kept open** (2026-11-17): "tons of lag after each button press" in Indigo. `pc_pad_feed` used to
+  fopen / write / fclose `pad.txt` at each change and the companion opened it at each read; Defender scans a file
+  after a write is closed and holds the next open meanwhile, so the game stalled after every press. Now PokeDaisy
+  keeps one handle for the play (8 bytes, `m%05u;\n`, written in place and flushed; `pc_pad_feed(NULL, 0)` closes
+  it after the play) and the companion keeps one too (`@padIO`, seek 0 and read).
 - **RESTART** (2026-11-17): Indigo's VSync option asks "Restart now?" and launches `Game.exe` itself, which failed
   under PokeDaisy ("Windows cannot find 'Game.exe'") and would have run outside it anyway. The companion wraps
   `system` / `spawn` / `exec`, `Process.spawn` and mkxp-z's `System.launch`: a command naming `game(.exe)` or the

@@ -245,7 +245,17 @@ module PokeDaisyCompanion
       # often than the frame count moves (Indigo, at its own 40 frames a second) saw one press as two or three: the
       # cursor skipped rows.
       return if (@feedDepth || 0) > 0
-      t = (File.open(PAD, 'rb') { |f| f.read } rescue nil)
+      # One handle for the whole play, read again from its start: opening the file at each read made Windows'
+      # antivirus scan it after every press, and the game waited for the scan (lag after each button).
+      t = nil
+      begin
+        @padIO ||= File.open(PAD, 'rb')
+        @padIO.seek(0)
+        t = @padIO.read(16)
+      rescue Exception
+        (@padIO.close rescue nil) if @padIO
+        @padIO = nil
+      end
       m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
       @feedPrev = @feedNow
       @feedNow = m

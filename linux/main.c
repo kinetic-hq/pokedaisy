@@ -4571,6 +4571,7 @@ static void pc_play(const char *path) {
     pc_played_write(playedPath, played);
   if (pc_running()) // PokeDaisy is closing: the game is asked to close too
     pc_close(false);
+  pc_pad_feed(NULL, 0); // the pad file closed (kept open through the play)
   fprintf(stderr, "PC game: ended (%d)\n", pc_exit_code());
   pc_wings_types(false);
   pc_wings_free();

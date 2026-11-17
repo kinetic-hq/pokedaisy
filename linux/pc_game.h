@@ -134,7 +134,9 @@ unsigned pc_pad_mask(const struct pc_state *s, unsigned held);
 /* PAD FEED (an mkxp-z game whose companion says pad_feed): the game's buttons held (pc_pad_mask) written to PATH
  * ("m<mask>;"), which the companion reads at each of the game's Input.update and answers press?, trigger?, repeat?,
  * release?, dir4 and dir8 from, besides the game's own reading. No key is pressed, so it reaches the game whichever
- * window has the foreground and whatever its player's own key bindings (F1) say. False when it couldn't be written. */
+ * window has the foreground and whatever its player's own key bindings (F1) say. False when it couldn't be written.
+ * The file stays open (one write in place a change, never reopened, so no antivirus scan stalls the game); a NULL
+ * PATH closes it, at the end of a play. */
 bool pc_pad_feed(const char *path, unsigned mask);
 /* CONTROL HINTS: the buttons to show under the picture and what each does in this game, in the pad's order; the
  * count. XBOX names the shoulders LB and RB. */
