@@ -138,6 +138,16 @@ unsigned pc_pad_mask(const struct pc_state *s, unsigned held);
  * The file stays open (one write in place a change, never reopened, so no antivirus scan stalls the game); a NULL
  * PATH closes it, at the end of a play. */
 bool pc_pad_feed(const char *path, unsigned mask);
+/* THE LEFT STICK in a game on its own RGSS player with no companion (Phoenix Rising): its scripts read the pad's
+ * buttons through XInput, the D-pad among them, but not the thumbstick, so PokeDaisy presses the arrow keys for the
+ * stick alone. The direction held (1 << PC_IN_UP / DOWN / LEFT / RIGHT, one at a time, or 0) for a stick at X, Y
+ * (SDL's -32768..32767, up negative) when WAS was held before: on past PC_STICK_ON from the middle, off again only
+ * inside PC_STICK_OFF (so a stick resting near the edge doesn't flicker), and a held direction kept until the other
+ * axis is a quarter past it (so a stick pushed about 45 degrees doesn't switch back and forth). */
+enum { PC_STICK_ON = 16000, PC_STICK_OFF = 10000 };
+unsigned pc_stick_dir(int x, int y, unsigned was);
+/* The arrow keys (Windows key codes) to hold down (DOWN[vk]) for pc_stick_dir's direction. */
+void pc_stick_keys(unsigned dir, bool down[256]);
 /* CONTROL HINTS: the buttons to show under the picture and what each does in this game, in the pad's order; the
  * count. XBOX names the shoulders LB and RB. */
 struct pc_hint {

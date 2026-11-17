@@ -136,6 +136,29 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
 - **Pad log** (2026-11-17): pokedaisy.log now always names each controller (vendor:product, SDL path, what it held as
   it connected) and the first 600 pad feed changes of a play with their time, so a report of a game moving by itself
   shows whether PokeDaisy fed a held button (a device's stuck report) or the game read input of its own.
+- **Phoenix Rising's left stick** (2026-11-17): the D-pad worked, the stick did nothing. The game runs on its own
+  RGSS player with no companion, and PokeDaisy feeds it nothing: its own scripts read the pad through XInput
+  (presumably `XInputGetState` through Win32API, inferred: the game isn't in the repo) and, from the report, look
+  at the D-pad bits of `wButtons` only, never `sThumbLX` / `sThumbLY`. Two ways were
+  weighed. (b) Feeding the stick in as the D-pad at the XInput level needs a proxy `xinput1_x.dll` that the game
+  loads, which means a file beside its exe in the user's own game folder (the RGSS player runs from there, unlike
+  mkxp-z's copy in `<pc dir>`; the ground rules forbid writing there) or injecting a DLL into the game (fragile,
+  antivirus bait, and a 32-bit build to ship); a virtual pad (ViGEmBus) needs a driver the user would have to
+  install. Ruled out. (a) The stick alone presses the arrow keys through `pc_keys_send`, which every RGSS game
+  reads (the player's own Input and Essentials' `GetAsyncKeyState` alike); the D-pad and buttons are left to the
+  game as before, so nothing is read twice. Taken, with the stuck-key history in mind: arrows aren't SHIFT (no
+  Sticky Keys), and a pressed arrow can't outlive what holds it. `pc_keys_send` presses only while the game's
+  process owns the foreground and lets every key go the moment it doesn't (from then on, and its key-up goes
+  through `SendInput`, which clears `GetAsyncKeyState`'s state wherever the focus is); the stick centring, GAME
+  MENU and the end of the play (`pc_keys_send(NULL)`) let go too. `pc_stick_dir` gives one direction at a time
+  (dominant axis), on past 16000 and off inside 10000 (hysteresis at the rim), and keeps a held direction until the
+  other axis is 1.25x past it (hysteresis at the diagonal), so a stick near 45 degrees doesn't flicker between
+  two keys; `test_pc_game` covers it. Only `info.player == PC_PLAYER_RGSS && !info.companion` games get it, and
+  `held`'s UP / DOWN / LEFT / RIGHT aren't used (they merge the D-pad with the stick); the axes are read from SDL
+  directly, a side still on from STUCK AT CONNECT read as at rest. The log says "left stick up / centred" (first
+  600 changes); `POCKET_PC_STICK="x,y"` holds the stick for checks. A game reading the stick itself as well would
+  just see the same direction twice, which a held key and a held stick combine into. Not checked on the real game
+  here (it isn't in the repo).
 - **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
   it a big window on a handheld's driver left too little of 2 GB and `load_data` of the battle animations failed with
   NoMemoryError.
