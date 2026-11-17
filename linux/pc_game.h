@@ -13,9 +13,11 @@
  * test_pc_game.c. */
 #ifndef POCKET_PC_GAME_H
 #define POCKET_PC_GAME_H
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 enum pc_player {
   PC_PLAYER_NONE,  // not a game this can play
@@ -241,6 +243,9 @@ void pc_close(bool force);
 /* RESTART: the game, in DIR (pc_prepare's), asked to be started again (a game's own option such as Indigo's VSync
  * launches its exe and closes, which the companion notes in DIR/restart.txt instead). True once, the note taken away. */
 bool pc_restart_asked(const char *dir);
+/* The companion's log of the play in DIR (DIR/companion.log: steps that failed, steps that took the game over 20 ms),
+ * each line written to TO as "PC companion: ...", 500 at most. */
+void pc_companion_log(const char *dir, FILE *to);
 /* The game's last exit code (after it ended). */
 int pc_exit_code(void);
 #endif

@@ -1237,6 +1237,9 @@ bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o,
     snprintf(err, errSize, "Couldn't make %s", dir);
     return false;
   }
+  char oldLog[1400];
+  join(oldLog, sizeof oldLog, dir, "companion.log"); // the last play's (a restart within this one keeps adding)
+  remove(oldLog);
   if (info->player != PC_PLAYER_MKXPZ)
     return true; // the original player runs from the game's own folder
   char from[1400], to[1400];
@@ -1285,6 +1288,19 @@ bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o,
     return false;
   }
   return true;
+}
+
+void pc_companion_log(const char *dir, FILE *to) {
+  char p[1400];
+  join(p, sizeof p, dir, "companion.log");
+  FILE *f = fopen(p, "rb");
+  if (!f)
+    return;
+  char line[400];
+  int n = 0;
+  while (fgets(line, sizeof line, f) && n++ < 500)
+    fprintf(to, "PC companion: %s%s", line, strchr(line, '\n') ? "" : "\n");
+  fclose(f);
 }
 
 bool pc_restart_asked(const char *dir) {
@@ -1344,6 +1360,13 @@ bool pc_start(const struct pc_game_info *info, const char *dir, const char *json
   remove(restartFile);
   SetEnvironmentVariableA("POKEDAISY_PC_RESTART", restartFile);
   SetEnvironmentVariableA("POKEDAISY_PC_EXE", info->exe);
+  // The companion's own log (a step that failed, one that took the game over 20 ms), copied into pokedaisy.log
+  // after the play (pc_companion_log). A check's own POKEDAISY_PC_LOG is kept.
+  if (!getenv("POKEDAISY_PC_LOG") || strstr(getenv("POKEDAISY_PC_LOG"), "companion.log")) {
+    char logFile[1400];
+    join(logFile, sizeof logFile, dir, "companion.log");
+    SetEnvironmentVariableA("POKEDAISY_PC_LOG", logFile);
+  }
   wchar_t *wexe = wide(exe), *wdir = wide(from);
   if (!wexe || !wdir) {
     free(wexe);

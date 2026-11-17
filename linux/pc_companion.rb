@@ -43,6 +43,19 @@ module PokeDaisyCompanion
 
     attr_accessor :battle, :ff, :instantText, :fighting
 
+    # SLOW STEPS: a step of PokeDaisy's that took the game more than 20 ms is written to the log (PokeDaisy copies it
+    # into pokedaisy.log after the play), 300 at most, so a game that lags names the step it lags on.
+    def timed(name)
+      t = now
+      r = yield
+      ms = ((now - t) * 1000).round
+      if ms > 20 && LOG && (@slowLogged || 0) < 300
+        @slowLogged = (@slowLogged || 0) + 1
+        File.open(LOG, 'a') { |f| f.puts "slow: #{name} #{ms} ms at frame #{@frames}" } rescue nil
+      end
+      r
+    end
+
     def now
       Process.clock_gettime(Process::CLOCK_MONOTONIC)
     rescue StandardError
@@ -64,17 +77,17 @@ module PokeDaisyCompanion
       @frames += 1
       return if @frames % 10 != 0
       t = now
-      hook_battle unless @hooked
-      hook_text unless @textHooked
-      hook_zoom unless @zoomHooked
-      pad_setup unless @padDone
-      feed_check
-      read_commands if CMD && t - (@cmdAt || 0) >= 0.25 && (@cmdAt = t)
-      apply_zoom
+      timed(:hook_battle) { hook_battle } unless @hooked
+      timed(:hook_text) { hook_text } unless @textHooked
+      timed(:hook_zoom) { hook_zoom } unless @zoomHooked
+      timed(:pad_setup) { pad_setup } unless @padDone
+      timed(:feed_check) { feed_check }
+      timed(:commands) { read_commands } if CMD && t - (@cmdAt || 0) >= 0.25 && (@cmdAt = t)
+      timed(:zoom) { apply_zoom }
       interval = @slow > 3 ? 2.0 : 0.5
       return if t - @last < interval
       @last = t
-      dump
+      timed(:dump) { dump }
       took = now - t
       @slow = took > 0.03 ? @slow + 1 : [@slow - 1, 0].max
     rescue Exception => e
@@ -148,7 +161,13 @@ module PokeDaisyCompanion
         end
         @padKeys = keys.join(',')
       end
-      @padRoles = pad_roles
+      # The roles come from reading every one of the game's scripts (thousands of files in Reborn and Rejuvenation):
+      # read again only when the game's button numbers changed, not each time it redefines Input.
+      sig = PAD_BUTTONS.map { |b| (Input.const_get(b) rescue nil) }
+      if sig != @rolesSig || !@padRoles
+        @rolesSig = sig
+        @padRoles = timed(:pad_roles) { pad_roles }
+      end
       feed_setup # every game: no key is pressed for the controller (keys mode too)
     rescue Exception => e
       note(:pad, e)
@@ -580,7 +599,14 @@ module PokeDaisyCompanion
       end
     end
 
+    # Once a map: some games load their whole map list from disk for each name.
     def map_name(id)
+      return @mapName if @mapNameId == id && @mapName
+      @mapNameId = id
+      @mapName = map_name_now(id)
+    end
+
+    def map_name_now(id)
       safe(:mapname, '') do
         if respond_to_global?(:pbGetMapNameFromId)
           pbGetMapNameFromId(id).to_s
@@ -855,7 +881,7 @@ module PokeDaisyCompanion
       if p
         h['player'] = safe(:pname, '') { p.name.to_s }
         party = safe(:party, []) { p.respond_to?(:party) ? p.party : [] } || []
-        h['party'] = party.compact[0, 6].map { |m| mon(m) }.compact
+        h['party'] = timed(:party) { party.compact[0, 6].map { |m| mon(m) }.compact }
         h['badges'] = badges(p)
         h['money'] = safe(:money, -1) { p.money.to_i }
         h['time'] = play_seconds
@@ -873,25 +899,27 @@ module PokeDaisyCompanion
       if $game_map
         id = safe(:mapid, 0) { $game_map.map_id }
         h['map_id'] = id
-        h['map'] = map_name(id)
-        h['wild'] = encounters(id)
+        h['map'] = timed(:map_name) { map_name(id) }
+        h['wild'] = timed(:wild) { encounters(id) }
       end
       battle = in_battle?
       @battle = nil unless battle
       h['battle'] = battle ? true : false
       if battle
-        h['foes'] = foes
-        t = foe_team
+        h['foes'] = timed(:foes) { foes }
+        t = timed(:foe_team) { foe_team }
         h['foe_team'] = t if t
       end
       text = json(h)
       return if text == @lastText
-      tmp = OUT + '.tmp'
-      File.open(tmp, 'wb') { |f| f.write(text) }
-      begin
-        File.rename(tmp, OUT)
-      rescue StandardError
-        File.open(OUT, 'wb') { |f| f.write(text) }
+      timed(:write) do
+        tmp = OUT + '.tmp'
+        File.open(tmp, 'wb') { |f| f.write(text) }
+        begin
+          File.rename(tmp, OUT)
+        rescue StandardError
+          File.open(OUT, 'wb') { |f| f.write(text) }
+        end
       end
       @lastText = text
     rescue Exception => e

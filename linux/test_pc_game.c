@@ -277,7 +277,23 @@ static void test_restart(void) {
   assert(!pc_restart_asked(dir)); // taken away
 }
 
+/* The companion's log reaches pokedaisy.log, a line each. */
+static void test_companion_log(void) {
+  FILE *f = fopen("./companion.log", "wb");
+  assert(f && fputs("slow: dump 84 ms at frame 300\nslow: pad_roles 950 ms at frame 10", f) >= 0 && !fclose(f));
+  FILE *out = tmpfile();
+  assert(out);
+  pc_companion_log(".", out);
+  rewind(out);
+  char got[200] = {0};
+  assert(fread(got, 1, sizeof got - 1, out) > 0);
+  fclose(out);
+  remove("./companion.log");
+  assert(!strcmp(got, "PC companion: slow: dump 84 ms at frame 300\nPC companion: slow: pad_roles 950 ms at frame 10\n"));
+}
+
 int main(void) {
+  test_companion_log();
   test_restart();
   test_large_address();
   test_pad();

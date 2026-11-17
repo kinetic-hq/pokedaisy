@@ -4592,6 +4592,7 @@ static void pc_play(const char *path) {
   if (pc_running()) // PokeDaisy is closing: the game is asked to close too
     pc_close(false);
   pc_pad_feed(NULL, 0); // the pad file closed (kept open through the play)
+  pc_companion_log(dir, stderr); // what slowed the game, in pokedaisy.log
   fprintf(stderr, "PC game: ended (%d)\n", pc_exit_code());
   pc_wings_types(false);
   pc_wings_free();

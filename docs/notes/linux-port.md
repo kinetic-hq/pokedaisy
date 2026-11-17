@@ -135,6 +135,14 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   repaint only when `wingsDirty` (the companion's JSON, a window change, zoom / ff / instant / WIDE, a button, a
   restart) or `PC_WINGS_MS` (66) has passed; input and the pad feed still run every 8 ms. Capture games still draw
   every pass (PokeDaisy draws their picture).
+- **Companion timing** (2026-11-17): the lag turned out to be 4 games of 19 (Indigo, Reborn, Rejuvenation,
+  Reminiscencia; the other 15 play smoothly), so something the companion does in those games, not the wings. No
+  play wrote the companion's log before (`POKEDAISY_PC_LOG` was a checks-only variable). Now `pc_start` always sets
+  it to `<pc dir>/companion.log` (cleared by `pc_prepare`), the companion's `timed` writes any step over 20 ms
+  ("slow: dump 84 ms at frame 300", the dump split into party / map_name / wild / foes / write), and
+  `pc_companion_log` copies it into pokedaisy.log as "PC companion:" lines after the play. Already made cheaper:
+  `pad_roles` (every script inflated, up to 3000 script files read) runs again only when the game's button numbers
+  change, not at every Input rewrap, and `map_name` is read once a map.
 - **RESTART** (2026-11-17): Indigo's VSync option asks "Restart now?" and launches `Game.exe` itself, which failed
   under PokeDaisy ("Windows cannot find 'Game.exe'") and would have run outside it anyway. The companion wraps
   `system` / `spawn` / `exec`, `Process.spawn` and mkxp-z's `System.launch`: a command naming `game(.exe)` or the
