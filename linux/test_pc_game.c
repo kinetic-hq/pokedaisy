@@ -277,7 +277,37 @@ static void test_restart(void) {
   assert(!pc_restart_asked(dir)); // taken away
 }
 
+/* THE LEFT STICK as the arrow keys (Phoenix Rising): a deadzone, hysteresis at the rim and at the diagonal. */
+static void test_stick(void) {
+  const unsigned U = 1u << PC_IN_UP, D = 1u << PC_IN_DOWN, L = 1u << PC_IN_LEFT, R = 1u << PC_IN_RIGHT;
+  assert(pc_stick_dir(0, 0, 0) == 0);
+  assert(pc_stick_dir(9000, -9000, 0) == 0);           // inside the deadzone (about 12700 out)
+  assert(pc_stick_dir(-32768, 0, 0) == L && pc_stick_dir(32767, 0, 0) == R);
+  assert(pc_stick_dir(0, -32768, 0) == U && pc_stick_dir(0, 32767, 0) == D);
+  assert(pc_stick_dir(0, -15000, 0) == 0);             // not yet on
+  assert(pc_stick_dir(0, -15000, U) == U);             // held: stays on down to PC_STICK_OFF
+  assert(pc_stick_dir(0, -9999, U) == 0);              // and off inside it
+  assert(pc_stick_dir(6000, -8000, U) == U);           // 10000 out: still on
+  // The diagonal: a held direction is kept until the other axis is a quarter past it.
+  assert(pc_stick_dir(20000, -21000, 0) == U);
+  assert(pc_stick_dir(21000, -20000, 0) == R);
+  assert(pc_stick_dir(24000, -20000, U) == U);         // 1.2x: kept
+  assert(pc_stick_dir(26000, -20000, U) == R);         // 1.3x: switches
+  assert(pc_stick_dir(-24000, 20000, R) == L);         // flipped over: the other side, never both
+  assert(pc_stick_dir(20000, 24000, R) == R && pc_stick_dir(20000, 26000, R) == D);
+  // One key at a time, the arrows' own codes, none when centred.
+  bool down[256];
+  pc_stick_keys(U, down);
+  assert(down[0x26] && !down[0x28] && !down[0x25] && !down[0x27]);
+  pc_stick_keys(L, down);
+  assert(down[0x25] && !down[0x26]);
+  pc_stick_keys(0, down);
+  for (int i = 0; i < 256; i++)
+    assert(!down[i]);
+}
+
 int main(void) {
+  test_stick();
   test_restart();
   test_large_address();
   test_pad();

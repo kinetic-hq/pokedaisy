@@ -857,6 +857,28 @@ void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]) {
       down[s->padVk[b]] = true;
 }
 
+unsigned pc_stick_dir(int x, int y, unsigned was) {
+  const unsigned h = 1u << PC_IN_LEFT | 1u << PC_IN_RIGHT, v = 1u << PC_IN_UP | 1u << PC_IN_DOWN;
+  long long r2 = (long long)x * x + (long long)y * y, need = was & (h | v) ? PC_STICK_OFF : PC_STICK_ON;
+  if (r2 < need * need)
+    return 0;
+  long long ax = x < 0 ? -(long long)x : x, ay = y < 0 ? -(long long)y : y;
+  unsigned across = 1u << (x < 0 ? PC_IN_LEFT : PC_IN_RIGHT), upDown = 1u << (y < 0 ? PC_IN_UP : PC_IN_DOWN);
+  if ((was & h) && ay * 4 <= ax * 5)
+    return across;
+  if ((was & v) && ax * 4 <= ay * 5)
+    return upDown;
+  return ax > ay ? across : upDown;
+}
+
+void pc_stick_keys(unsigned dir, bool down[256]) {
+  memset(down, 0, 256 * sizeof *down);
+  down[0x26] = (dir & (1u << PC_IN_UP)) != 0; // VK_UP
+  down[0x28] = (dir & (1u << PC_IN_DOWN)) != 0;
+  down[0x25] = (dir & (1u << PC_IN_LEFT)) != 0;
+  down[0x27] = (dir & (1u << PC_IN_RIGHT)) != 0;
+}
+
 bool pc_pad_feed(const char *path, unsigned mask) {
   // Kept open for the whole play and written in place, always the same 8 bytes ("m%05u;\n"), so nothing is cut short
   // and a read caught halfway still takes only a whole "m<mask>;". Opened and closed for each press, the file was
