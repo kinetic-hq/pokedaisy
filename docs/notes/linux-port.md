@@ -114,6 +114,10 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   whose report leaves something on for good; not reproduced here. Logged as "Controller X: button N on as it connected".
 - Indigo was hidden (a DROPPED list by Game.ini Title) on 2026-11-16 at the user's ask and brought back on 2026-11-17
   once no key was pressed for the controller in any game.
+- **Feed rewrap** (2026-11-17): Awakening defines its own keyboard Input (PSystem_Controls) after its language choice,
+  replacing the wrappers made at frame 10, so the pad died there. `feed_check` (every tick) wraps any of Input's methods
+  that isn't ours again and rereads the button numbers; `feed_read` reads once a frame (two wrappers in a chain).
+  `test_companion_feed.rb` (ctest companion-feed when ruby is found) covers it.
 - **Pad log** (2026-11-17): pokedaisy.log now always names each controller (vendor:product, SDL path, what it held as
   it connected) and the first 600 pad feed changes of a play with their time, so a report of a game moving by itself
   shows whether PokeDaisy fed a held button (a device's stuck report) or the game read input of its own.

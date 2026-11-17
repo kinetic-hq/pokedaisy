@@ -614,6 +614,8 @@ Every change, one line each (a pull request that changes what the fork adds upda
   ignored until it's released once; after that it works like any other.
 - **Fan games start again after 1.65.6**, which stopped each one at a script error, and a game PokeDaisy has no
   companion for (Phoenix Rising) reads the controller itself instead of getting pressed keys.
+- **The controller keeps working in games that set up their own input after the first screens** (Awakening
+  stopped answering after its language choice): PokeDaisy notices and hooks the game's new input again.
 - **Indigo is back in the library**: it was hidden for a day while its controller misbehaved; with no keys
   pressed for the controller any more it plays like the rest.
 
