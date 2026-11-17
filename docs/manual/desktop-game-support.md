@@ -144,7 +144,7 @@ aren't counted above. Their tags:
 | Reborn, Tectonic, Fire Ash, Eon Guardians | `PARTLY` | Party, place, battle |
 | Awakening, Bushido, Desolation, Empire | `PARTLY` | Party, place |
 | Insurgence | `PARTLY` | Party, place (on another game's newer player) |
-| Opalo, Realidea, Africanvs, Reminiscencia | `PARTLY` | Party, place; start in English |
+| Indigo, Opalo, Realidea, Africanvs, Reminiscencia | `PARTLY` | Party, place; start in English |
 | Rejuvenation, Floral Tempest, Itinerant | `PARTLY` | Party, place |
 | Phoenix Rising | `PLAY ONLY` | None |
 

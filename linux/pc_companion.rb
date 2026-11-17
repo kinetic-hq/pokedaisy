@@ -173,20 +173,21 @@ module PokeDaisyCompanion
       return if @feedBit.empty?
       @feedNow = @feedPrev = 0
       @feedHeld = Array.new(PAD_BUTTONS.size, 0)
-      Input.singleton_class.class_eval do
+      # Ruby 1.8 too (XP games on a borrowed player): no singleton_class, no %i[], no File.binread.
+      (class << Input; self; end).class_eval do
         alias_method :pokedaisy_feed_update, :update
         def update(*a)
           r = pokedaisy_feed_update(*a)
           PokeDaisyCompanion.feed_read
           r
         end
-        %i[press? trigger? repeat? release?].each do |m|
+        [:press?, :trigger?, :repeat?, :release?].each do |m|
           orig = :"pokedaisy_feed_#{m.to_s.delete('?')}"
           next unless method_defined?(m)
           alias_method orig, m
           define_method(m) { |*a| PokeDaisyCompanion.feed?(m, a[0]) || send(orig, *a) }
         end
-        %i[dir4 dir8].each do |m|
+        [:dir4, :dir8].each do |m|
           orig = :"pokedaisy_feed_#{m}"
           next unless method_defined?(m)
           alias_method orig, m
@@ -202,7 +203,7 @@ module PokeDaisyCompanion
     end
 
     def feed_read
-      t = (File.binread(PAD) rescue nil)
+      t = (File.open(PAD, 'rb') { |f| f.read } rescue nil)
       m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
       @feedPrev = @feedNow
       @feedNow = m

@@ -187,6 +187,7 @@ starting, PokeDaisy starts it again for you.
 | Desolation | `PARTLY` | Party, place |
 | Empire | `PARTLY` | Party, place |
 | Insurgence | `PARTLY` | Runs on another game's newer player (above); party, place, zoom, `WIDE VIEW` |
+| Indigo | `PARTLY` | Party, place; starts in English |
 | Opalo | `PARTLY` | Party, place; starts in English |
 | Realidea | `PARTLY` | Party, place; starts in English |
 | Africanvs | `PARTLY` | Party, place; starts in English |
@@ -195,8 +196,6 @@ starting, PokeDaisy starts it again for you.
 | Floral Tempest | `PARTLY` | Party, place |
 | Itinerant | `PARTLY` | Party, place |
 | Phoenix Rising | `PLAY ONLY` | Its own player, drawn whole full screen; xBRZ from its real pixels, zoom with the right stick, clock and play time beside it |
-
-Indigo isn't on the list: its controller never worked reliably on a handheld, so PokeDaisy doesn't show its folder as a tile. Play it on its own.
 
 A game in a folder whose name has an accented letter in it plays too: PokeDaisy gives the game a plain path to its folder (a Windows junction
 in `DATA\pc\links`) without moving anything.

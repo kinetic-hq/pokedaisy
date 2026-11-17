@@ -112,8 +112,8 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   handheld. Buttons and axis sides (beyond 16000) already on when a pad opens, or turning on in its first 700 ms, are
   dropped until they let go (an axis until it's back inside 8000). The guess is a second HID device beside the pad
   whose report leaves something on for good; not reproduced here. Logged as "Controller X: button N on as it connected".
-- **DROPPED** (pc_game.c): fan games no longer listed, by Game.ini Title. Indigo ("Pokemon Anil") went on 2026-11-16
-  after its controller never worked reliably on the user's handheld.
+- Indigo was hidden (a DROPPED list by Game.ini Title) on 2026-11-16 at the user's ask and brought back on 2026-11-17
+  once no key was pressed for the controller in any game.
 - **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
   it a big window on a handheld's driver left too little of 2 GB and `load_data` of the battle animations failed with
   NoMemoryError.
