@@ -134,6 +134,7 @@ static inline size_t bezel_times(char *out, size_t n, const char *label, int pct
 static inline void bezel_item_text(int item, const struct bezel_facts *f, char *out, size_t n) {
   out[0] = 0;
   char a[32] = "", b[32] = "";
+  /* b never holds more than 30 characters; "%.30s" says so, so GCC sees a joined line fits a 64-byte label. */
   switch (item) {
   case BEZEL_LOCATION:
     if (f->place && *f->place)
@@ -146,7 +147,7 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
       snprintf(a, sizeof a, "%02d:%02d", f->hour, f->minute);
     if (item != BEZEL_CLOCK && f->battery >= 0)
       snprintf(b, sizeof b, "%s%d%%", f->charging ? "+" : "", f->battery);
-    snprintf(out, n, "%s%s%s", a, *a && *b ? "  " : "", b);
+    snprintf(out, n, "%s%s%.30s", a, *a && *b ? "  " : "", b);
     break;
   case BEZEL_BADGES_TIME:
   case BEZEL_BADGES:
@@ -155,7 +156,7 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
       snprintf(a, sizeof a, "BADGES %d/8", f->badges);
     if (item != BEZEL_BADGES && f->playHours >= 0 && (f->playHours || f->playMinutes > 0))
       snprintf(b, sizeof b, "%d:%02d", f->playHours, f->playMinutes);
-    snprintf(out, n, "%s%s%s", a, *a && *b ? "  " : "", b);
+    snprintf(out, n, "%s%s%.30s", a, *a && *b ? "  " : "", b);
     break;
   case BEZEL_HINTS:
     if (f->hints)
@@ -195,7 +196,7 @@ static inline void bezel_item_text(int item, const struct bezel_facts *f, char *
       snprintf(a, sizeof a, "%.12s %d/%d", f->lead, f->leadHp, f->leadMaxHp);
       if (f->leadToNext > 0)
         snprintf(b, sizeof b, "%ld EXP TO GO", f->leadToNext);
-      snprintf(out, n, "%s%s%s", a, *b ? "  " : "", b);
+      snprintf(out, n, "%s%s%.30s", a, *b ? "  " : "", b);
     }
     break;
   case BEZEL_REPEL:

@@ -184,7 +184,7 @@ static void stop(int sig) {
   running = 0;
 }
 static void notice(const char *s) {
-  snprintf(message, sizeof message, "%s", s);
+  snprintf(message, sizeof message, "%.*s", (int)sizeof message - 1, s);
   messageUntil = SDL_GetTicks() + 2500;
   fprintf(stderr, "%s\n", s);
 }
