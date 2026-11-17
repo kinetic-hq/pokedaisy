@@ -604,7 +604,17 @@ static void controller_added(int index) {
   }
   pads[padCount++] = pad;
   controller = pads[0];
-  fprintf(stderr, "Controller: %s\n", SDL_GameControllerName(pad));
+  // In the log for a report: which device it is, and anything it already held as it connected (STUCK AT CONNECT).
+  SDL_Joystick *js = SDL_GameControllerGetJoystick(pad);
+  char axes[160] = "";
+  for (int a = 0, at = 0; a < SDL_CONTROLLER_AXIS_MAX && at < (int)sizeof axes - 16; a++) {
+    int v = SDL_GameControllerGetAxis(pad, (SDL_GameControllerAxis)a);
+    if (v < -8000 || v > 8000)
+      at += snprintf(axes + at, sizeof axes - at, " %d=%d", a, v);
+  }
+  fprintf(stderr, "Controller: %s (%04X:%04X, %s) held %X%s%s\n", SDL_GameControllerName(pad),
+          SDL_JoystickGetVendor(js), SDL_JoystickGetProduct(js), SDL_JoystickPath(js) ? SDL_JoystickPath(js) : "?",
+          (unsigned)padStuck[padCount - 1], axes[0] ? ", axes" : "", axes);
 }
 static void controller_removed(SDL_JoystickID id) {
   for (int i = 0; i < padCount; i++) {
@@ -4374,8 +4384,11 @@ static void pc_play(const char *path) {
         pc_keys_send(NULL);
         unsigned mask = pc_pad_mask(&state, in); // whichever window is in front, like a game reading its pad
         if (mask != fedMask && pc_pad_feed(padPath, mask)) {
-          if (getenv("POCKET_PC_DEBUG"))
-            fprintf(stderr, "PC game: pad feed %03X\n", mask);
+          // In the log (the first 600 changes a run): what the game was told is held, to tell a stuck button from a
+          // game reading input of its own.
+          static int fedLogged;
+          if (fedLogged++ < 600 || getenv("POCKET_PC_DEBUG"))
+            fprintf(stderr, "PC game: pad feed %03X at %u ms\n", mask, (unsigned)(now - start));
           fedMask = mask;
         }
       } else if (info.companion) {

@@ -114,6 +114,9 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   whose report leaves something on for good; not reproduced here. Logged as "Controller X: button N on as it connected".
 - Indigo was hidden (a DROPPED list by Game.ini Title) on 2026-11-16 at the user's ask and brought back on 2026-11-17
   once no key was pressed for the controller in any game.
+- **Pad log** (2026-11-17): pokedaisy.log now always names each controller (vendor:product, SDL path, what it held as
+  it connected) and the first 600 pad feed changes of a play with their time, so a report of a game moving by itself
+  shows whether PokeDaisy fed a held button (a device's stuck report) or the game read input of its own.
 - **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
   it a big window on a handheld's driver left too little of 2 GB and `load_data` of the battle animations failed with
   NoMemoryError.
