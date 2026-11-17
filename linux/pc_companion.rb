@@ -148,7 +148,7 @@ module PokeDaisyCompanion
         @padKeys = keys.join(',')
       end
       @padRoles = pad_roles
-      feed_setup if @padMode == 'native'
+      feed_setup # every game: no key is pressed for the controller (keys mode too)
     rescue Exception => e
       note(:pad, e)
     end
