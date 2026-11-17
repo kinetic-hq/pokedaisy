@@ -120,11 +120,25 @@ static bool has_scripts(const char *dir) {
          exists_in(dir, "Game.rgss3a");
 }
 
+/* DROPPED: fan games PokeDaisy no longer lists, by Game.ini's Title. Indigo (Title "Pokemon Anil") never took the
+ * controller reliably on a handheld (2026-11-16), so it was taken off the supported games: play it on its own. */
+static const char *const DROPPED[] = {"Pokemon Anil", "Pok\xc3\xa9mon Anil"};
+
+bool pc_dropped(const char *dir) {
+  char title[200];
+  if (!ini_value(dir, "Title", title, sizeof title))
+    return false;
+  for (size_t i = 0; i < sizeof DROPPED / sizeof DROPPED[0]; i++)
+    if (!strcasecmp(title, DROPPED[i]))
+      return true;
+  return false;
+}
+
 bool pc_game_dir(const char *dir) {
   if (!pocket_is_dir(dir))
     return false;
   if (exists_in(dir, "Game.ini") && has_scripts(dir))
-    return true;
+    return !pc_dropped(dir);
   // No Game.ini (Phoenix Rising): an RGSS player's DLL and a program beside a Data folder.
   if (!exists_in(dir, "Data"))
     return false;
@@ -746,6 +760,8 @@ static void pad_list(const char *text, struct pc_state *s, bool roles) {
 }
 static bool state_key(struct jr *r, const char *k, void *user) {
   struct pc_state *s = user;
+  if (!strcmp(k, "pad_feed"))
+    return s->padFeed = jr_number(r) > 0, true;
   if (!strcmp(k, "pad") || !strcmp(k, "pad_keys") || !strcmp(k, "pad_roles")) {
     char text[400];
     if (!jr_string(r, text, sizeof text))
@@ -831,18 +847,37 @@ void pc_pad_mkxpz(struct pc_state *s) {
   s->padOurs = true;
 }
 
-void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]) {
-  memset(down, 0, 256 * sizeof *down);
+unsigned pc_pad_mask(const struct pc_state *s, unsigned held) {
   if (s->pad != PC_PAD_KEYS)
-    return;
+    return 0;
   unsigned chord = (1u << PC_IN_SELECT) | (1u << PC_IN_START);
   if ((held & chord) == chord)
     held &= ~chord;
+  unsigned mask = 0;
   for (int in = 0; in < PC_INS; in++) {
     int b = held & (1u << in) ? pc_pad_target(s, in) : -1;
     if (b >= 0 && s->padVk[b])
-      down[s->padVk[b]] = true;
+      mask |= 1u << b;
   }
+  return mask;
+}
+
+void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]) {
+  memset(down, 0, 256 * sizeof *down);
+  unsigned mask = pc_pad_mask(s, held);
+  for (int b = 0; b < PC_PAD_BUTTONS; b++)
+    if (mask & (1u << b))
+      down[s->padVk[b]] = true;
+}
+
+bool pc_pad_feed(const char *path, unsigned mask) {
+  // Written in place, a few bytes: the companion takes only a whole "m<mask>;", so a read caught halfway keeps the
+  // buttons it had.
+  FILE *f = path ? fopen(path, "wb") : NULL;
+  if (!f)
+    return false;
+  bool ok = fprintf(f, "m%u;\n", mask) > 0;
+  return fclose(f) == 0 && ok;
 }
 
 /* A key's name as a keyboard prints it ("S", "F5", "SHIFT"), else "". */
@@ -1255,6 +1290,7 @@ bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o,
 static PROCESS_INFORMATION proc;
 static HWND gameWindow;
 static bool started;
+static bool inputWasOurs; // pc_input_ours: the game or PokeDaisy had the foreground since the game started
 
 static wchar_t *wide(const char *s) {
   int n = MultiByteToWideChar(CP_UTF8, 0, s, -1, NULL, 0);
@@ -1279,11 +1315,17 @@ bool pc_start(const struct pc_game_info *info, const char *dir, const char *json
     started = false;
   }
   gameWindow = NULL;
+  inputWasOurs = false;
   const char *from = info->player == PC_PLAYER_MKXPZ ? dir : info->dir;
   char exe[1400];
   join(exe, sizeof exe, from, info->exe);
   SetEnvironmentVariableA("POKEDAISY_PC_OUT", jsonOut);
   SetEnvironmentVariableA("POKEDAISY_PC_CMD", cmdFile);
+  // PAD FEED: the buttons PokeDaisy reads, for the companion (pc_pad_feed); none held as the game starts.
+  char padFile[1400];
+  join(padFile, sizeof padFile, dir, "pad.txt");
+  pc_pad_feed(padFile, 0);
+  SetEnvironmentVariableA("POKEDAISY_PC_PAD", padFile);
   wchar_t *wexe = wide(exe), *wdir = wide(from);
   if (!wexe || !wdir) {
     free(wexe);
@@ -1388,6 +1430,19 @@ void pc_pad_env(const char *mappings, bool hide) {
 }
 
 bool pc_self_foreground(void *self) { return self && GetForegroundWindow() == (HWND)self; }
+
+bool pc_input_ours(void *self) {
+  HWND fg = GetForegroundWindow();
+  DWORD pid = 0;
+  if (fg)
+    GetWindowThreadProcessId(fg, &pid);
+  if (!fg || fg == (HWND)self || pid == GetCurrentProcessId() || (started && pid == proc.dwProcessId) ||
+      (GetWindowLongW(fg, GWL_EXSTYLE) & (WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)))
+    return inputWasOurs = true;
+  // Another program in front: switched to after the game had it, the player's choice. Never given to the game
+  // (Windows can refuse it a window raised from behind), the controller still goes to the game.
+  return !inputWasOurs;
+}
 
 static bool keysDown[256];
 void pc_keys_send(const bool *down) {
@@ -1636,6 +1691,10 @@ void pc_keys_send(const bool *down) { (void)down; }
 bool pc_self_foreground(void *self) {
   (void)self;
   return false;
+}
+bool pc_input_ours(void *self) {
+  (void)self;
+  return true;
 }
 const uint32_t *pc_capture(int *w, int *h) {
   (void)w, (void)h;

@@ -68,7 +68,7 @@ caught, the zoom and the speed, and what's wild where you're standing.
 A `PLAY ONLY` game is as tall as the screen, with nothing beside it.
 
 A game runs at its own speed, whatever its `mkxp.json` says about waiting for the
-screen: PokeDaisy turns that waiting off, since it slowed some games (Indigo, Eon
+screen: PokeDaisy turns that waiting off, since it slowed some games (Eon
 Guardians) to a crawl in the window over PokeDaisy's.
 
 ## The wings
@@ -103,11 +103,13 @@ their own options menu; use that one.
 
 ## Controllers
 
-The controller goes to the game through PokeDaisy: it presses the game's own
-keys for your controller's buttons, so the D-pad, the left stick, `A`, `B` and
-the rest work in every game with wings, whichever controller your handheld
-lists first. Each button presses the key the game itself uses for it, and the
-game never gets a button twice. `START` opens the game's menu, and `SELECT`
+The controller goes to the game through PokeDaisy, so the D-pad, the left
+stick, `A`, `B` and the rest work in every game with wings, whichever
+controller your handheld lists first. In most games PokeDaisy hands your
+buttons straight to the game, so they work even when Windows keeps another
+window in front of the game or the game's own key settings were changed. In
+games that only read the keyboard, it presses the key the game itself uses for
+each button. Either way the game never gets a button twice. `START` opens the game's menu, and `SELECT`
 uses your registered item in games that have one. The `GUIDE` button, `L3`,
 `LT` and `RT` stay PokeDaisy's. The keyboard works as the game sets it up.
 
@@ -184,7 +186,6 @@ starting, PokeDaisy starts it again for you.
 | Desolation | `PARTLY` | Party, place |
 | Empire | `PARTLY` | Party, place |
 | Insurgence | `PARTLY` | Runs on another game's newer player (above); party, place, zoom, `WIDE VIEW` |
-| Indigo | `PARTLY` | Party, place; starts in English |
 | Opalo | `PARTLY` | Party, place; starts in English |
 | Realidea | `PARTLY` | Party, place; starts in English |
 | Africanvs | `PARTLY` | Party, place; starts in English |
@@ -193,6 +194,8 @@ starting, PokeDaisy starts it again for you.
 | Floral Tempest | `PARTLY` | Party, place |
 | Itinerant | `PARTLY` | Party, place |
 | Phoenix Rising | `PLAY ONLY` | Its own player, drawn whole full screen; xBRZ from its real pixels, zoom with the right stick, clock and play time beside it |
+
+Indigo isn't on the list: its controller never worked reliably on a handheld, so PokeDaisy doesn't show its folder as a tile. Play it on its own.
 
 A game in a folder whose name has an accented letter in it plays too: PokeDaisy gives the game a plain path to its folder (a Windows junction
 in `DATA\pc\links`) without moving anything.

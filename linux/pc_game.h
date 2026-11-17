@@ -39,6 +39,8 @@ struct pc_game_info {
 
 /* DIR is an RPG Maker game's folder: Game.ini with its scripts or an archive beside it, or a known player alone. */
 bool pc_game_dir(const char *dir);
+/* A fan game PokeDaisy no longer lists (Indigo): pc_game_dir is false for it. */
+bool pc_dropped(const char *dir);
 /* What's known about the game in DIR (false: not one). */
 bool pc_game_info(const char *dir, struct pc_game_info *out);
 /* PATH (a game list entry) is a PC game's folder. */
@@ -103,6 +105,7 @@ struct pc_state {
   unsigned char padVk[PC_PAD_BUTTONS];  // PC_PAD_KEYS: the key (a Windows key code) the game ties to each button
   char padRole[PC_PAD_BUTTONS][24];     // what the game does with each button ("CONFIRM", "BACK/MENU"), else ""
   bool padOurs;                         // PC_PAD_KEYS from pc_pad_mkxpz: mkxp-z's own keys, not the game's choice
+  bool padFeed;                         // the companion reads the buttons from PokeDaisy's pad file (pc_pad_feed)
 };
 bool pc_state_parse(const char *json, struct pc_state *out);
 /* An mkxp-z game: mkxp-z reads only the first controller Windows lists (SDL's joystick 0), which on a handheld can be
@@ -127,6 +130,19 @@ int pc_pad_target(const struct pc_state *s, int in);
 /* PC_PAD_KEYS: the keys to hold down (DOWN[vk]) for the buttons held (HELD: 1 << enum pc_pad_in). SELECT and START
  * together (GAME MENU's chord) press neither. */
 void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]);
+/* The game's buttons held (1 << enum pc_pad_button) for the controller's buttons held (HELD: 1 << enum pc_pad_in),
+ * by the same rules as pc_pad_keys. */
+unsigned pc_pad_mask(const struct pc_state *s, unsigned held);
+/* PAD FEED (an mkxp-z game whose companion says pad_feed): the game's buttons held (pc_pad_mask) written to PATH
+ * ("m<mask>;"), which the companion reads at each of the game's Input.update and answers press?, trigger?, repeat?,
+ * release?, dir4 and dir8 from, besides the game's own reading. No key is pressed, so it reaches the game whichever
+ * window has the foreground and whatever its player's own key bindings (F1) say. False when it couldn't be written. */
+bool pc_pad_feed(const char *path, unsigned mask);
+/* The controller belongs to the game now: its window or PokeDaisy's has the foreground, or nothing does, or an overlay
+ * that sits on top without being switched to (a handheld's own control app, the game bar, the touch keyboard), or
+ * another program that was in front all along (Windows didn't let the game's window come forward). Not when the
+ * player switched to another program after the game had the foreground. */
+bool pc_input_ours(void *self);
 /* CONTROL HINTS: the buttons to show under the picture and what each does in this game, in the pad's order; the
  * count. XBOX names the shoulders LB and RB. */
 struct pc_hint {

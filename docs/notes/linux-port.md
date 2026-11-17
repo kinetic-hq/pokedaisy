@@ -93,6 +93,24 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   default keys (`pc_pad_mkxpz`: ENTER, ESC, SHIFT, A, S, D, Q, W, the arrows) through the PC_PAD_KEYS path. The
   player's F1 settings window is forced off in the shadow mkxp.json. Keys only reach a game whose window is in front,
   so a check on a desktop someone is using needs keys posted to the game's window instead.
+- **PAD FEED** (2026-11-16): keys failed on a handheld (Indigo, "doesn't work with controllers") wherever the game's
+  window didn't get the foreground (Windows refuses `SetForegroundWindow` from behind; a desktop in use showed it:
+  stuck on Indigo's CONTROLS screen) or the player's own `keybindings.mkxp1` (in `%APPDATA%/<Game.ini Title>`, next to
+  the saves, so it can't be redirected) no longer ties ENTER / ESC to C / B. Now `pc_start` sets `POKEDAISY_PC_PAD`
+  (`<pc dir>/pad.txt`), the companion wraps `Input.update` (at `pad_setup`, after the game's scripts redefined it) and
+  answers `press?` / `trigger?` / `repeat?` / `release?` / `dir4` / `dir8` from the mask too, and says `pad_feed`;
+  from then main.c writes `m<mask>;` (`pc_pad_mask`, bits of `enum pc_pad_button`) on each change and presses no key.
+  `pc_input_ours` decides whether the pad belongs to the game: not after a switch to another program that came after
+  the game had the foreground. The user also saw "everything is auto run": run is Input::A, pressed as SHIFT, which
+  Sticky Keys (five SHIFT presses) or a key-up sent while another window was in front leaves held. Checked with a ViGEm X360 pad (a test helper of its own, ViGEmBus's IOCTLs) and an
+  observer preload logging `Input.press?` per frame. Note that `SDL_GetPrefPath` ignores an `APPDATA` override, so a
+  check run makes `%APPDATA%/<title>` even with one (delete it if it stays empty).
+- **STUCK AT CONNECT** (2026-11-16, main.c `pad_unstuck`): "everything is automated in terms of selection" on a
+  handheld. Buttons and axis sides (beyond 16000) already on when a pad opens, or turning on in its first 700 ms, are
+  dropped until they let go (an axis until it's back inside 8000). The guess is a second HID device beside the pad
+  whose report leaves something on for good; not reproduced here. Logged as "Controller X: button N on as it connected".
+- **DROPPED** (pc_game.c): fan games no longer listed, by Game.ini Title. Indigo ("Pokemon Anil") went on 2026-11-16
+  after its controller never worked reliably on the user's handheld.
 - **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
   it a big window on a handheld's driver left too little of 2 GB and `load_data` of the battle animations failed with
   NoMemoryError.

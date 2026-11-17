@@ -3,8 +3,9 @@
 # PokeDaisy adds this file to the game's preloadScript list (in a mkxp.json of its own, the game's folder left as it
 # is). It never changes the game: it reads the party, the place and the battle about twice a second and writes them
 # as a small JSON to the path in POKEDAISY_PC_OUT, which PokeDaisy draws in the wings. It reads POKEDAISY_PC_CMD for
-# the few things PokeDaisy asks of it (fast forward, instant text, zoom). Every step is wrapped so a game this doesn't
-# know can never crash or slow down because of it: a step that fails is left out, and one that keeps failing stops.
+# the few things PokeDaisy asks of it (fast forward, instant text, zoom), and POKEDAISY_PC_PAD for the controller's
+# buttons (PAD FEED). Every step is wrapped so a game this doesn't know can never crash or slow down because of it: a
+# step that fails is left out, and one that keeps failing stops.
 #
 # Old Essentials ($Trainer, PBSpecies, integer ids), v19 and later ($player, GameData, symbols) and Reborn's own
 # ($cache) are all read by asking what the objects answer to, never by version numbers.
@@ -147,8 +148,109 @@ module PokeDaisyCompanion
         @padKeys = keys.join(',')
       end
       @padRoles = pad_roles
+      feed_setup if @padMode == 'native'
     rescue Exception => e
       note(:pad, e)
+    end
+
+    # PAD FEED. On mkxp-z PokeDaisy hides the controller from the game's player and used to press its keys instead,
+    # which reach the game only while its window has the foreground, and only as the player's key bindings (F1) say.
+    # So PokeDaisy writes the game's buttons held to POKEDAISY_PC_PAD ("m<mask>;", a bit for each of PAD_BUTTONS),
+    # and Input answers from it too: read at each Input.update, so press?, trigger?, repeat? and release? keep RGSS's
+    # own frame by frame meaning, and dir4 and dir8 follow the pad's directions. The game's own reading (the keyboard)
+    # still works alongside. PokeDaisy stops pressing keys once the JSON says pad_feed.
+    PAD = ENV['POKEDAISY_PC_PAD']
+
+    def feed_setup
+      return if @feedOn || !PAD || !File.exist?(PAD)
+      @feedBit = {}
+      PAD_BUTTONS.each_with_index do |b, i|
+        next unless Input.const_defined?(b)
+        v = Input.const_get(b)
+        @feedBit[v] = i
+        @feedBit[b.to_sym] = i
+      end
+      return if @feedBit.empty?
+      @feedNow = @feedPrev = 0
+      @feedHeld = Array.new(PAD_BUTTONS.size, 0)
+      Input.singleton_class.class_eval do
+        alias_method :pokedaisy_feed_update, :update
+        def update(*a)
+          r = pokedaisy_feed_update(*a)
+          PokeDaisyCompanion.feed_read
+          r
+        end
+        %i[press? trigger? repeat? release?].each do |m|
+          orig = :"pokedaisy_feed_#{m.to_s.delete('?')}"
+          next unless method_defined?(m)
+          alias_method orig, m
+          define_method(m) { |*a| PokeDaisyCompanion.feed?(m, a[0]) || send(orig, *a) }
+        end
+        %i[dir4 dir8].each do |m|
+          orig = :"pokedaisy_feed_#{m}"
+          next unless method_defined?(m)
+          alias_method orig, m
+          define_method(m) do |*a|
+            d = PokeDaisyCompanion.feed_dir(m == :dir8)
+            d == 0 ? send(orig, *a) : d
+          end
+        end
+      end
+      @feedOn = true
+    rescue Exception => e
+      note(:feed, e)
+    end
+
+    def feed_read
+      t = (File.binread(PAD) rescue nil)
+      m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
+      @feedPrev = @feedNow
+      @feedNow = m
+      @feedHeld.each_index { |i| @feedHeld[i] = m[i] == 1 ? @feedHeld[i] + 1 : 0 }
+    rescue Exception => e
+      note(:feedread, e)
+    end
+
+    def feed?(m, b)
+      return false unless @feedOn && (@feedNow | @feedPrev) != 0
+      i = @feedBit[b]
+      return false unless i
+      now = @feedNow[i] == 1
+      before = @feedPrev[i] == 1
+      case m
+      when :press? then now
+      when :trigger? then now && !before
+      when :release? then before && !now
+      else
+        return false unless now
+        return true unless before
+        # RGSS's repeat: the press, then after about 0.4 s every 0.1 s, at the game's frame rate.
+        fr = (Graphics.frame_rate rescue 40).to_i
+        fr = 40 if fr <= 0
+        start = (fr * 0.4).round
+        step = [(fr * 0.1).round, 1].max
+        n = @feedHeld[i] - 1
+        n >= start && (n - start) % step == 0
+      end
+    rescue Exception
+      false
+    end
+
+    def feed_dir(eight)
+      return 0 unless @feedOn && @feedNow != 0
+      on = lambda { |n| (i = PAD_BUTTONS.index(n)) && @feedNow[i] == 1 }
+      v = (on.call('DOWN') ? 1 : 0) - (on.call('UP') ? 1 : 0)
+      h = (on.call('RIGHT') ? 1 : 0) - (on.call('LEFT') ? 1 : 0)
+      return 0 if v == 0 && h == 0
+      return 5 - 3 * v + h if eight
+      # dir4: the newest of the two when both are held, as RGSS's own.
+      return (v > 0 ? 2 : 8) if h == 0
+      return (h > 0 ? 6 : 4) if v == 0
+      vi = PAD_BUTTONS.index(v > 0 ? 'DOWN' : 'UP')
+      hi = PAD_BUTTONS.index(h > 0 ? 'RIGHT' : 'LEFT')
+      @feedHeld[hi] <= @feedHeld[vi] ? (h > 0 ? 6 : 4) : (v > 0 ? 2 : 8)
+    rescue Exception
+      0
     end
 
     # The game's scripts' text: its script list, and the folders some games load theirs from.
@@ -713,6 +815,7 @@ module PokeDaisyCompanion
         h['pad'] = @padMode
         h['pad_keys'] = @padKeys if @padKeys
         h['pad_roles'] = @padRoles if @padRoles
+        h['pad_feed'] = 1 if @feedOn
       end
       if $game_map
         id = safe(:mapid, 0) { $game_map.map_id }

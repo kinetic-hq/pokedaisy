@@ -3,7 +3,15 @@
 #include "pc_game.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#define rmdir _rmdir
+#else
+#include <unistd.h>
+#endif
 
 static void test_state(void) {
   static const char json[] =
@@ -210,6 +218,59 @@ static void test_pad(void) {
   assert(pc_state_parse("{\"pad\":\"keys\",\"pad_keys\":\"C:67,B:88\"}", &s));
   pc_pad_mkxpz(&s);
   assert(!s.padOurs && s.padVk[PC_PAD_C] == 67 && s.padVk[PC_PAD_B] == 88);
+  // PAD FEED: the companion says it reads the buttons; the game's buttons held as bits, by the keys' own rules.
+  assert(pc_state_parse("{\"pad\":\"native\",\"pad_roles\":\"C:CONFIRM,B:BACK/MENU\",\"pad_feed\":1}", &s));
+  pc_pad_mkxpz(&s);
+  assert(s.padFeed && s.pad == PC_PAD_KEYS);
+  assert(pc_pad_mask(&s, (1u << PC_IN_A) | (1u << PC_IN_LEFT)) == ((1u << PC_PAD_C) | (1u << PC_PAD_LEFT)));
+  assert(pc_pad_mask(&s, 1u << PC_IN_START) == 1u << PC_PAD_B);
+  assert(pc_pad_mask(&s, (1u << PC_IN_SELECT) | (1u << PC_IN_START)) == 0); // GAME MENU's chord
+  assert(pc_state_parse("{\"pad\":\"native\"}", &s) && !s.padFeed);
+  char feed[512];
+  snprintf(feed, sizeof feed, "%s/pd_pad_feed_test.txt", getenv("TEMP") ? getenv("TEMP") : "/tmp");
+  assert(pc_pad_feed(feed, (1u << PC_PAD_C) | (1u << PC_PAD_UP)));
+  FILE *f = fopen(feed, "rb");
+  char got[16] = {0};
+  assert(f && fread(got, 1, sizeof got - 1, f) > 0);
+  fclose(f);
+  remove(feed);
+  assert(!strcmp(got, "m513;\n"));
+}
+
+static void test_dropped(void) {
+  char dir[512];
+  snprintf(dir, sizeof dir, "%s/pd_dropped_test", getenv("TEMP") ? getenv("TEMP") : "/tmp");
+  char path[600];
+#ifdef _WIN32
+  _mkdir(dir);
+  snprintf(path, sizeof path, "%s/Data", dir);
+  _mkdir(path);
+#else
+  mkdir(dir, 0755);
+  snprintf(path, sizeof path, "%s/Data", dir);
+  mkdir(path, 0755);
+#endif
+  snprintf(path, sizeof path, "%s/Data/Scripts.rxdata", dir);
+  FILE *f = fopen(path, "wb");
+  assert(f);
+  fclose(f);
+  snprintf(path, sizeof path, "%s/Game.ini", dir);
+  f = fopen(path, "wb");
+  assert(f);
+  fputs("[Game]\r\nTitle=Pokemon Reborn\r\n", f);
+  fclose(f);
+  assert(pc_game_dir(dir) && !pc_dropped(dir));
+  f = fopen(path, "wb");
+  assert(f);
+  fputs("[Game]\r\nTitle=Pokemon Anil\r\n", f);
+  fclose(f);
+  assert(pc_dropped(dir) && !pc_game_dir(dir)); // Indigo: off the list
+  remove(path);
+  snprintf(path, sizeof path, "%s/Data/Scripts.rxdata", dir);
+  remove(path);
+  snprintf(path, sizeof path, "%s/Data", dir);
+  rmdir(path);
+  rmdir(dir);
 }
 
 static void test_large_address(void) {
@@ -236,6 +297,7 @@ static void test_large_address(void) {
 }
 
 int main(void) {
+  test_dropped();
   test_large_address();
   test_pad();
   test_swap_face();
