@@ -100,8 +100,11 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   (`<pc dir>/pad.txt`), the companion wraps `Input.update` (at `pad_setup`, after the game's scripts redefined it) and
   answers `press?` / `trigger?` / `repeat?` / `release?` / `dir4` / `dir8` from the mask too, and says `pad_feed`;
   from then main.c writes `m<mask>;` (`pc_pad_mask`, bits of `enum pc_pad_button`) on each change and presses no key.
-  `pc_input_ours` decides whether the pad belongs to the game: not after a switch to another program that came after
-  the game had the foreground. The user also saw "everything is auto run": run is Input::A, pressed as SHIFT, which
+  Since 2026-11-17 every fan game with the companion gets the feed (keys mode too: the win32 Input's `press?` and
+  friends are wrapped the same way) and no key is pressed before it loads; only games without a companion still get
+  keys. The feed no longer checks the foreground (`pc_input_ours` is gone): a window taking it on the user's desktop
+  cut the pad off mid game. The stuck-at-connect filter uses only SDL's state as the pad opens: a 700 ms window after
+  it also ate real presses (`test_controller_hotplug`, which failed the release). The user also saw "everything is auto run": run is Input::A, pressed as SHIFT, which
   Sticky Keys (five SHIFT presses) or a key-up sent while another window was in front leaves held. Checked with a ViGEm X360 pad (a test helper of its own, ViGEmBus's IOCTLs) and an
   observer preload logging `Input.press?` per frame. Note that `SDL_GetPrefPath` ignores an `APPDATA` override, so a
   check run makes `%APPDATA%/<title>` even with one (delete it if it stays empty).

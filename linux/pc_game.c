@@ -1290,7 +1290,6 @@ bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o,
 static PROCESS_INFORMATION proc;
 static HWND gameWindow;
 static bool started;
-static bool inputWasOurs; // pc_input_ours: the game or PokeDaisy had the foreground since the game started
 
 static wchar_t *wide(const char *s) {
   int n = MultiByteToWideChar(CP_UTF8, 0, s, -1, NULL, 0);
@@ -1315,7 +1314,6 @@ bool pc_start(const struct pc_game_info *info, const char *dir, const char *json
     started = false;
   }
   gameWindow = NULL;
-  inputWasOurs = false;
   const char *from = info->player == PC_PLAYER_MKXPZ ? dir : info->dir;
   char exe[1400];
   join(exe, sizeof exe, from, info->exe);
@@ -1431,18 +1429,6 @@ void pc_pad_env(const char *mappings, bool hide) {
 
 bool pc_self_foreground(void *self) { return self && GetForegroundWindow() == (HWND)self; }
 
-bool pc_input_ours(void *self) {
-  HWND fg = GetForegroundWindow();
-  DWORD pid = 0;
-  if (fg)
-    GetWindowThreadProcessId(fg, &pid);
-  if (!fg || fg == (HWND)self || pid == GetCurrentProcessId() || (started && pid == proc.dwProcessId) ||
-      (GetWindowLongW(fg, GWL_EXSTYLE) & (WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)))
-    return inputWasOurs = true;
-  // Another program in front: switched to after the game had it, the player's choice. Never given to the game
-  // (Windows can refuse it a window raised from behind), the controller still goes to the game.
-  return !inputWasOurs;
-}
 
 static bool keysDown[256];
 void pc_keys_send(const bool *down) {
@@ -1691,10 +1677,6 @@ void pc_keys_send(const bool *down) { (void)down; }
 bool pc_self_foreground(void *self) {
   (void)self;
   return false;
-}
-bool pc_input_ours(void *self) {
-  (void)self;
-  return true;
 }
 const uint32_t *pc_capture(int *w, int *h) {
   (void)w, (void)h;

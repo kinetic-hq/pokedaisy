@@ -168,14 +168,13 @@ enum {
 static SDL_GameController *controller; // the first open pad (any open pad plays: pads[])
 #define MAX_PADS 8
 static SDL_GameController *pads[MAX_PADS];
-/* STUCK AT CONNECT: a pad's buttons and stick or trigger directions already on as it connects (or within its first
- * moments, while SDL reads its first state). Some handhelds list a second device beside their own pad whose report
+/* STUCK AT CONNECT: a pad's buttons and stick or trigger directions already on as it connects (SDL's state as it
+ * opens). Some handhelds list a second device beside their own pad whose report
  * leaves a button or an axis on for good (a trigger read as a stick, say): PokeDaisy took that for a held button, so
  * menus scrolled and picked by themselves. Each one is ignored until it lets go once; after that it's a button like
  * any other. A bit per SDL button; per axis 1 its negative side, 2 its positive one. */
 static uint32_t padStuck[MAX_PADS];
 static unsigned char padAxisStuck[MAX_PADS][SDL_CONTROLLER_AXIS_MAX];
-static uint32_t padOpenedAt[MAX_PADS];
 static int padCount;
 static bool rawTrimui;
 static unsigned held, pressed;
@@ -596,7 +595,6 @@ static void controller_added(int index) {
   if (!pad)
     return;
   padStuck[padCount] = 0;
-  padOpenedAt[padCount] = SDL_GetTicks();
   for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX && b < 32; b++)
     if (SDL_GameControllerGetButton(pad, (SDL_GameControllerButton)b))
       padStuck[padCount] |= 1u << b;
@@ -617,7 +615,6 @@ static void controller_removed(SDL_JoystickID id) {
     pads[i] = pads[--padCount];
     padStuck[i] = padStuck[padCount];
     memcpy(padAxisStuck[i], padAxisStuck[padCount], sizeof padAxisStuck[i]);
-    padOpenedAt[i] = padOpenedAt[padCount];
     pads[padCount] = NULL;
     controller = padCount ? pads[0] : NULL;
     held = 0; // nothing stays pressed on a pad that's gone
@@ -1021,31 +1018,23 @@ static bool pad_unstuck(SDL_Event *e) {
     i++;
   if (i == padCount)
     return true;
-  bool early = SDL_GetTicks() - padOpenedAt[i] < 700; // SDL's first read of a pad comes as events
   const char *name = SDL_GameControllerName(pads[i]);
   if (button) {
     int b = e->cbutton.button;
     if (b < 0 || b >= 32)
       return true;
     bool down = e->type == SDL_CONTROLLERBUTTONDOWN;
-    if (down && early && !(padStuck[i] & (1u << b))) {
-      padStuck[i] |= 1u << b;
-      fprintf(stderr, "Controller %s: button %d on as it connected, left out until it lets go\n", name ? name : "?", b);
-    }
     if (!(padStuck[i] & (1u << b)))
       return true;
-    if (!down)
+    if (!down) {
       padStuck[i] &= ~(1u << b);
+      fprintf(stderr, "Controller %s: button %d, on as it connected, let go\n", name ? name : "?", b);
+    }
     return false;
   }
   int a = e->caxis.axis, v = e->caxis.value;
   if (a < 0 || a >= SDL_CONTROLLER_AXIS_MAX)
     return true;
-  int side = v < -16000 ? 1 : v > 16000 ? 2 : 0;
-  if (side && early && !(padAxisStuck[i][a] & side)) {
-    padAxisStuck[i][a] |= (unsigned char)side;
-    fprintf(stderr, "Controller %s: axis %d on as it connected, left out until it lets go\n", name ? name : "?", a);
-  }
   if ((padAxisStuck[i][a] & 1) && v > -8000)
     padAxisStuck[i][a] &= (unsigned char)~1;
   if ((padAxisStuck[i][a] & 2) && v < 8000)
@@ -4382,12 +4371,16 @@ static void pc_play(const char *path) {
         // PAD FEED: the companion reads the buttons itself (pc_pad_feed), no key pressed, so neither the foreground
         // nor the player's own key bindings stand in the way. Until it says so, the keys above.
         pc_keys_send(NULL);
-        unsigned mask = pc_input_ours(self) ? pc_pad_mask(&state, in) : 0;
+        unsigned mask = pc_pad_mask(&state, in); // whichever window is in front, like a game reading its pad
         if (mask != fedMask && pc_pad_feed(padPath, mask)) {
           if (getenv("POCKET_PC_DEBUG"))
             fprintf(stderr, "PC game: pad feed %03X\n", mask);
           fedMask = mask;
         }
+      } else if (info.companion) {
+        // A game with the companion gets the feed once it has loaded (its first frames): no key is pressed meanwhile,
+        // since a pressed key is what got stuck down (SHIFT: running all the time) or landed in another window.
+        pc_keys_send(NULL);
       } else {
         bool down[256];
         pc_pad_keys(&state, in, down);

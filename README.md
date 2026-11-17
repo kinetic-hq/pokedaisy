@@ -603,12 +603,15 @@ Every change, one line each (a pull request that changes what the fork adds upda
   updates. Keys only landed while Windows kept the game's window in front and the player's own key bindings were
   untouched, so on some handhelds the pad did nothing. The run button was SHIFT, which Windows can latch (Sticky Keys
   after five quick presses, or a key-up lost while another window had the foreground), leaving the player running
-  all the time; no key is pressed now. If you switch to another program, the game stops getting the
-  controller until you come back. Games that read only the keyboard still get their keys.
+  all the time; no key is pressed now.
+- **No fan game gets pressed keys any more** (Reminiscencia, Rejuvenation and the rest): games that read only the
+  keyboard get the same direct feed, and until the companion has loaded nothing is pressed at all, so no key is left
+  held and nothing moves or picks by itself. The controller stays the game's whichever window Windows puts in front
+  (a handheld's overlay used to take it away).
 - **Buttons already held as a controller connects are left out until they let go**: some handhelds list a second
   device beside their own pad whose report leaves a button or a stick direction on for good, and PokeDaisy took it for
-  a held button, so menus scrolled and picked by themselves. Any button or direction already on as a pad connects (or
-  in its first moments) is ignored until it's released once; after that it works like any other.
+  a held button, so menus scrolled and picked by themselves. Any button or direction already on as a pad connects is
+  ignored until it's released once; after that it works like any other.
 - **Indigo is no longer a supported game**: it never took the controller reliably on a handheld, so its folder no
   longer shows up as a tile. Play it on its own.
 

@@ -138,11 +138,6 @@ unsigned pc_pad_mask(const struct pc_state *s, unsigned held);
  * release?, dir4 and dir8 from, besides the game's own reading. No key is pressed, so it reaches the game whichever
  * window has the foreground and whatever its player's own key bindings (F1) say. False when it couldn't be written. */
 bool pc_pad_feed(const char *path, unsigned mask);
-/* The controller belongs to the game now: its window or PokeDaisy's has the foreground, or nothing does, or an overlay
- * that sits on top without being switched to (a handheld's own control app, the game bar, the touch keyboard), or
- * another program that was in front all along (Windows didn't let the game's window come forward). Not when the
- * player switched to another program after the game had the foreground. */
-bool pc_input_ours(void *self);
 /* CONTROL HINTS: the buttons to show under the picture and what each does in this game, in the pad's order; the
  * count. XBOX names the shoulders LB and RB. */
 struct pc_hint {
