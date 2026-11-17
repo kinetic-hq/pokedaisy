@@ -4223,6 +4223,11 @@ static void pc_play(const char *path) {
   snprintf(padPath, sizeof padPath, "%s/pad.txt", dir);
   unsigned fedMask = 0;
   int selfRestarts = 0;
+  // THE LEFT STICK as the arrow keys, for a game on its own RGSS player (no companion: Phoenix Rising), below.
+  bool stickKeys = info.player == PC_PLAYER_RGSS && !info.companion;
+  unsigned stickDir = 0;
+  if (stickKeys)
+    fprintf(stderr, "PC game: the left stick presses the arrow keys (the game reads the D-pad itself)\n");
   while (running) {
     if (!pc_running()) {
       // RESTART: the game closed to start itself again (an option of its own, Indigo's VSync): PokeDaisy starts it
@@ -4425,6 +4430,44 @@ static void pc_play(const char *path) {
         pc_pad_keys(&state, in, down);
         pc_keys_send(down);
       }
+    } else if (stickKeys) {
+      // THE LEFT STICK in a game on its own RGSS player (Phoenix Rising): its scripts read the D-pad and the buttons
+      // through XInput but not the thumbstick, so the stick, and only the stick, presses the arrow keys (one at a
+      // time, pc_stick_dir). pc_keys_send lets them go when the stick centres and whenever the game's window isn't
+      // in front; GAME MENU and the end of the play let them go too. A side still on from STUCK AT CONNECT reads as
+      // at rest. POCKET_PC_STICK="x,y" (checks) holds the stick there.
+      int sx = 0, sy = 0;
+      long long best = 0;
+      for (int i = 0; i < padCount; i++) {
+        int x = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_LEFTX);
+        int y = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_LEFTY);
+        const unsigned char *stuck = padAxisStuck[i];
+        if (((stuck[SDL_CONTROLLER_AXIS_LEFTX] & 1) && x < 0) || ((stuck[SDL_CONTROLLER_AXIS_LEFTX] & 2) && x > 0))
+          x = 0;
+        if (((stuck[SDL_CONTROLLER_AXIS_LEFTY] & 1) && y < 0) || ((stuck[SDL_CONTROLLER_AXIS_LEFTY] & 2) && y > 0))
+          y = 0;
+        long long r2 = (long long)x * x + (long long)y * y;
+        if (r2 > best)
+          best = r2, sx = x, sy = y;
+      }
+      if (getenv("POCKET_PC_STICK") && sscanf(getenv("POCKET_PC_STICK"), "%d,%d", &sx, &sy) != 2)
+        sx = sy = 0;
+      unsigned dir = pc_stick_dir(sx, sy, stickDir);
+      if (dir != stickDir) {
+        static int stickLogged;
+        if (stickLogged++ < 600 || getenv("POCKET_PC_DEBUG"))
+          fprintf(stderr, "PC game: left stick %s at %u ms\n",
+                  dir & (1u << PC_IN_UP)     ? "up"
+                  : dir & (1u << PC_IN_DOWN) ? "down"
+                  : dir & (1u << PC_IN_LEFT) ? "left"
+                  : dir                      ? "right"
+                                             : "centred",
+                  (unsigned)(now - start));
+        stickDir = dir;
+      }
+      bool down[256];
+      pc_stick_keys(stickDir, down);
+      pc_keys_send(down);
     }
     // The companion's news.
     struct stat sb;

@@ -3,7 +3,7 @@ title: PC fan games
 summary: Play PC fan games made with RPG Maker inside PokeDaisy on Windows, full screen, with your party and the battle in the wings.
 section: start
 order: 92
-keywords: [pc, fan game, button layout, alt tab, control hints, keyboard, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, restart, vsync, skips rows, cursor jumps, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
+keywords: [pc, fan game, left stick, analog stick, thumbstick, button layout, alt tab, control hints, keyboard, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, restart, vsync, skips rows, cursor jumps, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
 ---
 
 On Windows, PokeDaisy plays PC fan games made with RPG Maker (most of them are
@@ -175,7 +175,10 @@ tall as the screen, whole, through your `SHADER` and `COLORS`.
 
 Phoenix Rising reads an Xbox style controller (most handheld PCs' built in
 controls are one) by itself, so the D-pad and buttons go straight to the game,
-by the buttons' places whatever `BUTTON LAYOUT` says. The game keeps
+by the buttons' places whatever `BUTTON LAYOUT` says. The game doesn't read the
+left stick, so PokeDaisy turns the stick into the arrow keys for it: push the
+stick and you walk or move through menus as with the D-pad, one direction at a
+time. Let the stick go back to the middle and you stop. The game keeps
 the keyboard and the mouse too. If the game stops with a script error while it's
 starting, PokeDaisy starts it again for you.
 
@@ -200,7 +203,7 @@ starting, PokeDaisy starts it again for you.
 | Rejuvenation | `PARTLY` | Party, place |
 | Floral Tempest | `PARTLY` | Party, place |
 | Itinerant | `PARTLY` | Party, place |
-| Phoenix Rising | `PLAY ONLY` | Its own player, drawn whole full screen; xBRZ from its real pixels, zoom with the right stick, clock and play time beside it |
+| Phoenix Rising | `PLAY ONLY` | Its own player, drawn whole full screen; xBRZ from its real pixels, the left stick moves you, zoom with the right stick, clock and play time beside it |
 
 A game in a folder whose name has an accented letter in it plays too: PokeDaisy gives the game a plain path to its folder (a Windows junction
 in `DATA\pc\links`) without moving anything.

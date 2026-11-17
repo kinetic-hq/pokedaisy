@@ -168,7 +168,7 @@ An OLED screen doesn't light black pixels at all, so PokeDaisy can keep everythi
 | Screen | `SHARP` / `xBRZ`, `HANDHELD` / `OLED` colours, `BRIGHTNESS`, black backgrounds and bezel bars, full screen, `ORIENTATION` |
 | Controls | Hot plugged controllers (several at once), `NINTENDO` / `XBOX` layouts, hotkeys for paddles and extra buttons, touch and mouse, rumble |
 | Games and saves | A box art game grid, your own game folders with saves beside the games, ten state slots, resume, per-game settings, `EDIT SAVE` |
-| PC fan games | RPG Maker fan games (Reborn, Tectonic, Fire Ash, Insurgence, ...) played full screen on Windows with the wings beside them, `LT` / `RT` camera zoom, `WIDE VIEW` on the map, `L3` fast forward and instant text, `BUTTON LAYOUT` deciding the confirm button, the controller pressing the game's own keys in games that only read the keyboard, the controls shown under the picture (`CONTROL HINTS`), and the game put back (and given the controller again) after switching windows or a resolution change; Phoenix Rising (its own player) gets xBRZ from its real pixels, gliding zoom with right stick pan, and the clock and play time beside it |
+| PC fan games | RPG Maker fan games (Reborn, Tectonic, Fire Ash, Insurgence, ...) played full screen on Windows with the wings beside them, `LT` / `RT` camera zoom, `WIDE VIEW` on the map, `L3` fast forward and instant text, `BUTTON LAYOUT` deciding the confirm button, the controller pressing the game's own keys in games that only read the keyboard, the controls shown under the picture (`CONTROL HINTS`), and the game put back (and given the controller again) after switching windows or a resolution change; Phoenix Rising (its own player) gets xBRZ from its real pixels, gliding zoom with right stick pan, the left stick as the D-pad, and the clock and play time beside it |
 | Play | Level cap, low PP warning, battery saver |
 | Games | A [game compatibility](#game-compatibility) table comparing Android with Windows / Linux |
 
@@ -623,6 +623,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   with its wings and the controller, instead of stopping at "Windows cannot find 'Game.exe'".
 - **No lag after each button press in fan games**: the file the controller's buttons go through is kept open
   for the whole play instead of rewritten and reopened at every press, which Windows' antivirus scanned each time.
+- **The left stick moves you in Phoenix Rising**, as the D-pad does: the game reads the D-pad and buttons by
+  itself but not the stick, so PokeDaisy presses the arrow keys for the stick alone, one direction at a time, and
+  lets them go as the stick centres, the game leaves the front or the GAME MENU opens.
 
 </details>
 
