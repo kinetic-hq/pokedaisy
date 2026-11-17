@@ -588,23 +588,29 @@ Every change, one line each (a pull request that changes what the fork adds upda
   stand-ins for their helper DLLs; a game on its own player is drawn whole, full screen, through `SHADER` and `COLORS`.
   A game that lists another language before English starts in English (its language choice and a new
   adventure's options start there), without changing its files.
-- **The controller in mkxp-z fan games** (Indigo, Fire Ash, Floral Tempest, Reborn, Tectonic, ...) goes through
+- **The controller in mkxp-z fan games** (Fire Ash, Floral Tempest, Reborn, Tectonic, ...) goes through
   PokeDaisy: the game's player reads only the first controller Windows lists, which on some handhelds isn't the
-  built in one (stuck on Indigo's CONTROLS screen, or `A` and `B` swapped), so the player sees no controller and
+  built in one (stuck on a CONTROLS screen, or `A` and `B` swapped), so the player sees no controller and
   PokeDaisy presses its keys for your buttons, by `BUTTON LAYOUT`. `START` opens the game's menu there too. The
   player's `F1` key binding window, which needs a mouse, can't open, and a 32-bit player (Bushido's) may use 4 GB, so
   it no longer runs out of memory as it starts on a big screen.
 - **mkxp-z fan games run at their own speed**: PokeDaisy turns off the player's `vsync` and `syncToRefreshrate`
-  (Indigo and Eon Guardians turn them on), which stalled the game window over PokeDaisy's at about 7 frames a second
+  (Eon Guardians turns them on), which stalled the game window over PokeDaisy's at about 7 frames a second
   and lost most presses. A quick tap on the controller now reaches a game that reads only the keyboard too: each
   press stays down at least 60 ms, and PokeDaisy checks the buttons every 8 ms while it presses the game's keys.
-- **mkxp-z fan games get the controller handed straight to them** (Indigo first): PokeDaisy no longer presses keys
+- **mkxp-z fan games get the controller handed straight to them**: PokeDaisy no longer presses keys
   for your buttons there, it writes the buttons held to a small file the companion reads at each of the game's input
   updates. Keys only landed while Windows kept the game's window in front and the player's own key bindings were
   untouched, so on some handhelds the pad did nothing. The run button was SHIFT, which Windows can latch (Sticky Keys
   after five quick presses, or a key-up lost while another window had the foreground), leaving the player running
   all the time; no key is pressed now. If you switch to another program, the game stops getting the
   controller until you come back. Games that read only the keyboard still get their keys.
+- **Buttons already held as a controller connects are left out until they let go**: some handhelds list a second
+  device beside their own pad whose report leaves a button or a stick direction on for good, and PokeDaisy took it for
+  a held button, so menus scrolled and picked by themselves. Any button or direction already on as a pad connects (or
+  in its first moments) is ignored until it's released once; after that it works like any other.
+- **Indigo is no longer a supported game**: it never took the controller reliably on a handheld, so its folder no
+  longer shows up as a tile. Play it on its own.
 
 </details>
 

@@ -120,11 +120,25 @@ static bool has_scripts(const char *dir) {
          exists_in(dir, "Game.rgss3a");
 }
 
+/* DROPPED: fan games PokeDaisy no longer lists, by Game.ini's Title. Indigo (Title "Pokemon Anil") never took the
+ * controller reliably on a handheld (2026-11-16), so it was taken off the supported games: play it on its own. */
+static const char *const DROPPED[] = {"Pokemon Anil", "Pok\xc3\xa9mon Anil"};
+
+bool pc_dropped(const char *dir) {
+  char title[200];
+  if (!ini_value(dir, "Title", title, sizeof title))
+    return false;
+  for (size_t i = 0; i < sizeof DROPPED / sizeof DROPPED[0]; i++)
+    if (!strcasecmp(title, DROPPED[i]))
+      return true;
+  return false;
+}
+
 bool pc_game_dir(const char *dir) {
   if (!pocket_is_dir(dir))
     return false;
   if (exists_in(dir, "Game.ini") && has_scripts(dir))
-    return true;
+    return !pc_dropped(dir);
   // No Game.ini (Phoenix Rising): an RGSS player's DLL and a program beside a Data folder.
   if (!exists_in(dir, "Data"))
     return false;

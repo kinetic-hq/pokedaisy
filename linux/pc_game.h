@@ -39,6 +39,8 @@ struct pc_game_info {
 
 /* DIR is an RPG Maker game's folder: Game.ini with its scripts or an archive beside it, or a known player alone. */
 bool pc_game_dir(const char *dir);
+/* A fan game PokeDaisy no longer lists (Indigo): pc_game_dir is false for it. */
+bool pc_dropped(const char *dir);
 /* What's known about the game in DIR (false: not one). */
 bool pc_game_info(const char *dir, struct pc_game_info *out);
 /* PATH (a game list entry) is a PC game's folder. */

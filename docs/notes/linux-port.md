@@ -105,6 +105,12 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   Sticky Keys (five SHIFT presses) or a key-up sent while another window was in front leaves held. Checked with a ViGEm X360 pad (a test helper of its own, ViGEmBus's IOCTLs) and an
   observer preload logging `Input.press?` per frame. Note that `SDL_GetPrefPath` ignores an `APPDATA` override, so a
   check run makes `%APPDATA%/<title>` even with one (delete it if it stays empty).
+- **STUCK AT CONNECT** (2026-11-16, main.c `pad_unstuck`): "everything is automated in terms of selection" on a
+  handheld. Buttons and axis sides (beyond 16000) already on when a pad opens, or turning on in its first 700 ms, are
+  dropped until they let go (an axis until it's back inside 8000). The guess is a second HID device beside the pad
+  whose report leaves something on for good; not reproduced here. Logged as "Controller X: button N on as it connected".
+- **DROPPED** (pc_game.c): fan games no longer listed, by Game.ini Title. Indigo ("Pokemon Anil") went on 2026-11-16
+  after its controller never worked reliably on the user's handheld.
 - **32-bit players** (Bushido's mkxp-z) get LARGE_ADDRESS_AWARE set on PokeDaisy's copy (`pc_large_address`): without
   it a big window on a handheld's driver left too little of 2 GB and `load_data` of the battle animations failed with
   NoMemoryError.

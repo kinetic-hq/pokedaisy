@@ -266,6 +266,8 @@ Bluetooth and USB controllers (8BitDo, GameSir, Xbox and so on) work, and you ca
 
 A controller's HOME or guide button, unless you've bound it to something, works like a tap of `BACK` (see below).
 
+On the desktop app, a button or stick direction that's already on as a controller connects is left out until you let go of it once. Some handhelds list a second device beside their own pad that reports a button as held for good, which used to make menus scroll and pick by themselves.
+
 > [!NOTE]
 > External controllers haven't been tested widely yet. If one doesn't behave, please report it with the controller's name.
 
