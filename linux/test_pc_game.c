@@ -237,42 +237,6 @@ static void test_pad(void) {
   assert(!strcmp(got, "m513;\n"));
 }
 
-static void test_dropped(void) {
-  char dir[512];
-  snprintf(dir, sizeof dir, "%s/pd_dropped_test", getenv("TEMP") ? getenv("TEMP") : "/tmp");
-  char path[600];
-#ifdef _WIN32
-  _mkdir(dir);
-  snprintf(path, sizeof path, "%s/Data", dir);
-  _mkdir(path);
-#else
-  mkdir(dir, 0755);
-  snprintf(path, sizeof path, "%s/Data", dir);
-  mkdir(path, 0755);
-#endif
-  snprintf(path, sizeof path, "%s/Data/Scripts.rxdata", dir);
-  FILE *f = fopen(path, "wb");
-  assert(f);
-  fclose(f);
-  snprintf(path, sizeof path, "%s/Game.ini", dir);
-  f = fopen(path, "wb");
-  assert(f);
-  fputs("[Game]\r\nTitle=Pokemon Reborn\r\n", f);
-  fclose(f);
-  assert(pc_game_dir(dir) && !pc_dropped(dir));
-  f = fopen(path, "wb");
-  assert(f);
-  fputs("[Game]\r\nTitle=Pokemon Anil\r\n", f);
-  fclose(f);
-  assert(pc_dropped(dir) && !pc_game_dir(dir)); // Indigo: off the list
-  remove(path);
-  snprintf(path, sizeof path, "%s/Data/Scripts.rxdata", dir);
-  remove(path);
-  snprintf(path, sizeof path, "%s/Data", dir);
-  rmdir(path);
-  rmdir(dir);
-}
-
 static void test_large_address(void) {
   unsigned char exe[256] = {'M', 'Z'};
   exe[0x3C] = 0x80;
@@ -297,7 +261,6 @@ static void test_large_address(void) {
 }
 
 int main(void) {
-  test_dropped();
   test_large_address();
   test_pad();
   test_swap_face();

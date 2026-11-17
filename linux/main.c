@@ -4144,8 +4144,9 @@ static void pc_play(const char *path) {
   pc_commands(cmdPath, ff, instant, zoom);
   // BUTTON LAYOUT reaches the game's own player here and nowhere else: by the buttons' places, and with NINTENDO
   // every pad's face buttons swapped (the right one confirms), the generic XInput pad's too. An mkxp-z game sees no
-  // controller at all: PokeDaisy presses its keys instead (pc_pad_mkxpz), the layout already applied.
-  bool mkxpzPad = info.player == PC_PLAYER_MKXPZ;
+  // controller at all: PokeDaisy hands it the buttons through the companion (PAD FEED), the layout already applied.
+  // A game without the companion keeps the controller for its own player to read: no key is ever pressed for it.
+  bool mkxpzPad = info.player == PC_PLAYER_MKXPZ && info.companion;
   static char maps[4096];
   {
     maps[0] = 0;

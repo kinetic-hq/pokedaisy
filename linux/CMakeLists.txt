@@ -170,6 +170,8 @@ if(BUILD_TESTING)
   if(NOT CMAKE_CROSSCOMPILING AND NOT WIN32)
     add_test(NAME portmaster-launcher COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_portmaster.py $<TARGET_FILE:pokedaisy-linux>)
   endif()
+  # The companion runs in Ruby 1.8 players too: no newer syntax (test_companion_ruby18.py).
+  add_test(NAME companion-ruby18 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_companion_ruby18.py)
   add_test(NAME diagnostic-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/make_diagnostic.py)
   # EDIT SAVE's move lists (save_tables_gen.h) still match the app's SaveTablesGen.kt.
   add_test(NAME save-tables-gen COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/gen_save_tables_c.py --check)

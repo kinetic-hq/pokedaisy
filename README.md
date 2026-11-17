@@ -612,8 +612,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
   device beside their own pad whose report leaves a button or a stick direction on for good, and PokeDaisy took it for
   a held button, so menus scrolled and picked by themselves. Any button or direction already on as a pad connects is
   ignored until it's released once; after that it works like any other.
-- **Indigo is no longer a supported game**: it never took the controller reliably on a handheld, so its folder no
-  longer shows up as a tile. Play it on its own.
+- **Fan games start again after 1.65.6**, which stopped each one at a script error, and a game PokeDaisy has no
+  companion for (Phoenix Rising) reads the controller itself instead of getting pressed keys.
+- **Indigo is back in the library**: it was hidden for a day while its controller misbehaved; with no keys
+  pressed for the controller any more it plays like the rest.
 
 </details>
 
