@@ -175,6 +175,10 @@ if(BUILD_TESTING)
   find_program(PD_RUBY ruby)
   if(PD_RUBY)
     add_test(NAME companion-feed COMMAND ${PD_RUBY} ${CMAKE_CURRENT_SOURCE_DIR}/test_companion_feed.rb ${CMAKE_CURRENT_SOURCE_DIR}/pc_companion.rb)
+    # The input paths in a mock RGSS loop: one row a tap and a repeat by the clock through 'source' however often the
+    # game runs Input.update, and each path's cost a frame (printed; ruby bench_companion_input.rb ... --full for more).
+    add_test(NAME companion-bench COMMAND ${PD_RUBY} ${CMAKE_CURRENT_SOURCE_DIR}/bench_companion_input.rb ${CMAKE_CURRENT_SOURCE_DIR}/pc_companion.rb)
+    set_tests_properties(companion-bench PROPERTIES TIMEOUT 300)
   endif()
   add_test(NAME diagnostic-roms COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/make_diagnostic.py)
   # EDIT SAVE's move lists (save_tables_gen.h) still match the app's SaveTablesGen.kt.

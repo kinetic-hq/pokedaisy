@@ -144,6 +144,51 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
 - **Pad log** (2026-11-17): pokedaisy.log now always names each controller (vendor:product, SDL path, what it held as
   it connected) and the first 600 pad feed changes of a play with their time, so a report of a game moving by itself
   shows whether PokeDaisy fed a held button (a device's stuck report) or the game read input of its own.
+- **Input redesign for four games** (2026-11-17): Indigo / Añil, Reminiscencia, Reborn and Rejuvenation still
+  lagged and skipped rows after #230 / #233 while ~15 other fan games played smoothly (all four are 40 fps,
+  Essentials v16/v17-era games). Only these four change (`pc_lean_game`: a whole word of Game.ini's Title or the
+  folder name, Añil in UTF-8 / Latin-1 / "anil"); every other game keeps the feed as it was.
+  - Measured first, in `linux/bench_companion_input.rb` (ctest `companion-bench`; `--full` for more timing runs): a
+    mock RGSS loop with mkxp-z's Input (native) and old Essentials' keyboard Input (keys: update asks `getstate` for
+    256 keys, answers through `buttonToKey` in Ruby), 1 to 3 `Input.update` a frame, up to 2000 extra `press?` calls
+    a frame. Findings: a wrapped call costs about 0.2 to 0.3 us, so 2000 calls a frame add about 0.5 ms (hypothesis 1,
+    per-call overhead, can't make "major latency" unless a game makes tens of thousands of calls a frame). But the
+    feed's `repeat?` counts updates: at 3 updates a frame a 150 ms tap moved 2 rows and a 1 s hold 27 rows (7 at one
+    update a frame). That is the skip whenever a game runs `Input.update` more than once a frame (hypothesis 2,
+    confirmed in the model).
+  - **INPUT PATH** (`pc_input_path`, `POKEDAISY_PC_INPUT` for the companion): `feed` (every other game, unchanged),
+    `source` (the four), `native`. `source` on a keys-mode game (`Input.getstate` and `buttonToKey` exist) wraps only
+    `update` (reads the pad file first, outermost call only) and `getstate` (true for the VK the game's own
+    `buttonToKey` ties to each fed button, through globals `$pokedaisy_vk`, so no call into the companion per key):
+    the game's own update, trigger, repeat and dir4 run on it as on a keyboard (the bench: identical rows to the
+    keyboard at 1 to 3 updates a frame). If 40 updates in a row never ask `getstate` (a game whose update reads
+    Windows directly) it falls back to the lean answers and logs it. `source` on mkxp-z's own Input (no getstate):
+    the wrappers stay (there's no Ruby way into mkxp-z's C key state) but each is one bit test of masks worked out
+    once per outermost update (`lean_edges`), and `repeat?` goes by the monotonic clock (0.4 s, then every 0.1 s; a
+    stall never fires a burst): 1 row a tap and 7 a second at any update rate.
+  - `native` (only via `POCKET_PC_INPUT=native`, direction A, for bisecting on the device): the mkxp-z player is
+    shown the first pad PokeDaisy has, alone (`SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT=0xVVVV/0xPPPP`, so it is
+    joystick 0), with the face-swap mappings for NINTENDO and `SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS=1`; the
+    companion feeds nothing (a keys-mode game, which can't read a pad, still gets `source`). Not the default: the
+    reasons for hiding the pad (a second HID device with the same IDs, the player's own F1 bindings in
+    keybindings.mkxp1) still stand, and it's untested on the OXP3. `POCKET_PC_INPUT=feed` gives the four the old
+    feed back.
+  - LEAN extras (`POKEDAISY_PC_LEAN=1`, the four only): ZOOM / WIDE VIEW go back to the game's size at once but
+    return only after a second of `quiet_map?` (a busy map's events flipped it and rebuilt the sprites each time);
+    `pad_roles` (every script inflated, up to 3000 files read) runs again only when the button numbers change;
+    `map_name` once a map; `icon_of` asks the game once per species / form / egg / shiny / gender.
+  - DIAGNOSTICS, every fan game with the companion (`POKEDAISY_PC_LOG` is now always `<pc dir>/companion.log`,
+    cleared by `pc_prepare`, copied into pokedaisy.log as "PC companion: ..." by `pc_companion_log` after the play):
+    "stats:" every 30 s (every 5 minutes after the first 10 lines) with the frame median / p95 / max and frames over
+    50 ms (from `Graphics.update` to `Graphics.update`), `Input.update` calls a frame (and the most in one frame),
+    wrapped calls a frame, the input mode and path, and screen resizes; "slow: <step> N ms" for any companion step
+    over 20 ms (300 at most). main.c logs "PC game: input path ..." at start and "the companion says input keys /
+    native, pad feed on" when it changes. Ruby 1.8 players have no monotonic clock: `now` checks once (`MONO`)
+    instead of raising at each call.
+  - What's left unproven: whether the four really run more than one update a frame, and where the latency comes
+    from. The first play's stats lines answer both: Input.update per frame over 1 means the skip above; a median
+    frame well over 25 ms or many frames over 50 ms means the game itself is slow (then "slow:" lines say whether
+    it's the companion).
 - **Phoenix Rising's left stick** (2026-11-17): the D-pad worked, the stick did nothing. The game runs on its own
   RGSS player with no companion, and PokeDaisy feeds it nothing: its own scripts read the pad through XInput
   (presumably `XInputGetState` through Win32API, inferred: the game isn't in the repo) and, from the report, look

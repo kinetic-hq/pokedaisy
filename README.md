@@ -629,6 +629,15 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **The left stick moves you in Phoenix Rising**, as the D-pad does: the game reads the D-pad and buttons by
   itself but not the stick, so PokeDaisy presses the arrow keys for the stick alone, one direction at a time, and
   lets them go as the stick centres, the game leaves the front or the GAME MENU opens.
+- **Indigo / Añil, Reminiscencia, Reborn and Rejuvenation read the controller a new way** (the other fan games
+  are unchanged): in a game on old Essentials' keyboard input, PokeDaisy reports the pad's buttons where the game
+  reads its keys (`Input.getstate`), so the game's own menus, triggers and repeat run as on a keyboard and no
+  answer of Input's is wrapped; on mkxp-z's own input, the presses and releases are worked out once per update
+  and holding a button repeats by the clock (0.4 s, then every 0.1 s), so a game running its input two or three
+  times a frame no longer skips rows. In these four the map's zoom and WIDE VIEW return only after a second of
+  quiet, and the wings' names and icons are asked of the game once each. Every fan game now writes frame time
+  stats and slow steps to pokedaisy.log ("PC companion:" lines), and `POCKET_PC_INPUT=feed|source|native` picks
+  the input path for a check (native shows the game's player the pad itself).
 
 </details>
 

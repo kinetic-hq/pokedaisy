@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 enum pc_player {
   PC_PLAYER_NONE,  // not a game this can play
@@ -230,9 +231,11 @@ bool pc_compose(void *self, int ow, int oh, uint32_t *out);
  * the buttons' places, as PokeDaisy reads them (SDL would otherwise swap a Nintendo-labelled pad's), and with
  * NINTENDO, MAPPINGS (SDL mapping lines with the face buttons swapped, pc_swap_face) so the right button confirms.
  * Set in PokeDaisy's environment just before the game starts, which the game's player inherits. HIDE (an mkxp-z
- * game, pc_pad_mkxpz): no controller at all for the game's player, PokeDaisy presses its keys instead; pc_pad_env(NULL,
- * false) after the start takes that away from PokeDaisy's own environment again. */
-void pc_pad_env(const char *mappings, bool hide);
+ * game, pc_pad_mkxpz): ONLY is PC_PAD_HIDE, no controller at all for the game's player; INPUT PATH native: "0xVVVV/0xPPPP",
+ * that pad alone; NULL every controller. pc_pad_env(NULL, NULL) after the start takes it away from PokeDaisy's own
+ * environment again. */
+#define PC_PAD_HIDE "0xFFFF/0xFFFF"
+void pc_pad_env(const char *mappings, const char *only);
 /* One SDL mapping line with A and B, X and Y swapped (the NINTENDO layout), a bus-and-IDs GUID's CRC part zeroed so
  * any SDL version matches it (SDL's own XInput GUID kept as it is). False when it isn't a mapping line or OUT is too
  * small. */
@@ -251,6 +254,17 @@ void pc_close(bool force);
 /* RESTART: the game, in DIR (pc_prepare's), asked to be started again (a game's own option such as Indigo's VSync
  * launches its exe and closes, which the companion notes in DIR/restart.txt instead). True once, the note taken away. */
 bool pc_restart_asked(const char *dir);
+/* The four fan games that lagged and skipped rows with the controller while the others played smoothly (Indigo /
+ * Añil, Reminiscencia, Reborn, Rejuvenation), by a whole word of Game.ini's Title or the folder's name: they get the
+ * redesigned input (pc_input_path "source") and the companion's LEAN extras. */
+bool pc_lean_game(const struct pc_game_info *info);
+/* INPUT PATH for the companion (POKEDAISY_PC_INPUT): "source" for pc_lean_game's games, "feed" for every other one,
+ * or what POCKET_PC_INPUT says ("feed", "source", "native"), for a player narrowing a problem down. "native" lets the
+ * game's player read the controller itself (that pad alone shown to it, pc_pad_env) and feeds nothing. */
+const char *pc_input_path(const struct pc_game_info *info);
+/* The companion's log of the play in DIR (DIR/companion.log: steps that failed or were slow, the frame stats), each
+ * line written to TO as "PC companion: ...", 500 at most. */
+void pc_companion_log(const char *dir, FILE *to);
 /* The game's last exit code (after it ended). */
 int pc_exit_code(void);
 #endif

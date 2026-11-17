@@ -4156,7 +4156,19 @@ static void pc_play(const char *path) {
   // every pad's face buttons swapped (the right one confirms), the generic XInput pad's too. An mkxp-z game sees no
   // controller at all: PokeDaisy hands it the buttons through the companion (PAD FEED), the layout already applied.
   // A game without the companion keeps the controller for its own player to read: no key is ever pressed for it.
-  bool mkxpzPad = info.player == PC_PLAYER_MKXPZ && info.companion;
+  // INPUT PATH (pc_input_path): "native" (POCKET_PC_INPUT, for narrowing a problem down) shows the game's player the
+  // pad PokeDaisy reads, alone, so it is the joystick 0 mkxp-z opens, and the companion feeds nothing.
+  const char *inputPath = pc_input_path(&info);
+  bool nativePad = info.player == PC_PLAYER_MKXPZ && info.companion && !strcmp(inputPath, "native");
+  bool mkxpzPad = info.player == PC_PLAYER_MKXPZ && info.companion && !nativePad;
+  char onlyPad[32] = "";
+  if (nativePad && padCount > 0)
+    snprintf(onlyPad, sizeof onlyPad, "0x%04X/0x%04X", SDL_GameControllerGetVendor(pads[0]),
+             SDL_GameControllerGetProduct(pads[0]));
+  const char *padOnly = mkxpzPad ? PC_PAD_HIDE : onlyPad[0] ? onlyPad : NULL;
+  if (info.companion)
+    fprintf(stderr, "PC game: input path %s%s%s%s\n", inputPath, pc_lean_game(&info) ? " (lean)" : "",
+            getenv("POCKET_PC_INPUT") ? " from POCKET_PC_INPUT" : "", onlyPad[0] ? ", the game reads the pad" : "");
   static char maps[4096];
   {
     maps[0] = 0;
@@ -4177,10 +4189,10 @@ static void pc_play(const char *path) {
           SDL_free(m);
       }
     }
-    pc_pad_env(maps, mkxpzPad);
+    pc_pad_env(maps, padOnly);
   }
   bool begun = pc_start(&info, dir, jsonPath, cmdPath);
-  pc_pad_env(maps, false); // PokeDaisy's own SDL keeps seeing its controllers
+  pc_pad_env(maps, NULL); // PokeDaisy's own SDL keeps seeing its controllers
   if (!begun) {
     appError = 1;
     notice("Couldn't start the game");
@@ -4234,6 +4246,7 @@ static void pc_play(const char *path) {
   // THE LEFT STICK as the arrow keys, for a game on its own RGSS player (no companion: Phoenix Rising), below.
   bool stickKeys = info.player == PC_PLAYER_RGSS && !info.companion;
   unsigned stickDir = 0;
+  int saidPad = -1; // the input mode and feed the log last named
   if (stickKeys)
     fprintf(stderr, "PC game: the left stick presses the arrow keys (the game reads the D-pad itself)\n");
   while (running) {
@@ -4244,9 +4257,9 @@ static void pc_play(const char *path) {
         break;
       selfRestarts++;
       fprintf(stderr, "PC game: the game asked to start again, starting it\n");
-      pc_pad_env(maps, mkxpzPad);
+      pc_pad_env(maps, padOnly);
       bool again = pc_start(&info, dir, jsonPath, cmdPath);
-      pc_pad_env(maps, false);
+      pc_pad_env(maps, NULL);
       if (!again) {
         notice("Couldn't start the game again");
         break;
@@ -4487,6 +4500,12 @@ static void pc_play(const char *path) {
       if (text && pc_state_parse(text, &next)) {
         state = next;
         wingsDirty = true; // the companion's news: the wings show it at once
+        if (saidPad != state.pad * 2 + state.padFeed) { // which Input the game has, and whether the feed reached it
+          saidPad = state.pad * 2 + state.padFeed;
+          fprintf(stderr, "PC game: the companion says input %s%s at %u ms\n",
+                  state.pad == PC_PAD_KEYS ? "keys" : state.pad == PC_PAD_NATIVE ? "native" : "not known",
+                  state.padFeed ? ", pad feed on" : "", (unsigned)(now - start));
+        }
         if (mkxpzPad)
           pc_pad_mkxpz(&state);
         // A game drawing at another shape than 4:3: the picture follows it.
@@ -4636,6 +4655,8 @@ static void pc_play(const char *path) {
     pc_close(false);
   pc_pad_feed(NULL, 0); // the pad file closed (kept open through the play)
   fprintf(stderr, "PC game: ended (%d)\n", pc_exit_code());
+  if (info.companion)
+    pc_companion_log(dir, stderr); // its slow steps and frame stats, as "PC companion: ..." lines
   pc_wings_types(false);
   pc_wings_free();
   for (int i = 0; i < 2; i++) {

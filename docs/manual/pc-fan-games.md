@@ -88,7 +88,9 @@ On games with wings:
 - `LT` shows more of the map around you (the camera zooms out), and `RT` shows
   less (it zooms in). The zoom changes when you're standing on the map; menus
   and battles stay at the game's own size, and the map comes back at your zoom
-  after them. The bar below the game shows the zoom.
+  after them. The bar below the game shows the zoom. In Indigo, Añil,
+  Reminiscencia, Reborn and Rejuvenation the zoom comes back a second after a
+  scene or a message ends, so a busy map doesn't keep resizing.
 - `L3` turns fast forward on and off.
 - `INSTANT TEXT` in the game menu shows each message whole instead of letter by
   letter.
@@ -114,6 +116,11 @@ button to run, the same as on a keyboard. `START` opens the game's menu, and `SE
 uses your registered item in games that have one. The `GUIDE` button, `L3`,
 `LT` and `RT` stay PokeDaisy's. The keyboard works as the game sets it up.
 One press of the D-pad moves a menu's cursor one row; hold it to keep moving.
+
+In Indigo, Añil, Reminiscencia, Reborn and Rejuvenation, PokeDaisy hands your
+buttons to the game where it reads its own keys, so its menus move just as they
+do on a keyboard. A quick press moves the cursor once, and holding the D-pad
+keeps it moving at the game's usual pace, however busy the game is.
 
 Some games ask to restart after you change one of their options (a `VSync`
 option, for example). Pick yes: the game closes and PokeDaisy starts it again
@@ -215,5 +222,9 @@ in `DATA\pc\links`) without moving anything.
   you added.
 - **The wings are empty.** The game hasn't started your adventure yet; they fill
   in once you're playing.
+- **A game lags or its cursor skips rows with the controller.** Play it for a
+  minute, close it, and send `pokedaisy.log` from PokeDaisy's folder. Its
+  `PC companion: stats` lines say how fast the game ran and how it read your
+  buttons.
 - **The game asks to close and doesn't.** Pick `END IT` when PokeDaisy asks; you
   lose anything you haven't saved.

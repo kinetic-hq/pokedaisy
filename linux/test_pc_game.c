@@ -267,6 +267,69 @@ static void test_large_address(void) {
 }
 
 /* RESTART: the companion's note is taken once, and only while it's fresh. */
+/* The four games that get the redesigned input, by Game.ini's Title or the folder's name, and nothing else. */
+static void test_lean(void) {
+  struct pc_game_info g;
+  memset(&g, 0, sizeof g);
+  static const char *const yes[][2] = {{"Indigo", "x"},
+                                       {"Pokemon A\xc3\xb1il", "x"},
+                                       {"x", "C:/Games/Pokemon Anil v2"},
+                                       {"Pokemon Reminiscencia", "x"},
+                                       {"Pokemon Reborn", "x"},
+                                       {"x", "D:\\Fan\\Pokemon Rejuvenation"},
+                                       {"POKEMON REBORN", "x"}};
+  static const char *const no[][2] = {{"Pokemon Vanilla", "x"},   {"Insurgence", "C:/Games/Insurgence"},
+                                      {"Rebornia", "x"},          {"Tectonic", "x/Indigos"},
+                                      {"Pokemon Uranium", "x"}};
+  for (size_t i = 0; i < sizeof yes / sizeof yes[0]; i++) {
+    snprintf(g.title, sizeof g.title, "%s", yes[i][0]);
+    snprintf(g.dir, sizeof g.dir, "%s", yes[i][1]);
+    assert(pc_lean_game(&g));
+  }
+  for (size_t i = 0; i < sizeof no / sizeof no[0]; i++) {
+    snprintf(g.title, sizeof g.title, "%s", no[i][0]);
+    snprintf(g.dir, sizeof g.dir, "%s", no[i][1]);
+    assert(!pc_lean_game(&g));
+  }
+  // The input path: source for the four, feed for the rest, unless POCKET_PC_INPUT says otherwise.
+  snprintf(g.title, sizeof g.title, "Pokemon Reborn");
+  assert(!strcmp(pc_input_path(&g), "source"));
+  snprintf(g.title, sizeof g.title, "Tectonic");
+  assert(!strcmp(pc_input_path(&g), "feed"));
+#ifdef _WIN32
+  _putenv("POCKET_PC_INPUT=native");
+#else
+  setenv("POCKET_PC_INPUT", "native", 1);
+#endif
+  assert(!strcmp(pc_input_path(&g), "native"));
+#ifdef _WIN32
+  _putenv("POCKET_PC_INPUT=bogus");
+#else
+  setenv("POCKET_PC_INPUT", "bogus", 1);
+#endif
+  assert(!strcmp(pc_input_path(&g), "feed"));
+#ifdef _WIN32
+  _putenv("POCKET_PC_INPUT=");
+#else
+  unsetenv("POCKET_PC_INPUT");
+#endif
+}
+
+/* The companion's log reaches pokedaisy.log, a line each. */
+static void test_companion_log(void) {
+  FILE *f = fopen("./companion.log", "wb");
+  assert(f && fputs("slow: dump 84 ms at frame 300\nstats: 30 s, 1200 frames", f) >= 0 && !fclose(f));
+  FILE *out = tmpfile();
+  assert(out);
+  pc_companion_log(".", out);
+  rewind(out);
+  char got[200] = {0};
+  assert(fread(got, 1, sizeof got - 1, out) > 0);
+  fclose(out);
+  remove("./companion.log");
+  assert(!strcmp(got, "PC companion: slow: dump 84 ms at frame 300\nPC companion: stats: 30 s, 1200 frames\n"));
+}
+
 static void test_restart(void) {
   const char *dir = ".";
   remove("./restart.txt");
@@ -308,6 +371,8 @@ static void test_stick(void) {
 
 int main(void) {
   test_stick();
+  test_lean();
+  test_companion_log();
   test_restart();
   test_large_address();
   test_pad();
