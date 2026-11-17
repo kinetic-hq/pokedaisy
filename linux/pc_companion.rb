@@ -13,7 +13,15 @@
 module PokeDaisyCompanion
   OUT = ENV['POKEDAISY_PC_OUT']
   CMD = ENV['POKEDAISY_PC_CMD']
-  LOG = ENV['POKEDAISY_PC_LOG'] # checks: what failed, a line each
+  LOG = ENV['POKEDAISY_PC_LOG'] # what failed, steps that were slow, the frame stats (PokeDaisy copies it to its log)
+  # INPUT PATH (POKEDAISY_PC_INPUT): 'feed' answers Input's press?, trigger?, repeat?... from the pad (every game but
+  # the four below); 'source' feeds the pad where the game reads its keys (Input.getstate) so its own Input does the
+  # rest, or, on mkxp-z's own Input, answers from edges worked out once per Input.update with a repeat on the clock;
+  # 'native' feeds nothing (PokeDaisy lets the game's player read the controller itself). LEAN (POKEDAISY_PC_LEAN):
+  # the games that lagged (Indigo, Reminiscencia, Reborn, Rejuvenation) also get a calmer ZOOM / WIDE VIEW and fewer
+  # lookups in the game while the wings are filled.
+  INPUT_PATH = %w[feed source native].include?(ENV['POKEDAISY_PC_INPUT'].to_s) ? ENV['POKEDAISY_PC_INPUT'].to_s : 'feed'
+  LEAN = ENV['POKEDAISY_PC_LEAN'] == '1'
   @logged = 0
   @last = 0.0
   @lastText = nil
@@ -43,10 +51,87 @@ module PokeDaisyCompanion
 
     attr_accessor :battle, :ff, :instantText, :fighting
 
+    # A Ruby 1.8 player has no monotonic clock: asked once, not by an exception at every call.
+    MONO = defined?(Process::CLOCK_MONOTONIC) && Process.respond_to?(:clock_gettime)
+
     def now
-      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      MONO ? Process.clock_gettime(Process::CLOCK_MONOTONIC) : Time.now.to_f
     rescue StandardError
       Time.now.to_f
+    end
+
+    # SLOW STEPS: a step of PokeDaisy's that held the game more than 20 ms goes to the log (300 at most), so a game
+    # that lags names the step it lags on.
+    def timed(name)
+      t = now
+      r = yield
+      ms = ((now - t) * 1000).round
+      if ms > 20 && LOG && (@slowLogged || 0) < 300
+        @slowLogged = (@slowLogged || 0) + 1
+        log_line("slow: #{name} #{ms} ms at frame #{@frames}")
+      end
+      r
+    end
+
+    def log_line(text)
+      File.open(LOG, 'a') { |f| f.puts text } if LOG
+    rescue Exception
+      nil
+    end
+
+    # FRAME STATS, every game: each Graphics.update's distance from the last, and how often the game ran
+    # Input.update and PokeDaisy's wrappers in between. A line every 30 s (every 5 minutes after the first 10):
+    # the median and 95th percentile frame, Input.update calls and wrapped calls per frame, the input mode and path.
+    $pokedaisy_updates = 0
+    $pokedaisy_calls = 0
+
+    def frame_stat
+      return unless LOG
+      t = now
+      unless @fsStart
+        @fsStart = t
+        @fsList = []
+        @fsLines = 0
+        @fsUpMax = 0
+        @fsResizes = 0
+        $pokedaisy_updates = $pokedaisy_calls = 0
+        @fsLast = t
+        return
+      end
+      @fsList << (t - @fsLast)
+      @fsLast = t
+      up = $pokedaisy_updates - (@fsUpSeen || 0)
+      @fsUpSeen = $pokedaisy_updates
+      @fsUpMax = up if up > @fsUpMax
+      return if t - @fsStart < (@fsLines < 20 ? 30 : 300)
+      stats_line(t)
+    rescue Exception => e
+      note(:stats, e)
+    end
+
+    STYLE_NAMES = { :calls => 'every answer wrapped', :lean => 'edges once per update, repeat by the clock',
+                    :source => "through the game's getstate" }
+
+    def stats_line(t)
+      list = @fsList.sort
+      n = list.size
+      return if n == 0
+      ms = lambda { |x| format('%.1f', x * 1000) }
+      fr = (Graphics.frame_rate rescue 0).to_i
+      slow = list.count { |x| x > 0.05 }
+      log_line("stats: #{format('%.0f', t - @fsStart)} s, #{n} frames (#{format('%.1f', n / (t - @fsStart))}/s, " \
+               "game asks #{fr}), frame median #{ms.call(list[n / 2])} ms, p95 #{ms.call(list[(n * 95) / 100])} ms, " \
+               "max #{ms.call(list[-1])} ms, over 50 ms #{slow}; Input.update #{format('%.2f', $pokedaisy_updates.to_f / n)}" \
+               "/frame (max #{@fsUpMax}), wrapped calls #{format('%.1f', $pokedaisy_calls.to_f / n)}/frame; " \
+               "input #{@padMode || '?'}, path #{INPUT_PATH}#{@feedStyle ? " (#{STYLE_NAMES[@feedStyle]})" : ''}" \
+               "#{LEAN ? ', lean extras' : ''}, screen resizes #{@fsResizes}")
+      @fsLines += 1
+      @fsStart = t
+      @fsList = []
+      @fsUpMax = 0
+      @fsResizes = 0
+      @fsUpSeen = $pokedaisy_updates = 0
+      $pokedaisy_calls = 0
     end
 
     # A step that fails three times is not tried again.
@@ -64,17 +149,17 @@ module PokeDaisyCompanion
       @frames += 1
       return if @frames % 10 != 0
       t = now
-      hook_battle unless @hooked
-      hook_text unless @textHooked
-      hook_zoom unless @zoomHooked
-      pad_setup unless @padDone
-      feed_check
-      read_commands if CMD && t - (@cmdAt || 0) >= 0.25 && (@cmdAt = t)
-      apply_zoom
+      timed(:hook_battle) { hook_battle } unless @hooked
+      timed(:hook_text) { hook_text } unless @textHooked
+      timed(:hook_zoom) { hook_zoom } unless @zoomHooked
+      timed(:pad_setup) { pad_setup } unless @padDone
+      timed(:feed_check) { feed_check }
+      timed(:commands) { read_commands } if CMD && t - (@cmdAt || 0) >= 0.25 && (@cmdAt = t)
+      timed(:zoom) { apply_zoom }
       interval = @slow > 3 ? 2.0 : 0.5
       return if t - @last < interval
       @last = t
-      dump
+      timed(:dump) { dump }
       took = now - t
       @slow = took > 0.03 ? @slow + 1 : [@slow - 1, 0].max
     rescue Exception => e
@@ -148,7 +233,13 @@ module PokeDaisyCompanion
         end
         @padKeys = keys.join(',')
       end
-      @padRoles = pad_roles
+      # LEAN: the roles come from reading every one of the game's scripts (thousands of files in Reborn and
+      # Rejuvenation): read again only when the game's button numbers changed, not each time it redefines Input.
+      sig = PAD_BUTTONS.map { |b| (Input.const_get(b) rescue nil) }
+      if !LEAN || sig != @rolesSig || !@padRoles
+        @rolesSig = sig
+        @padRoles = timed(:pad_roles) { pad_roles }
+      end
       feed_setup # every game: no key is pressed for the controller (keys mode too)
     rescue Exception => e
       note(:pad, e)
@@ -163,17 +254,38 @@ module PokeDaisyCompanion
     PAD = ENV['POKEDAISY_PC_PAD']
 
     def feed_setup
-      return if @feedOn || !PAD || !File.exist?(PAD)
+      # native: the game's player reads the pad itself, except a game reading only the keyboard, which can't.
+      return if @feedOn || !PAD || !File.exist?(PAD) || (INPUT_PATH == 'native' && @padMode != 'keys')
       @feedNow = @feedPrev = 0
       @feedHeld = Array.new(PAD_BUTTONS.size, 0)
       @feedMine = {}
       @feedGen = 0
+      @q = [0, 0, 0, 0] # lean: the buttons pressed, triggered, repeating and released at the last Input.update
+      @repAt = Array.new(PAD_BUTTONS.size, 0.0)
+      @vkHeld = Array.new(256, false)
+      $pokedaisy_vk = nil
+      @feedStyle = feed_style
       @feedOn = feed_wrap
     rescue Exception => e
       note(:feed, e)
     end
 
+    # How the pad reaches this game. 'feed': every one of Input's answers (press?, trigger?...) wrapped and answered
+    # from the pad, edges per Input.update, repeat counted in updates (every game but the four). 'source' and the
+    # game's own keyboard Input (old Essentials: Input.getstate asks Windows for a key): getstate says the pad's keys
+    # are down, and the game's own update, trigger?, repeat?, dir4... do the rest at their own cost and timing, as
+    # with the keyboard (:source). 'source' on mkxp-z's own Input: the answers are still wrapped, but each is one bit
+    # test of edges worked out once per Input.update, and repeat? goes by the clock, 0.4 s then every 0.1 s, however
+    # often the game runs Input.update (:lean).
+    def feed_style
+      return :calls if INPUT_PATH == 'feed'
+      return :source if @feedStyle != :lean_fallback && Input.respond_to?(:getstate) && Input.respond_to?(:buttonToKey)
+      :lean
+    end
+
     FEED_METHODS = [:update, :press?, :trigger?, :repeat?, :release?, :dir4, :dir8]
+    SOURCE_METHODS = [:update, :getstate]
+    LEAN_ASK = { :press? => 0, :trigger? => 1, :repeat? => 2, :release? => 3 }
 
     # Wraps each of Input's methods that isn't PokeDaisy's wrapper now. Run again every few frames (feed_check): a game
     # whose scripts define Input afresh after its first screens (Awakening's own keyboard Input comes after its
@@ -189,18 +301,34 @@ module PokeDaisyCompanion
       end
       return false if bits.empty?
       @feedBit = bits
+      source_keys if @feedStyle == :source
       sc = (class << Input; self; end)
       changed = false
-      FEED_METHODS.each do |m|
+      (@feedStyle == :source ? SOURCE_METHODS : FEED_METHODS).each do |m|
         next unless sc.method_defined?(m)
         cur = sc.instance_method(m)
         next if @feedMine[m] && @feedMine[m] == cur
         @feedGen += 1
         orig = :"pokedaisy_feed_#{@feedGen}"
         sc.send(:alias_method, orig, m)
-        if m == :update
+        style = @feedStyle
+        if m == :update && style == :source
+          # The pad first, then the game's own update reads its keys (getstate) with the pad's among them.
           sc.send(:define_method, m) do |*a|
-            PokeDaisyCompanion.feed_depth(1)
+            $pokedaisy_updates += 1 if PokeDaisyCompanion.feed_depth(1) == 1
+            begin
+              PokeDaisyCompanion.feed_read if PokeDaisyCompanion.feed_outer?
+              $pokedaisy_asked = false
+              r = send(orig, *a)
+              PokeDaisyCompanion.source_check if PokeDaisyCompanion.feed_outer?
+            ensure
+              PokeDaisyCompanion.feed_depth(-1)
+            end
+            r
+          end
+        elsif m == :update
+          sc.send(:define_method, m) do |*a|
+            $pokedaisy_updates += 1 if PokeDaisyCompanion.feed_depth(1) == 1
             begin
               r = send(orig, *a)
             ensure
@@ -209,21 +337,40 @@ module PokeDaisyCompanion
             PokeDaisyCompanion.feed_read
             r
           end
+        elsif m == :getstate
+          # Called for each of the 256 keys at every update: globals only, no call into the companion.
+          sc.send(:define_method, m) do |*a|
+            $pokedaisy_calls += 1
+            $pokedaisy_asked = true
+            v = $pokedaisy_vk
+            (v && a[0].is_a?(Integer) && v[a[0]]) || send(orig, *a)
+          end
         elsif m == :dir4 || m == :dir8
           sc.send(:define_method, m) do |*a|
+            $pokedaisy_calls += 1
             d = PokeDaisyCompanion.feed_dir(m == :dir8)
             d == 0 ? send(orig, *a) : d
           end
+        elsif style == :lean
+          k = LEAN_ASK[m]
+          sc.send(:define_method, m) do |*a|
+            $pokedaisy_calls += 1
+            PokeDaisyCompanion.lean?(k, a[0]) || send(orig, *a)
+          end
         else
-          sc.send(:define_method, m) { |*a| PokeDaisyCompanion.feed?(m, a[0]) || send(orig, *a) }
+          sc.send(:define_method, m) do |*a|
+            $pokedaisy_calls += 1
+            PokeDaisyCompanion.feed?(m, a[0]) || send(orig, *a)
+          end
         end
         @feedMine[m] = sc.instance_method(m)
         changed = true
       end
-      if changed && @feedGen > FEED_METHODS.size
+      if changed && @feedWrapped
         @padDone = false # the game's Input changed: its mode, keys and roles are read again
         note(:feedwrap, RuntimeError.new("Input redefined, wrapped again"))
       end
+      @feedWrapped = true
       true
     end
 
@@ -234,9 +381,13 @@ module PokeDaisyCompanion
     end
 
     # Inside a wrapped Input.update: a game's update that calls an earlier one (aliased) reaches two wrappers, and
-    # only the outermost reads.
+    # only the outermost reads. The depth after the change.
     def feed_depth(d)
       @feedDepth = (@feedDepth || 0) + d
+    end
+
+    def feed_outer?
+      @feedDepth == 1
     end
 
     def feed_read
@@ -244,7 +395,7 @@ module PokeDaisyCompanion
       # next update. Read once a frame (Graphics.frame_count) instead, a game whose loop runs its Input.update more
       # often than the frame count moves (Indigo, at its own 40 frames a second) saw one press as two or three: the
       # cursor skipped rows.
-      return if (@feedDepth || 0) > 0
+      return if (@feedDepth || 0) > (@feedStyle == :source ? 1 : 0)
       # One handle for the whole play, read again from its start: opening the file at each read made Windows'
       # antivirus scan it after every press, and the game waited for the scan (lag after each button).
       t = nil
@@ -259,9 +410,85 @@ module PokeDaisyCompanion
       m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
       @feedPrev = @feedNow
       @feedNow = m
-      @feedHeld.each_index { |i| @feedHeld[i] = m[i] == 1 ? @feedHeld[i] + 1 : 0 }
+      if @feedStyle == :calls
+        @feedHeld.each_index { |i| @feedHeld[i] = m[i] == 1 ? @feedHeld[i] + 1 : 0 }
+      elsif (m | @feedPrev) != 0 || @q[2] != 0 || @q[3] != 0
+        lean_edges(m, @feedPrev)
+      end
+      source_vks(m) if @feedStyle == :source && m != @vkMask
     rescue Exception => e
       note(:feedread, e)
+    end
+
+    # LEAN: the edges, once per Input.update, as bit masks; repeat? by the clock (RGSS's 0.4 s, then every 0.1 s), so a
+    # game running Input.update two or three times a frame repeats no faster, and a stall doesn't fire a burst.
+    REPEAT_START = 0.4
+    REPEAT_STEP = 0.1
+
+    def lean_edges(m, before)
+      trig = m & ~before
+      rep = trig
+      if m != 0
+        t = now
+        PAD_BUTTONS.size.times do |i|
+          next unless m[i] == 1
+          @feedHeld[i] += 1
+          if trig[i] == 1
+            @repAt[i] = t + REPEAT_START
+          elsif t >= @repAt[i]
+            rep |= 1 << i
+            nxt = @repAt[i] + REPEAT_STEP
+            @repAt[i] = nxt > t ? nxt : t + REPEAT_STEP
+          end
+        end
+      end
+      PAD_BUTTONS.size.times { |i| @feedHeld[i] = 0 if m[i] == 0 }
+      @q[0] = m
+      @q[1] = trig
+      @q[2] = rep
+      @q[3] = before & ~m
+    end
+
+    def lean?(k, b)
+      q = @q[k]
+      return false if q == 0
+      i = @feedBit[b]
+      i ? q[i] == 1 : false
+    end
+
+    # SOURCE: the Windows key code the game ties to each of its buttons (its own buttonToKey, the first key), read
+    # again with the wrappers; the keys down for the pad's buttons, kept until the pad changes.
+    def source_keys
+      @vkFor = PAD_BUTTONS.map do |b|
+        vk = Input.const_defined?(b) ? (((Input.buttonToKey(Input.const_get(b)) rescue nil) || [])[0]) : nil
+        vk.is_a?(Integer) && vk > 0 && vk < 256 ? vk : nil
+      end
+      @vkMask = nil
+    end
+
+    def source_vks(m)
+      @vkMask = m
+      @vkHeld.fill(false)
+      @vkFor.each_with_index { |vk, i| @vkHeld[vk] = true if vk && m[i] == 1 }
+      $pokedaisy_vk = m != 0 ? @vkHeld : nil # what getstate's wrapper reads
+    end
+
+    # The game's update didn't ask getstate for any key: it reads its keys some other way, so getstate is no source.
+    # Back to the lean answers (wrapped again at once), and the log says so. A few updates that skip it (a game pausing
+    # its input while its window is behind) are allowed.
+    def source_check
+      if !$pokedaisy_asked
+        @sourceMissed = (@sourceMissed || 0) + 1
+        return if @sourceMissed < 40
+        @feedStyle = :lean_fallback
+        @feedStyle = feed_style
+        @feedMine = {}
+        $pokedaisy_vk = nil
+        note(:source, RuntimeError.new("the game's Input.update never asks getstate: lean answers instead"))
+        feed_wrap
+      else
+        @sourceMissed = 0
+      end
     end
 
     def feed?(m, b)
@@ -489,6 +716,16 @@ module PokeDaisyCompanion
     # The party icon's file, relative to the game's folder: the game's own answer where it has one, else the usual
     # places by the species' id (Reborn keeps Graphics/Icons/<species>.png, v19+ Graphics/Pokemon/Icons/<ID>.png).
     def icon_of(m)
+      return icon_now(m) unless LEAN
+      # LEAN: the game's own answer asked once for each look (an old game resolves a dozen file names for it).
+      key = [safe(:species) { m.species }, form_of(m), egg?(m), shiny?(m), safe(:gender, 0) { m.gender }]
+      @iconOf ||= {}
+      @iconOf.clear if @iconOf.size > 400
+      return @iconOf[key] if @iconOf.key?(key)
+      @iconOf[key] = icon_now(m)
+    end
+
+    def icon_now(m)
       f = safe(:icon, nil) do
         g = nil
         if defined?(GameData::Species) && GameData::Species.respond_to?(:icon_filename_from_pokemon)
@@ -581,6 +818,12 @@ module PokeDaisyCompanion
     end
 
     def map_name(id)
+      return @mapName if LEAN && @mapNameId == id && @mapName # LEAN: once a map
+      @mapNameId = id
+      @mapName = map_name_now(id)
+    end
+
+    def map_name_now(id)
       safe(:mapname, '') do
         if respond_to_global?(:pbGetMapNameFromId)
           pbGetMapNameFromId(id).to_s
@@ -755,6 +998,14 @@ module PokeDaisyCompanion
     def apply_zoom
       return unless Graphics.respond_to?(:resize_screen)
       quiet = quiet_map?
+      if LEAN
+        # A big game's events start and stop all the time (an autorun, a message): each change rebuilt the map's
+        # sprites twice. LEAN: back to the game's own size at once, but zoomed again only after a second of quiet.
+        t = now
+        @quietSince = nil unless quiet
+        @quietSince ||= t if quiet
+        quiet = false if quiet && t - @quietSince < 1.0
+      end
       want = quiet ? zoom_scale : 1.0
       wide = quiet ? @shape : nil
       return if want == (@zoomShown || 1.0) && wide == @wideShown
@@ -778,6 +1029,7 @@ module PokeDaisyCompanion
       w = wide ? ((h * wide[0] / wide[1].to_f) / 8).round * 8 : ((bw * k) / 32).round * 32
       w = ((bw * k) / 32).round * 32 if w < bw * k
       Graphics.resize_screen(w, h)
+      @fsResizes = (@fsResizes || 0) + 1
       # Some players size their window to the new picture: it gets PokeDaisy's size back at once (no flash).
       Graphics.resize_window(@window[0], @window[1]) if @window && Graphics.respond_to?(:resize_window)
       screen_constants(w, h)
@@ -1020,6 +1272,7 @@ module Graphics
         return
       end
       pokedaisy_update(*args)
+      PokeDaisyCompanion.frame_stat
       PokeDaisyCompanion.tick
     end
   end

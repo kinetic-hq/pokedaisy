@@ -1250,6 +1250,53 @@ static void plain_path(const char *pcRoot, const char *dir, char *out, size_t si
 #endif
 }
 
+/* The words in TEXT, lowercased, one of NAMES among them as a whole word (Añil in UTF-8 or Latin-1 too). */
+static bool has_word(const char *text, const char *const *names) {
+  char low[300];
+  size_t n = 0;
+  for (const unsigned char *p = (const unsigned char *)text; *p && n + 1 < sizeof low; p++)
+    low[n++] = (char)(*p < 128 ? tolower(*p) : *p);
+  low[n] = 0;
+  for (const char *const *w = names; *w; w++) {
+    size_t len = strlen(*w);
+    for (const char *at = strstr(low, *w); at; at = strstr(at + 1, *w)) {
+      bool before = at == low || !isalnum((unsigned char)at[-1]);
+      bool after = !isalnum((unsigned char)at[len]);
+      if (before && after)
+        return true;
+    }
+  }
+  return false;
+}
+
+bool pc_lean_game(const struct pc_game_info *info) {
+  static const char *const names[] = {"indigo", "a\xc3\xb1il", "a\xc3\x91il", "a\xf1il", "a\xd1il", "anil",
+                                      "reminiscencia", "reborn", "rejuvenation", NULL};
+  const char *a = strrchr(info->dir, '/'), *b = strrchr(info->dir, '\\');
+  const char *folder = a > b ? a + 1 : b ? b + 1 : info->dir;
+  return has_word(info->title, names) || has_word(folder, names);
+}
+
+const char *pc_input_path(const struct pc_game_info *info) {
+  const char *want = getenv("POCKET_PC_INPUT");
+  if (want && (!strcmp(want, "feed") || !strcmp(want, "source") || !strcmp(want, "native")))
+    return want;
+  return pc_lean_game(info) ? "source" : "feed";
+}
+
+void pc_companion_log(const char *dir, FILE *to) {
+  char p[1400];
+  join(p, sizeof p, dir, "companion.log");
+  FILE *f = fopen(p, "rb");
+  if (!f)
+    return;
+  char line[600];
+  int n = 0;
+  while (fgets(line, sizeof line, f) && n++ < 500)
+    fprintf(to, "PC companion: %s%s", line, strchr(line, '\n') ? "" : "\n");
+  fclose(f);
+}
+
 bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o, char *dir, size_t dirSize, char *err,
                 size_t errSize) {
   char pcRoot[1100];
@@ -1259,6 +1306,9 @@ bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o,
     snprintf(err, errSize, "Couldn't make %s", dir);
     return false;
   }
+  char oldLog[1400];
+  join(oldLog, sizeof oldLog, dir, "companion.log"); // the last play's (a restart within this one keeps adding)
+  remove(oldLog);
   if (info->player != PC_PLAYER_MKXPZ)
     return true; // the original player runs from the game's own folder
   char from[1400], to[1400];
@@ -1366,6 +1416,16 @@ bool pc_start(const struct pc_game_info *info, const char *dir, const char *json
   remove(restartFile);
   SetEnvironmentVariableA("POKEDAISY_PC_RESTART", restartFile);
   SetEnvironmentVariableA("POKEDAISY_PC_EXE", info->exe);
+  // The companion's log (a step that failed or held the game over 20 ms, the frame stats), copied into pokedaisy.log
+  // after the play (pc_companion_log). A check's own POKEDAISY_PC_LOG is kept.
+  if (!getenv("POKEDAISY_PC_LOG") || strstr(getenv("POKEDAISY_PC_LOG"), "companion.log")) {
+    char logFile[1400];
+    join(logFile, sizeof logFile, dir, "companion.log");
+    SetEnvironmentVariableA("POKEDAISY_PC_LOG", logFile);
+  }
+  // INPUT PATH and LEAN (pc_input_path, pc_lean_game) for the companion.
+  SetEnvironmentVariableA("POKEDAISY_PC_INPUT", pc_input_path(info));
+  SetEnvironmentVariableA("POKEDAISY_PC_LEAN", pc_lean_game(info) ? "1" : "0");
   wchar_t *wexe = wide(exe), *wdir = wide(from);
   if (!wexe || !wdir) {
     free(wexe);
@@ -1462,11 +1522,15 @@ bool pc_place(void *owner, int x, int y, int w, int h, bool focus) {
   return true;
 }
 
-void pc_pad_env(const char *mappings, bool hide) {
+void pc_pad_env(const char *mappings, const char *only) {
   SetEnvironmentVariableA("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0");
   SetEnvironmentVariableA("SDL_GAMECONTROLLERCONFIG", mappings && *mappings ? mappings : NULL);
-  // Only a controller nobody has (vendor and product FFFF) may be read: SDL then lists no joystick at all.
-  SetEnvironmentVariableA("SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT", hide ? "0xFFFF/0xFFFF" : NULL);
+  // PC_PAD_HIDE: only a controller nobody has (vendor and product FFFF) may be read, so SDL lists no joystick at all.
+  // A real one ("0x045E/0x028E", INPUT PATH native): that pad alone, so it is joystick 0, the one mkxp-z opens, and
+  // read while PokeDaisy's window has the foreground too.
+  SetEnvironmentVariableA("SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT", only);
+  bool real = only && strcmp(only, PC_PAD_HIDE);
+  SetEnvironmentVariableA("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", real ? "1" : NULL);
 }
 
 bool pc_self_foreground(void *self) { return self && GetForegroundWindow() == (HWND)self; }
@@ -1714,7 +1778,7 @@ bool pc_capture_place(void *owner, bool focus) {
   (void)owner, (void)focus;
   return false;
 }
-void pc_pad_env(const char *mappings, bool hide) { (void)mappings, (void)hide; }
+void pc_pad_env(const char *mappings, const char *only) { (void)mappings, (void)only; }
 void pc_keys_send(const bool *down) { (void)down; }
 bool pc_self_foreground(void *self) {
   (void)self;
