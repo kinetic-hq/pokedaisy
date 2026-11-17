@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 
 #include "pocket_os.h"
 
@@ -1272,6 +1273,19 @@ bool pc_prepare(const struct pc_game_info *info, const struct pc_launch_opts *o,
   return true;
 }
 
+bool pc_restart_asked(const char *dir) {
+  char p[1400];
+  join(p, sizeof p, dir, "restart.txt");
+  struct stat sb;
+  if (stat(p, &sb))
+    return false;
+  remove(p);
+  // Only as the game closes to start again: a game that went on playing after it asked (the note left behind) is
+  // not started again when the player closes it later.
+  double age = difftime(time(NULL), sb.st_mtime);
+  return age >= -5 && age <= 60;
+}
+
 #ifdef _WIN32
 static PROCESS_INFORMATION proc;
 static HWND gameWindow;
@@ -1310,6 +1324,12 @@ bool pc_start(const struct pc_game_info *info, const char *dir, const char *json
   join(padFile, sizeof padFile, dir, "pad.txt");
   pc_pad_feed(padFile, 0);
   SetEnvironmentVariableA("POKEDAISY_PC_PAD", padFile);
+  // RESTART: the companion notes there a game starting its own exe again (pc_restart_asked), none yet.
+  char restartFile[1400];
+  join(restartFile, sizeof restartFile, dir, "restart.txt");
+  remove(restartFile);
+  SetEnvironmentVariableA("POKEDAISY_PC_RESTART", restartFile);
+  SetEnvironmentVariableA("POKEDAISY_PC_EXE", info->exe);
   wchar_t *wexe = wide(exe), *wdir = wide(from);
   if (!wexe || !wdir) {
     free(wexe);

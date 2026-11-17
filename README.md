@@ -618,6 +618,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   stopped answering after its language choice): PokeDaisy notices and hooks the game's new input again.
 - **Indigo is back in the library**: it was hidden for a day while its controller misbehaved; with no keys
   pressed for the controller any more it plays like the rest.
+- **One D-pad press moves a fan game's cursor one row** (Indigo's menus skipped two or three), and **a game that
+  restarts itself** after one of its own options (Indigo's VSync: "Restart now?") is started again by PokeDaisy,
+  with its wings and the controller, instead of stopping at "Windows cannot find 'Game.exe'".
 
 </details>
 

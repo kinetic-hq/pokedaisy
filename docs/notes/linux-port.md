@@ -116,8 +116,18 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   once no key was pressed for the controller in any game.
 - **Feed rewrap** (2026-11-17): Awakening defines its own keyboard Input (PSystem_Controls) after its language choice,
   replacing the wrappers made at frame 10, so the pad died there. `feed_check` (every tick) wraps any of Input's methods
-  that isn't ours again and rereads the button numbers; `feed_read` reads once a frame (two wrappers in a chain).
+  that isn't ours again and rereads the button numbers.
   `test_companion_feed.rb` (ctest companion-feed when ruby is found) covers it.
+- **Feed edges per update** (2026-11-17): reading the pad once per `Graphics.frame_count` left `trigger?` true for
+  every `Input.update` until the count moved, and Indigo (its own 40 fps cap) runs more updates than that, so one
+  D-pad press moved its menus two or three rows (seen in the user's video, 0.2 s, far under the repeat's 0.4 s).
+  `feed_read` now reads at each outermost `Input.update` (`feed_depth` keeps chained wrappers to one read), as RGSS.
+- **RESTART** (2026-11-17): Indigo's VSync option asks "Restart now?" and launches `Game.exe` itself, which failed
+  under PokeDaisy ("Windows cannot find 'Game.exe'") and would have run outside it anyway. The companion wraps
+  `system` / `spawn` / `exec`, `Process.spawn` and mkxp-z's `System.launch`: a command naming `game(.exe)` or the
+  player's exe (`POKEDAISY_PC_EXE`) isn't run, `POKEDAISY_PC_RESTART` (`<pc dir>/restart.txt`) is written instead,
+  and `pc_play` starts the game again once it closes (`pc_restart_asked`, a note under a minute old, ten a play). The
+  VSync choice itself changes nothing: the shadow mkxp.json keeps vsync off.
 - **Pad log** (2026-11-17): pokedaisy.log now always names each controller (vendor:product, SDL path, what it held as
   it connected) and the first 600 pad feed changes of a play with their time, so a report of a game moving by itself
   shows whether PokeDaisy fed a held button (a device's stuck report) or the game read input of its own.

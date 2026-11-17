@@ -3,7 +3,7 @@ title: PC fan games
 summary: Play PC fan games made with RPG Maker inside PokeDaisy on Windows, full screen, with your party and the battle in the wings.
 section: start
 order: 92
-keywords: [pc, fan game, button layout, alt tab, control hints, keyboard, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
+keywords: [pc, fan game, button layout, alt tab, control hints, keyboard, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, restart, vsync, skips rows, cursor jumps, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
 ---
 
 On Windows, PokeDaisy plays PC fan games made with RPG Maker (most of them are
@@ -113,6 +113,11 @@ front of the game or the game's own key settings were changed. Hold the run
 button to run, the same as on a keyboard. `START` opens the game's menu, and `SELECT`
 uses your registered item in games that have one. The `GUIDE` button, `L3`,
 `LT` and `RT` stay PokeDaisy's. The keyboard works as the game sets it up.
+One press of the D-pad moves a menu's cursor one row; hold it to keep moving.
+
+Some games ask to restart after you change one of their options (a `VSync`
+option, for example). Pick yes: the game closes and PokeDaisy starts it again
+for you, with its wings and your controller.
 
 The bar under the picture shows your controller's buttons and what each one
 does in the game you're playing: confirm, back, the menu, running, and the

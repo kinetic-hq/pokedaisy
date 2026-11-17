@@ -200,7 +200,12 @@ module PokeDaisyCompanion
         sc.send(:alias_method, orig, m)
         if m == :update
           sc.send(:define_method, m) do |*a|
-            r = send(orig, *a)
+            PokeDaisyCompanion.feed_depth(1)
+            begin
+              r = send(orig, *a)
+            ensure
+              PokeDaisyCompanion.feed_depth(-1)
+            end
             PokeDaisyCompanion.feed_read
             r
           end
@@ -228,12 +233,18 @@ module PokeDaisyCompanion
       note(:feedcheck, e)
     end
 
+    # Inside a wrapped Input.update: a game's update that calls an earlier one (aliased) reaches two wrappers, and
+    # only the outermost reads.
+    def feed_depth(d)
+      @feedDepth = (@feedDepth || 0) + d
+    end
+
     def feed_read
-      # Once a frame: a game's update that calls an earlier one (aliased) reaches two wrappers, and a second read would
-      # make this frame's press look held from the last one (trigger? false).
-      fc = (Graphics.frame_count rescue nil)
-      return if fc && fc == @feedFrame
-      @feedFrame = fc
+      # Once for each Input.update the game makes (the outermost wrapper's), as RGSS's own: trigger? is true until the
+      # next update. Read once a frame (Graphics.frame_count) instead, a game whose loop runs its Input.update more
+      # often than the frame count moves (Indigo, at its own 40 frames a second) saw one press as two or three: the
+      # cursor skipped rows.
+      return if (@feedDepth || 0) > 0
       t = (File.open(PAD, 'rb') { |f| f.read } rescue nil)
       m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
       @feedPrev = @feedNow
@@ -1000,6 +1011,83 @@ module Graphics
       end
       pokedaisy_update(*args)
       PokeDaisyCompanion.tick
+    end
+  end
+end
+
+# RESTART. A game's own option that needs a restart (Indigo's VSync: "Restart now?") starts its exe again itself
+# (system, spawn, exec or mkxp-z's System.launch with "Game.exe") and closes. Under PokeDaisy that failed ("Windows
+# cannot find 'Game.exe'") and the game was gone; started, it would have run outside PokeDaisy anyway (no controller,
+# no wings). So that one launch isn't made: POKEDAISY_PC_RESTART is written instead, and PokeDaisy starts the game
+# again in its place once this one has closed. Every other command runs as it always did.
+module PokeDaisyCompanion
+  RESTART = ENV['POKEDAISY_PC_RESTART']
+  EXE = ENV['POKEDAISY_PC_EXE']
+
+  class << self
+    # True when ARGS (a command line, or a program and its arguments) start the game's own exe.
+    def self_launch?(args)
+      words = []
+      args.each do |a|
+        a = a[0] if a.is_a?(Array) # spawn's [program, argv0]
+        words << a if a.is_a?(String)
+      end
+      line = words.join(' ').downcase
+      return false if line.empty? || line.include?('://')
+      names = ['game']
+      names << File.basename(EXE, '.*').downcase if EXE && !EXE.empty?
+      line.split(/["'\s\\\/]+/).any? { |w| names.include?(w.sub(/\.exe\z/, '')) }
+    rescue Exception
+      false
+    end
+
+    # Notes the restart for PokeDaisy. True when it was noted (the launch is then left out).
+    def restart_instead(args)
+      return false unless RESTART && self_launch?(args)
+      File.open(RESTART, 'wb') { |f| f.write("restart\n") }
+      note(:restart, RuntimeError.new("the game asked to start again: #{args.inspect[0, 120]}"))
+      true
+    rescue Exception
+      false
+    end
+  end
+end
+
+module Kernel
+  [:system, :spawn, :exec].each do |m|
+    next unless private_method_defined?(m) || method_defined?(m)
+    orig = :"pokedaisy_restart_#{m}"
+    next if private_method_defined?(orig) || method_defined?(orig)
+    alias_method orig, m
+    define_method(m) do |*a|
+      if PokeDaisyCompanion.restart_instead(a)
+        exit if m == :exec # exec never returns: the game closes, as it would have
+        m == :system ? true : 0
+      else
+        send(orig, *a)
+      end
+    end
+    send(:ruby2_keywords, m) if respond_to?(:ruby2_keywords, true) # options (exception: true) pass through as keywords
+    private m
+    module_function m rescue nil
+  end
+end
+
+if defined?(Process) && Process.respond_to?(:spawn)
+  class << Process
+    alias_method :pokedaisy_restart_spawn, :spawn unless method_defined?(:pokedaisy_restart_spawn)
+    def spawn(*a)
+      PokeDaisyCompanion.restart_instead(a) ? 0 : pokedaisy_restart_spawn(*a)
+    end
+    send(:ruby2_keywords, :spawn) if respond_to?(:ruby2_keywords, true)
+  end
+end
+
+if defined?(System) && System.respond_to?(:launch)
+  class << System
+    alias_method :pokedaisy_restart_launch, :launch unless method_defined?(:pokedaisy_restart_launch)
+    def launch(*a)
+      PokeDaisyCompanion.restart_instead(a) ? true : pokedaisy_restart_launch(*a)
     end
   end
 end

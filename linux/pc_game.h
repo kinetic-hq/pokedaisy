@@ -236,6 +236,9 @@ void pc_keys_send(const bool *down);
 void pc_show(bool shown);
 /* Asks the game to close as its own close button would; force: ends it. */
 void pc_close(bool force);
+/* RESTART: the game, in DIR (pc_prepare's), asked to be started again (a game's own option such as Indigo's VSync
+ * launches its exe and closes, which the companion notes in DIR/restart.txt instead). True once, the note taken away. */
+bool pc_restart_asked(const char *dir);
 /* The game's last exit code (after it ended). */
 int pc_exit_code(void);
 #endif

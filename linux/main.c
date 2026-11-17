@@ -4222,7 +4222,32 @@ static void pc_play(const char *path) {
   char padPath[1300];
   snprintf(padPath, sizeof padPath, "%s/pad.txt", dir);
   unsigned fedMask = 0;
-  while (running && pc_running()) {
+  int selfRestarts = 0;
+  while (running) {
+    if (!pc_running()) {
+      // RESTART: the game closed to start itself again (an option of its own, Indigo's VSync): PokeDaisy starts it
+      // in its place, the controller hidden from its player and fed as before. Ten at most a play.
+      if (!pc_restart_asked(dir) || selfRestarts >= 10)
+        break;
+      selfRestarts++;
+      fprintf(stderr, "PC game: the game asked to start again, starting it\n");
+      pc_pad_env(maps, mkxpzPad);
+      bool again = pc_start(&info, dir, jsonPath, cmdPath);
+      pc_pad_env(maps, false);
+      if (!again) {
+        notice("Couldn't start the game again");
+        break;
+      }
+      pc_commands(cmdPath, ff, instant, zoom);
+      memset(&state, 0, sizeof state);
+      if (mkxpzPad)
+        pc_pad_mkxpz(&state);
+      jsonStamp = -1;
+      fedMask = 0;
+      start = SDL_GetTicks();
+      placed = focused = false;
+      lastPlace = 0;
+    }
     events();
     uint32_t now = SDL_GetTicks();
     // GAME MENU: the pad's Guide button (it reaches PokeDaisy while the game has the screen), or SELECT + START

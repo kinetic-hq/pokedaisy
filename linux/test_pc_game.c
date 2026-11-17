@@ -260,7 +260,19 @@ static void test_large_address(void) {
   remove(path);
 }
 
+/* RESTART: the companion's note is taken once, and only while it's fresh. */
+static void test_restart(void) {
+  const char *dir = ".";
+  remove("./restart.txt");
+  assert(!pc_restart_asked(dir));
+  FILE *f = fopen("./restart.txt", "wb");
+  assert(f && fputs("restart\n", f) >= 0 && !fclose(f));
+  assert(pc_restart_asked(dir));
+  assert(!pc_restart_asked(dir)); // taken away
+}
+
 int main(void) {
+  test_restart();
   test_large_address();
   test_pad();
   test_swap_face();
