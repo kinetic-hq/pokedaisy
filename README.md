@@ -621,6 +621,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **One D-pad press moves a fan game's cursor one row** (Indigo's menus skipped two or three), and **a game that
   restarts itself** after one of its own options (Indigo's VSync: "Restart now?") is started again by PokeDaisy,
   with its wings and the controller, instead of stopping at "Windows cannot find 'Game.exe'".
+- **Fan games no longer lag** (Indigo, Reborn, Rejuvenation, Reminiscencia...): PokeDaisy repaints its wings beside
+  the game only when they change, about 15 times a second at most, instead of the whole screen at every refresh,
+  which took the handheld's graphics from the game. The controller is still read every 8 ms.
 - **No lag after each button press in fan games**: the file the controller's buttons go through is kept open
   for the whole play instead of rewritten and reopened at every press, which Windows' antivirus scanned each time.
 - **The left stick moves you in Phoenix Rising**, as the D-pad does: the game reads the D-pad and buttons by

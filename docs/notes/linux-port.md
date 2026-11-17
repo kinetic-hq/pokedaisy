@@ -127,6 +127,14 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   after a write is closed and holds the next open meanwhile, so the game stalled after every press. Now PokeDaisy
   keeps one handle for the play (8 bytes, `m%05u;\n`, written in place and flushed; `pc_pad_feed(NULL, 0)` closes
   it after the play) and the companion keeps one too (`@padIO`, seek 0 and read).
+- **Wings paced** (2026-11-17): "massive lag" in every companion game (Indigo, Reborn, Rejuvenation, Reminiscencia)
+  even with the pad file kept open. Since #223 / #224 every mkxp-z game is PC_PAD_KEYS, so `pc_play`'s loop ran every
+  8 ms, and each pass software-drew both wings and the bars, uploaded them and presented the whole full-screen
+  window with vsync, behind the game's window: the handheld's iGPU and DWM's composition were shared with the game at
+  the screen's refresh rate (compare the vsync stall above). Now a game PokeDaisy doesn't draw (not `capture`) gets a
+  repaint only when `wingsDirty` (the companion's JSON, a window change, zoom / ff / instant / WIDE, a button, a
+  restart) or `PC_WINGS_MS` (66) has passed; input and the pad feed still run every 8 ms. Capture games still draw
+  every pass (PokeDaisy draws their picture).
 - **RESTART** (2026-11-17): Indigo's VSync option asks "Restart now?" and launches `Game.exe` itself, which failed
   under PokeDaisy ("Windows cannot find 'Game.exe'") and would have run outside it anyway. The companion wraps
   `system` / `spawn` / `exec`, `Process.spawn` and mkxp-z's `System.launch`: a command naming `game(.exe)` or the

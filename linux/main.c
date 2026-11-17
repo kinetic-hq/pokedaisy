@@ -4223,6 +4223,14 @@ static void pc_play(const char *path) {
   snprintf(padPath, sizeof padPath, "%s/pad.txt", dir);
   unsigned fedMask = 0;
   int selfRestarts = 0;
+  // PokeDaisy's own picture beside a game it doesn't draw (the wings and bars): repainted when something changed
+  // (wingsDirty) and otherwise at most every PC_WINGS_MS. Repainting the whole full-screen window at every 8 ms pass
+  // (vsync'd, behind the game's window) took the handheld's GPU from the game: every fan game lagged.
+  enum { PC_WINGS_MS = 66 };
+  uint32_t wingsDrawn = 0;
+  bool wingsDirty = true;
+  int lastZoom = zoom, lastFf = ff;
+  bool lastInstant = instant, lastWide = pcWide;
   // THE LEFT STICK as the arrow keys, for a game on its own RGSS player (no companion: Phoenix Rising), below.
   bool stickKeys = info.player == PC_PLAYER_RGSS && !info.companion;
   unsigned stickDir = 0;
@@ -4252,6 +4260,7 @@ static void pc_play(const char *path) {
       start = SDL_GetTicks();
       placed = focused = false;
       lastPlace = 0;
+      wingsDirty = true;
     }
     events();
     uint32_t now = SDL_GetTicks();
@@ -4366,6 +4375,7 @@ static void pc_play(const char *path) {
           fprintf(stderr, "PC game: PokeDaisy's window is now %d,%d %dx%d (was %d,%d %dx%d)\n", nx, ny, nw, nh, wx, wy,
                   ow, oh);
           ow = nw, oh = nh, wx = nx, wy = ny;
+          wingsDirty = true;
           if (SDL_GetRendererOutputSize(renderer, &rw, &rh) < 0)
             rw = ow, rh = oh;
           if (pcWide)
@@ -4476,6 +4486,7 @@ static void pc_play(const char *path) {
       static struct pc_state next;
       if (text && pc_state_parse(text, &next)) {
         state = next;
+        wingsDirty = true; // the companion's news: the wings show it at once
         if (mkxpzPad)
           pc_pad_mkxpz(&state);
         // A game drawing at another shape than 4:3: the picture follows it.
@@ -4495,108 +4506,117 @@ static void pc_play(const char *path) {
         fprintf(stderr, "PC game: party %d map %s battle %d\n", state.partyCount, state.map, state.battle);
       free(text);
     }
-    set_color(0, 255);
-    SDL_RenderClear(renderer);
-    if (capture && placed) {
-      int cw = 0, ch = 0;
-      const uint32_t *px = pc_capture(&cw, &ch);
-      if (px) {
-        // The picture's shape sets the box (WING ROOM's full height: nothing beside a PLAY ONLY game).
-        if (cw != baseW || ch != baseH) {
-          fprintf(stderr, "PC game: the game's picture is %dx%d\n", cw, ch);
-          baseW = cw;
-          baseH = ch;
-          pc_layout_for(ow, oh, baseW, baseH, room, &lay);
-          gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
-        }
-        // xBRZ: a doubled picture at its own size (back to doubled after a few seconds of full-size frames).
-        const uint32_t *pic = px;
-        int pw = cw, ph = ch;
-        if (st.shader == POCKET_SHADER_XBRZ && cw >= 4 && ch >= 4) {
-          static int halfCap;
-          int need = (cw / 2) * (ch / 2);
-          if (need > halfCap || !half) {
-            uint32_t *more = realloc(half, (size_t)need * 4);
-            if (more)
-              half = more, halfCap = need;
+    if (zoom != lastZoom || ff != lastFf || instant != lastInstant || pcWide != lastWide || pressed) {
+      wingsDirty = true; // a hotkey, the GAME MENU or a button (the bar's hints, the menu just closed)
+      lastZoom = zoom, lastFf = ff, lastInstant = instant, lastWide = pcWide;
+    }
+    bool paint = capture || wingsDirty || now - wingsDrawn >= PC_WINGS_MS;
+    if (paint) {
+      wingsDirty = false;
+      wingsDrawn = now;
+      set_color(0, 255);
+      SDL_RenderClear(renderer);
+      if (capture && placed) {
+        int cw = 0, ch = 0;
+        const uint32_t *px = pc_capture(&cw, &ch);
+        if (px) {
+          // The picture's shape sets the box (WING ROOM's full height: nothing beside a PLAY ONLY game).
+          if (cw != baseW || ch != baseH) {
+            fprintf(stderr, "PC game: the game's picture is %dx%d\n", cw, ch);
+            baseW = cw;
+            baseH = ch;
+            pc_layout_for(ow, oh, baseW, baseH, room, &lay);
+            gw = lay.w, gh = lay.h, gx = lay.x, gy = lay.y;
           }
-          if (half && need <= halfCap) {
-            bool doubled = pc_undouble(px, cw, cw, ch, half, undoubled);
-            if (doubled)
-              undoubled = true, notDoubled = 0;
-            else if (undoubled && ++notDoubled > 240)
-              undoubled = false;
-            if (undoubled)
-              pic = half, pw = cw / 2, ph = ch / 2;
+          // xBRZ: a doubled picture at its own size (back to doubled after a few seconds of full-size frames).
+          const uint32_t *pic = px;
+          int pw = cw, ph = ch;
+          if (st.shader == POCKET_SHADER_XBRZ && cw >= 4 && ch >= 4) {
+            static int halfCap;
+            int need = (cw / 2) * (ch / 2);
+            if (need > halfCap || !half) {
+              uint32_t *more = realloc(half, (size_t)need * 4);
+              if (more)
+                half = more, halfCap = need;
+            }
+            if (half && need <= halfCap) {
+              bool doubled = pc_undouble(px, cw, cw, ch, half, undoubled);
+              if (doubled)
+                undoubled = true, notDoubled = 0;
+              else if (undoubled && ++notDoubled > 240)
+                undoubled = false;
+              if (undoubled)
+                pic = half, pw = cw / 2, ph = ch / 2;
+            }
           }
+          // RT zoom, eased; the right stick moves the view while zoomed in (POCKET_LOOK="x,y" holds it for checks).
+          float dt = (now - lastFrame) / 1000.0f;
+          dt = dt > 0.1f ? 0.1f : dt;
+          lastFrame = now;
+          float target = 1 + 0.25f * zoom;
+          zoomShown = reduceMotion ? target : zoomShown + (target - zoomShown) * (dt * 12 > 1 ? 1 : dt * 12);
+          if (fabsf(target - zoomShown) < 0.002f)
+            zoomShown = target;
+          float stx = 0, sty = 0;
+          for (int i = 0; i < padCount; i++) {
+            float x = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_RIGHTX) / 32767.0f;
+            float y = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_RIGHTY) / 32767.0f;
+            if (x * x + y * y > stx * stx + sty * sty)
+              stx = x, sty = y;
+          }
+          if (getenv("POCKET_LOOK") && stx == 0 && sty == 0 && sscanf(getenv("POCKET_LOOK"), "%f,%f", &stx, &sty) != 2)
+            stx = sty = 0;
+          if (stx * stx + sty * sty < 0.04f)
+            stx = sty = 0;
+          if (zoom > 0) {
+            panX += stx * dt * 1.2f, panY += sty * dt * 1.2f;
+            panX = panX < -1 ? -1 : panX > 1 ? 1 : panX;
+            panY = panY < -1 ? -1 : panY > 1 ? 1 : panY;
+          } else {
+            float k8 = reduceMotion ? 1 : (dt * 8 > 1 ? 1 : dt * 8);
+            panX -= panX * k8, panY -= panY * k8;
+          }
+          float vx, vy, vw, vh;
+          pc_zoom_view(zoomShown, panX, panY, pw, ph, &vx, &vy, &vw, &vh);
+          float k = ow ? (float)rw / ow : 1;
+          SDL_Rect area = {(int)(gx * k), (int)(gy * k), (int)(gw * k), (int)(gh * k)};
+          float fx = area.w / vw, fy = area.h / vh;
+          SDL_Rect dst = {area.x - (int)(vx * fx + 0.5f), area.y - (int)(vy * fy + 0.5f), (int)(pw * fx + 0.5f),
+                          (int)(ph * fy + 0.5f)};
+          SDL_RenderSetClipRect(renderer, &area);
+          pocket_shader_draw(renderer, pic, pw, pw, ph, true, &dst);
+          SDL_RenderSetClipRect(renderer, NULL);
+          checkFrom = pic + (size_t)(int)vy * pw + (int)vx, checkStride = pw, checkW = (int)vw, checkH = (int)vh;
         }
-        // RT zoom, eased; the right stick moves the view while zoomed in (POCKET_LOOK="x,y" holds it for checks).
-        float dt = (now - lastFrame) / 1000.0f;
-        dt = dt > 0.1f ? 0.1f : dt;
-        lastFrame = now;
-        float target = 1 + 0.25f * zoom;
-        zoomShown = reduceMotion ? target : zoomShown + (target - zoomShown) * (dt * 12 > 1 ? 1 : dt * 12);
-        if (fabsf(target - zoomShown) < 0.002f)
-          zoomShown = target;
-        float stx = 0, sty = 0;
-        for (int i = 0; i < padCount; i++) {
-          float x = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_RIGHTX) / 32767.0f;
-          float y = SDL_GameControllerGetAxis(pads[i], SDL_CONTROLLER_AXIS_RIGHTY) / 32767.0f;
-          if (x * x + y * y > stx * stx + sty * sty)
-            stx = x, sty = y;
+      }
+      if (capture) {
+        if (now - playedTick >= 1000) {
+          long secs = (long)((now - playedTick) / 1000);
+          played += secs;
+          playedTick += (uint32_t)secs * 1000;
+          if (played % 30 < secs)
+            pc_played_write(playedPath, played);
         }
-        if (getenv("POCKET_LOOK") && stx == 0 && sty == 0 && sscanf(getenv("POCKET_LOOK"), "%f,%f", &stx, &sty) != 2)
-          stx = sty = 0;
-        if (stx * stx + sty * sty < 0.04f)
-          stx = sty = 0;
-        if (zoom > 0) {
-          panX += stx * dt * 1.2f, panY += sty * dt * 1.2f;
-          panX = panX < -1 ? -1 : panX > 1 ? 1 : panX;
-          panY = panY < -1 ? -1 : panY > 1 ? 1 : panY;
-        } else {
-          float k8 = reduceMotion ? 1 : (dt * 8 > 1 ? 1 : dt * 8);
-          panX -= panX * k8, panY -= panY * k8;
+        float kx = ow ? (float)rw / ow : 1;
+        pc_side_draw(0, (SDL_Rect){0, 0, (int)(gx * kx), rh}, rh, played, 100 + 25 * zoom);
+        pc_side_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, rh, played,
+                     100 + 25 * zoom);
+      }
+      if (info.companion) {
+        // Drawing pixels may differ from window points (a high-DPI screen): the wings go by drawing pixels.
+        float kx = ow ? (float)rw / ow : 1;
+        pc_wing_draw(0, (SDL_Rect){0, 0, (int)(gx * kx), rh}, &state, info.dir, rh);
+        pc_wing_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, &state, info.dir, rh);
+        int bs = (int)(gx * kx) / 120 < rh / 300 ? (int)(gx * kx) / 120 : rh / 300;
+        if (lay.bar > 0) {
+          pc_bar_draw(0, (SDL_Rect){(int)(gx * kx), 0, (int)(gw * kx), (int)(gy * kx)}, &state, bs > 0 ? bs : 1,
+                      zoom, ff, false);
+          pc_bar_draw(1, (SDL_Rect){(int)(gx * kx), (int)((gy + gh) * kx), (int)(gw * kx), rh - (int)((gy + gh) * kx)},
+                      &state, bs > 0 ? bs : 1, zoom, ff, !st.hidePcHints);
         }
-        float vx, vy, vw, vh;
-        pc_zoom_view(zoomShown, panX, panY, pw, ph, &vx, &vy, &vw, &vh);
-        float k = ow ? (float)rw / ow : 1;
-        SDL_Rect area = {(int)(gx * k), (int)(gy * k), (int)(gw * k), (int)(gh * k)};
-        float fx = area.w / vw, fy = area.h / vh;
-        SDL_Rect dst = {area.x - (int)(vx * fx + 0.5f), area.y - (int)(vy * fy + 0.5f), (int)(pw * fx + 0.5f),
-                        (int)(ph * fy + 0.5f)};
-        SDL_RenderSetClipRect(renderer, &area);
-        pocket_shader_draw(renderer, pic, pw, pw, ph, true, &dst);
-        SDL_RenderSetClipRect(renderer, NULL);
-        checkFrom = pic + (size_t)(int)vy * pw + (int)vx, checkStride = pw, checkW = (int)vw, checkH = (int)vh;
       }
-    }
-    if (capture) {
-      if (now - playedTick >= 1000) {
-        long secs = (long)((now - playedTick) / 1000);
-        played += secs;
-        playedTick += (uint32_t)secs * 1000;
-        if (played % 30 < secs)
-          pc_played_write(playedPath, played);
-      }
-      float kx = ow ? (float)rw / ow : 1;
-      pc_side_draw(0, (SDL_Rect){0, 0, (int)(gx * kx), rh}, rh, played, 100 + 25 * zoom);
-      pc_side_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, rh, played,
-                   100 + 25 * zoom);
-    }
-    if (info.companion) {
-      // Drawing pixels may differ from window points (a high-DPI screen): the wings go by drawing pixels.
-      float kx = ow ? (float)rw / ow : 1;
-      pc_wing_draw(0, (SDL_Rect){0, 0, (int)(gx * kx), rh}, &state, info.dir, rh);
-      pc_wing_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, &state, info.dir, rh);
-      int bs = (int)(gx * kx) / 120 < rh / 300 ? (int)(gx * kx) / 120 : rh / 300;
-      if (lay.bar > 0) {
-        pc_bar_draw(0, (SDL_Rect){(int)(gx * kx), 0, (int)(gw * kx), (int)(gy * kx)}, &state, bs > 0 ? bs : 1, zoom, ff,
-                    false);
-        pc_bar_draw(1, (SDL_Rect){(int)(gx * kx), (int)((gy + gh) * kx), (int)(gw * kx), rh - (int)((gy + gh) * kx)},
-                    &state, bs > 0 ? bs : 1, zoom, ff, !st.hidePcHints);
-      }
-    }
-    SDL_RenderPresent(renderer);
+      SDL_RenderPresent(renderer);
+    } // paint
     if (shot && !shotTaken && now - start > (uint32_t)shotAfter) {
       pc_screen_shot(shot, wx, wy, ow, oh);
       shotTaken = true;
