@@ -621,10 +621,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **The controller answers at once in fan games on Windows handhelds**: PokeDaisy reads an Xbox style pad through
   XInput, which keeps working while the game's window is in front. Through raw input a tap reached PokeDaisy late
   and let go later, so menus lagged and moved 3 to 6 rows a press (Indigo, Reminiscencia, Reborn, Rejuvenation).
-- **The pad's B runs and X opens the menu on the map in older fan games** (Indigo / Añil and other Essentials
-  v16 to v18 games, where B opened the menu and X ran): menus, messages and battles keep B as back, Y uses the
-  registered items, and the control hints say so. LT / RT only zoom and L3 only fast-forwards, even when a
-  button is set to two of them, and HOTKEYS on other buttons no longer fire later in a cartridge game.
+- **One job a button in fan games**: LT only zooms out, RT only zooms in and L3 only turns fast forward on and
+  off, even when GAME BUTTONS gives one button two of them. HOTKEYS on other buttons (GUIDE, SHARE, paddles) open
+  the game menu, toggle fast forward or zoom there, and the rest no longer fire later in a cartridge game. The
+  manual lists what every button does.
 - **One D-pad press moves a fan game's cursor one row** (Indigo's menus skipped two or three), and **a game that
   restarts itself** after one of its own options (Indigo's VSync: "Restart now?") is started again by PokeDaisy,
   with its wings and the controller, instead of stopping at "Windows cannot find 'Game.exe'".
@@ -645,6 +645,11 @@ Every change, one line each (a pull request that changes what the fork adds upda
   quiet, and the wings' names and icons are asked of the game once each. Every fan game now writes frame time
   stats and slow steps to pokedaisy.log ("PC companion:" lines), and `POCKET_PC_INPUT=feed|source|native` picks
   the input path for a check (native shows the game's player the pad itself).
+- **Naming yourself or a creature in a fan game works from the controller** (Reborn, Rejuvenation and any
+  Essentials game that asks you to type): once you've pressed a controller button, a name screen that wants the
+  keyboard opens as the game's own letter grid instead, for that entry only. Games with a second, cursor name screen
+  (Essentials v17 to v21) get that one; Reborn and Rejuvenation get the grid built into their name screen. Your saved
+  text entry option is never changed, and a keyboard-only player still types as before.
 
 </details>
 

@@ -122,11 +122,11 @@ way `BUTTON LAYOUT` names them, so `A` is always the one that confirms:
 | Button | What it does |
 | --- | --- |
 | `A` | Confirms, talks to people and picks things up. |
-| `B` | Goes back in menus, messages and battles. On the map, hold it to run. |
-| `X` | Opens the game's menu on the map. In menus it does what the game's own `A` key does, if anything. |
-| `Y` | Uses your registered items on the map, in games that have them. In menus it is the game's own `X` key. |
+| `B` | Goes back in menus, messages and battles. On the map it also opens the game's menu, since most fan games use one key for both. |
+| `X` | The game's action key: in most fan games, hold it to run. |
+| `Y` | A spare key: often unused, a registered item in some games. |
 | `START` | Opens the game's menu. |
-| `SELECT` | Uses your registered items in games that have them. |
+| `SELECT` | Uses your registered item in games that have one. |
 | `LB` and `RB` | The game's own `L` and `R` (turning pages in some menus). |
 | `R3` | The game's own `Z` key. |
 | `LT` | Zooms out: you see more of the map around you. |
@@ -134,33 +134,39 @@ way `BUTTON LAYOUT` names them, so `A` is always the one that confirms:
 | `L3` | Turns fast forward on and off (the bar under the game shows `SPEED`). |
 | `GUIDE`, or `SELECT` and `START` held for a second | Opens the game menu (back to the game, close it, fast forward, instant text, wide view). |
 
+Some newer fan games give `B` and `X` other jobs (`B` runs, `X` opens the
+menu). The bar under the picture always shows what each button does in the
+game you're playing.
+
 Each button does one thing: `LT` and `RT` only zoom, and only `L3` turns fast
 forward on and off. The other `HOTKEYS` you set in `SETTINGS` (on the `GUIDE`
 button or your handheld's extra buttons) can open the game menu, turn fast
 forward on and off, or zoom in fan games too; the others do nothing while a fan
 game is on.
 
-Older fan games (Indigo and Añil among them) open their menu with the same key
-that goes back, and run with another key. In those games PokeDaisy changes
-the map's buttons so you play them like the newer ones: on the map `B` runs
-and `X` opens the menu, and everywhere else `B` still goes back. A button you
-are holding keeps its meaning until you let go of it, so the menu doesn't
-take the press that opened it. Newer fan games already work this way, and games
-that read the controller themselves keep their own buttons.
-
 In Indigo, Añil, Reminiscencia, Reborn and Rejuvenation, PokeDaisy hands your
 buttons to the game where it reads its own keys, so its menus move just as they
 do on a keyboard. A quick press moves the cursor once, and holding the D-pad
 keeps it moving at the game's usual pace, however busy the game is.
+
+When a game asks you to type a name (yours, a creature's or a box's) and you
+play with a controller, the name screen opens as the game's own letter grid
+instead of waiting for a keyboard. Move with the D-pad, press the confirm
+button to add the letter under the cursor, press the back button to rub out
+the last one, and pick `OK` when you're done. In Reborn and Rejuvenation the grid has a cell that switches
+between letters and symbols, and one that adds a space. If you haven't pressed
+a controller button yet in this play, the game keeps its keyboard screen, so
+you can still type on a keyboard. The game's own text entry option stays as
+you set it.
 
 Some games ask to restart after you change one of their options (a `VSync`
 option, for example). Pick yes: the game closes and PokeDaisy starts it again
 for you, with its wings and your controller.
 
 The bar under the picture shows your controller's buttons and what each one
-does in the game you're playing, on the map: confirm, back and run, the menu,
-your registered items, and the game's other keys. Turn `CONTROL HINTS` off in
-`SETTINGS`, `CONTROLS` to show the dex and the wild ones there instead.
+does in the game you're playing: confirm, back, the menu, running, and the
+game's other keys. Turn `CONTROL HINTS` off in `SETTINGS`, `CONTROLS` to show
+the dex and the wild ones there instead.
 
 `BUTTON LAYOUT` in `SETTINGS` decides which face button confirms, the same as
 in your cartridge games: on `XBOX` (the first choice) the bottom button

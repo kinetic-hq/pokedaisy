@@ -135,6 +135,19 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   repaint only when `wingsDirty` (the companion's JSON, a window change, zoom / ff / instant / WIDE, a button, a
   restart) or `PC_WINGS_MS` (66) has passed; input and the pad feed still run every 8 ms. Capture games still draw
   every pass (PokeDaisy draws their picture).
+- **Name entry on the pad** (2026-11-18): a OneXPlayer player (no keyboard) was stuck at Reborn / Rejuvenation's
+  "Your name?" screen. Rejuvenation 13.5's `TextEntry.rb` (Reborn's is the same code) has no `PokemonEntryScene2`:
+  `pbEnterText` always builds `PokemonEntryScene`, whose `USEKEYBOARD = true` constant picks `Window_TextEntry_Keyboard`
+  (`Input.gets`, ENTER / ESC through `triggerex?`) over its old `Window_CharacterEntry` grid (`pbEntry2`: arrows, C
+  picks, B deletes via `Window_TextEntry#update`, an OK cell confirms). Essentials v17 to v21 instead choose
+  `PokemonEntryScene2` (the cursor grid) or the keyboard scene from `$PokemonSystem.textinput` (older:
+  `USEKEYBOARDTEXTENTRY`). Every one of them goes through `PokemonEntry#pbStartScreen`, so the companion wraps that
+  (`hook_entry`, retried on ticks until the class exists): once the pad feed has seen any button (`@padUsed`, set in
+  `feed_read`), a `PokemonEntryScene` there is swapped for a fresh `PokemonEntryScene2` when the game has one, else
+  the scene's own `USEKEYBOARD` is `remove_const` / `const_set` to false for that call, and both are put back in an
+  `ensure` (a reset mid-entry included). Nothing is written to `$PokemonSystem`. Not covered: `pbFreeText` /
+  `pbMessageFreeText` (a typed box inside a message, used for codes and passwords), which has no grid to fall back
+  on. Test: `test_companion_entry.rb` (ctest `companion-entry`).
 - **XInput, not raw input** (2026-11-18): the real cause of the fan game lag and the 3 to 6 rows a press on the
   OneXPlayer. SDL 2.32 on Windows reads an XInput pad through its RAWINPUT (and WGI) drivers, whose reports reach
   PokeDaisy reliably only while its own window has the foreground; behind the game's window the pad feed logged a
@@ -143,31 +156,13 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   `SDL_JOYSTICK_WGI=0` in the environment made it smooth, so main.c now sets both hints before `SDL_Init` on
   Windows (the environment still overrides them). The pad's log line then shows no `HID#...IG_` path. Earlier
   guesses (#230 edges, the pad file, #233 wings, #234's input paths) didn't touch this.
-- **Fan game buttons: the field layout** (2026-11-18): on the OneXPlayer in Indigo, B opened the pause menu, X ran
-  and Y did nothing anyone could name. That is old Essentials' own binding (v16 to v18): `Scene_Map#update` opens the
-  menu on `Input.trigger?(Input::B)`, the same button every menu and message reads as back, and `pbCanRun?` runs on
-  `Input.press?(Input::A)`; PokeDaisy's fixed map (A C, B B, X A, Y X) hands those straight on. v19 and later moved
-  running to BACK and the menu to ACTION, which is what a handheld player expects (B back and run, X or START the
-  menu), and `pad_roles` already reads which layout a game has ("B:BACK/MENU,A:RUN" against "B:BACK/RUN,A:MENU").
-  - Decision: a game whose MENU role is on B and whose RUN role is on another button (`pc_pad_field`) gets a second
-    mask for the map (`pc_pad_field_mask`): pad B the RUN button, X the menu (B), Y the ITEMS button when the game has
-    one; everything else, and every v19+ game, as before. B can't simply stop being Input::B: it must still go back
-    in menus, messages and battles, and only the companion can tell the map from those.
-  - The pad file is now `m%05u;f%05u;\n` (15 bytes, in place as before). The companion takes `f` only for an
-    `Input.update` made by the free map's own loop: it wraps `Scene_Map#update` (`field_wrap`, again whenever the game
-    redefines it, from `feed_check`) and counts depth (`map_depth`). Essentials' pause menu (`call_menu`), messages
-    (`pbMessage` loops) and battles all run their own `Input.update` loops nested inside `Scene_Map#update`, so depth
-    0 with `$scene` a `Scene_Map` is the walkable map; `$game_temp.message_window_showing`, `in_menu` and `in_battle`
-    are checked too where they exist. The choice only changes while no button but the directions is held
-    (`field_pick`), so X opening the menu stays B until it's let go (no fresh trigger of A as the menu opens) and B
-    held to run doesn't turn into a back press when a trainer stops the walk. A game whose `f` always equals `m`
-    never runs any of this (`@fieldSeen`).
-  - CONTROL HINTS show the map's layout when the feed is on and the layout applies: A CONFIRM, B BACK/RUN, X MENU,
-    Y ITEMS, START MENU (SELECT left off when Y already has ITEMS).
-  - Tests: `test_pc_game.c` (`test_pad`: masks, hints, a v19 game untouched, the 15-byte file) and
-    `test_companion_feed.rb` (a mock `Scene_Map`: B runs on the map, goes back inside a nested loop, X held into the
-    menu stays the menu's B, then the menu's A after a release). Unproven on hardware: games that override
-    `Scene_Map#update` in a subclass without `super` would look like the map everywhere; none of the tested ones do.
+- **Fan game buttons kept as they are** (2026-11-18): on the OneXPlayer in Indigo, B opened the pause menu, X ran
+  and Y seemed to do nothing. That is old Essentials' own binding (v16 to v18): `Scene_Map#update` opens the menu on
+  `Input.trigger?(Input::B)`, the button every menu reads as back, and `pbCanRun?` runs on `Input.press?(Input::A)`;
+  the fixed map (A C, B B, X A, Y X) hands those straight on, and v19+ games put run on BACK and the menu elsewhere.
+  A map-only remap (B runs, X the menu, decided by the companion from a wrapped `Scene_Map#update` and a second pad
+  mask) was built in #238 and dropped at the user's decision: the default layout stays, and the manual's button
+  table says what each button does in it.
 - **One job a button in fan games** (2026-11-18): the user saw "L2 does both" (zoom and fast forward). `pc_play`
   hard-codes L3 FF TOGGLE and LT / RT ZOOM OUT / IN and never runs `stick_hotkeys`, but GAME BUTTONS can give one
   physical button two of PokeDaisy's buttons (`remap_from_pad`), and HOTKEYS on the SDL buttons (GUIDE, SHARE,

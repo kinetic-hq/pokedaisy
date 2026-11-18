@@ -72,36 +72,4 @@ started = system('start Game.exe') == true && File.exist?(RESTARTF)
 File.delete(RESTARTF) if File.exist?(RESTARTF)
 other = system('ruby -e "exit 0"') == true && !File.exist?(RESTARTF)
 puts "restart: #{started} other commands: #{other}"
-# FIELD LAYOUT (an older Essentials game, its menu on B): PokeDaisy writes the pad twice, "m" as menus have it and
-# "f" as the map does. The map's own loop (outside Scene_Map#update) takes "f": B runs (A). A loop inside it (the pause
-# menu, a message) takes "m": B goes back. A press keeps its meaning until it's let go.
-class Scene_Map
-  attr_accessor :inner
-  def update; @inner.call if @inner; end
-end
-$scene = Scene_Map.new
-C.feed_check # Scene_Map#update wrapped
-def padf(m, f); File.open(PADF, 'wb') { |io| io.write("m#{m};f#{f};\n") }; end
-BB = 1 << 1 # PAD_BUTTONS' B
-AB = 1 << 2 # and A
-padf(0, 0); frame
-padf(BB, AB); frame # the pad's B on the map
-run = Input.press?(Input::A) && !Input.press?(Input::B)
-padf(0, 0); frame
-back = nil
-$scene.inner = lambda { frame; padf(BB, AB); frame; back = Input.trigger?(Input::B) && !Input.press?(Input::A) }
-$scene.update # the pause menu's first frames, then the pad's B there
-$scene.inner = nil
-padf(0, 0); frame
-padf(AB, BB); frame # the pad's X on the map: the menu (B)
-opened = Input.trigger?(Input::B)
-kept = nil
-$scene.inner = lambda { frame; kept = Input.press?(Input::B) && !Input.trigger?(Input::B) && !Input.press?(Input::A) }
-$scene.update # X still held as the menu opens: still B, no new press of A
-$scene.inner = lambda { padf(0, 0); frame; padf(AB, BB); frame; kept &&= Input.trigger?(Input::A) && !Input.press?(Input::B) }
-$scene.update # let go and pressed again in the menu: the menu's A
-$scene.inner = nil
-padf(0, 0); frame
-field = run && back && opened && kept
-puts "field layout: run=#{run} back=#{back} opened=#{opened} kept=#{kept}"
-exit(ok && after && held && once && started && other && field ? 0 : 1)
+exit(ok && after && held && once && started && other ? 0 : 1)

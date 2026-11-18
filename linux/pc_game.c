@@ -834,35 +834,7 @@ void pc_pad_mkxpz(struct pc_state *s) {
   s->padOurs = true;
 }
 
-/* The button whose role names ROLE ("RUN", "ITEMS"), else -1. */
-static int pad_role_button(const struct pc_state *s, const char *role) {
-  for (int b = 0; b < PC_PAD_UP; b++)
-    if (strstr(s->padRole[b], role) && s->padVk[b])
-      return b;
-  return -1;
-}
-
-bool pc_pad_field(const struct pc_state *s) {
-  if (s->pad != PC_PAD_KEYS || !strstr(s->padRole[PC_PAD_B], "MENU") || !s->padVk[PC_PAD_B])
-    return false;
-  int run = pad_role_button(s, "RUN");
-  return run >= 0 && run != PC_PAD_B;
-}
-
-int pc_pad_field_target(const struct pc_state *s, int in) {
-  if (pc_pad_field(s)) {
-    if (in == PC_IN_B)
-      return pad_role_button(s, "RUN");
-    if (in == PC_IN_X)
-      return PC_PAD_B; // the menu
-    int items = pad_role_button(s, "ITEMS");
-    if (in == PC_IN_Y && items >= 0)
-      return items;
-  }
-  return pc_pad_target(s, in);
-}
-
-static unsigned pad_mask(const struct pc_state *s, unsigned held, int (*target)(const struct pc_state *, int)) {
+unsigned pc_pad_mask(const struct pc_state *s, unsigned held) {
   if (s->pad != PC_PAD_KEYS)
     return 0;
   unsigned chord = (1u << PC_IN_SELECT) | (1u << PC_IN_START);
@@ -870,16 +842,12 @@ static unsigned pad_mask(const struct pc_state *s, unsigned held, int (*target)(
     held &= ~chord;
   unsigned mask = 0;
   for (int in = 0; in < PC_INS; in++) {
-    int b = held & (1u << in) ? target(s, in) : -1;
+    int b = held & (1u << in) ? pc_pad_target(s, in) : -1;
     if (b >= 0 && s->padVk[b])
       mask |= 1u << b;
   }
   return mask;
 }
-
-unsigned pc_pad_mask(const struct pc_state *s, unsigned held) { return pad_mask(s, held, pc_pad_target); }
-
-unsigned pc_pad_field_mask(const struct pc_state *s, unsigned held) { return pad_mask(s, held, pc_pad_field_target); }
 
 void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]) {
   memset(down, 0, 256 * sizeof *down);
@@ -911,9 +879,9 @@ void pc_stick_keys(unsigned dir, bool down[256]) {
   down[0x27] = (dir & (1u << PC_IN_RIGHT)) != 0;
 }
 
-bool pc_pad_feed(const char *path, unsigned mask, unsigned field) {
-  // Kept open for the whole play and written in place, always the same 15 bytes ("m%05u;f%05u;\n"), so nothing is
-  // cut short and a read caught halfway still takes only whole "m<mask>;f<field>;". Opened and closed for each press, the file was
+bool pc_pad_feed(const char *path, unsigned mask) {
+  // Kept open for the whole play and written in place, always the same 8 bytes ("m%05u;\n"), so nothing is cut short
+  // and a read caught halfway still takes only a whole "m<mask>;". Opened and closed for each press, the file was
   // scanned by Windows' antivirus after every write and the game, opening it to read, waited for the scan: the game
   // lagged after each button press.
   static FILE *f;
@@ -932,7 +900,7 @@ bool pc_pad_feed(const char *path, unsigned mask, unsigned field) {
   }
   if (!f || fseek(f, 0, SEEK_SET))
     return false;
-  return fprintf(f, "m%05u;f%05u;\n", mask & 0xFFFFu, field & 0xFFFFu) == 15 && fflush(f) == 0;
+  return fprintf(f, "m%05u;\n", mask & 0xFFFFu) == 8 && fflush(f) == 0;
 }
 
 /* A key's name as a keyboard prints it ("S", "F5", "SHIFT"), else "". */
@@ -960,22 +928,12 @@ int pc_pad_hints(const struct pc_state *s, bool xbox, struct pc_hint *out, int m
   int n = 0;
   if (s->pad == PC_PAD_UNKNOWN)
     return 0;
-  // FIELD LAYOUT (the companion reads the pad, so it can tell the map from a menu): what each button does on the map,
-  // B going back everywhere else.
-  bool field = s->padFeed && pc_pad_field(s);
   for (size_t i = 0; i < sizeof order / sizeof order[0] && n < max; i++) {
-    int b = field ? pc_pad_field_target(s, order[i]) : pc_pad_target(s, order[i]);
+    int b = pc_pad_target(s, order[i]);
     if (b < 0)
       continue;
-    if (field && order[i] == PC_IN_SELECT && b == pc_pad_field_target(s, PC_IN_Y))
-      continue; // Y has it
     char label[24];
-    const char *said = order[i] == PC_IN_START ? "MENU" : s->padRole[b];
-    if (field && order[i] == PC_IN_B)
-      said = "BACK/RUN";
-    else if (field && order[i] == PC_IN_X)
-      said = "MENU";
-    snprintf(label, sizeof label, "%s", said);
+    snprintf(label, sizeof label, "%s", order[i] == PC_IN_START ? "MENU" : s->padRole[b]);
     if (!label[0] && s->pad == PC_PAD_KEYS && !s->padOurs && s->padVk[b] && b != PC_PAD_C && b != PC_PAD_B) {
       char k[16];
       key_name(s->padVk[b], k, sizeof k);
@@ -1450,7 +1408,7 @@ bool pc_start(const struct pc_game_info *info, const char *dir, const char *json
   // PAD FEED: the buttons PokeDaisy reads, for the companion (pc_pad_feed); none held as the game starts.
   char padFile[1400];
   join(padFile, sizeof padFile, dir, "pad.txt");
-  pc_pad_feed(padFile, 0, 0);
+  pc_pad_feed(padFile, 0);
   SetEnvironmentVariableA("POKEDAISY_PC_PAD", padFile);
   // RESTART: the companion notes there a game starting its own exe again (pc_restart_asked), none yet.
   char restartFile[1400];

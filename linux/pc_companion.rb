@@ -151,6 +151,7 @@ module PokeDaisyCompanion
       t = now
       timed(:hook_battle) { hook_battle } unless @hooked
       timed(:hook_text) { hook_text } unless @textHooked
+      timed(:hook_entry) { hook_entry } unless @entryHooked
       timed(:hook_zoom) { hook_zoom } unless @zoomHooked
       timed(:pad_setup) { pad_setup } unless @padDone
       timed(:feed_check) { feed_check }
@@ -375,67 +376,9 @@ module PokeDaisyCompanion
     end
 
     def feed_check
-      return unless @feedOn
-      feed_wrap
-      field_wrap
+      feed_wrap if @feedOn
     rescue Exception => e
       note(:feedcheck, e)
-    end
-
-    # FIELD LAYOUT. An older Essentials game (v16 to v18) opens its pause menu on the map with B, the same button that
-    # goes back, and runs with A, so the pad's B opened the menu and X ran. PokeDaisy writes the pad a second way
-    # ("f<mask>;" after "m<mask>;"), as the map wants it: B runs, X opens the menu, Y uses the registered items. That
-    # mask is taken for an Input.update the map's own loop makes (Scene_Map#main, outside Scene_Map#update: the pause
-    # menu, a message and a battle each run their own loop inside Scene_Map#update), so B still goes back everywhere
-    # else. The way only changes while no button but the directions is held: a press keeps its meaning until it's let
-    # go (X opening the menu doesn't turn into the menu's A on the way in, B held to run doesn't go back in a message
-    # that stops the walk). A game without the layout gets "f" equal to "m", and nothing here runs for it.
-    DIR_BITS = (1 << PAD_BUTTONS.index('UP')) | (1 << PAD_BUTTONS.index('DOWN')) |
-               (1 << PAD_BUTTONS.index('LEFT')) | (1 << PAD_BUTTONS.index('RIGHT'))
-
-    def field_pick(m, f)
-      @fieldSeen = true if f != m
-      return m unless @fieldSeen
-      @fieldOn = field? if @fieldOn.nil? || ((m | f) & ~DIR_BITS) == 0
-      @fieldOn ? f : m
-    end
-
-    # Is this Input.update the free map's? Scene_Map#update wrapped (field_wrap) and not running now, the scene the
-    # map, and no message, menu or battle said to be up.
-    def field?
-      return false unless @mapMine && (@mapDepth || 0) == 0 && defined?(::Scene_Map) && $scene.is_a?(::Scene_Map)
-      t = $game_temp
-      if t
-        return false if t.respond_to?(:message_window_showing) && t.message_window_showing
-        return false if t.respond_to?(:in_menu) && t.in_menu
-        return false if t.respond_to?(:in_battle) && t.in_battle
-      end
-      true
-    rescue Exception
-      false
-    end
-
-    def map_depth(d)
-      @mapDepth = (@mapDepth || 0) + d
-    end
-
-    # Scene_Map#update counted in and out (map_depth), wrapped again when the game defines it afresh.
-    def field_wrap
-      return unless defined?(::Scene_Map) && ::Scene_Map.is_a?(Class) && ::Scene_Map.method_defined?(:update)
-      cur = ::Scene_Map.instance_method(:update)
-      return if @mapMine && @mapMine == cur
-      @feedGen = (@feedGen || 0) + 1
-      orig = :"pokedaisy_map_#{@feedGen}"
-      ::Scene_Map.send(:alias_method, orig, :update)
-      ::Scene_Map.send(:define_method, :update) do |*a|
-        PokeDaisyCompanion.map_depth(1)
-        begin
-          send(orig, *a)
-        ensure
-          PokeDaisyCompanion.map_depth(-1)
-        end
-      end
-      @mapMine = ::Scene_Map.instance_method(:update)
     end
 
     # Inside a wrapped Input.update: a game's update that calls an earlier one (aliased) reaches two wrappers, and
@@ -465,7 +408,8 @@ module PokeDaisyCompanion
         (@padIO.close rescue nil) if @padIO
         @padIO = nil
       end
-      m = t =~ /\Am(\d+);(?:f(\d+);)?/ ? field_pick($1.to_i, $2 ? $2.to_i : $1.to_i) : @feedNow
+      m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
+      @padUsed = true if m != 0 # NAME ENTRY: the player is on the controller
       @feedPrev = @feedNow
       @feedNow = m
       if @feedStyle == :calls
@@ -653,6 +597,76 @@ module PokeDaisyCompanion
       end
     rescue Exception
       nil
+    end
+
+    # NAME ENTRY. A game's keyboard name screen (PokemonEntryScene: typed letters, ENTER to confirm) can't be used
+    # from a controller, and a handheld has no keyboard. Once the controller has pressed a button this play, that
+    # one entry opens as the game's own letter grid instead, driven by the arrows, C (pick a letter, OK) and B (rub
+    # one out): PokemonEntryScene2 where the game has it (Essentials v17 to v21), or the keyboard scene's own grid
+    # (USEKEYBOARD off for that entry) in games that dropped the second scene (Reborn, Rejuvenation). The player's
+    # saved option is never changed, and a game with neither is left as it is.
+    def hook_entry
+      @entryTries = (@entryTries || 0) + 1
+      @entryHooked = true if @entryTries > 600
+      return unless defined?(::PokemonEntry) && ::PokemonEntry.is_a?(Class)
+      @entryHooked = true
+      chain(::PokemonEntry, :pbStartScreen) do |obj, args, orig|
+        PokeDaisyCompanion.entry_grid(obj) { orig.call(*args) }
+      end
+    rescue Exception => e
+      @entryHooked = true
+      note(:hook_entry, e)
+    end
+
+    attr_accessor :padUsed
+
+    # The keyboard scene of OBJ (a PokemonEntry) swapped for a letter grid while the block runs. Anything
+    # unexpected: the game's own entry, untouched.
+    def entry_grid(obj)
+      how = @padUsed ? safe(:entry_grid, nil) { entry_swap(obj) } : nil
+      begin
+        yield
+      ensure
+        entry_restore(obj, how) if how
+      end
+    end
+
+    def entry_swap(obj)
+      return nil unless defined?(::PokemonEntryScene) && ::PokemonEntryScene.is_a?(Class)
+      scene = obj.instance_variable_get(:@scene)
+      return nil unless scene.is_a?(::PokemonEntryScene)
+      two = defined?(::PokemonEntryScene2) && ::PokemonEntryScene2.is_a?(Class) ? ::PokemonEntryScene2 : nil
+      return nil if two && scene.is_a?(two)
+      if two && [:pbStartScene, :pbEntry, :pbEndScene].all? { |m| two.method_defined?(m) }
+        obj.instance_variable_set(:@scene, two.new)
+        log_line('name entry: the letter grid (PokemonEntryScene2) for the controller')
+        return [:scene, scene]
+      end
+      k = scene.class.ancestors.find { |a| a.is_a?(Class) && a <= ::PokemonEntryScene && own_const?(a, :USEKEYBOARD) }
+      return nil unless k && k.const_get(:USEKEYBOARD) == true && scene.respond_to?(:pbEntry2)
+      k.send(:remove_const, :USEKEYBOARD)
+      k.const_set(:USEKEYBOARD, false)
+      log_line('name entry: the letter grid (USEKEYBOARD off) for the controller')
+      [:const, k]
+    end
+
+    # KLASS's own constant, not one it inherits (Ruby 1.8's const_defined? takes no second argument).
+    def own_const?(klass, name)
+      klass.const_defined?(name, false)
+    rescue ArgumentError
+      klass.const_defined?(name)
+    end
+
+    def entry_restore(obj, how)
+      if how[0] == :scene
+        obj.instance_variable_set(:@scene, how[1])
+      else
+        k = how[1]
+        k.send(:remove_const, :USEKEYBOARD) if own_const?(k, :USEKEYBOARD)
+        k.const_set(:USEKEYBOARD, true)
+      end
+    rescue Exception => e
+      note(:entry_restore, e)
     end
 
     def in_battle?

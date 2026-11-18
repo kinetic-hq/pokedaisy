@@ -132,22 +132,13 @@ void pc_pad_keys(const struct pc_state *s, unsigned held, bool down[256]);
 /* The game's buttons held (1 << enum pc_pad_button) for the controller's buttons held (HELD: 1 << enum pc_pad_in),
  * by the same rules as pc_pad_keys. */
 unsigned pc_pad_mask(const struct pc_state *s, unsigned held);
-/* FIELD LAYOUT: an older Essentials game (v16 to v18) opens its pause menu with the same button that goes back (B,
- * pad_roles "B:BACK/MENU") and runs with another (A, "RUN"), so the pad's B opened the menu on the map and X ran. On
- * the map itself (the companion knows when, pc_companion.rb's field?) the pad's B runs, X opens the menu and Y uses
- * the registered items (ITEMS, where the game has them), as v19 and later lay it out; in menus, messages and battles
- * B still goes back. True when this game has that layout: PC_PAD_KEYS, the menu on B and running on another button. */
-bool pc_pad_field(const struct pc_state *s);
-/* pc_pad_target and pc_pad_mask on the map in the field layout (the same as theirs without one). */
-int pc_pad_field_target(const struct pc_state *s, int in);
-unsigned pc_pad_field_mask(const struct pc_state *s, unsigned held);
 /* PAD FEED (an mkxp-z game whose companion says pad_feed): the game's buttons held (pc_pad_mask) written to PATH
- * ("m<mask>;f<field>;", FIELD the same buttons as pc_pad_field_mask has them, for the map), which the companion reads at each of the game's Input.update and answers press?, trigger?, repeat?,
+ * ("m<mask>;"), which the companion reads at each of the game's Input.update and answers press?, trigger?, repeat?,
  * release?, dir4 and dir8 from, besides the game's own reading. No key is pressed, so it reaches the game whichever
  * window has the foreground and whatever its player's own key bindings (F1) say. False when it couldn't be written.
  * The file stays open (one write in place a change, never reopened, so no antivirus scan stalls the game); a NULL
  * PATH closes it, at the end of a play. */
-bool pc_pad_feed(const char *path, unsigned mask, unsigned field);
+bool pc_pad_feed(const char *path, unsigned mask);
 /* THE LEFT STICK in a game on its own RGSS player with no companion (Phoenix Rising): its scripts read the pad's
  * buttons through XInput, the D-pad among them, but not the thumbstick, so PokeDaisy presses the arrow keys for the
  * stick alone. The direction held (1 << PC_IN_UP / DOWN / LEFT / RIGHT, one at a time, or 0) for a stick at X, Y
