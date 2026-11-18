@@ -645,6 +645,12 @@ Every change, one line each (a pull request that changes what the fork adds upda
   quiet, and the wings' names and icons are asked of the game once each. Every fan game now writes frame time
   stats and slow steps to pokedaisy.log ("PC companion:" lines), and `POCKET_PC_INPUT=feed|source|native` picks
   the input path for a check (native shows the game's player the pad itself).
+- **Fan game ZOOM holds still while you walk, and its percent is right**: the zoom only gives way to a message, a
+  menu, a battle or an event that lasts two seconds, and comes back after a second of plain map, so walking no
+  longer makes the picture go small and big. If a game's events still keep undoing it, PokeDaisy turns ZOOM off
+  for that play and the bar says `ZOOM OFF`. The bar shows the zoom the game is really at (100% in a menu), it
+  takes the hints' place for a few seconds after `LT` / `RT`, it shows in the top bar while the hints are up, and
+  the battery reads `BATTERY 88%` (a bare percent there was taken for the zoom).
 - **Naming yourself or a creature in a fan game works from the controller** (Reborn, Rejuvenation and any
   Essentials game that asks you to type): once you've pressed a controller button, a name screen that wants the
   keyboard opens as the game's own letter grid instead, for that entry only. Games with a second, cursor name screen

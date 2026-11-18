@@ -169,6 +169,23 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   paddles) queued `hostActions` that nothing read until the next GB / GBA game. Now a press that arrives as a
   trigger and L3 in the same pass is the trigger's alone, `pc_play` takes HA_MENU, HA_FF and HA_ZOOM_IN / OUT from
   `hostActions` and clears the rest every pass.
+- **ZOOM hysteresis and its percent** (2026-11-18): on a OneXPlayer in Indigo the picture went small and big while
+  walking, and the ZOOM percent "was stuck" at 67% or 88%. Causes: (1) `apply_zoom` unzoomed on any frame where
+  `quiet_map?` was false, and walking flips `map_interpreter.running?` / `move_route_forcing` every few frames (step
+  triggers, a move route on the player), so each blip resized and rebuilt the spritesets, then #234's second of
+  quiet zoomed back. (2) The JSON's `screen_w` / `screen_h` were the zoomed size: rounded to 32 it can have another
+  shape than the game's own, and `pc_play` re-lays its window out by that shape, so the box changed with the zoom
+  too. (3) With CONTROL HINTS on (the default) the bottom bar draws the hints, never `ZOOM n%`, and the top bar's
+  battery was a bare `88%`: that was the "stuck" zoom. Now `zoom_place` says `:map`, `:busy` (interpreter or forced
+  move route) or `:scene` (another scene, battle, message, menu). Zoomed, `:busy` keeps the zoom unless it lasts
+  `ZOOM_BUSY` (2 s); unzoomed, the zoom returns after `ZOOM_BACK` (1 s) of `:map`, for every game. `ZOOM_FLIPS` (3)
+  long-event unzooms in a minute set `@zoomOff` for the play (`zoom_off` in the JSON, `ZOOM OFF` in the bar, a
+  "turned ZOOM off" line in pokedaisy.log). `set_screen` keeps the exact own size at k = 1 (no rounding to 32), the
+  JSON reports the own size while zoomed and `zoom_pct` (own height / drawn height). C has one mapping,
+  `pc_zoom_percent` / `pc_zoom_label` in `pc_game.c` (companion steps 67..200, PLAY ONLY 100 + 25 a step);
+  `test_companion_feed.rb` checks `PC_ZOOM_PCT` against the companion's `ZOOM_STEPS` and that a flickering
+  interpreter resizes once. `notice()` isn't drawn during `pc_play` (the game's window covers PokeDaisy's), so after
+  LT / RT the bottom bar shows its strip instead of the hints for `BEZEL_ZOOM_MS` (`zoomSaid`).
 - **RESTART** (2026-11-17): Indigo's VSync option asks "Restart now?" and launches `Game.exe` itself, which failed
   under PokeDaisy ("Windows cannot find 'Game.exe'") and would have run outside it anyway. The companion wraps
   `system` / `spawn` / `exec`, `Process.spawn` and mkxp-z's `System.launch`: a command naming `game(.exe)` or the
@@ -208,7 +225,8 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
     keybindings.mkxp1) still stand, and it's untested on the OXP3. `POCKET_PC_INPUT=feed` gives the four the old
     feed back.
   - LEAN extras (`POKEDAISY_PC_LEAN=1`, the four only): ZOOM / WIDE VIEW go back to the game's size at once but
-    return only after a second of `quiet_map?` (a busy map's events flipped it and rebuilt the sprites each time);
+    return only after a second of `quiet_map?` (a busy map's events flipped it and rebuilt the sprites each time;
+    replaced for every game by the 2026-11-18 ZOOM hysteresis below);
     `pad_roles` (every script inflated, up to 3000 files read) runs again only when the button numbers change;
     `map_name` once a map; `icon_of` asks the game once per species / form / egg / shiny / gender.
   - DIAGNOSTICS, every fan game with the companion (`POKEDAISY_PC_LOG` is now always `<pc dir>/companion.log`,
