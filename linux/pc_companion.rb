@@ -151,6 +151,7 @@ module PokeDaisyCompanion
       t = now
       timed(:hook_battle) { hook_battle } unless @hooked
       timed(:hook_text) { hook_text } unless @textHooked
+      timed(:hook_entry) { hook_entry } unless @entryHooked
       timed(:hook_zoom) { hook_zoom } unless @zoomHooked
       timed(:pad_setup) { pad_setup } unless @padDone
       timed(:feed_check) { feed_check }
@@ -408,6 +409,7 @@ module PokeDaisyCompanion
         @padIO = nil
       end
       m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
+      @padUsed = true if m != 0 # NAME ENTRY: the player is on the controller
       @feedPrev = @feedNow
       @feedNow = m
       if @feedStyle == :calls
@@ -595,6 +597,76 @@ module PokeDaisyCompanion
       end
     rescue Exception
       nil
+    end
+
+    # NAME ENTRY. A game's keyboard name screen (PokemonEntryScene: typed letters, ENTER to confirm) can't be used
+    # from a controller, and a handheld has no keyboard. Once the controller has pressed a button this play, that
+    # one entry opens as the game's own letter grid instead, driven by the arrows, C (pick a letter, OK) and B (rub
+    # one out): PokemonEntryScene2 where the game has it (Essentials v17 to v21), or the keyboard scene's own grid
+    # (USEKEYBOARD off for that entry) in games that dropped the second scene (Reborn, Rejuvenation). The player's
+    # saved option is never changed, and a game with neither is left as it is.
+    def hook_entry
+      @entryTries = (@entryTries || 0) + 1
+      @entryHooked = true if @entryTries > 600
+      return unless defined?(::PokemonEntry) && ::PokemonEntry.is_a?(Class)
+      @entryHooked = true
+      chain(::PokemonEntry, :pbStartScreen) do |obj, args, orig|
+        PokeDaisyCompanion.entry_grid(obj) { orig.call(*args) }
+      end
+    rescue Exception => e
+      @entryHooked = true
+      note(:hook_entry, e)
+    end
+
+    attr_accessor :padUsed
+
+    # The keyboard scene of OBJ (a PokemonEntry) swapped for a letter grid while the block runs. Anything
+    # unexpected: the game's own entry, untouched.
+    def entry_grid(obj)
+      how = @padUsed ? safe(:entry_grid, nil) { entry_swap(obj) } : nil
+      begin
+        yield
+      ensure
+        entry_restore(obj, how) if how
+      end
+    end
+
+    def entry_swap(obj)
+      return nil unless defined?(::PokemonEntryScene) && ::PokemonEntryScene.is_a?(Class)
+      scene = obj.instance_variable_get(:@scene)
+      return nil unless scene.is_a?(::PokemonEntryScene)
+      two = defined?(::PokemonEntryScene2) && ::PokemonEntryScene2.is_a?(Class) ? ::PokemonEntryScene2 : nil
+      return nil if two && scene.is_a?(two)
+      if two && [:pbStartScene, :pbEntry, :pbEndScene].all? { |m| two.method_defined?(m) }
+        obj.instance_variable_set(:@scene, two.new)
+        log_line('name entry: the letter grid (PokemonEntryScene2) for the controller')
+        return [:scene, scene]
+      end
+      k = scene.class.ancestors.find { |a| a.is_a?(Class) && a <= ::PokemonEntryScene && own_const?(a, :USEKEYBOARD) }
+      return nil unless k && k.const_get(:USEKEYBOARD) == true && scene.respond_to?(:pbEntry2)
+      k.send(:remove_const, :USEKEYBOARD)
+      k.const_set(:USEKEYBOARD, false)
+      log_line('name entry: the letter grid (USEKEYBOARD off) for the controller')
+      [:const, k]
+    end
+
+    # KLASS's own constant, not one it inherits (Ruby 1.8's const_defined? takes no second argument).
+    def own_const?(klass, name)
+      klass.const_defined?(name, false)
+    rescue ArgumentError
+      klass.const_defined?(name)
+    end
+
+    def entry_restore(obj, how)
+      if how[0] == :scene
+        obj.instance_variable_set(:@scene, how[1])
+      else
+        k = how[1]
+        k.send(:remove_const, :USEKEYBOARD) if own_const?(k, :USEKEYBOARD)
+        k.const_set(:USEKEYBOARD, true)
+      end
+    rescue Exception => e
+      note(:entry_restore, e)
     end
 
     def in_battle?
