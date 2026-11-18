@@ -120,13 +120,38 @@ controller your handheld lists first. PokeDaisy hands your buttons straight
 to the game, the way a game reads its own controller: it never presses a
 keyboard key for you, so nothing gets stuck down and the game never moves or
 picks by itself. Your buttons work even when Windows keeps another window in
-front of the game or the game's own key settings were changed. Hold the run
-button to run, the same as on a keyboard. `START` opens the game's menu, and `SELECT`
-uses your registered item in games that have one. The `GUIDE` button, `L3`,
-`LT` and `RT` stay PokeDaisy's. The keyboard works as the game sets it up.
-One press of the D-pad moves a menu's cursor one row; hold it to keep moving.
-Your presses reach the game right away even though the game's window is in front of
-PokeDaisy's.
+front of the game or the game's own key settings were changed. The keyboard
+works as the game sets it up. One press of the D-pad moves a menu's cursor one
+row; hold it to keep moving. Your presses reach the game right away even though
+the game's window is in front of PokeDaisy's.
+
+Here is what each button does in a game with wings. The buttons are named the
+way `BUTTON LAYOUT` names them, so `A` is always the one that confirms:
+
+| Button | What it does |
+| --- | --- |
+| `A` | Confirms, talks to people and picks things up. |
+| `B` | Goes back in menus, messages and battles. On the map it also opens the game's menu, since most fan games use one key for both. |
+| `X` | The game's action key: in most fan games, hold it to run. |
+| `Y` | A spare key: often unused, a registered item in some games. |
+| `START` | Opens the game's menu. |
+| `SELECT` | Uses your registered item in games that have one. |
+| `LB` and `RB` | The game's own `L` and `R` (turning pages in some menus). |
+| `R3` | The game's own `Z` key. |
+| `LT` | Zooms out: you see more of the map around you. |
+| `RT` | Zooms in: you see less of the map. |
+| `L3` | Turns fast forward on and off (the bar under the game shows `SPEED`). |
+| `GUIDE`, or `SELECT` and `START` held for a second | Opens the game menu (back to the game, close it, fast forward, instant text, wide view). |
+
+Some newer fan games give `B` and `X` other jobs (`B` runs, `X` opens the
+menu). The bar under the picture always shows what each button does in the
+game you're playing.
+
+Each button does one thing: `LT` and `RT` only zoom, and only `L3` turns fast
+forward on and off. The other `HOTKEYS` you set in `SETTINGS` (on the `GUIDE`
+button or your handheld's extra buttons) can open the game menu, turn fast
+forward on and off, or zoom in fan games too; the others do nothing while a fan
+game is on.
 
 In Indigo, Añil, Reminiscencia, Reborn and Rejuvenation, PokeDaisy hands your
 buttons to the game where it reads its own keys, so its menus move just as they

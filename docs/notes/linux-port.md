@@ -156,6 +156,19 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   `SDL_JOYSTICK_WGI=0` in the environment made it smooth, so main.c now sets both hints before `SDL_Init` on
   Windows (the environment still overrides them). The pad's log line then shows no `HID#...IG_` path. Earlier
   guesses (#230 edges, the pad file, #233 wings, #234's input paths) didn't touch this.
+- **Fan game buttons kept as they are** (2026-11-18): on the OneXPlayer in Indigo, B opened the pause menu, X ran
+  and Y seemed to do nothing. That is old Essentials' own binding (v16 to v18): `Scene_Map#update` opens the menu on
+  `Input.trigger?(Input::B)`, the button every menu reads as back, and `pbCanRun?` runs on `Input.press?(Input::A)`;
+  the fixed map (A C, B B, X A, Y X) hands those straight on, and v19+ games put run on BACK and the menu elsewhere.
+  A map-only remap (B runs, X the menu, decided by the companion from a wrapped `Scene_Map#update` and a second pad
+  mask) was built in #238 and dropped at the user's decision: the default layout stays, and the manual's button
+  table says what each button does in it.
+- **One job a button in fan games** (2026-11-18): the user saw "L2 does both" (zoom and fast forward). `pc_play`
+  hard-codes L3 FF TOGGLE and LT / RT ZOOM OUT / IN and never runs `stick_hotkeys`, but GAME BUTTONS can give one
+  physical button two of PokeDaisy's buttons (`remap_from_pad`), and HOTKEYS on the SDL buttons (GUIDE, SHARE,
+  paddles) queued `hostActions` that nothing read until the next GB / GBA game. Now a press that arrives as a
+  trigger and L3 in the same pass is the trigger's alone, `pc_play` takes HA_MENU, HA_FF and HA_ZOOM_IN / OUT from
+  `hostActions` and clears the rest every pass.
 - **ZOOM hysteresis and its percent** (2026-11-18): on a OneXPlayer in Indigo the picture went small and big while
   walking, and the ZOOM percent "was stuck" at 67% or 88%. Causes: (1) `apply_zoom` unzoomed on any frame where
   `quiet_map?` was false, and walking flips `map_interpreter.running?` / `move_route_forcing` every few frames (step

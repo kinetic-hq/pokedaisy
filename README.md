@@ -621,6 +621,10 @@ Every change, one line each (a pull request that changes what the fork adds upda
 - **The controller answers at once in fan games on Windows handhelds**: PokeDaisy reads an Xbox style pad through
   XInput, which keeps working while the game's window is in front. Through raw input a tap reached PokeDaisy late
   and let go later, so menus lagged and moved 3 to 6 rows a press (Indigo, Reminiscencia, Reborn, Rejuvenation).
+- **One job a button in fan games**: LT only zooms out, RT only zooms in and L3 only turns fast forward on and
+  off, even when GAME BUTTONS gives one button two of them. HOTKEYS on other buttons (GUIDE, SHARE, paddles) open
+  the game menu, toggle fast forward or zoom there, and the rest no longer fire later in a cartridge game. The
+  manual lists what every button does.
 - **One D-pad press moves a fan game's cursor one row** (Indigo's menus skipped two or three), and **a game that
   restarts itself** after one of its own options (Indigo's VSync: "Restart now?") is started again by PokeDaisy,
   with its wings and the controller, instead of stopping at "Windows cannot find 'Game.exe'".

@@ -4308,14 +4308,22 @@ static void pc_play(const char *path) {
       chordSince = 0;
     else if (!chordSince)
       chordSince = now;
-    bool menu = (pressed & (1u << MENU)) || (chordSince && now - chordSince > 1000);
-    // HOTKEYS the PC games share with the others: L3 fast forward, LT / RT zoom.
-    if (info.companion && (pressed & (1u << L3))) {
+    // HOTKEYS on the pad's other buttons (SETTINGS > HOTKEYS: GUIDE, SHARE, the paddles) that a fan game can use:
+    // GAME MENU, FF TOGGLE, ZOOM IN / OUT. The rest are dropped here, so none waits to fire in the next GB / GBA game.
+    bool hotMenu = host_action(HA_MENU), hotFf = host_action(HA_FF);
+    int hotZoom = host_action(HA_ZOOM_IN) ? 1 : host_action(HA_ZOOM_OUT) ? -1 : 0;
+    hostActions = 0;
+    bool menu = (pressed & (1u << MENU)) || hotMenu || (chordSince && now - chordSince > 1000);
+    // The fan game's own HOTKEYS, one job a button: L3 FF TOGGLE (fast forward on or off), LT ZOOM OUT, RT ZOOM IN.
+    // A press that arrives as a trigger and L3 at once (GAME BUTTONS giving one button both) is the trigger's alone,
+    // so LT never zooms and fast-forwards together.
+    unsigned trigger = pressed & ((1u << L2) | (1u << R2));
+    if (info.companion && (((pressed & (1u << L3)) && !trigger) || hotFf)) {
       ff = ff > 1 ? 1 : 4;
       pc_commands(cmdPath, ff, instant, zoom);
     }
-    if ((info.companion || capture) && (pressed & ((1u << L2) | (1u << R2)))) {
-      zoom += (pressed & (1u << L2)) ? -1 : 1;
+    if ((info.companion || capture) && (trigger || hotZoom)) {
+      zoom += trigger ? ((trigger & (1u << L2)) ? -1 : 1) : hotZoom;
       zoom = zoom < (capture ? 0 : -2) ? (capture ? 0 : -2) : zoom > (capture ? 4 : 2) ? (capture ? 4 : 2) : zoom;
       pc_commands(cmdPath, ff, instant, zoom);
       // The step picked (pc_game.c's one mapping), in the log; the bar below shows ZOOM in place of the hints for a
