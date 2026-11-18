@@ -135,6 +135,14 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   repaint only when `wingsDirty` (the companion's JSON, a window change, zoom / ff / instant / WIDE, a button, a
   restart) or `PC_WINGS_MS` (66) has passed; input and the pad feed still run every 8 ms. Capture games still draw
   every pass (PokeDaisy draws their picture).
+- **XInput, not raw input** (2026-11-18): the real cause of the fan game lag and the 3 to 6 rows a press on the
+  OneXPlayer. SDL 2.32 on Windows reads an XInput pad through its RAWINPUT (and WGI) drivers, whose reports reach
+  PokeDaisy reliably only while its own window has the foreground; behind the game's window the pad feed logged a
+  100 ms tap as `400` held 365 to 510 ms, so repeat fired and the press came late. The game itself ran at 57 to 60
+  fps (companion stats), and the keyboard and the game's own `Game.exe` were smooth. `SDL_JOYSTICK_RAWINPUT=0` and
+  `SDL_JOYSTICK_WGI=0` in the environment made it smooth, so main.c now sets both hints before `SDL_Init` on
+  Windows (the environment still overrides them). The pad's log line then shows no `HID#...IG_` path. Earlier
+  guesses (#230 edges, the pad file, #233 wings, #234's input paths) didn't touch this.
 - **RESTART** (2026-11-17): Indigo's VSync option asks "Restart now?" and launches `Game.exe` itself, which failed
   under PokeDaisy ("Windows cannot find 'Game.exe'") and would have run outside it anyway. The companion wraps
   `system` / `spawn` / `exec`, `Process.spawn` and mkxp-z's `System.launch`: a command naming `game(.exe)` or the

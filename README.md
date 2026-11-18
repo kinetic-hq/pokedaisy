@@ -618,6 +618,9 @@ Every change, one line each (a pull request that changes what the fork adds upda
   stopped answering after its language choice): PokeDaisy notices and hooks the game's new input again.
 - **Indigo is back in the library**: it was hidden for a day while its controller misbehaved; with no keys
   pressed for the controller any more it plays like the rest.
+- **The controller answers at once in fan games on Windows handhelds**: PokeDaisy reads an Xbox style pad through
+  XInput, which keeps working while the game's window is in front. Through raw input a tap reached PokeDaisy late
+  and let go later, so menus lagged and moved 3 to 6 rows a press (Indigo, Reminiscencia, Reborn, Rejuvenation).
 - **One D-pad press moves a fan game's cursor one row** (Indigo's menus skipped two or three), and **a game that
   restarts itself** after one of its own options (Indigo's VSync: "Restart now?") is started again by PokeDaisy,
   with its wings and the controller, instead of stopping at "Windows cannot find 'Game.exe'".

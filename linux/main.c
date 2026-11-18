@@ -11593,6 +11593,15 @@ int main(int argc, char **argv) {
     snprintf(path, sizeof path, "%s/%s", root, dirs[i]);
     pocket_mkdir(path);
   }
+#ifdef _WIN32
+  // An Xbox style pad (most handheld PCs' built in controls) through XInput, not raw input or Windows.Gaming.Input:
+  // those reach PokeDaisy reliably only while its own window is in front, so behind a PC fan game's window a press
+  // came late and its release later (a 100 ms tap logged as 400 to 500 ms), every tap a repeat: menus moved 3 to 6
+  // rows and everything lagged (OneXPlayer, Indigo). XInput is read the same whichever window is in front. Must be
+  // set before SDL_Init; SDL_JOYSTICK_RAWINPUT / SDL_JOYSTICK_WGI in the environment still win.
+  SDL_SetHint("SDL_JOYSTICK_RAWINPUT", "0");
+  SDL_SetHint("SDL_JOYSTICK_WGI", "0");
+#endif
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER)) {
     fprintf(stderr, "SDL: %s\n", SDL_GetError());
     return 1;
