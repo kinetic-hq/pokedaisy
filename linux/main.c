@@ -4233,7 +4233,7 @@ static void pc_play(const char *path) {
   const char *padScript = getenv("POCKET_PC_PAD_SCRIPT");
   char padPath[1300];
   snprintf(padPath, sizeof padPath, "%s/pad.txt", dir);
-  unsigned fedMask = 0;
+  unsigned fedMask = 0, fedField = 0;
   int selfRestarts = 0;
   // PokeDaisy's own picture beside a game it doesn't draw (the wings and bars): repainted when something changed
   // (wingsDirty) and otherwise at most every PC_WINGS_MS. Repainting the whole full-screen window at every 8 ms pass
@@ -4269,7 +4269,7 @@ static void pc_play(const char *path) {
       if (mkxpzPad)
         pc_pad_mkxpz(&state);
       jsonStamp = -1;
-      fedMask = 0;
+      fedMask = fedField = 0;
       start = SDL_GetTicks();
       placed = focused = false;
       lastPlace = 0;
@@ -4284,14 +4284,22 @@ static void pc_play(const char *path) {
       chordSince = 0;
     else if (!chordSince)
       chordSince = now;
-    bool menu = (pressed & (1u << MENU)) || (chordSince && now - chordSince > 1000);
-    // HOTKEYS the PC games share with the others: L3 fast forward, LT / RT zoom.
-    if (info.companion && (pressed & (1u << L3))) {
+    // HOTKEYS on the pad's other buttons (SETTINGS > HOTKEYS: GUIDE, SHARE, the paddles) that a fan game can use:
+    // GAME MENU, FF TOGGLE, ZOOM IN / OUT. The rest are dropped here, so none waits to fire in the next GB / GBA game.
+    bool hotMenu = host_action(HA_MENU), hotFf = host_action(HA_FF);
+    int hotZoom = host_action(HA_ZOOM_IN) ? 1 : host_action(HA_ZOOM_OUT) ? -1 : 0;
+    hostActions = 0;
+    bool menu = (pressed & (1u << MENU)) || hotMenu || (chordSince && now - chordSince > 1000);
+    // The fan game's own HOTKEYS, one job a button: L3 FF TOGGLE (fast forward on or off), LT ZOOM OUT, RT ZOOM IN.
+    // A press that arrives as a trigger and L3 at once (GAME BUTTONS giving one button both) is the trigger's alone,
+    // so LT never zooms and fast-forwards together.
+    unsigned trigger = pressed & ((1u << L2) | (1u << R2));
+    if (info.companion && (((pressed & (1u << L3)) && !trigger) || hotFf)) {
       ff = ff > 1 ? 1 : 4;
       pc_commands(cmdPath, ff, instant, zoom);
     }
-    if ((info.companion || capture) && (pressed & ((1u << L2) | (1u << R2)))) {
-      zoom += (pressed & (1u << L2)) ? -1 : 1;
+    if ((info.companion || capture) && (trigger || hotZoom)) {
+      zoom += trigger ? ((trigger & (1u << L2)) ? -1 : 1) : hotZoom;
       zoom = zoom < (capture ? 0 : -2) ? (capture ? 0 : -2) : zoom > (capture ? 4 : 2) ? (capture ? 4 : 2) : zoom;
       pc_commands(cmdPath, ff, instant, zoom);
       if (capture) {
@@ -4303,8 +4311,8 @@ static void pc_play(const char *path) {
     if (menu && !closing) {
       chordSince = 0;
       pc_keys_send(NULL);
-      if (fedMask && pc_pad_feed(padPath, 0))
-        fedMask = 0;
+      if ((fedMask || fedField) && pc_pad_feed(padPath, 0, 0))
+        fedMask = fedField = 0;
       pc_show(false);
       pc_focus_self();
       static const char *const rows[] = {"BACK TO THE GAME", "CLOSE GAME", "FAST FORWARD", "INSTANT TEXT",
@@ -4436,13 +4444,17 @@ static void pc_play(const char *path) {
         // nor the player's own key bindings stand in the way. Until it says so, the keys above.
         pc_keys_send(NULL);
         unsigned mask = pc_pad_mask(&state, in); // whichever window is in front, like a game reading its pad
-        if (mask != fedMask && pc_pad_feed(padPath, mask)) {
+        // FIELD LAYOUT: the same buttons as the map has them (B runs, X the menu), which the companion takes on the
+        // map itself.
+        unsigned field = pc_pad_field_mask(&state, in);
+        if ((mask != fedMask || field != fedField) && pc_pad_feed(padPath, mask, field)) {
           // In the log (the first 600 changes a run): what the game was told is held, to tell a stuck button from a
           // game reading input of its own.
           static int fedLogged;
           if (fedLogged++ < 600 || getenv("POCKET_PC_DEBUG"))
-            fprintf(stderr, "PC game: pad feed %03X at %u ms\n", mask, (unsigned)(now - start));
+            fprintf(stderr, "PC game: pad feed %03X (map %03X) at %u ms\n", mask, field, (unsigned)(now - start));
           fedMask = mask;
+          fedField = field;
         }
       } else if (info.companion) {
         // A game with the companion gets the feed once it has loaded (its first frames): no key is pressed meanwhile,
@@ -4653,7 +4665,7 @@ static void pc_play(const char *path) {
     pc_played_write(playedPath, played);
   if (pc_running()) // PokeDaisy is closing: the game is asked to close too
     pc_close(false);
-  pc_pad_feed(NULL, 0); // the pad file closed (kept open through the play)
+  pc_pad_feed(NULL, 0, 0); // the pad file closed (kept open through the play)
   fprintf(stderr, "PC game: ended (%d)\n", pc_exit_code());
   if (info.companion)
     pc_companion_log(dir, stderr); // its slow steps and frame stats, as "PC companion: ..." lines

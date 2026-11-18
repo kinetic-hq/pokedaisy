@@ -143,6 +143,37 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   `SDL_JOYSTICK_WGI=0` in the environment made it smooth, so main.c now sets both hints before `SDL_Init` on
   Windows (the environment still overrides them). The pad's log line then shows no `HID#...IG_` path. Earlier
   guesses (#230 edges, the pad file, #233 wings, #234's input paths) didn't touch this.
+- **Fan game buttons: the field layout** (2026-11-18): on the OneXPlayer in Indigo, B opened the pause menu, X ran
+  and Y did nothing anyone could name. That is old Essentials' own binding (v16 to v18): `Scene_Map#update` opens the
+  menu on `Input.trigger?(Input::B)`, the same button every menu and message reads as back, and `pbCanRun?` runs on
+  `Input.press?(Input::A)`; PokeDaisy's fixed map (A C, B B, X A, Y X) hands those straight on. v19 and later moved
+  running to BACK and the menu to ACTION, which is what a handheld player expects (B back and run, X or START the
+  menu), and `pad_roles` already reads which layout a game has ("B:BACK/MENU,A:RUN" against "B:BACK/RUN,A:MENU").
+  - Decision: a game whose MENU role is on B and whose RUN role is on another button (`pc_pad_field`) gets a second
+    mask for the map (`pc_pad_field_mask`): pad B the RUN button, X the menu (B), Y the ITEMS button when the game has
+    one; everything else, and every v19+ game, as before. B can't simply stop being Input::B: it must still go back
+    in menus, messages and battles, and only the companion can tell the map from those.
+  - The pad file is now `m%05u;f%05u;\n` (15 bytes, in place as before). The companion takes `f` only for an
+    `Input.update` made by the free map's own loop: it wraps `Scene_Map#update` (`field_wrap`, again whenever the game
+    redefines it, from `feed_check`) and counts depth (`map_depth`). Essentials' pause menu (`call_menu`), messages
+    (`pbMessage` loops) and battles all run their own `Input.update` loops nested inside `Scene_Map#update`, so depth
+    0 with `$scene` a `Scene_Map` is the walkable map; `$game_temp.message_window_showing`, `in_menu` and `in_battle`
+    are checked too where they exist. The choice only changes while no button but the directions is held
+    (`field_pick`), so X opening the menu stays B until it's let go (no fresh trigger of A as the menu opens) and B
+    held to run doesn't turn into a back press when a trainer stops the walk. A game whose `f` always equals `m`
+    never runs any of this (`@fieldSeen`).
+  - CONTROL HINTS show the map's layout when the feed is on and the layout applies: A CONFIRM, B BACK/RUN, X MENU,
+    Y ITEMS, START MENU (SELECT left off when Y already has ITEMS).
+  - Tests: `test_pc_game.c` (`test_pad`: masks, hints, a v19 game untouched, the 15-byte file) and
+    `test_companion_feed.rb` (a mock `Scene_Map`: B runs on the map, goes back inside a nested loop, X held into the
+    menu stays the menu's B, then the menu's A after a release). Unproven on hardware: games that override
+    `Scene_Map#update` in a subclass without `super` would look like the map everywhere; none of the tested ones do.
+- **One job a button in fan games** (2026-11-18): the user saw "L2 does both" (zoom and fast forward). `pc_play`
+  hard-codes L3 FF TOGGLE and LT / RT ZOOM OUT / IN and never runs `stick_hotkeys`, but GAME BUTTONS can give one
+  physical button two of PokeDaisy's buttons (`remap_from_pad`), and HOTKEYS on the SDL buttons (GUIDE, SHARE,
+  paddles) queued `hostActions` that nothing read until the next GB / GBA game. Now a press that arrives as a
+  trigger and L3 in the same pass is the trigger's alone, `pc_play` takes HA_MENU, HA_FF and HA_ZOOM_IN / OUT from
+  `hostActions` and clears the rest every pass.
 - **RESTART** (2026-11-17): Indigo's VSync option asks "Restart now?" and launches `Game.exe` itself, which failed
   under PokeDaisy ("Windows cannot find 'Game.exe'") and would have run outside it anyway. The companion wraps
   `system` / `spawn` / `exec`, `Process.spawn` and mkxp-z's `System.launch`: a command naming `game(.exe)` or the

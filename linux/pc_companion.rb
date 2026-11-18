@@ -375,9 +375,67 @@ module PokeDaisyCompanion
     end
 
     def feed_check
-      feed_wrap if @feedOn
+      return unless @feedOn
+      feed_wrap
+      field_wrap
     rescue Exception => e
       note(:feedcheck, e)
+    end
+
+    # FIELD LAYOUT. An older Essentials game (v16 to v18) opens its pause menu on the map with B, the same button that
+    # goes back, and runs with A, so the pad's B opened the menu and X ran. PokeDaisy writes the pad a second way
+    # ("f<mask>;" after "m<mask>;"), as the map wants it: B runs, X opens the menu, Y uses the registered items. That
+    # mask is taken for an Input.update the map's own loop makes (Scene_Map#main, outside Scene_Map#update: the pause
+    # menu, a message and a battle each run their own loop inside Scene_Map#update), so B still goes back everywhere
+    # else. The way only changes while no button but the directions is held: a press keeps its meaning until it's let
+    # go (X opening the menu doesn't turn into the menu's A on the way in, B held to run doesn't go back in a message
+    # that stops the walk). A game without the layout gets "f" equal to "m", and nothing here runs for it.
+    DIR_BITS = (1 << PAD_BUTTONS.index('UP')) | (1 << PAD_BUTTONS.index('DOWN')) |
+               (1 << PAD_BUTTONS.index('LEFT')) | (1 << PAD_BUTTONS.index('RIGHT'))
+
+    def field_pick(m, f)
+      @fieldSeen = true if f != m
+      return m unless @fieldSeen
+      @fieldOn = field? if @fieldOn.nil? || ((m | f) & ~DIR_BITS) == 0
+      @fieldOn ? f : m
+    end
+
+    # Is this Input.update the free map's? Scene_Map#update wrapped (field_wrap) and not running now, the scene the
+    # map, and no message, menu or battle said to be up.
+    def field?
+      return false unless @mapMine && (@mapDepth || 0) == 0 && defined?(::Scene_Map) && $scene.is_a?(::Scene_Map)
+      t = $game_temp
+      if t
+        return false if t.respond_to?(:message_window_showing) && t.message_window_showing
+        return false if t.respond_to?(:in_menu) && t.in_menu
+        return false if t.respond_to?(:in_battle) && t.in_battle
+      end
+      true
+    rescue Exception
+      false
+    end
+
+    def map_depth(d)
+      @mapDepth = (@mapDepth || 0) + d
+    end
+
+    # Scene_Map#update counted in and out (map_depth), wrapped again when the game defines it afresh.
+    def field_wrap
+      return unless defined?(::Scene_Map) && ::Scene_Map.is_a?(Class) && ::Scene_Map.method_defined?(:update)
+      cur = ::Scene_Map.instance_method(:update)
+      return if @mapMine && @mapMine == cur
+      @feedGen = (@feedGen || 0) + 1
+      orig = :"pokedaisy_map_#{@feedGen}"
+      ::Scene_Map.send(:alias_method, orig, :update)
+      ::Scene_Map.send(:define_method, :update) do |*a|
+        PokeDaisyCompanion.map_depth(1)
+        begin
+          send(orig, *a)
+        ensure
+          PokeDaisyCompanion.map_depth(-1)
+        end
+      end
+      @mapMine = ::Scene_Map.instance_method(:update)
     end
 
     # Inside a wrapped Input.update: a game's update that calls an earlier one (aliased) reaches two wrappers, and
@@ -407,7 +465,7 @@ module PokeDaisyCompanion
         (@padIO.close rescue nil) if @padIO
         @padIO = nil
       end
-      m = t =~ /\Am(\d+);/ ? $1.to_i : @feedNow
+      m = t =~ /\Am(\d+);(?:f(\d+);)?/ ? field_pick($1.to_i, $2 ? $2.to_i : $1.to_i) : @feedNow
       @feedPrev = @feedNow
       @feedNow = m
       if @feedStyle == :calls

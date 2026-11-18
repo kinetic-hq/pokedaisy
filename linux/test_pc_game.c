@@ -225,21 +225,49 @@ static void test_pad(void) {
   assert(pc_pad_mask(&s, (1u << PC_IN_A) | (1u << PC_IN_LEFT)) == ((1u << PC_PAD_C) | (1u << PC_PAD_LEFT)));
   assert(pc_pad_mask(&s, 1u << PC_IN_START) == 1u << PC_PAD_B);
   assert(pc_pad_mask(&s, (1u << PC_IN_SELECT) | (1u << PC_IN_START)) == 0); // GAME MENU's chord
+  assert(!pc_pad_field(&s)); // B goes back and opens the menu, but nothing runs: no field layout
+  assert(pc_pad_field_mask(&s, 1u << PC_IN_B) == 1u << PC_PAD_B);
+  // FIELD LAYOUT: an older Essentials game's menu on B and its run on A. On the map the pad's B runs, X opens the
+  // menu and Y uses the registered items; pc_pad_mask (menus) is as before.
+  assert(pc_state_parse("{\"pad\":\"keys\",\"pad_keys\":\"C:67,B:88,A:90,X:65,Y:83,Z:68,L:81,R:87,F5:116,"
+                        "UP:38,DOWN:40,LEFT:37,RIGHT:39\",\"pad_roles\":\"C:CONFIRM,B:BACK/MENU,A:RUN,F5:ITEMS\","
+                        "\"pad_feed\":1}",
+                        &s));
+  assert(pc_pad_field(&s));
+  assert(pc_pad_field_mask(&s, 1u << PC_IN_B) == 1u << PC_PAD_A);
+  assert(pc_pad_field_mask(&s, 1u << PC_IN_X) == 1u << PC_PAD_B);
+  assert(pc_pad_field_mask(&s, 1u << PC_IN_Y) == 1u << PC_PAD_F5);
+  assert(pc_pad_field_mask(&s, (1u << PC_IN_A) | (1u << PC_IN_UP)) == ((1u << PC_PAD_C) | (1u << PC_PAD_UP)));
+  assert(pc_pad_field_mask(&s, 1u << PC_IN_START) == 1u << PC_PAD_B);
+  assert(pc_pad_mask(&s, 1u << PC_IN_B) == 1u << PC_PAD_B && pc_pad_mask(&s, 1u << PC_IN_X) == 1u << PC_PAD_A);
+  n = pc_pad_hints(&s, true, h, 9); // what each does on the map; SELECT left off (Y has the items)
+  assert(n == 8);
+  assert(!strcmp(h[0].button, "A") && !strcmp(h[0].label, "CONFIRM"));
+  assert(!strcmp(h[1].button, "B") && !strcmp(h[1].label, "BACK/RUN"));
+  assert(!strcmp(h[2].button, "X") && !strcmp(h[2].label, "MENU"));
+  assert(!strcmp(h[3].button, "Y") && !strcmp(h[3].label, "ITEMS"));
+  assert(!strcmp(h[4].button, "START") && !strcmp(h[4].label, "MENU"));
+  assert(!strcmp(h[5].button, "LB"));
+  // v19 and later already run with B and open the menu with another button: no field layout.
+  assert(pc_state_parse("{\"pad\":\"keys\",\"pad_keys\":\"C:67,B:88,A:90\",\"pad_roles\":\"C:CONFIRM,B:BACK/RUN,"
+                        "A:MENU\",\"pad_feed\":1}",
+                        &s));
+  assert(!pc_pad_field(&s) && pc_pad_field_mask(&s, 1u << PC_IN_B) == 1u << PC_PAD_B);
   assert(pc_state_parse("{\"pad\":\"native\"}", &s) && !s.padFeed);
   char feed[512];
   snprintf(feed, sizeof feed, "%s/pd_pad_feed_test.txt", getenv("TEMP") ? getenv("TEMP") : "/tmp");
-  assert(pc_pad_feed(feed, (1u << PC_PAD_C) | (1u << PC_PAD_UP)));
+  assert(pc_pad_feed(feed, (1u << PC_PAD_C) | (1u << PC_PAD_UP), (1u << PC_PAD_A) | (1u << PC_PAD_UP)));
   FILE *f = fopen(feed, "rb");
   char got[16] = {0};
   assert(f && fread(got, 1, sizeof got - 1, f) > 0);
-  assert(!strcmp(got, "m00513;\n"));
+  assert(!strcmp(got, "m00513;f00516;\n"));
   // Written again in place, the reader's own handle (the companion keeps one) sees it without opening anew.
-  assert(pc_pad_feed(feed, 0));
+  assert(pc_pad_feed(feed, 0, 0));
   memset(got, 0, sizeof got);
-  assert(!fseek(f, 0, SEEK_SET) && fread(got, 1, sizeof got - 1, f) == 8);
-  assert(!strcmp(got, "m00000;\n"));
+  assert(!fseek(f, 0, SEEK_SET) && fread(got, 1, sizeof got - 1, f) == 15);
+  assert(!strcmp(got, "m00000;f00000;\n"));
   fclose(f);
-  assert(pc_pad_feed(NULL, 0)); // closed, so it can go
+  assert(pc_pad_feed(NULL, 0, 0)); // closed, so it can go
   remove(feed);
 }
 
