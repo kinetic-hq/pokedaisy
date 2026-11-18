@@ -647,6 +647,11 @@ Every change, one line each (a pull request that changes what the fork adds upda
   for that play and the bar says `ZOOM OFF`. The bar shows the zoom the game is really at (100% in a menu), it
   takes the hints' place for a few seconds after `LT` / `RT`, it shows in the top bar while the hints are up, and
   the battery reads `BATTERY 88%` (a bare percent there was taken for the zoom).
+- **Naming yourself or a creature in a fan game works from the controller** (Reborn, Rejuvenation and any
+  Essentials game that asks you to type): once you've pressed a controller button, a name screen that wants the
+  keyboard opens as the game's own letter grid instead, for that entry only. Games with a second, cursor name screen
+  (Essentials v17 to v21) get that one; Reborn and Rejuvenation get the grid built into their name screen. Your saved
+  text entry option is never changed, and a keyboard-only player still types as before.
 
 </details>
 

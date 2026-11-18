@@ -133,6 +133,16 @@ buttons to the game where it reads its own keys, so its menus move just as they
 do on a keyboard. A quick press moves the cursor once, and holding the D-pad
 keeps it moving at the game's usual pace, however busy the game is.
 
+When a game asks you to type a name (yours, a creature's or a box's) and you
+play with a controller, the name screen opens as the game's own letter grid
+instead of waiting for a keyboard. Move with the D-pad, press the confirm
+button to add the letter under the cursor, press the back button to rub out
+the last one, and pick `OK` when you're done. In Reborn and Rejuvenation the grid has a cell that switches
+between letters and symbols, and one that adds a space. If you haven't pressed
+a controller button yet in this play, the game keeps its keyboard screen, so
+you can still type on a keyboard. The game's own text entry option stays as
+you set it.
+
 Some games ask to restart after you change one of their options (a `VSync`
 option, for example). Pick yes: the game closes and PokeDaisy starts it again
 for you, with its wings and your controller.

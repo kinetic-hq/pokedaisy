@@ -175,6 +175,8 @@ if(BUILD_TESTING)
   find_program(PD_RUBY ruby)
   if(PD_RUBY)
     add_test(NAME companion-feed COMMAND ${PD_RUBY} ${CMAKE_CURRENT_SOURCE_DIR}/test_companion_feed.rb ${CMAKE_CURRENT_SOURCE_DIR}/pc_companion.rb)
+    # NAME ENTRY: a keyboard name screen opens as the game's own letter grid once the controller is used.
+    add_test(NAME companion-entry COMMAND ${PD_RUBY} ${CMAKE_CURRENT_SOURCE_DIR}/test_companion_entry.rb ${CMAKE_CURRENT_SOURCE_DIR}/pc_companion.rb)
     # The input paths in a mock RGSS loop: one row a tap and a repeat by the clock through 'source' however often the
     # game runs Input.update, and each path's cost a frame (printed; ruby bench_companion_input.rb ... --full for more).
     add_test(NAME companion-bench COMMAND ${PD_RUBY} ${CMAKE_CURRENT_SOURCE_DIR}/bench_companion_input.rb ${CMAKE_CURRENT_SOURCE_DIR}/pc_companion.rb)
