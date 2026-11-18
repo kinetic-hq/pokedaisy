@@ -775,6 +775,10 @@ static bool state_key(struct jr *r, const char *k, void *user) {
     return s->seconds = jr_number(r), true;
   if (!strcmp(k, "battle"))
     return s->battle = jr_bool(r), true;
+  if (!strcmp(k, "zoom_pct"))
+    return s->zoomPct = (int)jr_number(r), true;
+  if (!strcmp(k, "zoom_off"))
+    return s->zoomOff = jr_number(r) > 0, true;
   if (!strcmp(k, "screen_w"))
     return s->screenW = (int)jr_number(r), true;
   if (!strcmp(k, "screen_h"))
@@ -802,6 +806,22 @@ bool pc_state_parse(const char *json, struct pc_state *out) {
   struct jr r = {json, json + strlen(json)};
   out->valid = jr_object(&r, state_key, out);
   return out->valid;
+}
+
+/* The companion's ZOOM_STEPS (1.5, 1.25, 1, 0.75, 0.5) as 100 / step: test_companion_feed.rb checks they agree. */
+static const int PC_ZOOM_PCT[] = {67, 80, 100, 133, 200};
+
+int pc_zoom_percent(int step, bool capture) {
+  if (capture)
+    return 100 + 25 * (step < 0 ? 0 : step > 4 ? 4 : step);
+  return PC_ZOOM_PCT[(step < -2 ? -2 : step > 2 ? 2 : step) + 2];
+}
+
+void pc_zoom_label(const struct pc_state *s, int step, bool capture, char *out, size_t n) {
+  if (!capture && s && s->zoomOff)
+    snprintf(out, n, "ZOOM OFF");
+  else
+    snprintf(out, n, "ZOOM %d%%", !capture && s && s->zoomPct > 0 ? s->zoomPct : pc_zoom_percent(step, capture));
 }
 
 int pc_pad_target(const struct pc_state *s, int in) {

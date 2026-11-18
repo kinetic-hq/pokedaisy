@@ -3876,6 +3876,16 @@ static bool pc_hints_canvas(struct pd_canvas *c, const struct pc_state *s) {
   }
   return true;
 }
+/* The middle of a bar: the first of TEXTS that fits between LEFT and RIGHT (pd_ui_strip leaves out one that doesn't). */
+static const char *pc_bar_middle(int w, const char *left, const char *right, const char *const *texts, int n) {
+  int edge = 12, lw = left[0] ? pd_text_width(left) : 0, rw = right[0] ? pd_text_width(right) : 0;
+  for (int i = 0; i < n; i++) {
+    int mw = pd_text_width(texts[i]), mx = (w - mw) / 2;
+    if (mx >= edge + lw + 12 && mx + mw + 12 <= w - edge - rw)
+      return texts[i];
+  }
+  return "";
+}
 static void pc_bar_draw(int which, SDL_Rect box, const struct pc_state *s, int scale, int zoom, int ff, bool hints) {
   if (box.w < 64 || box.h < 12 || !s->valid)
     return;
@@ -3901,19 +3911,32 @@ static void pc_bar_draw(int which, SDL_Rect box, const struct pc_state *s, int s
     SDL_PowerState ps = SDL_GetPowerInfo(NULL, &pct);
     if (lt)
       snprintf(b, sizeof b, "%02d:%02d", lt->tm_hour, lt->tm_min);
-    if (pct >= 0 && ps != SDL_POWERSTATE_NO_BATTERY && ps != SDL_POWERSTATE_UNKNOWN)
-      snprintf(b + strlen(b), sizeof b - strlen(b), "  %d%%%s", pct, ps == SDL_POWERSTATE_CHARGING ? "+" : "");
     char tm[16];
     pc_play_time(s->seconds, tm, sizeof tm);
     if (s->money >= 0)
       snprintf(c, sizeof c, "BADGES %d  TIME %s  $%ld", s->badges, tm, s->money);
     else
       snprintf(c, sizeof c, "BADGES %d  TIME %s", s->badges, tm);
+    // CONTROL HINTS fill the bar below, ZOOM and all: ZOOM comes up here. The battery is named (a bare "88%" here
+    // was taken for the zoom).
+    char clock[24], battery[24] = "", zl[24], full[96], noClock[64], noBattery[64];
+    snprintf(clock, sizeof clock, "%s", lt ? b : "");
+    if (pct >= 0 && ps != SDL_POWERSTATE_NO_BATTERY && ps != SDL_POWERSTATE_UNKNOWN)
+      snprintf(battery, sizeof battery, "BATTERY %d%%%s", pct, ps == SDL_POWERSTATE_CHARGING ? "+" : "");
+    pc_zoom_label(s, zoom, false, zl, sizeof zl);
+    const char *withZoom = hints ? zl : "";
+    snprintf(full, sizeof full, "%s%s%s%s%s", withZoom, withZoom[0] && clock[0] ? "  " : "", clock,
+             (withZoom[0] || clock[0]) && battery[0] ? "  " : "", battery);
+    snprintf(noBattery, sizeof noBattery, "%s%s%s", withZoom, withZoom[0] && clock[0] ? "  " : "", clock);
+    snprintf(noClock, sizeof noClock, "%s", withZoom[0] ? withZoom : clock);
+    const char *const pick[] = {full, noBattery, noClock};
+    snprintf(b, sizeof b, "%s", pc_bar_middle(w, a, c, pick, 3));
   } else {
     if (s->seen || s->caught)
       snprintf(a, sizeof a, "SEEN %d  CAUGHT %d", s->seen, s->caught);
-    static const int pct[] = {67, 80, 100, 133, 200}; // LT shows more of the map, RT less
-    snprintf(b, sizeof b, "ZOOM %d%%  SPEED %dx%s", pct[zoom + 2], ff, pcWide ? "  WIDE" : "");
+    char zl[24];
+    pc_zoom_label(s, zoom, false, zl, sizeof zl); // what the game shows now (pc_game.c's one mapping)
+    snprintf(b, sizeof b, "%s  SPEED %dx%s", zl, ff, pcWide ? "  WIDE" : "");
     if (s->battle)
       snprintf(c, sizeof c, "IN BATTLE");
     else if (!s->wildCount)
@@ -4243,6 +4266,7 @@ static void pc_play(const char *path) {
   bool wingsDirty = true;
   int lastZoom = zoom, lastFf = ff;
   bool lastInstant = instant, lastWide = pcWide;
+  uint32_t zoomSaid = 0; // LT / RT pressed (or the companion gave ZOOM up): the bar shows ZOOM, not the hints, a while
   // THE LEFT STICK as the arrow keys, for a game on its own RGSS player (no companion: Phoenix Rising), below.
   bool stickKeys = info.player == PC_PLAYER_RGSS && !info.companion;
   unsigned stickDir = 0;
@@ -4294,11 +4318,15 @@ static void pc_play(const char *path) {
       zoom += (pressed & (1u << L2)) ? -1 : 1;
       zoom = zoom < (capture ? 0 : -2) ? (capture ? 0 : -2) : zoom > (capture ? 4 : 2) ? (capture ? 4 : 2) : zoom;
       pc_commands(cmdPath, ff, instant, zoom);
-      if (capture) {
-        char z[24];
-        snprintf(z, sizeof z, "ZOOM %d%%", 100 + 25 * zoom);
-        notice(z);
-      }
+      // The step picked (pc_game.c's one mapping), in the log; the bar below shows ZOOM in place of the hints for a
+      // few seconds (zoomSaid), since the game's window covers PokeDaisy's notices.
+      char z[64];
+      if (!capture && state.zoomOff)
+        snprintf(z, sizeof z, "ZOOM is off in this game");
+      else
+        snprintf(z, sizeof z, "ZOOM %d%%", pc_zoom_percent(zoom, capture));
+      notice(z);
+      zoomSaid = now ? now : 1;
     }
     if (menu && !closing) {
       chordSince = 0;
@@ -4498,6 +4526,10 @@ static void pc_play(const char *path) {
       char *text = pc_read_file(jsonPath);
       static struct pc_state next;
       if (text && pc_state_parse(text, &next)) {
+        if (next.zoomOff && !state.zoomOff) {
+          fprintf(stderr, "PC game: the companion turned ZOOM off (the game's events kept undoing it)\n");
+          zoomSaid = now ? now : 1;
+        }
         state = next;
         wingsDirty = true; // the companion's news: the wings show it at once
         if (saidPad != state.pad * 2 + state.padFeed) { // which Input the game has, and whether the feed reached it
@@ -4617,9 +4649,9 @@ static void pc_play(const char *path) {
             pc_played_write(playedPath, played);
         }
         float kx = ow ? (float)rw / ow : 1;
-        pc_side_draw(0, (SDL_Rect){0, 0, (int)(gx * kx), rh}, rh, played, 100 + 25 * zoom);
+        pc_side_draw(0, (SDL_Rect){0, 0, (int)(gx * kx), rh}, rh, played, pc_zoom_percent(zoom, true));
         pc_side_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, rh, played,
-                     100 + 25 * zoom);
+                     pc_zoom_percent(zoom, true));
       }
       if (info.companion) {
         // Drawing pixels may differ from window points (a high-DPI screen): the wings go by drawing pixels.
@@ -4628,10 +4660,15 @@ static void pc_play(const char *path) {
         pc_wing_draw(1, (SDL_Rect){(int)((gx + gw) * kx), 0, rw - (int)((gx + gw) * kx), rh}, &state, info.dir, rh);
         int bs = (int)(gx * kx) / 120 < rh / 300 ? (int)(gx * kx) / 120 : rh / 300;
         if (lay.bar > 0) {
+          // CONTROL HINTS take the bottom bar, ZOOM's strip and all, except for a few seconds after LT / RT; the top
+          // bar is told so (ZOOM then shows up top).
+          struct pc_hint any[9];
+          bool zoomNow = zoomSaid && now - zoomSaid < BEZEL_ZOOM_MS;
+          bool hints = !st.hidePcHints && !zoomNow;
           pc_bar_draw(0, (SDL_Rect){(int)(gx * kx), 0, (int)(gw * kx), (int)(gy * kx)}, &state, bs > 0 ? bs : 1,
-                      zoom, ff, false);
+                      zoom, ff, hints && pc_pad_hints(&state, buttonLayout == PD_LAYOUT_XBOX, any, 9) > 0);
           pc_bar_draw(1, (SDL_Rect){(int)(gx * kx), (int)((gy + gh) * kx), (int)(gw * kx), rh - (int)((gy + gh) * kx)},
-                      &state, bs > 0 ? bs : 1, zoom, ff, !st.hidePcHints);
+                      &state, bs > 0 ? bs : 1, zoom, ff, hints);
         }
       }
       SDL_RenderPresent(renderer);

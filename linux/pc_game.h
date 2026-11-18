@@ -105,8 +105,17 @@ struct pc_state {
   char padRole[PC_PAD_BUTTONS][24];     // what the game does with each button ("CONFIRM", "BACK/MENU"), else ""
   bool padOurs;                         // PC_PAD_KEYS from pc_pad_mkxpz: mkxp-z's own keys, not the game's choice
   bool padFeed;                         // the companion reads the buttons from PokeDaisy's pad file (pc_pad_feed)
+  int zoomPct;                          // ZOOM as the game shows it now, a share of its own size (0: not said)
+  bool zoomOff;                         // the companion gave ZOOM up for this play (the game's events kept undoing it)
 };
 bool pc_state_parse(const char *json, struct pc_state *out);
+/* ZOOM's one step to percent mapping, as big as the game's things look against its own size: a companion game's
+ * LT / RT steps (-2..2, the game draws a 1.5 to 0.5 times picture: 67% to 200%) or a PLAY ONLY game's RT steps (0..4,
+ * PokeDaisy enlarges the picture 25% a step: 100% to 200%). A step out of range is clamped. */
+int pc_zoom_percent(int step, bool capture);
+/* The ZOOM label the bar and the notices show: "ZOOM 80%", what the game shows now when the companion said it (100%
+ * in a menu or a battle), else the step's; "ZOOM OFF" once the companion gave it up. S may be NULL. */
+void pc_zoom_label(const struct pc_state *s, int step, bool capture, char *out, size_t n);
 /* An mkxp-z game: mkxp-z reads only the first controller Windows lists (SDL's joystick 0), which on a handheld can be
  * another device than its own pad, so the game then never sees the pad. PokeDaisy hides every controller from the
  * game's player (pc_pad_env's HIDE) and presses mkxp-z's own keys for the buttons instead (PC_PAD_KEYS), unless the
