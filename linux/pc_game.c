@@ -1450,7 +1450,7 @@ bool pc_start(const struct pc_game_info *info, const char *dir, const char *json
   // PAD FEED: the buttons PokeDaisy reads, for the companion (pc_pad_feed); none held as the game starts.
   char padFile[1400];
   join(padFile, sizeof padFile, dir, "pad.txt");
-  pc_pad_feed(padFile, 0);
+  pc_pad_feed(padFile, 0, 0);
   SetEnvironmentVariableA("POKEDAISY_PC_PAD", padFile);
   // RESTART: the companion notes there a game starting its own exe again (pc_restart_asked), none yet.
   char restartFile[1400];
