@@ -61,9 +61,11 @@ much room the wings get:
 - `BALANCED`: the same as `AUTO`.
 - `WINGS FIRST`: a smaller game and wider wings.
 
-The bar above the game shows where you are, the clock and the battery, and your
-badges, play time and money. The bar below shows how many you've seen and
-caught, the zoom and the speed, and what's wild where you're standing.
+The bar above the game shows where you are, the clock and the battery (`BATTERY`
+and its percent), and your badges, play time and money. The bar below shows how
+many you've seen and caught, the zoom and the speed, and what's wild where
+you're standing. While `CONTROL HINTS` are on, the bar below shows the buttons
+instead, and the zoom moves up to the bar above when there's room.
 
 A `PLAY ONLY` game is as tall as the screen, with nothing beside it.
 
@@ -86,11 +88,18 @@ wings, and they never cover the game.
 On games with wings:
 
 - `LT` shows more of the map around you (the camera zooms out), and `RT` shows
-  less (it zooms in). The zoom changes when you're standing on the map; menus
-  and battles stay at the game's own size, and the map comes back at your zoom
-  after them. The bar below the game shows the zoom. In Indigo, Añil,
-  Reminiscencia, Reborn and Rejuvenation the zoom comes back a second after a
-  scene or a message ends, so a busy map doesn't keep resizing.
+  less (it zooms in). The steps are 67%, 80%, 100%, 133% and 200%: how big
+  things look next to the game's own size.
+- The zoom is used on the map. A message, a menu or a battle shows at the
+  game's own size, and your zoom comes back a second after it ends. Walking past
+  things that start a short event doesn't change the zoom; only an event that
+  goes on for a couple of seconds, like a scene, takes it off.
+- The bar below the game shows the zoom you're seeing right now, so it reads
+  100% in a menu or a battle. For a few seconds after you press `LT` or `RT` it
+  shows the zoom even while `CONTROL HINTS` are on.
+- If a game's own events keep taking the zoom off, PokeDaisy turns zoom off for
+  the rest of that play so the picture stays still, and the bar says
+  `ZOOM OFF`. Your zoom is tried again the next time you start the game.
 - `L3` turns fast forward on and off.
 - `INSTANT TEXT` in the game menu shows each message whole instead of letter by
   letter.

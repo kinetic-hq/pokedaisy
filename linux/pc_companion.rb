@@ -18,8 +18,8 @@ module PokeDaisyCompanion
   # the four below); 'source' feeds the pad where the game reads its keys (Input.getstate) so its own Input does the
   # rest, or, on mkxp-z's own Input, answers from edges worked out once per Input.update with a repeat on the clock;
   # 'native' feeds nothing (PokeDaisy lets the game's player read the controller itself). LEAN (POKEDAISY_PC_LEAN):
-  # the games that lagged (Indigo, Reminiscencia, Reborn, Rejuvenation) also get a calmer ZOOM / WIDE VIEW and fewer
-  # lookups in the game while the wings are filled.
+  # the games that lagged (Indigo, Reminiscencia, Reborn, Rejuvenation) also get fewer lookups in the game while the
+  # wings are filled (every game gets the calm ZOOM / WIDE VIEW, see apply_zoom).
   INPUT_PATH = %w[feed source native].include?(ENV['POKEDAISY_PC_INPUT'].to_s) ? ENV['POKEDAISY_PC_INPUT'].to_s : 'feed'
   LEAN = ENV['POKEDAISY_PC_LEAN'] == '1'
   @logged = 0
@@ -973,41 +973,66 @@ module PokeDaisyCompanion
     end
 
     # ZOOM: the camera, through the game's own screen size. Zoomed out (LT), the game draws a bigger picture, so
-    # more of the map shows in the same room; zoomed in (RT), a smaller one. Only on the plain map: a message, an
-    # event, a menu or a battle gets the game's own size back first (they're laid out for it), and the zoom
-    # returns once the map is quiet again.
+    # more of the map shows in the same room; zoomed in (RT), a smaller one. Only on the plain map: a message, a
+    # menu, a battle or another scene gets the game's own size back first (they're laid out for it).
+    #
+    # It's decided with hysteresis, never by a single frame. Walking in a big game starts and stops events all the
+    # time (step triggers, a move route on the player, an autorun that ends at once): resizing for each one rebuilt
+    # the map's sprites and the picture went small and big while the player walked. So an event or a move route keeps
+    # the zoom unless it runs ZOOM_BUSY seconds (a real cutscene), the zoom comes back only after ZOOM_BACK seconds
+    # of plain map, and a game whose events still pull the zoom off ZOOM_FLIPS times in a minute gets ZOOM turned off
+    # for the play (PokeDaisy says so: zoom_off in the JSON).
     ZOOM_STEPS = { -2 => 1.5, -1 => 1.25, 0 => 1.0, 1 => 0.75, 2 => 0.5 }.freeze
+    ZOOM_BACK = 1.0
+    ZOOM_BUSY = 2.0
+    ZOOM_FLIPS = 3
 
     def zoom_scale
       ZOOM_STEPS[@zoom] || 1.0
     end
 
-    def quiet_map?
-      return false unless $scene && $scene.class.to_s == 'Scene_Map'
-      return false if in_battle?
-      return false if $game_temp && $game_temp.respond_to?(:message_window_showing) && $game_temp.message_window_showing
-      return false if $game_temp && $game_temp.respond_to?(:in_menu) && $game_temp.in_menu
-      return false if $game_player && $game_player.respond_to?(:move_route_forcing) && $game_player.move_route_forcing
+    # Where the game is, for the zoom: :map (the plain map), :busy (an event or a forced move route on the map: they
+    # come and go while walking) or :scene (a message, a menu, a battle, another scene: the game's own size at once).
+    def zoom_place
+      return :scene unless $scene && $scene.class.to_s == 'Scene_Map'
+      return :scene if in_battle?
+      return :scene if $game_temp && $game_temp.respond_to?(:message_window_showing) && $game_temp.message_window_showing
+      return :scene if $game_temp && $game_temp.respond_to?(:in_menu) && $game_temp.in_menu
+      return :busy if $game_player && $game_player.respond_to?(:move_route_forcing) && $game_player.move_route_forcing
       it = $game_system && $game_system.respond_to?(:map_interpreter) ? $game_system.map_interpreter : nil
-      return false if it && it.respond_to?(:running?) && it.running?
-      true
+      return :busy if it && it.respond_to?(:running?) && it.running?
+      :map
+    end
+
+    def quiet_map?
+      zoom_place == :map
+    end
+
+    attr_reader :zoomOff
+
+    def zoomed?
+      (@zoomShown || 1.0) != 1.0 || !@wideShown.nil?
     end
 
     # WIDE VIEW (PokeDaisy's shape= ask): on the plain map the picture takes the shape of PokeDaisy's room for it, so
     # more of the map shows beside; menus and battles keep the game's own shape (PokeDaisy's window fits them in).
     def apply_zoom
       return unless Graphics.respond_to?(:resize_screen)
-      quiet = quiet_map?
-      if LEAN
-        # A big game's events start and stop all the time (an autorun, a message): each change rebuilt the map's
-        # sprites twice. LEAN: back to the game's own size at once, but zoomed again only after a second of quiet.
-        t = now
-        @quietSince = nil unless quiet
-        @quietSince ||= t if quiet
-        quiet = false if quiet && t - @quietSince < 1.0
+      t = now
+      place = zoom_place
+      @busySince = place == :busy ? (@busySince || t) : nil
+      @quietSince = place == :map ? (@quietSince || t) : nil
+      want = zoom_scale
+      wide = @shape
+      on = !@zoomOff && (want != 1.0 || wide)
+      if on && zoomed?
+        # Zoomed: kept on the map and through a short event; a scene, or an event that lasts, takes it off.
+        on = place == :map || (place == :busy && t - @busySince < ZOOM_BUSY)
+        zoom_flip(t) if !on && place == :busy
+      elsif on
+        on = place == :map && t - @quietSince >= ZOOM_BACK
       end
-      want = quiet ? zoom_scale : 1.0
-      wide = quiet ? @shape : nil
+      want, wide = 1.0, nil unless on
       return if want == (@zoomShown || 1.0) && wide == @wideShown
       set_screen(want, wide)
     rescue Exception
@@ -1015,19 +1040,37 @@ module PokeDaisyCompanion
       @wideShown = wide
     end
 
+    # An event that took the zoom off: counted, and the zoom given up for the play if they keep coming.
+    def zoom_flip(t)
+      @zoomFlips = (@zoomFlips || []).select { |x| t - x < 60.0 }
+      @zoomFlips << t
+      return if @zoomFlips.size < ZOOM_FLIPS
+      @zoomOff = true
+      note(:zoom_off, RuntimeError.new("events took the zoom off #{@zoomFlips.size} times in a minute"))
+    end
+
+    # ZOOM as it's shown now, a share of the game's own size (the zoomed out picture's things are smaller: 67%).
+    def zoom_percent
+      return 100 unless zoomed? && @baseSize
+      h = Graphics.height.to_i
+      h > 0 ? (100.0 * @baseSize[1] / h).round : 100
+    end
+
     # The menus and battles: the game's own size while they're open.
     def unzoom
-      set_screen(1.0) if (@zoomShown || 1.0) != 1.0 || @wideShown
+      set_screen(1.0) if zoomed?
+      @quietSince = nil
     rescue Exception
       nil
     end
 
     def set_screen(k, wide = nil)
-      @baseSize ||= [Graphics.width, Graphics.height]
+      @baseSize = [Graphics.width, Graphics.height] unless @baseSize && zoomed?
       bw, bh = @baseSize
-      h = ((bh * k) / 32).round * 32
-      w = wide ? ((h * wide[0] / wide[1].to_f) / 8).round * 8 : ((bw * k) / 32).round * 32
-      w = ((bw * k) / 32).round * 32 if w < bw * k
+      # The game's own size exactly at 100% (rounded to 32, a 360 tall game would come back 352).
+      h = k == 1.0 ? bh : ((bh * k) / 32).round * 32
+      w = wide ? ((h * wide[0] / wide[1].to_f) / 8).round * 8 : (k == 1.0 ? bw : ((bw * k) / 32).round * 32)
+      w = (k == 1.0 ? bw : ((bw * k) / 32).round * 32) if w < bw * k
       Graphics.resize_screen(w, h)
       @fsResizes = (@fsResizes || 0) + 1
       # Some players size their window to the new picture: it gets PokeDaisy's size back at once (no flash).
@@ -1114,8 +1157,13 @@ module PokeDaisyCompanion
         dex = dex_counts(p)
         h['seen'], h['caught'] = dex if dex
       end
-      h['screen_w'] = safe(:gw, 0) { Graphics.width }
-      h['screen_h'] = safe(:gh, 0) { Graphics.height }
+      # The game's own size, not the zoomed one: PokeDaisy lays its window out by its shape, and a zoomed size
+      # rounded to 32 has another shape (the window changed size each time the zoom came and went).
+      own = zoomed? && @baseSize ? @baseSize : nil
+      h['screen_w'] = safe(:gw, 0) { own ? own[0] : Graphics.width }
+      h['screen_h'] = safe(:gh, 0) { own ? own[1] : Graphics.height }
+      h['zoom_pct'] = safe(:zoompct, 100) { zoom_percent }
+      h['zoom_off'] = 1 if @zoomOff
       if @padMode
         h['pad'] = @padMode
         h['pad_keys'] = @padKeys if @padKeys

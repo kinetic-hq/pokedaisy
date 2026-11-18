@@ -369,7 +369,37 @@ static void test_stick(void) {
     assert(!down[i]);
 }
 
+/* ZOOM's label: one mapping for both kinds of game, and what the game shows now once the companion says it. */
+static void test_zoom_label(void) {
+  static const int companion[] = {67, 80, 100, 133, 200}, capture[] = {100, 125, 150, 175, 200};
+  for (int i = 0; i < 5; i++) {
+    assert(pc_zoom_percent(i - 2, false) == companion[i]);
+    assert(pc_zoom_percent(i, true) == capture[i]);
+  }
+  assert(pc_zoom_percent(-9, false) == 67 && pc_zoom_percent(9, false) == 200); // clamped, never past the table
+  assert(pc_zoom_percent(-1, true) == 100 && pc_zoom_percent(7, true) == 200);
+  char b[24];
+  pc_zoom_label(NULL, -1, false, b, sizeof b);
+  assert(!strcmp(b, "ZOOM 80%"));
+  pc_zoom_label(NULL, 2, true, b, sizeof b);
+  assert(!strcmp(b, "ZOOM 150%"));
+  struct pc_state s;
+  assert(pc_state_parse("{\"v\":1,\"screen_w\":512,\"screen_h\":384,\"zoom_pct\":100}", &s));
+  assert(s.screenW == 512 && s.screenH == 384 && s.zoomPct == 100 && !s.zoomOff);
+  pc_zoom_label(&s, -2, false, b, sizeof b); // picked 67%, but a menu is open: the game's own size shows
+  assert(!strcmp(b, "ZOOM 100%"));
+  assert(pc_state_parse("{\"v\":1,\"zoom_pct\":67}", &s));
+  pc_zoom_label(&s, -2, false, b, sizeof b);
+  assert(!strcmp(b, "ZOOM 67%"));
+  assert(pc_state_parse("{\"v\":1,\"zoom_pct\":100,\"zoom_off\":1}", &s) && s.zoomOff);
+  pc_zoom_label(&s, -2, false, b, sizeof b);
+  assert(!strcmp(b, "ZOOM OFF"));
+  pc_zoom_label(&s, 1, true, b, sizeof b); // a PLAY ONLY game: PokeDaisy's own zoom, the companion's word aside
+  assert(!strcmp(b, "ZOOM 125%"));
+}
+
 int main(void) {
+  test_zoom_label();
   test_stick();
   test_lean();
   test_companion_log();
