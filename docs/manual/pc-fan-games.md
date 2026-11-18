@@ -3,7 +3,7 @@ title: PC fan games
 summary: Play PC fan games made with RPG Maker inside PokeDaisy on Windows, full screen, with your party and the battle in the wings.
 section: start
 order: 92
-keywords: [pc, fan game, left stick, analog stick, thumbstick, button layout, alt tab, control hints, keyboard, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, restart, vsync, skips rows, cursor jumps, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
+keywords: [pc, fan game, left stick, analog stick, thumbstick, button layout, alt tab, control hints, keyboard, language, english, spanish, idioma, fan games, rpg maker, rpg maker xp, essentials, mkxp, mkxp-z, game.exe, game.ini, restart, vsync, skips rows, cursor jumps, lag, input lag, latency, reborn, tectonic, fire ash, insurgence, phoenix rising, rejuvenation, desolation, awakening, bushido, empire, eon guardians, wing room, wide view, wide, zoom, camera, pan, xbrz, play time, fast forward, instant text, controller, full screen, pc game, windows]
 ---
 
 On Windows, PokeDaisy plays PC fan games made with RPG Maker (most of them are
@@ -116,6 +116,8 @@ button to run, the same as on a keyboard. `START` opens the game's menu, and `SE
 uses your registered item in games that have one. The `GUIDE` button, `L3`,
 `LT` and `RT` stay PokeDaisy's. The keyboard works as the game sets it up.
 One press of the D-pad moves a menu's cursor one row; hold it to keep moving.
+Your presses reach the game right away even though the game's window is in front of
+PokeDaisy's.
 
 In Indigo, Añil, Reminiscencia, Reborn and Rejuvenation, PokeDaisy hands your
 buttons to the game where it reads its own keys, so its menus move just as they
