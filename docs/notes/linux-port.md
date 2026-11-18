@@ -135,6 +135,19 @@ applies, and only when the type numbering is vanilla. DS games show no kind: the
   repaint only when `wingsDirty` (the companion's JSON, a window change, zoom / ff / instant / WIDE, a button, a
   restart) or `PC_WINGS_MS` (66) has passed; input and the pad feed still run every 8 ms. Capture games still draw
   every pass (PokeDaisy draws their picture).
+- **Name entry on the pad** (2026-11-18): a OneXPlayer player (no keyboard) was stuck at Reborn / Rejuvenation's
+  "Your name?" screen. Rejuvenation 13.5's `TextEntry.rb` (Reborn's is the same code) has no `PokemonEntryScene2`:
+  `pbEnterText` always builds `PokemonEntryScene`, whose `USEKEYBOARD = true` constant picks `Window_TextEntry_Keyboard`
+  (`Input.gets`, ENTER / ESC through `triggerex?`) over its old `Window_CharacterEntry` grid (`pbEntry2`: arrows, C
+  picks, B deletes via `Window_TextEntry#update`, an OK cell confirms). Essentials v17 to v21 instead choose
+  `PokemonEntryScene2` (the cursor grid) or the keyboard scene from `$PokemonSystem.textinput` (older:
+  `USEKEYBOARDTEXTENTRY`). Every one of them goes through `PokemonEntry#pbStartScreen`, so the companion wraps that
+  (`hook_entry`, retried on ticks until the class exists): once the pad feed has seen any button (`@padUsed`, set in
+  `feed_read`), a `PokemonEntryScene` there is swapped for a fresh `PokemonEntryScene2` when the game has one, else
+  the scene's own `USEKEYBOARD` is `remove_const` / `const_set` to false for that call, and both are put back in an
+  `ensure` (a reset mid-entry included). Nothing is written to `$PokemonSystem`. Not covered: `pbFreeText` /
+  `pbMessageFreeText` (a typed box inside a message, used for codes and passwords), which has no grid to fall back
+  on. Test: `test_companion_entry.rb` (ctest `companion-entry`).
 - **XInput, not raw input** (2026-11-18): the real cause of the fan game lag and the 3 to 6 rows a press on the
   OneXPlayer. SDL 2.32 on Windows reads an XInput pad through its RAWINPUT (and WGI) drivers, whose reports reach
   PokeDaisy reliably only while its own window has the foreground; behind the game's window the pad feed logged a

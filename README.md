@@ -641,6 +641,11 @@ Every change, one line each (a pull request that changes what the fork adds upda
   quiet, and the wings' names and icons are asked of the game once each. Every fan game now writes frame time
   stats and slow steps to pokedaisy.log ("PC companion:" lines), and `POCKET_PC_INPUT=feed|source|native` picks
   the input path for a check (native shows the game's player the pad itself).
+- **Naming yourself or a creature in a fan game works from the controller** (Reborn, Rejuvenation and any
+  Essentials game that asks you to type): once you've pressed a controller button, a name screen that wants the
+  keyboard opens as the game's own letter grid instead, for that entry only. Games with a second, cursor name screen
+  (Essentials v17 to v21) get that one; Reborn and Rejuvenation get the grid built into their name screen. Your saved
+  text entry option is never changed, and a keyboard-only player still types as before.
 
 </details>
 
